@@ -1,6 +1,8 @@
-# asia-data-mcp
+# bounty-mcp
 
-MCP server for Asia Data API — Singapore property, financial, and geographic data for AI agents.
+MCP server for BountyAPI — Singapore property, financial, and geographic data for AI agents.
+
+Connect AI agents to BountyAPI endpoints at `https://bountyapi.com`.
 
 ## Quick Start
 
@@ -9,9 +11,9 @@ Install and use with Claude Desktop or any MCP-compatible client:
 ```json
 {
   "mcpServers": {
-    "asia-data": {
+    "bounty": {
       "command": "npx",
-      "args": ["asia-data-mcp"]
+      "args": ["bounty-mcp"]
     }
   }
 }
@@ -58,7 +60,7 @@ Search HDB resale transactions with filters.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ASIA_DATA_API_URL` | `http://localhost:8000` | API base URL |
+| `BOUNTY_API_URL` | `https://bountyapi.com` | API base URL |
 
 ## Development
 

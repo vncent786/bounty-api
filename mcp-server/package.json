@@ -1,16 +1,24 @@
 {
-  "name": "asia-data-mcp",
+  "name": "bounty-mcp",
   "version": "1.0.0",
-  "description": "MCP server for Asia Data API — Singapore property, financial, and geographic data for AI agents",
+  "description": "MCP server for BountyAPI — specialist data APIs for AI agents",
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "bin": {
-    "asia-data-mcp": "./dist/index.js"
+    "bounty-mcp": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepack": "npm run build",
+    "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "singapore", "property", "stamp-duty", "hdb", "api", "ai-agent"],
+  "keywords": ["mcp", "data-api", "api", "ai-agent", "x402", "property", "stamp-duty", "hdb", "singapore"],
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0"

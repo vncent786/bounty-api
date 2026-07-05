@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 
 /**
- * Asia Data MCP Server
+ * BountyAPI MCP Server
  * 
  * Exposes Singapore property and financial data APIs as MCP tools.
  * AI agents (Claude Desktop, Cursor, etc.) can discover and call these tools.
  * 
  * Usage:
- *   npx asia-data-mcp
+ *   npx bounty-mcp
  *   
  * Or add to Claude Desktop config:
  *   {
  *     "mcpServers": {
- *       "asia-data": {
+ *       "bounty": {
  *         "command": "npx",
- *         "args": ["asia-data-mcp"]
+ *         "args": ["bounty-mcp"]
  *       }
  *     }
  *   }
@@ -24,8 +24,8 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 
-// API base URL — change this when deployed
-const API_BASE = process.env.ASIA_DATA_API_URL || "http://localhost:8000";
+// API base URL
+const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 
 // ============================================================
 // Tool definitions
@@ -103,8 +103,8 @@ const TOOLS = [
 // API call helper
 // ============================================================
 
-async function callAPI(path, method = "GET", body = null) {
-  const options = {
+async function callAPI(path: string, method = "GET", body: unknown = null) {
+  const options: RequestInit = {
     method,
     headers: { "Content-Type": "application/json" },
   };
@@ -128,7 +128,7 @@ async function callAPI(path, method = "GET", body = null) {
 // ============================================================
 
 const server = new Server(
-  { name: "asia-data-mcp", version: "1.0.0" },
+  { name: "bounty-mcp", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -140,6 +140,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Handle tool calls
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
+  const toolArgs = (args ?? {}) as Record<string, any>;
 
   try {
     let result;
@@ -147,38 +148,38 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "sg_stamp_duty":
         result = await callAPI("/stamp-duty", "POST", {
-          price: args.price,
-          property_type: args.property_type || "residential",
-          buyer_profile: args.buyer_profile || "SC",
-          property_count: args.property_count || 1
+          price: toolArgs.price,
+          property_type: toolArgs.property_type || "residential",
+          buyer_profile: toolArgs.buyer_profile || "SC",
+          property_count: toolArgs.property_count || 1
         });
         break;
 
       case "sg_postal_lookup":
-        result = await callAPI(`/postal/${args.postal_code}`);
+        result = await callAPI(`/postal/${toolArgs.postal_code}`);
         break;
 
       case "sg_rental_yield":
         result = await callAPI("/rental-yield/calculate", "POST", {
-          property_price: args.property_price,
-          monthly_rent: args.monthly_rent,
-          management_fee_monthly: args.management_fee_monthly || 0,
-          maintenance_monthly: args.maintenance_monthly || 0,
-          annual_expenses: args.annual_expenses || 0
+          property_price: toolArgs.property_price,
+          monthly_rent: toolArgs.monthly_rent,
+          management_fee_monthly: toolArgs.management_fee_monthly || 0,
+          maintenance_monthly: toolArgs.maintenance_monthly || 0,
+          annual_expenses: toolArgs.annual_expenses || 0
         });
         break;
 
       case "hdb_resale_median":
-        result = await callAPI(`/hdb/median/${encodeURIComponent(args.town)}`);
+        result = await callAPI(`/hdb/median/${encodeURIComponent(toolArgs.town)}`);
         break;
 
       case "hdb_resale_search":
         const params = new URLSearchParams();
-        if (args.town) params.set("town", args.town);
-        if (args.flat_type) params.set("flat_type", args.flat_type);
-        if (args.min_price) params.set("min_price", args.min_price);
-        if (args.max_price) params.set("max_price", args.max_price);
-        params.set("limit", args.limit || 20);
+        if (toolArgs.town) params.set("town", toolArgs.town);
+        if (toolArgs.flat_type) params.set("flat_type", toolArgs.flat_type);
+        if (toolArgs.min_price) params.set("min_price", String(toolArgs.min_price));
+        if (toolArgs.max_price) params.set("max_price", String(toolArgs.max_price));
+        params.set("limit", String(toolArgs.limit || 20));
         result = await callAPI(`/hdb/search?${params}`);
         break;
 
@@ -190,8 +191,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
     return {
-      content: [{ type: "text", text: `Error: ${err.message}` }],
+      content: [{ type: "text", text: `Error: ${message}` }],
       isError: true
     };
   }
@@ -200,5 +202,5 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("asia-data-mcp v1.0.0 running on stdio");
+console.error("bounty-mcp v1.0.0 running on stdio");
 console.error(`API base: ${API_BASE}`);

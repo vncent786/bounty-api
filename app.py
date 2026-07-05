@@ -304,19 +304,19 @@ async def landing_page():
       <div class="grid">
         <article class="card">
           <div><h3>SG Stamp Duty</h3><p>BSD and ABSD calculations for Singapore property purchases. Rates verified against IRAS.</p></div>
-          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">$0.002 / call</div></div>
+          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">$0.002 / call · <a href="/apis/stamp-duty">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Postal District Mapper</h3><p>Map Singapore postal codes to districts, regions, and property market areas.</p></div>
-          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">$0.001 / call</div></div>
+          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">$0.001 / call · <a href="/apis/postal-district">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Rental Yield</h3><p>Gross yield, net yield, cash flow, cap rate, and price-to-rent calculations.</p></div>
-          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.002 / call</div></div>
+          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.002 / call · <a href="/apis/rental-yield">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>HDB Resale Data</h3><p>HDB resale town data sourced from data.gov.sg, structured for agent workflows.</p></div>
-          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">live data</span></div><div class="price">$0.003 / call</div></div>
+          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">sampled data</span></div><div class="price">$0.003 / call · <a href="/apis/hdb-resale">View API →</a></div></div>
         </article>
       </div>
     </section>
@@ -352,6 +352,106 @@ async def landing_page():
   </footer>
 </body>
 </html>"""
+
+
+API_CATALOG = {
+    "stamp-duty": {
+        "title": "SG Stamp Duty Calculator",
+        "eyebrow": "Verified property-tax logic",
+        "summary": "Calculate Singapore BSD and ABSD for property purchases with source-forward outputs and tier breakdowns.",
+        "price": "$0.002 / call",
+        "source": "IRAS stamp duty rates, verified against published examples.",
+        "endpoints": ["POST /stamp-duty", "GET /bsd", "GET /absd"],
+        "params": ["price", "property_type", "buyer_profile", "property_count"],
+        "request": "curl 'https://bountyapi.com/bsd?price=1000000'",
+        "response": '{\n  "price": 1000000,\n  "property_type": "residential",\n  "bsd": 24600,\n  "source": "iras.gov.sg"\n}',
+        "try_url": "/bsd?price=1000000",
+        "limit": "ABSD depends on buyer profile and property count. Use POST /stamp-duty for full calculation."
+    },
+    "postal-district": {
+        "title": "SG Postal District Mapper",
+        "eyebrow": "Static geography primitive",
+        "summary": "Map 6-digit Singapore postal codes to postal districts, regions, and common property-market areas.",
+        "price": "$0.001 / call",
+        "source": "Static Singapore postal district reference table.",
+        "endpoints": ["GET /postal/{code}", "GET /postal/districts", "GET /postal/district/{number}"],
+        "params": ["postal_code", "district_number"],
+        "request": "curl 'https://bountyapi.com/postal/238582'",
+        "response": '{\n  "postal_code": "238582",\n  "district": 9,\n  "name": "Orchard / Cairnhill / River Valley",\n  "general_area": "Core Central (CCR)"\n}',
+        "try_url": "/postal/238582",
+        "limit": "Singapore-only. Sectors 09-13 are intentionally unassigned under this postal-district scheme."
+    },
+    "rental-yield": {
+        "title": "Rental Yield Calculator",
+        "eyebrow": "Pure math investment primitive",
+        "summary": "Calculate gross yield, net yield, cap rate, annual cashflow, and price-to-rent ratios for property underwriting.",
+        "price": "$0.002 / call",
+        "source": "Calculated from standard real-estate formulas. No external data dependency.",
+        "endpoints": ["POST /rental-yield/calculate"],
+        "params": ["property_price", "monthly_rent", "annual_expenses", "property_tax_rate", "management_fee_monthly", "maintenance_monthly"],
+        "request": "curl -X POST 'https://bountyapi.com/rental-yield/calculate' -H 'content-type: application/json' -d '{\"property_price\":1000000,\"monthly_rent\":3500}'",
+        "response": '{\n  "gross_annual_rent": 42000,\n  "gross_yield_percent": 4.2,\n  "net_yield_percent": 4.032,\n  "price_to_rent_ratio": 23.81\n}',
+        "try_url": "/docs#/rental-yield/calculate_rental_yield_calculate_post",
+        "limit": "Does not model mortgage amortization. Property tax defaults to a simplified flat assumption unless caller overrides it."
+    },
+    "hdb-resale": {
+        "title": "HDB Resale Data",
+        "eyebrow": "Public transaction data",
+        "summary": "Expose HDB resale transaction search and sampled town-level aggregates from Singapore's official open-data portal.",
+        "price": "$0.003 / call",
+        "source": "data.gov.sg HDB resale flat prices dataset.",
+        "endpoints": ["GET /hdb/towns", "GET /hdb/median", "GET /hdb/median/{town}", "GET /hdb/search"],
+        "params": ["town", "flat_type", "min_price", "max_price", "min_floor_area_sqm", "limit"],
+        "request": "curl 'https://bountyapi.com/hdb/towns'",
+        "response": '{\n  "total_towns": 24,\n  "total_transactions": 4000,\n  "note": "Aggregates are based on a bounded sample..."\n}',
+        "try_url": "/hdb/towns",
+        "limit": "Current aggregate endpoints are sampled and explicitly labelled. Full-history aggregation is planned with persistent storage."
+    },
+}
+
+
+def _catalog_html(slug: str, item: dict) -> str:
+    endpoints = "".join(f"<li>{e}</li>" for e in item["endpoints"])
+    params = "".join(f"<span>{p}</span>" for p in item["params"])
+    return f"""<!doctype html>
+<html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
+<title>{item['title']} — Bounty API</title>
+<meta name=\"description\" content=\"{item['summary']}\">
+<link href=\"https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap\" rel=\"stylesheet\">
+<style>
+:root{{--ink:#171717;--muted:#5f5f5f;--line:rgba(0,0,0,.08);--wash:#fafafa;--green:#0f8a55}}
+*{{box-sizing:border-box}}body{{margin:0;font-family:Geist,system-ui,sans-serif;color:var(--ink);background:#fff}}a{{color:inherit;text-decoration:none}}
+.nav{{display:flex;justify-content:space-between;align-items:center;padding:16px 28px;box-shadow:rgba(0,0,0,.08) 0 1px 0;position:sticky;top:0;background:rgba(255,255,255,.86);backdrop-filter:blur(16px)}}
+.brand{{font-weight:600;letter-spacing:-.03em}}.wrap{{max-width:1080px;margin:0 auto;padding:72px 28px}}.back{{font-size:14px;color:var(--muted)}}
+h1{{font-size:clamp(42px,7vw,78px);line-height:.94;letter-spacing:-.06em;margin:22px 0 18px;max-width:840px}}.lead{{font-size:20px;line-height:1.65;color:var(--muted);max-width:760px}}
+.badges{{display:flex;gap:9px;flex-wrap:wrap;margin:24px 0}}.badge,.params span{{font:13px 'Geist Mono',monospace;padding:7px 10px;border-radius:999px;background:#f5f5f5;color:#525252}}
+.grid{{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:34px}}.card{{padding:24px;border-radius:16px;box-shadow:rgba(0,0,0,.08) 0 0 0 1px, rgba(0,0,0,.04) 0 8px 24px -14px;background:#fff}}
+h2{{font-size:24px;letter-spacing:-.04em;margin:0 0 14px}}p,li{{color:var(--muted);line-height:1.55}}ul{{padding-left:20px}}.price{{color:var(--green);font:15px 'Geist Mono',monospace}}
+pre{{margin:0;white-space:pre-wrap;word-break:break-word;background:#111;color:#e5e5e5;padding:20px;border-radius:14px;font:13px/1.7 'Geist Mono',monospace}}
+.cta{{display:inline-flex;margin-top:20px;background:#171717;color:#fff;border-radius:8px;padding:11px 15px;font-size:14px;font-weight:500}}.params{{display:flex;gap:8px;flex-wrap:wrap}}
+@media(max-width:820px){{.grid{{grid-template-columns:1fr}}}}
+</style></head><body>
+<nav class=\"nav\"><a class=\"brand\" href=\"/\">Bounty API</a><a href=\"/docs\">Docs</a></nav>
+<main class=\"wrap\">
+<a class=\"back\" href=\"/#apis\">← API catalog</a>
+<div class=\"badges\"><span class=\"badge\">{item['eyebrow']}</span><span class=\"badge\">{item['price']}</span></div>
+<h1>{item['title']}</h1><p class=\"lead\">{item['summary']}</p><a class=\"cta\" href=\"{item['try_url']}\">Try endpoint</a>
+<div class=\"grid\">
+<section class=\"card\"><h2>Endpoints</h2><ul>{endpoints}</ul></section>
+<section class=\"card\"><h2>Parameters</h2><div class=\"params\">{params}</div></section>
+<section class=\"card\"><h2>Example request</h2><pre>{item['request']}</pre></section>
+<section class=\"card\"><h2>Example response</h2><pre>{item['response']}</pre></section>
+<section class=\"card\"><h2>Source</h2><p>{item['source']}</p></section>
+<section class=\"card\"><h2>Limitations</h2><p>{item['limit']}</p></section>
+</div></main></body></html>"""
+
+
+@app.get("/apis/{slug}", response_class=HTMLResponse)
+async def api_catalog_page(slug: str):
+    item = API_CATALOG.get(slug)
+    if not item:
+        raise HTTPException(status_code=404, detail="API catalog page not found")
+    return _catalog_html(slug, item)
 
 
 @app.get("/api")

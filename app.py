@@ -10,7 +10,7 @@ APIs:
 - HDB Resale Price data (live from data.gov.sg)
 """
 
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import PlainTextResponse, HTMLResponse
 from pydantic import BaseModel, Field
@@ -692,7 +692,7 @@ try:
             await _mcp_lifespan_cm.__aexit__(None, None, None)
 
     @app.api_route("/mcp", methods=["GET", "POST", "DELETE"])
-    async def mcp_endpoint(request):
+    async def mcp_endpoint(request: Request):
         """MCP Streamable HTTP endpoint."""
         # Strip /mcp from the path so the sub-app sees /
         scope = dict(request.scope)

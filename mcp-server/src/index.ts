@@ -7,14 +7,14 @@
  * AI agents (Claude Desktop, Cursor, etc.) can discover and call these tools.
  * 
  * Usage:
- *   npx bounty-mcp
+ *   npx bountyapi-mcp
  *   
  * Or add to Claude Desktop config:
  *   {
  *     "mcpServers": {
  *       "bounty": {
  *         "command": "npx",
- *         "args": ["bounty-mcp"]
+ *         "args": ["bountyapi-mcp"]
  *       }
  *     }
  *   }
@@ -128,7 +128,7 @@ async function callAPI(path: string, method = "GET", body: unknown = null) {
 // ============================================================
 
 const server = new Server(
-  { name: "bounty-mcp", version: "1.0.0" },
+  { name: "bountyapi-mcp", version: "1.0.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -202,5 +202,5 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error("bounty-mcp v1.0.0 running on stdio");
+console.error("bountyapi-mcp v1.0.0 running on stdio");
 console.error(`API base: ${API_BASE}`);

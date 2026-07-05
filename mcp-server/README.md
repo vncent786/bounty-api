@@ -1,6 +1,6 @@
-# bounty-mcp
+# bountyapi-mcp
 
-MCP server for BountyAPI — Singapore property, financial, and geographic data for AI agents.
+MCP server for BountyAPI — specialist data APIs for AI agents.
 
 Connect AI agents to BountyAPI endpoints at `https://bountyapi.com`.
 
@@ -13,7 +13,7 @@ Install and use with Claude Desktop or any MCP-compatible client:
   "mcpServers": {
     "bounty": {
       "command": "npx",
-      "args": ["bounty-mcp"]
+      "args": ["bountyapi-mcp"]
     }
   }
 }
@@ -49,7 +49,8 @@ Calculate rental investment metrics.
 Get HDB resale price data by town.
 - All 26 HDB towns
 - Median prices by flat type (2 ROOM through EXECUTIVE)
-- 234K+ transactions from data.gov.sg
+- Sampled transaction aggregates from data.gov.sg
+- Full-history storage planned
 
 ### hdb_resale_search
 Search HDB resale transactions with filters.

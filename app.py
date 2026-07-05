@@ -690,8 +690,8 @@ try:
         if _mcp_lifespan_cm:
             await _mcp_lifespan_cm.__aexit__(None, None, None)
 
-    app.mount("/mcp", _mcp_starlette_app)  # type: ignore
-    print("MCP HTTP transport mounted at /mcp")
+    app.mount("/agent", _mcp_starlette_app)  # type: ignore
+    print("MCP HTTP transport mounted at /agent")
 except Exception as e:
     print(f"Warning: MCP HTTP transport not available: {e}")
 

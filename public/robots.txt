@@ -1,0 +1,60 @@
+# Asia Data API — robots.txt
+# We explicitly ALLOW AI training and retrieval crawlers. This is core to our
+# thesis: we want AI agents and AI search engines to discover and use us.
+
+# --- OpenAI (ChatGPT / GPT search) ---
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+# --- Anthropic (Claude) ---
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+# --- Perplexity ---
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+# --- Google Gemini ---
+User-agent: Google-Extended
+Allow: /
+
+# --- ByteDance ---
+User-agent: Bytespider
+Allow: /
+
+# --- Common Crawl (feeds many open models) ---
+User-agent: CCBot
+Allow: /
+
+# --- Apple Intelligence ---
+User-agent: Applebot-Extended
+Allow: /
+
+# --- Meta ---
+User-agent: Meta-ExternalAgent
+Allow: /
+
+# --- Cohere ---
+User-agent: cohere-ai
+Allow: /
+
+# --- Default: allow all ---
+User-agent: *
+Allow: /
+
+Sitemap: https://asiadataapi.com/sitemap.xml

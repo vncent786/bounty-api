@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "sg-stamp-duty": {
+      "command": "npx",
+      "args": ["-y", "fetch-mcp"],
+      "env": {
+        "API_ENDPOINT": "https://your-api-url.com"
+      }
+    }
+  }
+}

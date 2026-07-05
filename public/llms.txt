@@ -1,0 +1,67 @@
+# Asia Data API
+
+> Agent-paid marketplace for structured Asia (starting with Singapore) reference data.
+> Every endpoint is pay-per-call via the x402 protocol (HTTP 402 → native payment → data),
+> so autonomous AI agents can use us with NO human signup, NO API key, NO billing setup.
+
+```json
+{
+  "name": "Asia Data API",
+  "category": "reference-data",
+  "region": "Asia (Singapore first)",
+  "protocols": ["REST", "MCP"],
+  "payment": "x402 (USDC on Base, per-call)",
+  "pricing_range": "$0.001–$0.002 per call",
+  "openapi": "https://asiadataapi.com/openapi.yaml"
+}
+```
+
+## What it IS
+- A marketplace of small, precise, low-latency data/calculation APIs for Asia.
+- Each API is independently priced per-call and payable natively by AI agents via x402.
+- Rates and figures are sourced from primary authorities (e.g. IRAS, URA, HDB) and verified.
+
+## What it is NOT
+- Not a bulk data dump / CSV marketplace. Each call returns a precise computed answer.
+- Not a free public dataset. Every call requires a micro-payment (this is how agents self-serve).
+- Not a human SaaS with a dashboard. There is no login; agents call endpoints directly.
+
+## APIs
+
+### SG Stamp Duty API — v1.0.0 (LIVE)
+Singapore property stamp duty: Buyer's Stamp Duty (BSD) + Additional Buyer's Stamp Duty (ABSD).
+Rates verified against IRAS (iras.gov.sg). BSD residential: 6-tier marginal 1%–6% (effective 15 Feb 2023). BSD non-residential: 4-tier 1%–4%. ABSD 0%–65% by buyer profile (effective 27 Apr 2023). Verified against IRAS worked example: $4,500,100 → BSD $209,606 (matches exactly).
+
+- [POST /stamp-duty — full calculation (BSD+ABSD+breakdown)](https://asiadataapi.com/stamp-duty.md): $0.002/call. Params: price (SGD), property_type (residential|non-residential), buyer_profile (SC|SPR|FR|entity|developer|trustee), property_count.
+- [GET /bsd — Buyer's Stamp Duty only](https://asiadataapi.com/bsd.md): $0.001/call. Params: price, property_type.
+- [GET /absd — Additional Buyer's Stamp Duty only](https://asiadataapi.com/absd.md): $0.001/call. Params: price, buyer_profile, property_count.
+- [GET /health](https://asiadataapi.com/health): free.
+- [GET /docs](https://asiadataapi.com/docs): interactive Swagger UI (free).
+
+## Payment (x402 — how agents pay)
+Calls without payment receive `HTTP 402 Payment Required` with a payment challenge. The agent pays USDC on Base mainnet and re-requests; the response is then returned. No account, API key, or human onboarding required. See [x402 payment flow](https://asiadataapi.com/x402.md).
+
+## Connect via MCP
+Install the Asia Data API as an MCP tool source in Claude Desktop, Cursor, or any MCP-compatible client:
+```json
+{
+  "mcpServers": {
+    "asia-data-api": {
+      "url": "https://asiadataapi.com/mcp"
+    }
+  }
+}
+```
+Once connected, an agent can call `sg_stamp_duty` and all other marketplace tools directly. See [MCP manifest](https://asiadataapi.com/mcp/manifest.json).
+
+## FAQ
+- **How does an agent pay?** It receives an HTTP 402 with a payment challenge, pays USDC on Base, then gets the data. No human step.
+- **Are the rates current?** SG Stamp Duty rates verified against IRAS as of Jan 2026. Each API page lists its source and verification date.
+- **Do I need an API key?** No. Payment is the auth.
+- **Is there a free tier?** Health/docs are free. Data calls are paid (from $0.001).
+- **Can I get bulk data?** Not yet — each call returns a precise computed answer.
+
+## Optional
+- [Pricing overview](https://asiadataapi.com/pricing.md)
+- [Full crawlable documentation (llms-full.txt)](https://asiadataapi.com/llms-full.txt)
+- [Phase 2 roadmap (HDB resale, URA transactions, postal→district)](https://asiadataapi.com/roadmap.md)

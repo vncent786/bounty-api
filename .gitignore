@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+node_modules/
+mcp-server/node_modules/
+mcp-server/dist/
+*.egg-info/
+.pytest_cache/
+.DS_Store
+Thumbs.db

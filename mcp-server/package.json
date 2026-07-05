@@ -1,0 +1,22 @@
+{
+  "name": "asia-data-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Asia Data API — Singapore property, financial, and geographic data for AI agents",
+  "type": "module",
+  "bin": {
+    "asia-data-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "keywords": ["mcp", "singapore", "property", "stamp-duty", "hdb", "api", "ai-agent"],
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "@types/node": "^22.0.0"
+  }
+}

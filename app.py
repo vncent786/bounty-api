@@ -34,6 +34,19 @@ app.add_middleware(
 )
 
 
+# Railway terminates TLS — tell Starlette to use https for redirects/proxies
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class ProxyProtoMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        proto = request.headers.get("x-forwarded-proto", "")
+        if proto:
+            request.scope["scheme"] = proto
+        return await call_next(request)
+
+app.add_middleware(ProxyProtoMiddleware)
+
+
 # ============================================================
 # Startup: pre-warm HDB cache so first user request doesn't block
 # ============================================================

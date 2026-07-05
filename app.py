@@ -22,7 +22,7 @@ import os
 
 app = FastAPI(
     title="Bounty API",
-    description="Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data. Built for x402 micropayments.",
+    description="Specialist data APIs for AI agents. Pay-per-call, agent-native, globally scalable.",
     version="2.0.0",
 )
 
@@ -32,6 +32,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ============================================================
+# Startup: pre-warm HDB cache so first user request doesn't block
+# ============================================================
+
+@app.on_event("startup")
+async def _prewarm_cache():
+    """Trigger HDB data download in background on app start.
+    Without this, the first /hdb/* request after deploy hangs 30-60s."""
+    try:
+        from apis.hdb_resale import _maybe_refresh_background
+        _maybe_refresh_background()
+    except Exception:
+        pass  # non-fatal — endpoints will warm on first request
 
 
 # ============================================================
@@ -170,8 +185,8 @@ async def landing_page():
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bounty API — Asian data APIs for agents</title>
-  <meta name="description" content="Bounty API is a marketplace of specialist Asian data APIs built for AI agents, developers, and x402 micropayments." />
+  <title>Bounty API — Data APIs for agents</title>
+  <meta name="description" content="Bounty API is a marketplace of specialist data APIs built for AI agents, developers, and x402 micropayments." />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -261,9 +276,9 @@ async def landing_page():
 
   <main>
     <div class="hero">
-      <div class="eyebrow">Singapore live now · Southeast Asia next</div>
-      <h1>Specialist Asian data APIs for AI agents.</h1>
-      <p>Bounty turns messy public datasets, government portals, and local market rules into clean endpoints agents can call without scraping the web from scratch.</p>
+      <div class="eyebrow">Live in Singapore · Scaling globally</div>
+      <h1>Specialist data APIs for AI agents.</h1>
+      <p>Bounty turns messy public datasets, government portals, and local market rules into clean endpoints agents can call without scraping the web from scratch. Starting in Singapore, expanding worldwide.</p>
       <div class="hero-actions">
         <a class="button primary" href="/docs">Explore API docs</a>
         <a class="button" href="/llms.txt">Read llms.txt</a>
@@ -284,7 +299,7 @@ async def landing_page():
     <section id="apis">
       <div class="section-head">
         <h2>API catalog</h2>
-        <p>Apify-style marketplace clarity, but for high-margin Asian data primitives agents actually need.</p>
+        <p>Apify-style marketplace clarity, but for high-margin data primitives agents actually need. More regions coming.</p>
       </div>
       <div class="grid">
         <article class="card">
@@ -320,7 +335,7 @@ async def landing_page():
         <div class="codebox">
           <pre>{
   <span class="blue">"name"</span>: <span class="green">"Bounty API"</span>,
-  <span class="blue">"focus"</span>: <span class="green">"Singapore / Southeast Asia"</span>,
+  <span class="blue">"focus"</span>: <span class="green">"Global, starting in SG"</span>,
   <span class="blue">"payment"</span>: <span class="green">"x402 on Base"</span>,
   <span class="blue">"live_apis"</span>: 4,
   <span class="blue">"docs"</span>: <span class="green">"https://bountyapi.com/docs"</span>,
@@ -333,7 +348,7 @@ async def landing_page():
 
   <footer class="footer">
     <span>© 2026 Bounty API</span>
-    <span>Asian data APIs for agents, developers, and automated workflows.</span>
+    <span>Data APIs for agents, developers, and automated workflows.</span>
   </footer>
 </body>
 </html>"""
@@ -345,7 +360,7 @@ async def root():
     return {
         "name": "Bounty API",
         "version": "2.0.0",
-        "description": "Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data.",
+        "description": "Specialist data APIs for AI agents. Pay-per-call, agent-native, globally scalable.",
         "endpoints": {
             "/": "Public landing page",
             "/api": "Machine-readable API info",
@@ -493,14 +508,14 @@ async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""
     return """# Bounty API
 
-> Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions.
+> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Starting in Singapore, scaling globally.
 
 ```json
 {
   "name": "Bounty API",
   "url": "https://bountyapi.com",
   "category": "Data API Marketplace",
-  "focus": "Singapore / Southeast Asia",
+  "focus": "Global, starting with Singapore",
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
@@ -511,10 +526,10 @@ async def llms_txt():
 
 ## What it is
 
-- A marketplace of specialist Asian data APIs where buyers are AI agents
+- A marketplace of specialist data APIs where buyers are AI agents
 - Discovery via MCP (single endpoint exposes all APIs as tools)
 - Payment via x402 (USDC on Base, sub-second settlement)
-- First and only x402 marketplace focused on Asian data
+- Starting with Singapore data, expanding globally
 
 ## Available APIs
 
@@ -546,7 +561,7 @@ Add to Claude Desktop or any MCP-compatible client:
 ```json
 {
   "mcpServers": {
-    "asia-data": {
+    "bounty-api": {
       "url": "https://bountyapi.com/mcp"
     }
   }

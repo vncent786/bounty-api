@@ -79,7 +79,7 @@ FLAT_TYPE_ORDER = [
     "MULTI-GENERATION",
 ]
 
-HTTP_HEADERS = {"User-Agent": "asia-data-api/hdb-resale (contact: ops@example.com)"}
+HTTP_HEADERS = {"User-Agent": "bountyapi/hdb-resale (contact: ops@bountyapi.com)"}
 
 # Shared SSL context (data.gov.sg is fine with verification, but we keep a
 # forgiving context so transient chain issues don't break data refreshes).
@@ -369,18 +369,12 @@ def _get_aggregate(
             "serving cached data; a refresh is running in the background",
         )
 
-    # Cold start: build synchronously (serialized so concurrent callers wait,
-    # then pick up the freshly-built cache).
-    with _CACHE.lock():
-        if not force and _CACHE.fresh():
-            return _CACHE.get(), None
-        try:
-            return _refresh_aggregate(), None
-        except Exception as exc:  # noqa: BLE001
-            warning = f"Refresh failed ({type(exc).__name__}: {exc})"
-            if not _CACHE.is_empty:
-                return _CACHE.get(), warning
-            return None, warning
+    # Cold start: DON'T block the caller for 30-60s. Kick off a background
+    # rebuild and return immediately with a "warming up" warning. The startup
+    # event in app.py triggers this on deploy, so by the time real traffic
+    # arrives the cache should already be populated.
+    _maybe_refresh_background()
+    return None, "HDB data is warming up. Please retry in ~30 seconds."
 
 
 # ---------------------------------------------------------------------------

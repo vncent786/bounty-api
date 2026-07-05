@@ -603,6 +603,34 @@ except ImportError as e:
 # llms.txt — AI discovery (the #1 AI SEO priority)
 # ============================================================
 
+@app.get("/robots.txt", response_class=PlainTextResponse)
+async def robots_txt():
+    return """User-agent: *
+Allow: /
+
+Sitemap: https://bountyapi.com/sitemap.xml
+"""
+
+
+@app.get("/sitemap.xml", response_class=PlainTextResponse)
+async def sitemap_xml():
+    urls = [
+        "https://bountyapi.com/",
+        "https://bountyapi.com/apis/stamp-duty",
+        "https://bountyapi.com/apis/postal-district",
+        "https://bountyapi.com/apis/rental-yield",
+        "https://bountyapi.com/apis/hdb-resale",
+        "https://bountyapi.com/docs",
+        "https://bountyapi.com/llms.txt",
+        "https://bountyapi.com/llms-full.txt",
+    ]
+    body = "".join(f"  <url><loc>{url}</loc></url>\n" for url in urls)
+    return f"""<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">
+{body}</urlset>
+"""
+
+
 @app.get("/llms.txt", response_class=PlainTextResponse)
 async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""

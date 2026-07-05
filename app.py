@@ -562,6 +562,126 @@ async def calculate_absd_get(
     }
 
 
+
+# ============================================================
+# MCP Streamable HTTP transport — lets ChatGPT/web clients connect
+# ============================================================
+
+def _build_mcp_http_server():
+    """Build a FastMCP server that exposes our API as MCP tools over HTTP."""
+    from mcp.server.fastmcp import FastMCP
+    import httpx
+
+    API_BASE = "https://bountyapi.com"
+    mcp_server = FastMCP("bountyapi")
+    mcp_server.settings.streamable_http_path = "/"
+
+    @mcp_server.tool()
+    async def sg_stamp_duty(
+        price: float,
+        property_type: str = "residential",
+        buyer_profile: str = "SC",
+        property_count: int = 1,
+    ) -> str:
+        """Calculate Singapore property stamp duty (BSD + ABSD).
+        buyer_profile: SC (citizen), SPR (PR), FR (foreigner), entity, developer.
+        Returns total duty, tier breakdown, and effective rate."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{API_BASE}/stamp-duty",
+                json={
+                    "price": price,
+                    "property_type": property_type,
+                    "buyer_profile": buyer_profile,
+                    "property_count": property_count,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_postal_lookup(postal_code: str) -> str:
+        """Look up a Singapore 6-digit postal code to find its district number,
+        district name, and area classification (CCR/RCR/OCR)."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/postal/{postal_code}")
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_rental_yield(
+        property_price: float,
+        monthly_rent: float,
+        annual_expenses: float = 0,
+    ) -> str:
+        """Calculate rental investment metrics: gross yield, net yield, cap rate,
+        price-to-rent ratio, and monthly cashflow."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{API_BASE}/rental-yield/calculate",
+                json={
+                    "property_price": property_price,
+                    "monthly_rent": monthly_rent,
+                    "annual_expenses": annual_expenses,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def hdb_resale_median(town: str) -> str:
+        """Get HDB resale median prices by flat type for a Singapore town.
+        Returns median price, count, min, max for each flat type."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/hdb/median/{town}")
+            return r.text
+
+    @mcp_server.tool()
+    async def hdb_resale_search(
+        town: str = "",
+        flat_type: str = "",
+        min_price: float = 0,
+        max_price: float = 0,
+        limit: int = 10,
+    ) -> str:
+        """Search HDB resale transactions with filters.
+        Leave params empty for broad results."""
+        params = {"limit": limit}
+        if town:
+            params["town"] = town
+        if flat_type:
+            params["flat_type"] = flat_type
+        if min_price:
+            params["min_price"] = min_price
+        if max_price:
+            params["max_price"] = max_price
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/hdb/search", params=params)
+            return r.text
+
+    return mcp_server
+
+
+# Mount MCP HTTP transport at /mcp
+try:
+    _mcp_http = _build_mcp_http_server()
+    _mcp_starlette_app = _mcp_http.streamable_http_app()
+    _mcp_session_manager = _mcp_http._session_manager
+    _mcp_lifespan_cm = None
+
+    @app.on_event("startup")
+    async def _start_mcp_session():
+        global _mcp_lifespan_cm
+        _mcp_lifespan_cm = _mcp_session_manager.run()
+        await _mcp_lifespan_cm.__aenter__()
+
+    @app.on_event("shutdown")
+    async def _stop_mcp_session():
+        if _mcp_lifespan_cm:
+            await _mcp_lifespan_cm.__aexit__(None, None, None)
+
+    app.mount("/mcp", _mcp_starlette_app)  # type: ignore
+    print("MCP HTTP transport mounted at /mcp")
+except Exception as e:
+    print(f"Warning: MCP HTTP transport not available: {e}")
+
 # ============================================================
 # Health check
 # ============================================================

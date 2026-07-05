@@ -1,5 +1,5 @@
 """
-Asia Data API — Specialist data APIs for AI agents.
+Bounty API — Specialist data APIs for AI agents.
 Singapore property, financial, and geographic data.
 Designed for x402 micropayments and MCP discovery.
 
@@ -12,7 +12,7 @@ APIs:
 
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from enum import Enum
@@ -21,7 +21,7 @@ import math
 import os
 
 app = FastAPI(
-    title="Asia Data API",
+    title="Bounty API",
     description="Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data. Built for x402 micropayments.",
     version="2.0.0",
 )
@@ -162,20 +162,200 @@ class StampDutyResult(BaseModel):
     source: str
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
+async def landing_page():
+    """Public marketplace landing page."""
+    return """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bounty API — Asian data APIs for agents</title>
+  <meta name="description" content="Bounty API is a marketplace of specialist Asian data APIs built for AI agents, developers, and x402 micropayments." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #171717;
+      --muted: #5f5f5f;
+      --faint: #8a8a8a;
+      --line: rgba(0, 0, 0, 0.08);
+      --panel: #ffffff;
+      --wash: #fafafa;
+      --accent: #0a72ef;
+      --green: #0f8a55;
+      --amber: #a16207;
+      --radius: 14px;
+      --shadow: rgba(0,0,0,0.08) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 2px, rgba(0,0,0,0.04) 0 10px 24px -16px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Geist', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: var(--ink);
+      background: #fff;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    a { color: inherit; text-decoration: none; }
+    .nav {
+      position: sticky; top: 0; z-index: 20;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 28px;
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(18px);
+      box-shadow: rgba(0,0,0,0.08) 0 1px 0;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.03em; }
+    .mark { width: 24px; height: 24px; border-radius: 7px; background: #171717; color: #fff; display: grid; place-items: center; font-size: 13px; font-family: 'Geist Mono', monospace; }
+    .navlinks { display: flex; align-items: center; gap: 22px; font-size: 14px; color: #4d4d4d; }
+    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 15px; border-radius: 8px; font-size: 14px; font-weight: 500; box-shadow: var(--shadow); background: #fff; }
+    .button.primary { background: #171717; color: #fff; box-shadow: none; }
+    .hero { max-width: 1180px; margin: 0 auto; padding: 92px 28px 54px; text-align: center; }
+    .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 999px; background: #f5f5f5; box-shadow: rgba(0,0,0,0.08) 0 0 0 1px; color: #4d4d4d; font-size: 13px; font-weight: 500; }
+    .hero h1 { margin: 26px auto 18px; max-width: 900px; font-size: clamp(46px, 8vw, 86px); line-height: 0.94; letter-spacing: -0.065em; font-weight: 600; }
+    .hero p { max-width: 720px; margin: 0 auto; color: var(--muted); font-size: 20px; line-height: 1.65; }
+    .hero-actions { margin-top: 32px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .terminal { max-width: 920px; margin: 46px auto 0; text-align: left; border-radius: 16px; background: #0d0d0d; color: #f5f5f5; overflow: hidden; box-shadow: rgba(0,0,0,0.18) 0 24px 70px -34px; }
+    .termbar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.09); color: #9ca3af; font: 13px 'Geist Mono', monospace; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
+    pre { margin: 0; padding: 22px; overflow-x: auto; font: 13px/1.7 'Geist Mono', ui-monospace, monospace; color: #d4d4d4; }
+    .blue { color: #7dd3fc; } .green { color: #86efac; } .gray { color: #a3a3a3; }
+    section { max-width: 1180px; margin: 0 auto; padding: 64px 28px; }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 22px; }
+    .section-head h2 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1; letter-spacing: -0.055em; }
+    .section-head p { max-width: 460px; margin: 0; color: var(--muted); line-height: 1.55; }
+    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    .card { background: var(--panel); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); min-height: 230px; display: flex; flex-direction: column; justify-content: space-between; }
+    .card h3 { margin: 0 0 10px; font-size: 20px; line-height: 1.12; letter-spacing: -0.04em; }
+    .card p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
+    .tagrow { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
+    .tag { font: 12px 'Geist Mono', monospace; padding: 5px 8px; border-radius: 999px; background: #f5f5f5; color: #525252; }
+    .price { margin-top: 18px; font: 13px 'Geist Mono', monospace; color: var(--green); }
+    .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 16px; }
+    .panel { background: var(--wash); border-radius: 18px; padding: 28px; box-shadow: rgba(0,0,0,0.08) 0 0 0 1px; }
+    .panel h3 { margin: 0 0 12px; font-size: 26px; letter-spacing: -0.045em; }
+    .list { display: grid; gap: 14px; margin-top: 20px; }
+    .item { display: flex; gap: 12px; align-items: flex-start; }
+    .check { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 12px; margin-top: 1px; }
+    .item strong { display: block; font-size: 15px; margin-bottom: 3px; }
+    .item span { color: var(--muted); font-size: 14px; line-height: 1.45; }
+    .codebox { background: #111; border-radius: 14px; overflow: hidden; height: 100%; min-height: 342px; }
+    .footer { max-width: 1180px; margin: 0 auto; padding: 48px 28px 72px; color: var(--faint); font-size: 13px; display: flex; justify-content: space-between; gap: 18px; border-top: 1px solid #ebebeb; }
+    @media (max-width: 920px) { .grid, .split { grid-template-columns: 1fr; } .navlinks { display: none; } .section-head { align-items: flex-start; flex-direction: column; } .hero { padding-top: 68px; } }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a class="brand" href="/"><span class="mark">B</span><span>Bounty API</span></a>
+    <div class="navlinks">
+      <a href="#apis">APIs</a>
+      <a href="#agents">Agents</a>
+      <a href="/docs">Docs</a>
+      <a href="/llms.txt">llms.txt</a>
+      <a class="button primary" href="/docs">Start building</a>
+    </div>
+  </nav>
+
+  <main>
+    <div class="hero">
+      <div class="eyebrow">Singapore live now · Southeast Asia next</div>
+      <h1>Specialist Asian data APIs for AI agents.</h1>
+      <p>Bounty turns messy public datasets, government portals, and local market rules into clean endpoints agents can call without scraping the web from scratch.</p>
+      <div class="hero-actions">
+        <a class="button primary" href="/docs">Explore API docs</a>
+        <a class="button" href="/llms.txt">Read llms.txt</a>
+        <a class="button" href="/api">View API JSON</a>
+      </div>
+      <div class="terminal" aria-label="Example API request">
+        <div class="termbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>GET /bsd?price=1000000</span></div>
+        <pre><span class="gray">curl</span> <span class="green">https://bountyapi.com/bsd?price=1000000</span>
+
+{
+  <span class="blue">"price"</span>: 1000000,
+  <span class="blue">"bsd"</span>: 24600,
+  <span class="blue">"source"</span>: <span class="green">"iras.gov.sg"</span>
+}</pre>
+      </div>
+    </div>
+
+    <section id="apis">
+      <div class="section-head">
+        <h2>API catalog</h2>
+        <p>Apify-style marketplace clarity, but for high-margin Asian data primitives agents actually need.</p>
+      </div>
+      <div class="grid">
+        <article class="card">
+          <div><h3>SG Stamp Duty</h3><p>BSD and ABSD calculations for Singapore property purchases. Rates verified against IRAS.</p></div>
+          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">$0.002 / call</div></div>
+        </article>
+        <article class="card">
+          <div><h3>Postal District Mapper</h3><p>Map Singapore postal codes to districts, regions, and property market areas.</p></div>
+          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">$0.001 / call</div></div>
+        </article>
+        <article class="card">
+          <div><h3>Rental Yield</h3><p>Gross yield, net yield, cash flow, cap rate, and price-to-rent calculations.</p></div>
+          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.002 / call</div></div>
+        </article>
+        <article class="card">
+          <div><h3>HDB Resale Data</h3><p>HDB resale town data sourced from data.gov.sg, structured for agent workflows.</p></div>
+          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">live data</span></div><div class="price">$0.003 / call</div></div>
+        </article>
+      </div>
+    </section>
+
+    <section id="agents">
+      <div class="split">
+        <div class="panel">
+          <h3>Built for agent economics.</h3>
+          <p style="color: var(--muted); line-height: 1.6; margin: 0;">The pitch is simple: a model should not spend 20k tokens and ten browser actions to recover data that should have been a one-line API call.</p>
+          <div class="list">
+            <div class="item"><span class="check">✓</span><div><strong>x402-ready pricing</strong><span>Micropayment-native API economics for autonomous agents.</span></div></div>
+            <div class="item"><span class="check">✓</span><div><strong>MCP discovery path</strong><span>Structured descriptions via llms.txt today, MCP package next.</span></div></div>
+            <div class="item"><span class="check">✓</span><div><strong>Source-forward data</strong><span>Every API should expose provenance, not vibes dressed up as precision.</span></div></div>
+          </div>
+        </div>
+        <div class="codebox">
+          <pre>{
+  <span class="blue">"name"</span>: <span class="green">"Bounty API"</span>,
+  <span class="blue">"focus"</span>: <span class="green">"Singapore / Southeast Asia"</span>,
+  <span class="blue">"payment"</span>: <span class="green">"x402 on Base"</span>,
+  <span class="blue">"live_apis"</span>: 4,
+  <span class="blue">"docs"</span>: <span class="green">"https://bountyapi.com/docs"</span>,
+  <span class="blue">"llms"</span>: <span class="green">"https://bountyapi.com/llms.txt"</span>
+}</pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© 2026 Bounty API</span>
+    <span>Asian data APIs for agents, developers, and automated workflows.</span>
+  </footer>
+</body>
+</html>"""
+
+
+@app.get("/api")
 async def root():
-    """API info."""
+    """Machine-readable API info."""
     return {
-        "name": "SG Stamp Duty API",
-        "version": "1.0.0",
-        "description": "Singapore property stamp duty calculator (BSD + ABSD). Rates verified against IRAS.",
+        "name": "Bounty API",
+        "version": "2.0.0",
+        "description": "Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data.",
         "endpoints": {
+            "/": "Public landing page",
+            "/api": "Machine-readable API info",
             "/stamp-duty": "Full stamp duty calculation (BSD + ABSD)",
             "/bsd": "Buyer's Stamp Duty only",
             "/absd": "Additional Buyer's Stamp Duty only",
             "/docs": "Interactive API documentation (Swagger UI)",
+            "/llms.txt": "LLM discovery file",
         },
-        "pricing": "$0.002 per call (x402 micropayment)",
+        "pricing": "Pay-per-call. x402 micropayment support planned.",
         "rate_source": "iras.gov.sg, verified Jan 2026",
     }
 
@@ -311,14 +491,14 @@ except ImportError as e:
 @app.get("/llms.txt", response_class=PlainTextResponse)
 async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""
-    return """# Asia Data API
+    return """# Bounty API
 
 > Specialist Asian data APIs for AI agents. Singapore property, financial, and geographic data. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions.
 
 ```json
 {
-  "name": "Asia Data API",
-  "url": "https://api.asiadata.market",
+  "name": "Bounty API",
+  "url": "https://bountyapi.com",
   "category": "Data API Marketplace",
   "focus": "Singapore / Southeast Asia",
   "payment_protocol": "x402",
@@ -367,7 +547,7 @@ Add to Claude Desktop or any MCP-compatible client:
 {
   "mcpServers": {
     "asia-data": {
-      "url": "https://api.asiadata.market/mcp"
+      "url": "https://bountyapi.com/mcp"
     }
   }
 }
@@ -375,14 +555,14 @@ Add to Claude Desktop or any MCP-compatible client:
 
 ## Full documentation
 
-See: https://api.asiadata.market/llms-full.txt
+See: https://bountyapi.com/llms-full.txt
 """
 
 
 @app.get("/llms-full.txt", response_class=PlainTextResponse)
 async def llms_full_txt():
     """Full crawlable documentation for LLM training and inference."""
-    return """# Asia Data API — Full Documentation
+    return """# Bounty API — Full Documentation
 
 ## SG Stamp Duty Calculator
 

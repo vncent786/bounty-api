@@ -59,8 +59,10 @@ RESOURCE_CANDIDATES: List[str] = [
 ]
 
 # Download tuning
-BATCH_SIZE = 5_000            # records per HTTP request during full aggregation
-HTTP_TIMEOUT = 30            # seconds per request
+BATCH_SIZE = 1_000            # records per HTTP request during sampled aggregation
+HDB_SAMPLE_PAGES = 5          # evenly-spaced pages across the source dataset
+HDB_SAMPLE_RECORD_LIMIT = BATCH_SIZE * HDB_SAMPLE_PAGES
+HTTP_TIMEOUT = 15            # seconds per request
 CACHE_TTL_SECONDS = 24 * 60 * 60   # 24 hours
 SEARCH_FETCH_CAP = 1_000     # max records pulled per /search call before
                              # client-side filtering & slicing to `limit`
@@ -241,7 +243,7 @@ def _sort_key(flat_type: str) -> Tuple[int, str]:
 GroupStats = Dict[str, List[float]]
 
 
-def _build_aggregate(records: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _build_aggregate(records: List[Dict[str, Any]], source_total: Optional[int] = None, sample_offset: int = 0) -> Dict[str, Any]:
     towns: Dict[str, int] = {}
     groups: Dict[Tuple[str, str], GroupStats] = {}
 
@@ -266,28 +268,48 @@ def _build_aggregate(records: List[Dict[str, Any]]) -> Dict[str, Any]:
         bucket["prices"].sort()
         bucket["psfs"].sort()
 
+    sample_note = None
+    if source_total is not None and source_total > len(records):
+        sample_note = (
+            f"Aggregates are based on a bounded {len(records):,}-record sample "
+            f"from data.gov.sg out of {source_total:,} total records. Full-history "
+            "aggregation requires the planned persistent data store."
+        )
+
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "total": len(records),
+        "source_total": source_total or len(records),
+        "sample_offset": sample_offset,
+        "is_sample": bool(sample_note),
+        "note": sample_note,
         "towns": towns,
         "groups": groups,
     }
 
 
-def _fetch_all_records(resource_id: str) -> List[Dict[str, Any]]:
-    """Download the entire dataset.
+def _fetch_all_records(resource_id: str) -> Tuple[List[Dict[str, Any]], int, int]:
+    """Download a bounded recent sample of the dataset.
 
-    Fetching is done **sequentially**. data.gov.sg throttles concurrent
-    requests, so a parallel ``ThreadPoolExecutor`` is reliably *slower* here
-    (measured ~3.7k rec/s parallel vs ~21k rec/s sequential) and can stall.
-    Sequential pages of 5,000 records typically complete the full ~235k
-    dataset in well under a minute.
+    Full-history aggregation currently takes >120s against data.gov.sg, which is
+    not acceptable for a live API cold start. For v1 we aggregate five evenly
+    spaced 1,000-row pages across the source dataset and label responses clearly
+    as sampled. Full history should move to a persistent store (SQLite/Postgres)
+    in the next build.
     """
     total = _get_total(resource_id)
+    if total <= HDB_SAMPLE_RECORD_LIMIT:
+        offsets = list(range(0, total, BATCH_SIZE))
+    else:
+        max_offset = max(0, total - BATCH_SIZE)
+        offsets = sorted({
+            round(max_offset * i / max(1, HDB_SAMPLE_PAGES - 1))
+            for i in range(HDB_SAMPLE_PAGES)
+        })
+
     all_records: List[Dict[str, Any]] = []
-    offset = 0
     consecutive_errors = 0
-    while offset < total:
+    for offset in offsets:
         try:
             page = _fetch_page(resource_id, offset, BATCH_SIZE)
             consecutive_errors = 0
@@ -295,22 +317,18 @@ def _fetch_all_records(resource_id: str) -> List[Dict[str, Any]]:
             consecutive_errors += 1
             if consecutive_errors >= 3:
                 raise
-            # Transient error -- retry the same offset once more.
             continue
-        if not page:
-            break
         all_records.extend(page)
-        offset += len(page)
     if not all_records:
         raise RuntimeError("No records downloaded from upstream")
-    return all_records
+    return all_records, total, min(offsets) if offsets else 0
 
 
 def _refresh_aggregate() -> Dict[str, Any]:
     """Force a full refresh of the aggregated dataset."""
     resource_id = _select_resource_id()
-    records = _fetch_all_records(resource_id)
-    aggregate = _build_aggregate(records)
+    records, source_total, sample_offset = _fetch_all_records(resource_id)
+    aggregate = _build_aggregate(records, source_total=source_total, sample_offset=sample_offset)
     _CACHE.set(aggregate)
     return aggregate
 
@@ -501,12 +519,13 @@ def get_towns() -> TownsResponse:
             detail=f"HDB data currently unavailable: {warning}",
         )
     towns = sorted(aggregate["towns"].items(), key=lambda kv: (-kv[1], kv[0]))
+    note = warning or aggregate.get("note")
     return TownsResponse(
         total_towns=len(towns),
         total_transactions=aggregate["total"],
         generated_at=aggregate["generated_at"],
         resource_id=_select_resource_id(),
-        note=warning,
+        note=note,
         towns=[TownInfo(town=t, transaction_count=c) for t, c in towns],
     )
 
@@ -523,10 +542,11 @@ def get_all_median() -> AllTownsMedianResponse:
         )
     town_names = sorted(aggregate["towns"].keys())
     towns = [_town_median(aggregate, t) for t in town_names]
+    note = warning or aggregate.get("note")
     return AllTownsMedianResponse(
         generated_at=aggregate["generated_at"],
         total_towns=len(town_names),
-        note=warning,
+        note=note,
         towns=towns,
     )
 

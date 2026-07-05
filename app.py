@@ -672,10 +672,11 @@ def _build_mcp_http_server():
     return mcp_server
 
 
-# Mount MCP HTTP transport at /mcp
+# Mount MCP HTTP transport at /agent — use route delegation instead of mount
 try:
     _mcp_http = _build_mcp_http_server()
     _mcp_starlette_app = _mcp_http.streamable_http_app()
+    _mcp_asgi_handler = _mcp_starlette_app.build_middleware_stack()
     _mcp_session_manager = _mcp_http._session_manager
     _mcp_lifespan_cm = None
 
@@ -690,8 +691,51 @@ try:
         if _mcp_lifespan_cm:
             await _mcp_lifespan_cm.__aexit__(None, None, None)
 
-    app.mount("/agent", _mcp_starlette_app)  # type: ignore
-    print("MCP HTTP transport mounted at /agent")
+    @app.api_route("/mcp", methods=["GET", "POST", "DELETE"])
+    async def mcp_endpoint(request):
+        """MCP Streamable HTTP endpoint."""
+        # Strip /mcp from the path so the sub-app sees /
+        scope = dict(request.scope)
+        scope["path"] = "/"
+        scope["raw_path"] = b"/"
+
+        async def receive():
+            return await request.receive()
+
+        from starlette.responses import Response
+        import io
+
+        # Collect the response from the MCP ASGI app
+        response_started = False
+        status_code = 200
+        headers = []
+        body_chunks = []
+
+        async def send(message):
+            nonlocal response_started, status_code, headers
+            if message["type"] == "http.response.start":
+                response_started = True
+                status_code = message["status"]
+                headers = message.get("headers", [])
+            elif message["type"] == "http.response.body":
+                body_chunks.append(message.get("body", b""))
+
+        await _mcp_asgi_handler(scope, receive, send)
+
+        # Build response
+        body = b"".join(body_chunks)
+        response_headers = [
+            (k.decode() if isinstance(k, bytes) else k,
+             v.decode() if isinstance(v, bytes) else v)
+            for k, v in headers
+        ]
+        return Response(
+            content=body,
+            status_code=status_code,
+            headers=dict(response_headers),
+        )
+
+    print("MCP HTTP transport available at /mcp")
 except Exception as e:
     print(f"Warning: MCP HTTP transport not available: {e}")
 

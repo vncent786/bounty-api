@@ -635,10 +635,19 @@ async def calculate_absd_get(
 def _build_mcp_http_server():
     """Build a FastMCP server that exposes our API as MCP tools over HTTP."""
     from mcp.server.fastmcp import FastMCP
+    from mcp.server.transport_security import TransportSecuritySettings
     import httpx
 
     API_BASE = "https://bountyapi.com"
-    mcp_server = FastMCP("bountyapi")
+    mcp_server = FastMCP(
+        "bountyapi",
+        host="0.0.0.0",
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=True,
+            allowed_hosts=["bountyapi.com", "localhost:*", "127.0.0.1:*", "[::1]:*"],
+            allowed_origins=["https://bountyapi.com", "http://localhost:*", "http://127.0.0.1:*", "http://[::1]:*"],
+        ),
+    )
     mcp_server.settings.streamable_http_path = "/"
 
     @mcp_server.tool()

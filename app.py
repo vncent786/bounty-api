@@ -830,6 +830,20 @@ async def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
+@app.get("/x402-status")
+async def x402_status():
+    """Diagnostic: shows whether x402 payment middleware is active."""
+    import os
+    addr = os.environ.get("X402_PAY_TO", "")
+    return {
+        "env_var_set": bool(addr),
+        "env_var_name": "X402_PAY_TO",
+        "env_var_value_preview": f"{addr[:8]}...{addr[-4:]}" if len(addr) > 12 else "(empty or too short)",
+        "facilitator": os.environ.get("X402_FACILITATOR_URL", "https://api.cdp.coinbase.com/platform/v2/x402"),
+        "network": "eip155:8453",
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

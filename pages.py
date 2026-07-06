@@ -425,7 +425,7 @@ async def manifest():
             "network": "eip155:8453",
             "token": "USDC",
             "chain": "Base",
-            "facilitator": "https://api.cdp.coinbase.com/platform/v2/x402"
+            "facilitator": "https://facilitator.payai.network"
         },
         "mcp": {
             "stdio": "npx bountyapi-mcp",

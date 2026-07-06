@@ -839,7 +839,7 @@ async def x402_status():
         "env_var_set": bool(addr),
         "env_var_name": "X402_PAY_TO",
         "env_var_value_preview": f"{addr[:8]}...{addr[-4:]}" if len(addr) > 12 else "(empty or too short)",
-        "facilitator": os.environ.get("X402_FACILITATOR_URL", "https://api.cdp.coinbase.com/platform/v2/x402"),
+        "facilitator": os.environ.get("X402_FACILITATOR_URL", "https://facilitator.payai.network"),
         "network": "eip155:8453",
     }
 

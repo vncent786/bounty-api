@@ -23,10 +23,11 @@ from x402.server import x402ResourceServer
 # Network: Base mainnet for production
 EVM_NETWORK: Network = "eip155:8453"  # Base mainnet
 
-# Facilitator: Coinbase CDP (free, production-grade, has KYT/OFAC checks)
+# Facilitator: PayAI public facilitator (production, no API keys required)
+# Coinbase CDP facilitator requires Coinbase API auth and returns 401 without it.
 FACILITATOR_URL = os.environ.get(
     "X402_FACILITATOR_URL",
-    "https://api.cdp.coinbase.com/platform/v2/x402"
+    "https://facilitator.payai.network"
 )
 
 # Receiving wallet — set via env var on Railway

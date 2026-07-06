@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="system">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0 shrink-to-fit=no">
+        <meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<link href="https://blog.apify.com/rss/" rel="alternate" type="application/rss+xml" title="RSS feed">
+		<meta name="robots" content="index,follow" />
+
+        <script>
+    // Basic Config
+    let config = {
+        /* Replace it with your domain: ghost_host: 'https://yoursite.domain' */
+        ghost_url: 'https://apify.ghost.io',
+
+        /* Settings > Integrations > New Custom Integration. Copy Key. Replace ghost_key below. */
+        ghost_key: 'd64e55658fa0ab2544dce44d10',
+
+        /* Ghost version v4 or v3 */
+        ghost_version: 'v4',
+
+        /* Default Color Scheme. Values: preference(detects user setting), light, dark. */
+        color_scheme: 'preference',
+
+        /* Default view of posts: list/grid. */
+        view_type: 'grid',
+
+        /* Nr of columns for post cards: 2/3. */
+        grid_columns: 3,
+
+        /* Enable lightbox for post images */
+        image_lightbox: true,
+
+        /* Enable Scroll Top Button */
+        scroll_to_top: true,
+
+        /* Enable hyphens */
+        enable_hyphens: false,
+
+        /* Enable PWA - Progressive Web App */
+        enable_pwa: false,
+
+        /* Header position: initial/sticky/fixed */
+        header_position: 'sticky',
+
+        /* Replace 'biron-demo' with your disqus account shortname */
+        disqus_shortname: 'biron-demo',
+
+        /* To use Cove, replace the below id with your cove publication id*/
+        cove_id: '9a56f94608ec8169ab6bb801d004f591',
+
+        /* Open external links in posts in a new tab */
+        open_links_in_new_tab: false
+    }
+</script>
+
+		<title>Let your AI agent pay for 20,000+ Apify Actors with x402</title>
+		<link rel="preconnect" href="https://blog.apify.com">
+		<script>
+    if(typeof(Storage) !== 'undefined') {
+        let themeMode = document.documentElement.getAttribute('data-theme');
+        if (themeMode !== null && themeMode === 'system') {
+            setSysPrefColor();
+        }
+        const theme = localStorage.getItem('selected-theme');
+        if (theme == 'light') {
+            setColorScheme('light');
+        }
+        else if (theme == 'dark') {
+            setColorScheme('dark');
+        }
+    }
+    function setSysPrefColor() {
+        if(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+            setColorScheme('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addListener(e => {
+            if (e.matches) {
+                setColorScheme('dark');
+            } else {
+                setColorScheme('light');
+            }
+        });
+    }
+    function setColorScheme(scheme) {
+        if (scheme=='dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }
+</script>        <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
+        <link href="https://blog.apify.com/assets/css/style.min.css?v=9475400bce" rel="stylesheet">
+		
+
+		<!-- CookiePro Cookies Consent Notice start for apify.com -->
+		<script
+			async
+			src="https://cookie-cdn.cookiepro.com/scripttemplates/otSDKStub.js"
+			type="text/javascript"
+			charset="UTF-8"
+			data-domain-script="7a8d334b-f744-4c02-9931-92861196dd3c"
+		>
+		</script>
+		<script>
+			function OptanonWrapper() {
+				document.querySelector('#onetrust-pc-sdk .ot-pc-footer-logo a').remove();
+			}
+		</script>
+		<!-- CookiePro Cookies Consent Notice end for apify.com -->
+
+		<!-- Segment analytics -->
+		<script>
+            function getAnalyticsData() {
+                let payload = {};
+                const analyticsDataElement = document.getElementById('analytics-data');
+
+                if (analyticsDataElement) {
+                    try {
+                        payload = JSON.parse(analyticsDataElement.textContent);
+                    } catch (error) {
+                        console.error('Analytics data JSON parse failed: ', error?.message);
+                    }
+                }
+
+                return payload;
+            }
+
+            document.addEventListener("DOMContentLoaded", function() {
+                !function(){var i="analytics",analytics=window[i]=window[i]||[];if(!analytics.initialize)if(analytics.invoked)window.console&&console.error&&console.error("Segment snippet included twice.");else{analytics.invoked=!0;analytics.methods=["trackSubmit","trackClick","trackLink","trackForm","pageview","identify","reset","group","track","ready","alias","debug","page","screen","once","off","on","addSourceMiddleware","addIntegrationMiddleware","setAnonymousId","addDestinationMiddleware","register"];analytics.factory=function(e){return function(){if(window[i].initialized)return window[i][e].apply(window[i],arguments);var n=Array.prototype.slice.call(arguments);if(["track","screen","alias","group","page","identify"].indexOf(e)>-1){var c=document.querySelector("link[rel='canonical']");n.push({__t:"bpc",c:c&&c.getAttribute("href")||void 0,p:location.pathname,u:location.href,s:location.search,t:document.title,r:document.referrer})}n.unshift(e);analytics.push(n);return analytics}};for(var n=0;n<analytics.methods.length;n++){var key=analytics.methods[n];analytics[key]=analytics.factory(key)}analytics.load=function(key,n){var t=document.createElement("script");t.type="text/javascript";t.async=!0;t.setAttribute("data-global-segment-analytics-key",i);t.src="https://cdn.segment.com/analytics.js/v1/" + key + "/analytics.min.js";var r=document.getElementsByTagName("script")[0];r.parentNode.insertBefore(t,r);analytics._loadOptions=n};analytics._writeKey="6q8VGDubmTSIhc4co1fNpLxsZ4IGczJ4";;analytics.SNIPPET_VERSION="5.2.0";
+                    analytics.load("6q8VGDubmTSIhc4co1fNpLxsZ4IGczJ4", { integrations: { "Segment.io": { apiHost: "analytics.apify.com/v1" } } });
+                    analytics.page({
+                        app: 'blog',
+                        page_type: 'BLOG_PAGE',
+                        ...getAnalyticsData(),
+                    });
+                }}();
+            });
+
+		</script>
+
+		<!-- Google Tag Manager -->
+		<script>
+			(function (w, d, s, l, i) {
+				w[l] = w[l] || []; w[l].push({
+					'gtm.start':
+						new Date().getTime(), event: 'gtm.js'
+				}); var f = d.getElementsByTagName(s)[0],
+					j = d.createElement(s), dl = l != 'dataLayer' ? '&l=' + l : ''; j.async = true; j.src =
+						'https://www.googletagmanager.com/gtm.js?id=' + i + dl; f.parentNode.insertBefore(j, f);
+			})(window, document, 'script', 'dataLayer', 'GTM-MNGXGGB');
+		</script>
+
+		<!-- Intercom -->
+		<script>
+			window.intercomSettings = {
+				app_id: "kod1r788"
+			};
+		</script>
+
+		<script>
+			// We pre-filled your app ID in the widget URL: 'https://widget.intercom.io/widget/kod1r788'
+			(function () { var w = window; var ic = w.Intercom; if (typeof ic === "function") { ic('reattach_activator'); ic('update', w.intercomSettings); } else { var d = document; var i = function () { i.c(arguments); }; i.q = []; i.c = function (args) { i.q.push(args); }; w.Intercom = i; var l = function () { var s = d.createElement('script'); s.type = 'text/javascript'; s.async = true; s.src = 'https://widget.intercom.io/widget/kod1r788'; var x = d.getElementsByTagName('script')[0]; x.parentNode.insertBefore(s, x); }; if (w.attachEvent) { w.attachEvent('onload', l); } else { w.addEventListener('load', l, false); } } })();
+		</script>
+
+		<script async src="https://apify.com/ext/bootstrap.js"></script>
+
+		<meta name="description" content="20,000+ Apify Actors are now on x402, 10x more tools than the protocol had before. Pay per use in USDC on Base, with no Apify account or API key.">
+    <link rel="icon" href="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w256h256/format/png/2026/02/apify-favicon.svg" type="image/png">
+    <link rel="canonical" href="https://blog.apify.com/introducing-x402-agentic-payments/">
+    <meta name="referrer" content="no-referrer-when-downgrade">
+    
+    <meta property="og:site_name" content="Apify Blog">
+    <meta property="og:type" content="article">
+    <meta property="og:title" content="Your AI agent just got 20,000+ new tools on x402">
+    <meta property="og:description" content="10x more tools agents can pay for, in USDC. No API key.">
+    <meta property="og:url" content="https://blog.apify.com/introducing-x402-agentic-payments/">
+    <meta property="og:image" content="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2026/06/Blogpost_Agentic-payments-Blog-2.png">
+    <meta property="article:published_time" content="2026-06-30T12:52:48.000Z">
+    <meta property="article:modified_time" content="2026-06-30T13:14:38.000Z">
+    <meta property="article:tag" content="Apify updates">
+    <meta property="article:tag" content="AI agents">
+    <meta property="article:tag" content="Finance and Fintech">
+    <meta property="article:tag" content="MCP">
+    
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="20,000+ Apify Actors are now payable with x402">
+    <meta name="twitter:description" content="Your agent discovers, pays for, and runs 20,000+ Actors, 10x more tools than before. USDC on Base, no API key.">
+    <meta name="twitter:url" content="https://blog.apify.com/introducing-x402-agentic-payments/">
+    <meta name="twitter:image" content="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2026/06/Blogpost_Agentic-payments-Blog-2.png">
+    <meta name="twitter:label1" content="Written by">
+    <meta name="twitter:data1" content="Štěpán Škopek">
+    <meta name="twitter:label2" content="Filed under">
+    <meta name="twitter:data2" content="Apify updates, AI agents, Finance and Fintech, MCP">
+    <meta name="twitter:site" content="@apify">
+    <meta property="og:image:width" content="1152">
+    <meta property="og:image:height" content="649">
+    
+    <script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "publisher": {
+        "@type": "Organization",
+        "name": "Apify Blog",
+        "url": "https://blog.apify.com/",
+        "logo": {
+            "@type": "ImageObject",
+            "url": "https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2023/12/logo-light.svg",
+            "width": 152,
+            "height": 30
+        }
+    },
+    "author": {
+        "@type": "Person",
+        "name": "Štěpán Škopek",
+        "image": {
+            "@type": "ImageObject",
+            "url": "https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/11/getimg_ai_img-rmb2sua7d035fqagpmpvo-1.jpeg",
+            "width": 1024,
+            "height": 1024
+        },
+        "url": "https://blog.apify.com/author/stepan/",
+        "sameAs": [
+            "https://stepskop.xyz",
+            "https://www.linkedin.com/in/stepskop"
+        ]
+    },
+    "contributor": [
+        {
+            "@type": "Person",
+            "name": "Jakub Kopecký",
+            "image": {
+                "@type": "ImageObject",
+                "url": "https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/03/1723750728599.jpeg"
+            },
+            "url": "https://blog.apify.com/author/jakub/",
+            "sameAs": [
+                "https://kopecky.io/"
+            ]
+        }
+    ],
+    "headline": "Let your AI agent pay for 20,000+ Apify Actors with x402",
+    "url": "https://blog.apify.com/introducing-x402-agentic-payments/",
+    "datePublished": "2026-06-30T12:52:48.000Z",
+    "dateModified": "2026-06-30T13:14:38.000Z",
+    "image": {
+        "@type": "ImageObject",
+        "url": "https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2026/06/Blogpost_Agentic-payments-Blog-2.png",
+        "width": 1152,
+        "height": 649
+    },
+    "keywords": "Apify updates, AI agents, Finance and Fintech, MCP",
+    "description": "Until now, AI agents could pay for roughly 2,000 tools over x402. Today, that jumps 10x: more than 20,000 Apify Actors are now live on the protocol. Agents can buy web data and automation with USDC on Base, no API key required.",
+    "mainEntityOfPage": "https://blog.apify.com/introducing-x402-agentic-payments/"
+}
+    </script>
+
+    <meta name="generator" content="Ghost 6.50">
+    <link rel="alternate" type="application/rss+xml" title="Apify Blog" href="https://blog.apify.com/rss/">
+    
+    <script defer src="https://cdn.jsdelivr.net/ghost/sodo-search@~1.8/umd/sodo-search.min.js" data-key="7a96ce6a3c512f1926b4c75af5" data-styles="https://cdn.jsdelivr.net/ghost/sodo-search@~1.8/umd/main.css" data-sodo-search="https://apify.ghost.io/" data-locale="en" crossorigin="anonymous"></script>
+    
+    <link href="https://blog.apify.com/webmentions/receive/" rel="webmention">
+    <script defer src="/public/cards.min.js?v=9475400bce"></script>
+    <link rel="stylesheet" type="text/css" href="/public/cards.min.css?v=9475400bce">
+    <script defer src="/public/ghost-stats.min.js?v=9475400bce" data-stringify-payload="false" data-datasource="analytics_events" data-storage="localStorage" data-host="https://blog.apify.com/.ghost/analytics/api/v1/page_hit"  tb_site_uuid="f26ec999-9a90-4aee-a0d4-9b3ca2bb668f" tb_post_uuid="6702de5c-8bb2-46be-b591-edc1ebf52706" tb_post_type="post" tb_member_uuid="undefined" tb_member_status="undefined" tb_gift_link=""></script><style>:root {--ghost-accent-color: #1671eb;}</style>
+    <!-- DO NOT INJECT ANY CODE HERE!!! (PLEASE CONTACT THE ENGINEERING TEAM IF YOU WANT TO ADD ANY INTEGRATION OR TRACKING) -->
+	</head>
+	<body class="post-template tag-apify-updates tag-ai-agents tag-finance-and-fintech tag-mcp" data-nav="sticky" data-prismjs-copy-timeout="1000">
+		<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="global-icons" style="display:none">
+    <symbol id="i-search" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+        <path d="M3.875 1.0383C6.27286 -0.346101 9.22714 -0.346101 11.625 1.0383C14.0229 2.42271 15.5 4.98119 15.5 7.75C15.5 9.62178 14.8364 11.3386 13.7317 12.678L13.777 12.7163L19.5303 18.4697C19.8232 18.7626 19.8232 19.2374 19.5303 19.5303C19.2641 19.7966 18.8474 19.8208 18.5538 19.6029L18.4697 19.5303L12.7163 13.777L12.678 13.7317C11.3386 14.8364 9.62178 15.5 7.75 15.5C3.46979 15.5 0 12.0302 0 7.75C0 4.98119 1.47714 2.42271 3.875 1.0383ZM10.875 2.33734C8.94124 1.22089 6.55876 1.22089 4.625 2.33734L4.40519 2.47032C2.60137 3.61276 1.5 5.60297 1.5 7.75C1.5 11.2018 4.29822 14 7.75 14C11.2018 14 14 11.2018 14 7.75C14 5.51709 12.8088 3.4538 10.875 2.33734Z" />
+    </symbol>
+    <symbol id="i-moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 7a7 7 0 0 0 12 4.9v.1c0 5.523-4.477 10-10 10S2 17.523 2 12 6.477 2 12 2h.1A6.979 6.979 0 0 0 10 7zm-6 5a8 8 0 0 0 15.062 3.762A9 9 0 0 1 8.238 4.938 7.999 7.999 0 0 0 4 12z"/></symbol>
+    <symbol id="i-sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 18a6 6 0 1 1 0-12 6 6 0 0 1 0 12zm0-2a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM11 1h2v3h-2V1zm0 19h2v3h-2v-3zM3.515 4.929l1.414-1.414L7.05 5.636 5.636 7.05 3.515 4.93zM16.95 18.364l1.414-1.414 2.121 2.121-1.414 1.414-2.121-2.121zm2.121-14.85l1.414 1.415-2.121 2.121-1.414-1.414 2.121-2.121zM5.636 16.95l1.414 1.414-2.121 2.121-1.414-1.414 2.121-2.121zM23 11v2h-3v-2h3zM4 11v2H1v-2h3z"/></symbol>
+    <symbol id="i-chevron-down" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 12"><path d="M1.38715 3.55126C1.58684 3.35155 1.89933 3.33338 2.11955 3.49676L2.18264 3.55122L6.00291 7.37161L9.82468 3.55122C10.0244 3.35153 10.3369 3.33339 10.5571 3.49679L10.6202 3.55126C10.8199 3.75097 10.838 4.06347 10.6746 4.28367L10.6201 4.34676L6.60044 8.36608C6.44225 8.5245 6.22755 8.61352 6.00366 8.61352C5.81176 8.61352 5.62661 8.54812 5.47819 8.42986L5.40718 8.36638L1.38718 4.34676C1.1675 4.1271 1.16749 3.77094 1.38715 3.55126Z"/></symbol>
+    <symbol id="i-user" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><g data-name="Layer 2"><g data-name="person"><rect opacity="0"/><path d="M12 11a4 4 0 1 0-4-4 4 4 0 0 0 4 4z"/><path d="M18 21a1 1 0 0 0 1-1 7 7 0 0 0-14 0 1 1 0 0 0 1 1z"/></g></g></symbol>
+    <svg id="i-arrow-right" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+    <path d="M6.37876 2.56058C6.67165 2.26769 7.14652 2.26769 7.43942 2.56058C7.73231 2.85347 7.73231 3.32835 7.43942 3.62124L3.81066 7.25H14C14.4142 7.25 14.75 7.58578 14.75 8C14.75 8.41421 14.4142 8.75 14 8.75H3.81065L7.43942 12.3788C7.73231 12.6717 7.73231 13.1465 7.43942 13.4394C7.14652 13.7323 6.67165 13.7323 6.37876 13.4394L1.46967 8.53033C1.33237 8.39304 1.25944 8.21576 1.25085 8.03598C1.25028 8.02399 1.25 8.01199 1.25 8C1.25 7.89911 1.26992 7.80288 1.30604 7.71502C1.34182 7.62778 1.39474 7.54592 1.4648 7.47459M6.37876 2.56058L1.47022 7.46912Z"/>
+    </svg>
+    <svg id="i-arrow-left" xmlns="http://www.w3.org/2000/svg" width="20" height="20"><path d="M11.78 3.845a.75.75 0 1 0-1.06 1.06l4.344 4.345H3.125a.75.75 0 0 0 0 1.5h11.94l-4.345 4.345a.75.75 0 1 0 1.06 1.06l5.625-5.625a.747.747 0 0 0 0-1.06z"></path></svg>
+    <svg id="arrow-external-link" xmlns="http://www.w3.org/2000/svg" width="8" height="16" ><path d="M2 1.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707L1.854 6.854a.5.5 0 1 1-.708-.708L5.293 2H2.5a.5.5 0 0 1-.5-.5"></path></svg>
+    <symbol id="i-menu" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 17 16"><path d="M1.5 3C1.5 2.80109 1.57902 2.61032 1.71967 2.46967C1.86032 2.32902 2.05109 2.25 2.25 2.25H14.75C14.9489 2.25 15.1397 2.32902 15.2803 2.46967C15.421 2.61032 15.5 2.80109 15.5 3C15.5 3.19891 15.421 3.38968 15.2803 3.53033C15.1397 3.67098 14.9489 3.75 14.75 3.75H2.25C2.05109 3.75 1.86032 3.67098 1.71967 3.53033C1.57902 3.38968 1.5 3.19891 1.5 3ZM1.5 8C1.5 7.80109 1.57902 7.61032 1.71967 7.46967C1.86032 7.32902 2.05109 7.25 2.25 7.25H14.75C14.9489 7.25 15.1397 7.32902 15.2803 7.46967C15.421 7.61032 15.5 7.80109 15.5 8C15.5 8.19891 15.421 8.38968 15.2803 8.53033C15.1397 8.67098 14.9489 8.75 14.75 8.75H2.25C2.05109 8.75 1.86032 8.67098 1.71967 8.53033C1.57902 8.38968 1.5 8.19891 1.5 8ZM2.25 12.25H14.75C14.9489 12.25 15.1397 12.329 15.2803 12.4697C15.421 12.6103 15.5 12.8011 15.5 13C15.5 13.1989 15.421 13.3897 15.2803 13.5303C15.1397 13.671 14.9489 13.75 14.75 13.75H2.25C2.05109 13.75 1.86032 13.671 1.71967 13.5303C1.57902 13.3897 1.5 13.1989 1.5 13C1.5 12.8011 1.57902 12.6103 1.71967 12.4697C1.86032 12.329 2.05109 12.25 2.25 12.25Z"/></symbol>
+    <svg id="cross-20" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><path d="M16.1553 4.89556C16.4482 4.60267 16.4482 4.1278 16.1553 3.8349C15.8624 3.54201 15.3876 3.54201 15.0947 3.8349L10 8.92957L4.90533 3.8349C4.61244 3.54201 4.13756 3.54201 3.84467 3.8349C3.55178 4.1278 3.55178 4.60267 3.84467 4.89556L8.93934 9.99023L3.84467 15.0849C3.55178 15.3778 3.55178 15.8527 3.84467 16.1456C4.13756 16.4385 4.61244 16.4385 4.90533 16.1456L10 11.0509L15.0947 16.1456C15.3876 16.4385 15.8624 16.4385 16.1553 16.1456C16.4482 15.8527 16.4482 15.3778 16.1553 15.0849L11.0607 9.99023L16.1553 4.89556Z"/></svg>
+
+</svg>
+		<div class="site-wrap">
+		<header class="site-header sticky">
+    <div class="header-inner flex">
+        <div class="header-logo flex">
+            <a href="https://apify.com" class="logo logo-image">
+                <img class="theme-light-logo" src="https://blog.apify.com/assets/images/apify-wordmark.svg?v=9475400bce" alt="Apify Blog">
+                <img class="theme-dark-logo" src="https://blog.apify.com/assets/images/apify-wordmark-white.svg?v=9475400bce" alt="Apify Blog">
+            </a>
+            <div class="backdrop" id="backdrop"></div>
+        </div>
+        <nav class="nav-wrap flex justify-space-between" role="navigation" aria-label="main navigation">
+    <ul class="nav-left no-style-list flex" role="menu">
+        <li class="nav-item has-dropdown" role="menuitem">
+            <div class="nav-link dropdown-parent flex">Product
+                <svg class="show-on-big-screen"><use xlink:href="#i-chevron-down"></use></svg>
+                <svg class="show-on-mobile"><use xlink:href="#i-arrow-left"></use></svg>
+            </div>
+            <div class="dropdown-menu-wrapper">
+                <div class="show-on-mobile dropdown-menu-back">
+                    <svg><use xlink:href="#i-arrow-right"></use></svg>
+                    Back
+                </div>
+                <div
+    class="promotion promotion-light"
+    onclick="location.href='https://apify.com/store';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Apify_Store.webp?v=9475400bce);"
+>
+    <p class="promotion-title">Start here!</p>
+
+        <p class="promotion-description">Get data with ready-made web scrapers for popular websites</p>
+
+    <a href="https://apify.com/store">Browse 4,500+ Actors
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+
+<div
+    class="promotion promotion-dark"
+    onclick="location.href='https://apify.com/store';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Apify_Store-dark.webp?v=9475400bce);"
+>
+    <p class="promotion-title">Start here!</p>
+
+        <p class="promotion-description">Get data with ready-made web scrapers for popular websites</p>
+
+    <a href="https://apify.com/store">Browse 4,500+ Actors
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">The Apify platform</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/store'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Store.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Store.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/store" class="submenu-title flex" >
+                Apify Store
+            </a>
+                <div class="submenu-description">Pre-built web scraping tools</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/actors'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Actors.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Actors.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/actors" class="submenu-title flex" >
+                Actors
+            </a>
+                <div class="submenu-description">Build and run serverless programs</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/integrations'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Integrations.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Integrations.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/integrations" class="submenu-title flex" >
+                Integrations
+            </a>
+                <div class="submenu-description">Connect with apps and services</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/storage'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Storage.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Storage.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/storage" class="submenu-title flex" >
+                Storage
+            </a>
+                <div class="submenu-description">Store results for web scrapers</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Anti-blocking</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/proxy'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Proxy.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Proxy.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/proxy" class="submenu-title flex" >
+                Proxy
+            </a>
+                <div class="submenu-description">Rotate scraper IP addresses</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                    <div class="dropdown-menu-column-title">Open source</div>
+                    <ul class="no-style-list nav-item-list flex">
+                    <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://crawlee.dev/',  '_blank')">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Crawlee.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Crawlee.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://crawlee.dev/" class="submenu-title flex"  target="_blank" >
+                Crawlee
+                    <svg><use xlink:href="#arrow-external-link"></use></svg>
+            </a>
+                <div class="submenu-description">Web scraping and crawling library</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+            </div>
+        </li>
+        <li class="nav-item has-dropdown" role="menuitem">
+            <div class="nav-link dropdown-parent flex">Solutions
+                <svg class="show-on-big-screen"><use xlink:href="#i-chevron-down"></use></svg>
+                <svg class="show-on-mobile"><use xlink:href="#i-arrow-left"></use></svg>
+            </div>
+            <div class="dropdown-menu-wrapper">
+                <div class="show-on-mobile dropdown-menu-back">
+                    <svg><use xlink:href="#i-arrow-right"></use></svg>
+                    Back
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Web data for</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/enterprise'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Enterprise.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Enterprise.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/enterprise" class="submenu-title flex" >
+                Enterprise
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/resources/startups'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Start_up.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Start_up.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/resources/startups" class="submenu-title flex" >
+                Startups
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/resources/universities'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Universities.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Universities.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/resources/universities" class="submenu-title flex" >
+                Universities
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/resources/nonprofits'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/NGO.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/NGO.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/resources/nonprofits" class="submenu-title flex" >
+                Nonprofits
+            </a>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Use cases</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/data-for-generative-ai'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Data_for_generative_AI.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Data_for_generative_AI.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/data-for-generative-ai" class="submenu-title flex" >
+                Data for generative AI
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/use-cases/lead-generation'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Lead_generation.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Lead_generation.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/use-cases/lead-generation" class="submenu-title flex" >
+                Lead generation
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/use-cases/market-research'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Market_research.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Market_research.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/use-cases/market-research" class="submenu-title flex" >
+                Market research
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/use-cases/sentiment-analysis'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Sentiment_Analysis.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Sentiment_Analysis.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/use-cases/sentiment-analysis" class="submenu-title flex" >
+                Sentiment analysis
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/use-cases'">
+        <div>
+            <a href="https://apify.com/use-cases" class="submenu-title flex" >
+                View more →
+            </a>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Consulting</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/professional-services'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Professional_services.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Professional_services.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/professional-services" class="submenu-title flex" >
+                Apify Professional Services
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/partners'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Partners.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Partners.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/partners" class="submenu-title flex" >
+                Apify Partners
+            </a>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+            </div>
+        </li>
+        <li class="nav-item has-dropdown" role="menuitem">
+            <div class="nav-link dropdown-parent flex">Developers
+                <svg class="show-on-big-screen"><use xlink:href="#i-chevron-down"></use></svg>
+                <svg class="show-on-mobile"><use xlink:href="#i-arrow-left"></use></svg>
+            </div>
+            <div class="dropdown-menu-wrapper">
+                <div class="show-on-mobile dropdown-menu-back">
+                    <svg><use xlink:href="#i-arrow-right"></use></svg>
+                    Back
+                </div>
+                <div class="dropdown-menu-column">
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/',  '_blank')">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Documentation.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Documentation.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://docs.apify.com/" class="submenu-title flex"  target="_blank" >
+                Documentation
+            </a>
+                <div class="submenu-description">Full reference for the Apify platform</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                    <div class="dropdown-menu-column-title">Get started</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/academy',  '_blank')">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Universities.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Universities.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://docs.apify.com/academy" class="submenu-title flex"  target="_blank" >
+                Web scraping academy
+            </a>
+                <div class="submenu-description">Courses for beginners and experts</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/templates'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Template.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Template.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/templates" class="submenu-title flex" >
+                Code templates
+            </a>
+                <div class="submenu-description">Python, JavaScript, and TypeScript</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/platform/actors/development/deployment',  '_blank')">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Deploy.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Deploy.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://docs.apify.com/platform/actors/development/deployment" class="submenu-title flex"  target="_blank" >
+                Deploy to Apify
+            </a>
+                <div class="submenu-description">With CLI or GitHub integration</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Learn</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/api',  '_blank')">
+        <div>
+            <a href="https://docs.apify.com/api" class="submenu-title flex"  target="_blank" >
+                API reference
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/cli/',  '_blank')">
+        <div>
+            <a href="https://docs.apify.com/cli/" class="submenu-title flex"  target="_blank" >
+                CLI
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://docs.apify.com/sdk',  '_blank')">
+        <div>
+            <a href="https://docs.apify.com/sdk" class="submenu-title flex"  target="_blank" >
+                SDK
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="window.open('https://crawlee.dev/',  '_blank')">
+        <div>
+            <a href="https://crawlee.dev/" class="submenu-title flex"  target="_blank" >
+                Crawlee
+                    <svg><use xlink:href="#arrow-external-link"></use></svg>
+            </a>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div
+    class="promotion promotion-light"
+    onclick="location.href='https://apify.com/partners/actor-developers';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Get_paid_on_Apify.svg?v=9475400bce);"
+>
+    <p class="promotion-title">Get paid on Apify</p>
+
+        <p class="promotion-description">Earn passive income from sharing your Actors</p>
+
+    <a href="https://apify.com/partners/actor-developers">Learn more
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+
+<div
+    class="promotion promotion-dark"
+    onclick="location.href='https://apify.com/partners/actor-developers';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Get_paid_on_Apify-dark.svg?v=9475400bce);"
+>
+    <p class="promotion-title">Get paid on Apify</p>
+
+        <p class="promotion-description">Earn passive income from sharing your Actors</p>
+
+    <a href="https://apify.com/partners/actor-developers">Learn more
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+            </div>
+        </li>
+        <li class="nav-item has-dropdown" role="menuitem">
+            <div class="nav-link dropdown-parent flex">Resources
+                <svg class="show-on-big-screen"><use xlink:href="#i-chevron-down"></use></svg>
+                <svg class="show-on-mobile"><use xlink:href="#i-arrow-left"></use></svg>
+            </div>
+            <div class="dropdown-menu-wrapper">
+                <div class="show-on-mobile dropdown-menu-back">
+                    <svg><use xlink:href="#i-arrow-right"></use></svg>
+                    Back
+                </div>
+                <div class="dropdown-menu-column">
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://help.apify.com/en/'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Help_Support.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Help_Support.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://help.apify.com/en/" class="submenu-title flex" >
+                Help and support
+            </a>
+                <div class="submenu-description">Advice and answers about Apify</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/ideas'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Ideas.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Ideas.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/ideas" class="submenu-title flex" >
+                Submit your ideas
+            </a>
+                <div class="submenu-description">Tell us the Actors you want</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/change-log'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Changelog.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Changelog.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/change-log" class="submenu-title flex" >
+                Changelog
+            </a>
+                <div class="submenu-description">See what’s new on Apify</div>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/success-stories'">
+            <div class="submenu-item-icon">
+                <div style="-webkit-mask: url(https://blog.apify.com/assets/images/header/Start_up.svg?v=9475400bce) no-repeat center;
+                mask: url(https://blog.apify.com/assets/images/header/Start_up.svg?v=9475400bce) no-repeat center;
+                background-color: var(--icon-color);
+                width: 24px;
+                height: 24px;
+                padding: 8px;"></div>
+            </div>
+        <div>
+            <a href="https://apify.com/success-stories" class="submenu-title flex" >
+                Customer stories
+            </a>
+                <div class="submenu-description">Find out how others use Apify</div>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div class="dropdown-menu-column">
+                    <div class="dropdown-menu-column-title">Company</div>
+                    <ul class="no-style-list nav-item-list flex">
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/about'">
+        <div>
+            <a href="https://apify.com/about" class="submenu-title flex" >
+                About Apify
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/contact'">
+        <div>
+            <a href="https://apify.com/contact" class="submenu-title flex" >
+                Contact us
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://blog.apify.com/'">
+        <div>
+            <a href="https://blog.apify.com/" class="submenu-title flex" >
+                Blog
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/partners'">
+        <div>
+            <a href="https://apify.com/partners" class="submenu-title flex" >
+                Partners
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/partners/affiliate'">
+        <div>
+            <a href="https://apify.com/partners/affiliate" class="submenu-title flex" >
+                Affiliate program
+            </a>
+        </div>
+    </div>
+</li>
+                        <li class="nav-item" role="menuitem">
+    <div class="nav-item-link" onclick="location.href='https://apify.com/jobs'">
+        <div>
+            <a href="https://apify.com/jobs" class="submenu-title flex" >
+                Jobs
+                    <div class="submenu-tag">We&#x27;re hiring!</div>
+            </a>
+        </div>
+    </div>
+</li>
+                    </ul>
+                </div>
+                <div
+    class="promotion promotion-light"
+    onclick="location.href='https://discord.com/invite/jyEM2PRvMU';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Join_our_Discord.webp?v=9475400bce);"
+>
+    <p class="promotion-title">Join our Discord</p>
+
+
+    <a href="https://discord.com/invite/jyEM2PRvMU">Talk to scraping experts
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+
+<div
+    class="promotion promotion-dark"
+    onclick="location.href='https://discord.com/invite/jyEM2PRvMU';"
+    style="background-image: url(https://blog.apify.com/assets/images/header-promos/Join_our_Discord-dark.webp?v=9475400bce);"
+>
+    <p class="promotion-title">Join our Discord</p>
+
+
+    <a href="https://discord.com/invite/jyEM2PRvMU">Talk to scraping experts
+        <svg><use xlink:href="#i-arrow-left"></use></svg>
+    </a>
+</div>
+            </div>
+        </li>
+        <li class="nav-item" role="menuitem">
+            <a href="https://apify.com/pricing" class="nav-link">Pricing</a>
+        </li>
+        <li class="nav-item show-on-mobile" role="menuitem">
+            <a href="https://apify.com/contact-sales" class="nav-link">Contact sales</a>
+        </li>
+    </ul>
+    <div class="nav-right-wrap flex">
+        <ul class="nav-right no-style-list flex show-on-tablet" role="menu">
+            <li class="nav-item" role="menuitem">
+                <a href="https://apify.com/contact-sales" class="nav-link">Contact sales</a>
+            </li>
+            <li class="nav-item" role="menuitem">
+                <a href="https://console.apify.com/sign-in" class="nav-link">Login</a>
+            </li>
+        </ul>
+        <a href="https://console.apify.com/sign-up" class="btn btn-compact">Get started</a>
+    </div>
+</nav>
+        <div class="mobile-navigation-toggle show-on-mobile" id="mobile-menu-toggle">
+            <div class="bar-container">
+                <div class="bar bar-1"></div>
+                <div class="bar bar-2"></div>
+                <div class="bar bar-3"></div>
+            </div>
+        </div>
+    </div>
+</header>
+		 
+     <div class="single-post-wrap">
+    <div class="single-post">
+        <article class="post-left">
+            <header class="post-header">
+                <div class="blog-home-link">
+    <a href="https://blog.apify.com" class="flex align-center">
+        <svg>
+            <use xlink:href="#i-arrow-right"></use>
+        </svg>
+        Back to all posts
+    </a>
+</div>
+                <div class="tags-wrap">
+                    <div>
+                        <a href="/tag/apify-updates/" class="tag">Apify updates</a>
+                    </div>
+                    <div>
+                        <a href="/tag/ai-agents/" class="tag">AI agents</a>
+                    </div>
+                    <div>
+                        <a href="/tag/finance-and-fintech/" class="tag">Finance and Fintech</a>
+                    </div>
+                </div>
+                <h1 class="post-title">Introducing x402 support: 10x more tools for autonomous agents</h1>
+                <div class="custom-excerpt">
+                    Until now, AI agents could pay for roughly 2,000 tools over x402. Today, that jumps 10x: more than 20,000 Apify Actors are now live on the protocol. Agents can buy web data and automation with USDC on Base, no API key required.
+                </div>
+                <div class="post-meta-wrap">
+                    <div class="single-post-date-wrap">
+                        <time class="single-post-date" datetime=" 2026-06-30">Jun 30, 2026</time>
+                        by
+                    </div>
+                    <div class="post-author-wrap flex">
+                        <a href="/author/stepan/" class="post-author flex">
+                            <div class="author-avatar-wrap">
+                                <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/11/getimg_ai_img-rmb2sua7d035fqagpmpvo-1.jpeg" class="avatar" loading="lazy"
+                                    alt="Štěpán Škopek">
+                            </div>
+                            <div class="author-name">
+                                Štěpán Škopek
+                            </div>
+                        </a>
+                    </div>
+                    <div class="post-author-wrap flex">
+                        <a href="/author/jakub/" class="post-author flex">
+                            <div class="author-avatar-wrap">
+                                <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/03/1723750728599.jpeg" class="avatar" loading="lazy"
+                                    alt="Jakub Kopecký">
+                            </div>
+                            <div class="author-name">
+                                Jakub Kopecký
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                <div class="share-links-wrap">
+    Share this article:
+    <a class="linkedin share-link" href="http://www.linkedin.com/shareArticle?mini=true&amp;url=https://blog.apify.com/introducing-x402-agentic-payments/&amp;title=Introducing%20x402%20support%3A%2010x%20more%20tools%20for%20autonomous%20agents" rel="noopener" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd"
+    d="M1.76665 0.0488281C0.79126 0.0488281 0 0.815997 0 1.76114V22.2411C0 23.1863 0.791353 23.9528 1.76665 23.9528H22.1373C23.1131 23.9528 23.904 23.1862 23.904 22.2408V1.76114C23.904 0.815997 23.1131 0.0488281 22.1373 0.0488281H1.76665ZM7.2643 9.29076V20.0524H3.68729V9.29076H7.2643ZM7.50008 5.96259C7.50008 6.99532 6.72366 7.82169 5.47655 7.82169L5.47627 7.82159H5.45311C4.25259 7.82159 3.47645 6.99522 3.47645 5.9625C3.47645 4.90633 4.27602 4.10303 5.50026 4.10303C6.72366 4.10303 7.47673 4.90633 7.50008 5.96259ZM12.821 20.0524H9.24423L9.24413 20.0528C9.24413 20.0528 9.2911 10.3007 9.24441 9.29113H12.8212V10.8144C13.2967 10.0813 14.1477 9.03846 16.045 9.03846C18.3983 9.03846 20.1628 10.5766 20.1628 13.882V20.0524H16.5861V14.2958C16.5861 12.849 16.0682 11.8622 14.7742 11.8622C13.7858 11.8622 13.1973 12.5277 12.9388 13.1706C12.8443 13.4 12.821 13.7221 12.821 14.0433V20.0524Z"
+    fill="currentColor" />
+</svg></a>
+    <a class="facebook share-link" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.apify.com/introducing-x402-agentic-payments/" rel="noopener" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 15 15">
+    <g clip-path="url(#clip0_3330_2166)" transform="translate(0,-0.5)">
+        <path
+            d="M12.2187 9.6C12.2097 9.67516 12.1736 9.74446 12.1173 9.79504C12.061 9.84562 11.9882 9.87403 11.9125 9.875H10.625C10.5426 9.8766 10.4641 9.91004 10.4058 9.9683C10.3475 10.0266 10.3141 10.1051 10.3125 10.1875V15.1875C10.3125 15.2704 10.3454 15.3499 10.404 15.4085C10.4626 15.4671 10.5421 15.5 10.625 15.5H14.375C14.5408 15.5 14.6997 15.4342 14.8169 15.3169C14.9342 15.1997 15 15.0408 15 14.875V1.125C15 0.95924 14.9342 0.800269 14.8169 0.683058C14.6997 0.565848 14.5408 0.5 14.375 0.5H0.625C0.45924 0.5 0.300269 0.565848 0.183058 0.683058C0.065848 0.800269 0 0.95924 0 1.125L0 14.875C0 15.0408 0.065848 15.1997 0.183058 15.3169C0.300269 15.4342 0.45924 15.5 0.625 15.5H7.5C7.58238 15.4984 7.66094 15.465 7.7192 15.4067C7.77746 15.3484 7.8109 15.2699 7.8125 15.1875V10.1875C7.8125 10.1046 7.77958 10.0251 7.72097 9.96653C7.66237 9.90792 7.58288 9.875 7.5 9.875H6.25C6.16712 9.875 6.08763 9.84208 6.02903 9.78347C5.97042 9.72487 5.9375 9.64538 5.9375 9.5625V7.6875C5.9375 7.60462 5.97042 7.52513 6.02903 7.46653C6.08763 7.40792 6.16712 7.375 6.25 7.375H7.5C7.58288 7.375 7.66237 7.34208 7.72097 7.28347C7.77958 7.22487 7.8125 7.14538 7.8125 7.0625V6.24375C7.8125 5.30057 8.18718 4.39603 8.8541 3.7291C9.52103 3.06218 10.4256 2.6875 11.3688 2.6875H12.1875C12.2704 2.6875 12.3499 2.72042 12.4085 2.77903C12.4671 2.83763 12.5 2.91712 12.5 3V4.875C12.5 4.95788 12.4671 5.03737 12.4085 5.09597C12.3499 5.15458 12.2704 5.1875 12.1875 5.1875H11.3688C11.0886 5.1875 10.82 5.29878 10.6219 5.49687C10.4238 5.69495 10.3125 5.96361 10.3125 6.24375V7.0625C10.3125 7.14538 10.3454 7.22487 10.404 7.28347C10.4626 7.34208 10.5421 7.375 10.625 7.375H12.1438C12.1886 7.37461 12.2331 7.3839 12.2741 7.40223C12.3151 7.42057 12.3516 7.44752 12.3812 7.48125C12.4099 7.51453 12.4313 7.55335 12.4442 7.5953C12.4571 7.63724 12.4612 7.6814 12.4563 7.725L12.2187 9.6Z">
+        </path>
+    </g>
+    <defs>
+        <clipPath id="clip0_3330_2166">
+            <rect y="0.5" width="15" height="15" rx="2.5" fill="white" />
+        </clipPath>
+    </defs>
+</svg>
+</a>
+    <a class="twitter share-link" href="https://x.com/share?text=Introducing%20x402%20support%3A%2010x%20more%20tools%20for%20autonomous%20agents&amp;url=https://blog.apify.com/introducing-x402-agentic-payments/" rel="noopener" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="271" viewBox="0 0 300 271">
+ <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z"/>
+</svg>
+</a>
+    <button class="share-link js-copy-link" onclick="return false;" data-clipboard-text="https://blog.apify.com/introducing-x402-agentic-payments/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="16" viewBox="0 0 15 16" fill="none">
+<path d="M1.875 8C1.875 8.49728 2.07254 8.97419 2.42417 9.32583C2.77581 9.67746 3.25272 9.875 3.75 9.875C4.24728 9.875 4.72419 9.67746 5.07583 9.32583C5.42746 8.97419 5.625 8.49728 5.625 8C5.625 7.50272 5.42746 7.02581 5.07583 6.67417C4.72419 6.32254 4.24728 6.125 3.75 6.125C3.25272 6.125 2.77581 6.32254 2.42417 6.67417C2.07254 7.02581 1.875 7.50272 1.875 8Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9.375 4.25C9.375 4.74728 9.57254 5.22419 9.92417 5.57583C10.2758 5.92746 10.7527 6.125 11.25 6.125C11.7473 6.125 12.2242 5.92746 12.5758 5.57583C12.9275 5.22419 13.125 4.74728 13.125 4.25C13.125 3.75272 12.9275 3.27581 12.5758 2.92417C12.2242 2.57254 11.7473 2.375 11.25 2.375C10.7527 2.375 10.2758 2.57254 9.92417 2.92417C9.57254 3.27581 9.375 3.75272 9.375 4.25Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9.375 11.75C9.375 12.2473 9.57254 12.7242 9.92417 13.0758C10.2758 13.4275 10.7527 13.625 11.25 13.625C11.7473 13.625 12.2242 13.4275 12.5758 13.0758C12.9275 12.7242 13.125 12.2473 13.125 11.75C13.125 11.2527 12.9275 10.7758 12.5758 10.4242C12.2242 10.0725 11.7473 9.875 11.25 9.875C10.7527 9.875 10.2758 10.0725 9.92417 10.4242C9.57254 10.7758 9.375 11.2527 9.375 11.75Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.4375 7.1875L9.5625 5.0625"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.4375 8.8125L9.5625 10.9375"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<span class="feedback">Copied!</span></button>
+</div>
+            </header>
+            <div class="post-content">
+                <p>The value of AI agents is proportional to the size of tasks they can handle without human input. The longer and more complex the job, the more valuable an agent becomes. And to complete ever-longer jobs, agents will need a budget to autonomously discover and pay for the tools that they need on their own, without human-in-the-loop approvals. AI agents can call tools, but paying for those tools is still awkward. </p><p>The bottleneck isn't the API key itself; it's the human workflow around it: creating accounts, attaching billing, issuing and storing credentials, rotating secrets, and wiring them into the runtime environment. Agentic payments are an emerging answer to this, and the <a href="https://www.x402.org/">x402 protocol</a> is the most promising implementation (based on <a href="https://agentic.market/?chart=payment-volume">real transaction volume</a>).</p><p>With x402, the server can declare a payment requirement at request time, and the client can satisfy it automatically. Originally built by Coinbase and now an open source protocol governed under the Linux Foundation, x402 pairs naturally with the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP): a tool-using client can inspect MCP tool metadata, detect a payment requirement, authorize a supported payment, and retry the call automatically.</p><p>Until now, autonomous agents could buy services from a pool of roughly 2,000 endpoints available on x402. As of today, we're bringing more than 20,000 Actors from our marketplace of web automation tools into the x402 ecosystem. That's roughly 10x more tools than the protocol had before. In practice, this means an agent can pay for Apify web data and automation tools using USDC on the Base blockchain (with support for more protocols and stablecoins coming soon) instead of relying on a pre-provisioned API key.</p><figure class="kg-card kg-embed-card"><iframe width="200" height="113" src="https://www.youtube.com/embed/f7hKYBv4FKw?feature=oembed" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen="" title="Paying for Apify tools over x402 without API keys"></iframe></figure><h2 id="paying-for-actors-over-x402">Paying for Actors over x402</h2><p>Basically, any Apify Actor can be paid for and run in as little as a single HTTP request. Your agent calls the Actor API endpoint, gets back an HTTP 402 with the available payment schemes and price. The agent's wallet signs the payment, and the Actor runs. The whole exchange happens at the HTTP layer, exactly as the protocol intends.</p><p>The easiest way to get started is to use <a href="https://docs.cdp.coinbase.com/agentic-wallet/cli/welcome">Coinbase's Agentic Wallet CLI</a> that handles the payment authorization in an agent-native way. It reads the 402 challenge and signs with its on-chain wallet, so the agent can execute the Actor run and retrieve data. It works best in agent runtimes that can execute shell commands and persist local state (such as Claude Code, Codex, Droid, OpenCode, or other coding agents).<br><br>Install the drop-in agent skill once, then just ask your coding agent for the data you want. It handles the wallet, the x402 payment, and the Actor run.</p><pre><code class="language-bash"># Give your agent a Coinbase wallet
+npx awal auth login you@email.com
+npx awal auth verify &lt;code-from-email&gt;   # the wallet is created on first auth
+npx awal show                             # fund it with USDC on Base via Coinbase Onramp
+# Alternatively you can use npx awal address to view wallet funding address and then npx awal balance to check the wallet balance
+
+# Install the "Get started" skill to use `awal` CLI
+npx skills add apify/awesome-skills --skill apify-x402-agentic-wallet
+
+# Ask your agent
+Use apify/instagram-profile-scraper to get the 3 latest posts from "natgeo", paying over x402 with USDC.</code></pre><h3 id="enabling-x402-payments-in-mcp">Enabling x402 payments in MCP</h3><p>To support the agentic payments workflow, we've also added x402 support directly to <a href="https://github.com/apify/mcp-cli"><code>mcpc</code></a> - <a href="https://github.com/apify/mcpc">a universal CLI client for MCP</a> developed by Apify. <code>mcpc</code> is a CLI tool that maps MCP operations into commands that are intuitive for both humans and agents. It's also one of the first MCP clients to add support for x402, so agents can send payments to compatible MCP servers.</p><figure class="kg-card kg-image-card kg-card-hascaption"><img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2026/06/mcpc-x402-init-wallet-created.webp" class="kg-image" alt="mcpc x402 init terminal output" loading="lazy" width="1600" height="788" srcset="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w600/2026/06/mcpc-x402-init-wallet-created.webp 600w, https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1000/2026/06/mcpc-x402-init-wallet-created.webp 1000w, https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2026/06/mcpc-x402-init-wallet-created.webp 1600w" sizes="(min-width: 720px) 720px"><figcaption><span style="white-space: pre-wrap;">Setting up wallet funding with x402</span></figcaption></figure><p>After the initial setup and wallet funding, the agent can pay for supported tool calls without per-service API key provisioning. For the full integration guide, see the <a href="https://docs.apify.com/platform/integrations/x402">Apify x402 docs</a>.</p><h2 id="under-the-hood-the-exact-and-upto-settlement-schemes">Under the hood: The exact and upto settlement schemes</h2><p>x402 originally only supported the <code>exact</code> payment scheme, which is useful for APIs with a fixed cost per request. But Apify Actors are used for batch operations, like web data collection, which can take variable time and cost. That means it's hard to know in advance how much the operation will cost. x402 now also has an <code>upto</code> scheme to help with this challenge, and Apify supports this, too.</p><p>The <code>exact</code> scheme, the only one in x402 v1, declares a fixed price up front, which is awkward for runs whose cost isn't known in advance. To support it anyway, Apify layers a prepaid-deposit and refund flow on top: the server requests a $1.00 prepaid deposit, the client signs an <a href="https://eips.ethereum.org/EIPS/eip-3009">EIP-3009</a> <code>TransferWithAuthorization</code>, and any unused balance is refunded after the run.</p><p>The <code>upto</code> <em>(allowance)</em> scheme, from the x402 v2 specification, fits variable-cost work best, so it's the one we lead with. The client authorizes a maximum amount in the payment signature by signing a Permit2 <code>permitWitnessTransferFrom</code>, and the service charges only for what the run actually uses, anywhere from zero up to that ceiling. Apify starts the run and settles the real cost when it completes.</p><h3 id="the-technical-workflow">The technical workflow</h3><p>Every Actor is callable at a plain REST endpoint, for example <code>POST https://api.apify.com/v2/actors/&lt;actor-id&gt;/run-sync-get-dataset-items</code>. Call it without credentials (you can signal x402 explicitly with an <code>X-APIFY-PAYMENT-PROTOCOL: X402</code> header), and the server replies with <code>402 Payment Required</code>. The terms come back in a base64-encoded <code>PAYMENT-REQUIRED</code> response header, alongside a short JSON body:</p><pre><code class="language-json">{
+  "error": {
+    "type": "x402-payment-required",
+    "message": "x402 payment header missing. Add your PAYMENT-SIGNATURE or Apify token to proceed."
+  }
+}</code></pre><p>Decoded, the <code>PAYMENT-REQUIRED</code> header is the payment challenge. It lists the schemes the endpoint accepts, both <code>upto</code> and <code>exact</code>, in USDC on Base (addresses shortened):</p><pre><code class="language-json">{
+  "x402Version": 2,
+  "resource": {
+    "url": "https://api.apify.com/v2/actors/:actorId/run-sync-get-dataset-items",
+    "description": "Apify Store is the largest marketplace of tools for AI agents...",
+    "mimeType": "application/json"
+  },
+  "accepts": [
+    {
+      "scheme": "upto",
+      "network": "eip155:8453",
+      "asset": "0x8335...2913",
+      "amount": "1000000",
+      "payTo": "0x4aAb...DF26",
+      "maxTimeoutSeconds": 18000,
+      "extra": { "name": "USD Coin", "version": "2", "facilitatorAddress": "0x64cC...1f0A" }
+    },
+    {
+      "scheme": "exact",
+      "network": "eip155:8453",
+      "asset": "0x8335...2913",
+      "amount": "1000000",
+      "payTo": "0x4aAb...DF26",
+      "maxTimeoutSeconds": 60,
+      "extra": { "name": "USD Coin", "version": "2" }
+    }
+  ]
+}</code></pre><p>The <code>amount: "1000000"</code> is exactly $1.00 (USDC has 6 decimal places). The client reads the challenge, signs an authorization from the agent's wallet, and retries the same request with a <code>PAYMENT-SIGNATURE</code> header carrying the base64 payload. The server verifies it through the x402 facilitator, runs the Actor, and returns the dataset items.</p><p>Don't want to touch the protocol yourself? <code>awal</code> does all of this for you, or you can send an Apify token instead of a signature to pay from your account.</p><p>The signed <code>PAYMENT-SIGNATURE</code> stays valid while the prepaid balance lasts, so the agent reuses it on later calls, drawing the balance down with no new signing or on-chain settlement until it runs out.</p><h3 id="settlement-bookkeeping-and-refunds">Settlement, bookkeeping, and refunds</h3><p>For the <code>upto</code> scheme, the client sends a payment signature with an allowance instead of a final amount. Apify starts the Actor run, and once complete, charges based on actual usage, which can range from zero up to the approved allowance.</p><p>For the <code>exact</code> scheme, once the transfer settles through the x402 facilitator, Apify starts the run and tracks the $1.00 as a temporary server-side balance. This is not fully on-chain metering: the user prepays a minimum, Apify tracks usage off-chain against that balance, and refunds the remainder later. That reduces chain interactions, but it introduces a trust assumption in Apify's bookkeeping. If the agent burns through the balance, the wallet automatically signs a new authorization to top it up. When the agent finishes, the remaining balance is refunded after 60 minutes with no active runs and no new paid tool calls.</p><div class="kg-card kg-callout-card kg-callout-card-blue"><div class="kg-callout-emoji">💵</div><div class="kg-callout-text"><b><strong style="white-space: pre-wrap;">What does $1.00 actually buy?</strong></b><br><br>Enough to keep an agent productive for a real task. Typical examples from popular Apify Actors, at no-account pricing:<br><br>•&nbsp;~<b><strong style="white-space: pre-wrap;">380</strong></b> Instagram profiles via <a href="https://apify.com/apify/instagram-profile-scraper"><code spellcheck="false" style="white-space: pre-wrap;">apify/instagram-profile-scraper</code></a><br><br>•&nbsp;~<b><strong style="white-space: pre-wrap;">250</strong></b> Google Maps places via <a href="https://apify.com/compass/crawler-google-places"><code spellcheck="false" style="white-space: pre-wrap;">compass/crawler-google-places</code></a> — names, addresses, phones, ratings, hours, coordinates, and more<br><br>•&nbsp;~<b><strong style="white-space: pre-wrap;">165</strong></b> Amazon / e-commerce products via <a href="https://apify.com/apify/e-commerce-scraping-tool"><code spellcheck="false" style="white-space: pre-wrap;">apify/e-commerce-scraping-tool</code></a><br><br>•&nbsp;~<b><strong style="white-space: pre-wrap;">330</strong></b> viral TikTok videos via <a href="https://apify.com/clockworks/tiktok-video-scraper"><code spellcheck="false" style="white-space: pre-wrap;">clockworks/tiktok-video-scraper</code></a><br><br>•&nbsp;~<b><strong style="white-space: pre-wrap;">2,500</strong></b> X posts on a topic via <a href="https://apify.com/apidojo/tweet-scraper"><code spellcheck="false" style="white-space: pre-wrap;">apidojo/tweet-scraper</code></a></div></div><div class="kg-card kg-callout-card kg-callout-card-blue"><div class="kg-callout-emoji">⚠️</div><div class="kg-callout-text"><b><strong style="white-space: pre-wrap;">Security disclaimer</strong></b>:&nbsp;Treat the agent's wallet like a low-balance hot wallet or a prepaid debit card. Never fund it from your main crypto wallet. Only fund it with an amount you're comfortable losing, and assume a compromised or hallucinating agent runtime could drain the entire balance.</div></div><h2 id="a-real-world-use-case-trading-signals-from-social-data">A real world use case: trading signals from social data</h2><p>One of the unique things Apify brings to x402 in the realm of trading is the signal that the markets miss: what are people actually saying? Price feeds and on-chain data tell you what happened and what the current price action is, but the live conversation on X and Reddit tells you why, and before it's priced in. An agent that can read both will make sharper calls than one starting at charts alone.</p><p>Hand your agent a goal like:</p><blockquote>Pull live market data on $ETH from CoinMarketCap, find recent whale wallet movements on Etherscan, and analyze trader sentiment from the last 7 days on social media. Summarize main narratives and discussion themes and surface top 10 buy/sell insights based on the overall picture, then build an interactive HTML dashboard with this analysis.</blockquote><figure class="kg-card kg-video-card kg-width-regular kg-card-hascaption" data-kg-thumbnail="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/media/2026/06/agentic-payments-trading-dashboard-demo--smaller-400kb_thumb.jpg" data-kg-custom-thumbnail="">
+            <div class="kg-video-container">
+                <video src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/media/2026/06/agentic-payments-trading-dashboard-demo--smaller-400kb.mp4" poster="https://img.spacergif.org/v1/1280x720/0a/spacer.png" width="1280" height="720" loop="" autoplay="" muted="" playsinline="" preload="metadata" style="background: transparent url('https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/media/2026/06/agentic-payments-trading-dashboard-demo--smaller-400kb_thumb.jpg') 50% 50% / cover no-repeat;"></video>
+                <div class="kg-video-overlay">
+                    <button class="kg-video-large-play-icon" aria-label="Play video">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="M23.14 10.608 2.253.164A1.559 1.559 0 0 0 0 1.557v20.887a1.558 1.558 0 0 0 2.253 1.392L23.14 13.393a1.557 1.557 0 0 0 0-2.785Z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="kg-video-player-container kg-video-hide">
+                    <div class="kg-video-player">
+                        <button class="kg-video-play-icon" aria-label="Play video">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M23.14 10.608 2.253.164A1.559 1.559 0 0 0 0 1.557v20.887a1.558 1.558 0 0 0 2.253 1.392L23.14 13.393a1.557 1.557 0 0 0 0-2.785Z"></path>
+                            </svg>
+                        </button>
+                        <button class="kg-video-pause-icon kg-video-hide" aria-label="Pause video">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <rect x="3" y="1" width="7" height="22" rx="1.5" ry="1.5"></rect>
+                                <rect x="14" y="1" width="7" height="22" rx="1.5" ry="1.5"></rect>
+                            </svg>
+                        </button>
+                        <span class="kg-video-current-time">0:00</span>
+                        <div class="kg-video-time">
+                            /<span class="kg-video-duration">0:07</span>
+                        </div>
+                        <input type="range" class="kg-video-seek-slider" max="100" value="0">
+                        <button class="kg-video-playback-rate" aria-label="Adjust playback speed">1×</button>
+                        <button class="kg-video-unmute-icon" aria-label="Unmute">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M15.189 2.021a9.728 9.728 0 0 0-7.924 4.85.249.249 0 0 1-.221.133H5.25a3 3 0 0 0-3 3v2a3 3 0 0 0 3 3h1.794a.249.249 0 0 1 .221.133 9.73 9.73 0 0 0 7.924 4.85h.06a1 1 0 0 0 1-1V3.02a1 1 0 0 0-1.06-.998Z"></path>
+                            </svg>
+                        </button>
+                        <button class="kg-video-mute-icon kg-video-hide" aria-label="Mute">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                                <path d="M16.177 4.3a.248.248 0 0 0 .073-.176v-1.1a1 1 0 0 0-1.061-1 9.728 9.728 0 0 0-7.924 4.85.249.249 0 0 1-.221.133H5.25a3 3 0 0 0-3 3v2a3 3 0 0 0 3 3h.114a.251.251 0 0 0 .177-.073ZM23.707 1.706A1 1 0 0 0 22.293.292l-22 22a1 1 0 0 0 0 1.414l.009.009a1 1 0 0 0 1.405-.009l6.63-6.631A.251.251 0 0 1 8.515 17a.245.245 0 0 1 .177.075 10.081 10.081 0 0 0 6.5 2.92 1 1 0 0 0 1.061-1V9.266a.247.247 0 0 1 .073-.176Z"></path>
+                            </svg>
+                        </button>
+                        <input type="range" class="kg-video-volume-slider" max="100" value="100">
+                    </div>
+                </div>
+            </div>
+            <figcaption><p><span style="white-space: pre-wrap;">An agent gathers social sentiment and market data over x402, then builds a trading dashboard</span></p></figcaption>
+        </figure><p>The agent pulls live sentiment with Apify, pairs it with quantitative endpoints available from different vendors on x402, reasons over the combined picture, and acts, all settled on the same rail.</p><p>This composability of different vendor endpoints is the real win of x402. You don't have to provision each service individually. You simply state the desired outcome to the agent, and it discovers, prices, and assembles the tools to reach it autonomously.</p><h2 id="get-started-with-a-drop-in-agent-skill">Get started with a drop-in agent skill</h2><p>Want to see this in action immediately? Give your agent the following skill: <a href="https://apify.it/x402-awal">apify.it/x402-awal</a></p><p>It tells the agent how to use the Coinbase Agentic Wallet CLI <code>npx awal</code>, check its own balance, request funds only when needed, and run paid Apify Actors over x402.</p><h3 id="list-of-useful-resources">List of useful resources</h3><ul><li>Docs: <a href="https://docs.apify.com/platform/integrations/x402">https://docs.apify.com/platform/integrations/x402</a></li><li>MCP CLI: <a href="https://github.com/apify/mcpc">https://github.com/apify/mcpc</a></li><li>Coinbase Agentic Wallet: <a href="https://docs.cdp.coinbase.com/agentic-wallet/cli/welcome">https://docs.cdp.coinbase.com/agentic-wallet/cli/welcome</a></li><li>Agent skill: <a href="https://apify.it/x402-awal">apify.it/x402-awal</a></li></ul>
+            </div>
+            <div class="authors-bio-list">
+                <a href="/author/stepan/" class="author-bio-wrap">
+                    <div class="author-avatar-wrap">
+                        <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/11/getimg_ai_img-rmb2sua7d035fqagpmpvo-1.jpeg" class="avatar" loading="lazy" alt="Štěpán Škopek">
+                    </div>
+                    <div class="author-name">
+                        Štěpán Škopek
+                    </div>
+                    <div class="author-bio">
+                        Backend Engineer at Apify. A technology enthusiast who enjoys solving complex problems of distributed systems.
+                    </div>
+                </a>
+                <a href="/author/jakub/" class="author-bio-wrap">
+                    <div class="author-avatar-wrap">
+                        <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/2025/03/1723750728599.jpeg" class="avatar" loading="lazy" alt="Jakub Kopecký">
+                    </div>
+                    <div class="author-name">
+                        Jakub Kopecký
+                    </div>
+                    <div class="author-bio">
+                        Engineer @ Apify 🛠️
+                    </div>
+                </a>
+            </div>
+        </article>
+        <div class="post-right">
+            <div class="post-right-inner-sticky">
+                <div>
+    <div class="toc-title">
+        <svg><use xlink:href="#i-menu"></use></svg>On this page
+    </div>
+    <div class="toc js-toc"></div>
+</div>
+                <div class="share-links-wrap">
+    Share this article:
+    <a class="linkedin share-link" href="http://www.linkedin.com/shareArticle?mini=true&amp;url=https://blog.apify.com/introducing-x402-agentic-payments/&amp;title=Introducing%20x402%20support%3A%2010x%20more%20tools%20for%20autonomous%20agents" rel="noopener" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd"
+    d="M1.76665 0.0488281C0.79126 0.0488281 0 0.815997 0 1.76114V22.2411C0 23.1863 0.791353 23.9528 1.76665 23.9528H22.1373C23.1131 23.9528 23.904 23.1862 23.904 22.2408V1.76114C23.904 0.815997 23.1131 0.0488281 22.1373 0.0488281H1.76665ZM7.2643 9.29076V20.0524H3.68729V9.29076H7.2643ZM7.50008 5.96259C7.50008 6.99532 6.72366 7.82169 5.47655 7.82169L5.47627 7.82159H5.45311C4.25259 7.82159 3.47645 6.99522 3.47645 5.9625C3.47645 4.90633 4.27602 4.10303 5.50026 4.10303C6.72366 4.10303 7.47673 4.90633 7.50008 5.96259ZM12.821 20.0524H9.24423L9.24413 20.0528C9.24413 20.0528 9.2911 10.3007 9.24441 9.29113H12.8212V10.8144C13.2967 10.0813 14.1477 9.03846 16.045 9.03846C18.3983 9.03846 20.1628 10.5766 20.1628 13.882V20.0524H16.5861V14.2958C16.5861 12.849 16.0682 11.8622 14.7742 11.8622C13.7858 11.8622 13.1973 12.5277 12.9388 13.1706C12.8443 13.4 12.821 13.7221 12.821 14.0433V20.0524Z"
+    fill="currentColor" />
+</svg></a>
+    <a class="facebook share-link" href="https://www.facebook.com/sharer/sharer.php?u=https://blog.apify.com/introducing-x402-agentic-payments/" rel="noopener" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 15 15">
+    <g clip-path="url(#clip0_3330_2166)" transform="translate(0,-0.5)">
+        <path
+            d="M12.2187 9.6C12.2097 9.67516 12.1736 9.74446 12.1173 9.79504C12.061 9.84562 11.9882 9.87403 11.9125 9.875H10.625C10.5426 9.8766 10.4641 9.91004 10.4058 9.9683C10.3475 10.0266 10.3141 10.1051 10.3125 10.1875V15.1875C10.3125 15.2704 10.3454 15.3499 10.404 15.4085C10.4626 15.4671 10.5421 15.5 10.625 15.5H14.375C14.5408 15.5 14.6997 15.4342 14.8169 15.3169C14.9342 15.1997 15 15.0408 15 14.875V1.125C15 0.95924 14.9342 0.800269 14.8169 0.683058C14.6997 0.565848 14.5408 0.5 14.375 0.5H0.625C0.45924 0.5 0.300269 0.565848 0.183058 0.683058C0.065848 0.800269 0 0.95924 0 1.125L0 14.875C0 15.0408 0.065848 15.1997 0.183058 15.3169C0.300269 15.4342 0.45924 15.5 0.625 15.5H7.5C7.58238 15.4984 7.66094 15.465 7.7192 15.4067C7.77746 15.3484 7.8109 15.2699 7.8125 15.1875V10.1875C7.8125 10.1046 7.77958 10.0251 7.72097 9.96653C7.66237 9.90792 7.58288 9.875 7.5 9.875H6.25C6.16712 9.875 6.08763 9.84208 6.02903 9.78347C5.97042 9.72487 5.9375 9.64538 5.9375 9.5625V7.6875C5.9375 7.60462 5.97042 7.52513 6.02903 7.46653C6.08763 7.40792 6.16712 7.375 6.25 7.375H7.5C7.58288 7.375 7.66237 7.34208 7.72097 7.28347C7.77958 7.22487 7.8125 7.14538 7.8125 7.0625V6.24375C7.8125 5.30057 8.18718 4.39603 8.8541 3.7291C9.52103 3.06218 10.4256 2.6875 11.3688 2.6875H12.1875C12.2704 2.6875 12.3499 2.72042 12.4085 2.77903C12.4671 2.83763 12.5 2.91712 12.5 3V4.875C12.5 4.95788 12.4671 5.03737 12.4085 5.09597C12.3499 5.15458 12.2704 5.1875 12.1875 5.1875H11.3688C11.0886 5.1875 10.82 5.29878 10.6219 5.49687C10.4238 5.69495 10.3125 5.96361 10.3125 6.24375V7.0625C10.3125 7.14538 10.3454 7.22487 10.404 7.28347C10.4626 7.34208 10.5421 7.375 10.625 7.375H12.1438C12.1886 7.37461 12.2331 7.3839 12.2741 7.40223C12.3151 7.42057 12.3516 7.44752 12.3812 7.48125C12.4099 7.51453 12.4313 7.55335 12.4442 7.5953C12.4571 7.63724 12.4612 7.6814 12.4563 7.725L12.2187 9.6Z">
+        </path>
+    </g>
+    <defs>
+        <clipPath id="clip0_3330_2166">
+            <rect y="0.5" width="15" height="15" rx="2.5" fill="white" />
+        </clipPath>
+    </defs>
+</svg>
+</a>
+    <a class="twitter share-link" href="https://x.com/share?text=Introducing%20x402%20support%3A%2010x%20more%20tools%20for%20autonomous%20agents&amp;url=https://blog.apify.com/introducing-x402-agentic-payments/" rel="noopener" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="271" viewBox="0 0 300 271">
+ <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z"/>
+</svg>
+</a>
+    <button class="share-link js-copy-link" onclick="return false;" data-clipboard-text="https://blog.apify.com/introducing-x402-agentic-payments/"><svg xmlns="http://www.w3.org/2000/svg" width="15" height="16" viewBox="0 0 15 16" fill="none">
+<path d="M1.875 8C1.875 8.49728 2.07254 8.97419 2.42417 9.32583C2.77581 9.67746 3.25272 9.875 3.75 9.875C4.24728 9.875 4.72419 9.67746 5.07583 9.32583C5.42746 8.97419 5.625 8.49728 5.625 8C5.625 7.50272 5.42746 7.02581 5.07583 6.67417C4.72419 6.32254 4.24728 6.125 3.75 6.125C3.25272 6.125 2.77581 6.32254 2.42417 6.67417C2.07254 7.02581 1.875 7.50272 1.875 8Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9.375 4.25C9.375 4.74728 9.57254 5.22419 9.92417 5.57583C10.2758 5.92746 10.7527 6.125 11.25 6.125C11.7473 6.125 12.2242 5.92746 12.5758 5.57583C12.9275 5.22419 13.125 4.74728 13.125 4.25C13.125 3.75272 12.9275 3.27581 12.5758 2.92417C12.2242 2.57254 11.7473 2.375 11.25 2.375C10.7527 2.375 10.2758 2.57254 9.92417 2.92417C9.57254 3.27581 9.375 3.75272 9.375 4.25Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9.375 11.75C9.375 12.2473 9.57254 12.7242 9.92417 13.0758C10.2758 13.4275 10.7527 13.625 11.25 13.625C11.7473 13.625 12.2242 13.4275 12.5758 13.0758C12.9275 12.7242 13.125 12.2473 13.125 11.75C13.125 11.2527 12.9275 10.7758 12.5758 10.4242C12.2242 10.0725 11.7473 9.875 11.25 9.875C10.7527 9.875 10.2758 10.0725 9.92417 10.4242C9.57254 10.7758 9.375 11.2527 9.375 11.75Z"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.4375 7.1875L9.5625 5.0625"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M5.4375 8.8125L9.5625 10.9375"  stroke-width="0.9375" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+<span class="feedback">Copied!</span></button>
+</div>
+                <div class="post-side-cta">
+                    <p class="post-side-cta-title">Publish and earn on Apify Store</p>
+                    <p class="post-side-cta-text">The largest marketplace of tools for AI</p>
+                    <a href="https://apify.com/templates"
+                        class="post-side-cta-link btn btn-compact btn-secondary">Start here</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="related-posts-section">
+    <div class="related-posts-container">
+        <h3 class="related-posts-section-title">Related articles</h3>
+        <div class="related-posts-list">
+            <div>
+                <article class="post-card post-card-related flex">
+    <a href="/announcing-mcp-connectors/" class="post-img-wrap">
+        <img loading="lazy"
+            srcset="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w300/2026/06/connection-Q99-2.gif 300w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w600/2026/06/connection-Q99-2.gif 600w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/06/connection-Q99-2.gif 1200w,"
+            sizes="(max-width: 340px) 300px, (max-width:640px) 600px, (max-width: 991px) 1200px, (min-width: 992px) and (max-width: 1199px) 600px, 1200px"
+        src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/06/connection-Q99-2.gif"
+        alt="Announcing MCP connectors 🔌" >
+    </a>
+    <div class="post-info-wrap">
+        <div class="tags-wrap">
+                <div>
+                    <a href="/tag/apify-updates/" class="tag">Apify updates</a>
+                </div>
+                <div>
+                    <a href="/tag/mcp/" class="tag">MCP</a>
+                </div>
+                <div>
+                    <a href="/tag/ai-agents/" class="tag">AI agents</a>
+                </div>
+        </div>
+        <div class="post-title">
+            <a href="/announcing-mcp-connectors/">Announcing MCP connectors 🔌</a>
+        </div>
+        <div class="post-meta-wrap flex">
+            <a href="/author/jancurn/" class="post-author flex">
+                <div class="author-avatar-wrap">
+                    <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w150/2023/11/Apify_Honza_1_BW-2-1.jpg" class="avatar" loading="lazy" alt="Jan Čurn">
+                </div>
+                <div class="author-name">
+                    Jan Čurn
+                </div>
+            </a>
+            <div class="date-time">
+                <time class="post-date" datetime="2026-06-09">Jun 9, 2026</time>
+            </div>
+        </div>
+    </div>
+</article>
+            </div>
+            <div>
+                <article class="post-card post-card-related flex">
+    <a href="/standardizing-actor-pricing/" class="post-img-wrap">
+        <img loading="lazy"
+            srcset="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w300/2026/04/Why-Apify-is-standardizing-Actor-pricing.png 300w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w600/2026/04/Why-Apify-is-standardizing-Actor-pricing.png 600w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/04/Why-Apify-is-standardizing-Actor-pricing.png 1200w,"
+            sizes="(max-width: 340px) 300px, (max-width:640px) 600px, (max-width: 991px) 1200px, (min-width: 992px) and (max-width: 1199px) 600px, 1200px"
+        src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/04/Why-Apify-is-standardizing-Actor-pricing.png"
+        alt="Why Apify is standardizing Actor pricing" >
+    </a>
+    <div class="post-info-wrap">
+        <div class="tags-wrap">
+                <div>
+                    <a href="/tag/apify-updates/" class="tag">Apify updates</a>
+                </div>
+        </div>
+        <div class="post-title">
+            <a href="/standardizing-actor-pricing/">Why Apify is standardizing Actor pricing</a>
+        </div>
+        <div class="post-meta-wrap flex">
+            <a href="/author/saurav/" class="post-author flex">
+                <div class="author-avatar-wrap">
+                    <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w150/2024/06/Saurav-Jain.jpg" class="avatar" loading="lazy" alt="Saurav Jain">
+                </div>
+                <div class="author-name">
+                    Saurav Jain
+                </div>
+            </a>
+            <div class="date-time">
+                <time class="post-date" datetime="2026-04-14">Apr 14, 2026</time>
+            </div>
+        </div>
+    </div>
+</article>
+            </div>
+            <div>
+                <article class="post-card post-card-related flex">
+    <a href="/introducing-apify-agent-skills/" class="post-img-wrap">
+        <img loading="lazy"
+            srcset="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w300/2026/03/agent-skills.png 300w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w600/2026/03/agent-skills.png 600w,
+                https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/03/agent-skills.png 1200w,"
+            sizes="(max-width: 340px) 300px, (max-width:640px) 600px, (max-width: 991px) 1200px, (min-width: 992px) and (max-width: 1199px) 600px, 1200px"
+        src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w1200/2026/03/agent-skills.png"
+        alt="Apify Agent Skills" >
+    </a>
+    <div class="post-info-wrap">
+        <div class="tags-wrap">
+                <div>
+                    <a href="/tag/ai-agents/" class="tag">AI agents</a>
+                </div>
+                <div>
+                    <a href="/tag/apify-updates/" class="tag">Apify updates</a>
+                </div>
+                <div>
+                    <a href="/tag/mcp/" class="tag">MCP</a>
+                </div>
+        </div>
+        <div class="post-title">
+            <a href="/introducing-apify-agent-skills/">Introducing Apify Agent Skills</a>
+        </div>
+        <div class="post-meta-wrap flex">
+            <a href="/author/lukas-bekr/" class="post-author flex">
+                <div class="author-avatar-wrap">
+                    <img src="https://storage.ghost.io/c/f2/6e/f26ec999-9a90-4aee-a0d4-9b3ca2bb668f/content/images/size/w150/2025/12/322734882_1467698230305967_3359969301068252144_n.jpg" class="avatar" loading="lazy" alt="Lukas Bekr">
+                </div>
+                <div class="author-name">
+                    Lukas Bekr
+                </div>
+            </a>
+            <div class="date-time">
+                <time class="post-date" datetime="2026-03-26">Mar 26, 2026</time>
+            </div>
+        </div>
+    </div>
+</article>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+    <script hidden id="analytics-data" type="application/json">
+  {
+    "page_tag": {
+        "page": "post_detail",
+        "tags": [
+                        {
+                            "label": "Apify updates",
+                            "url": "/tag/apify-updates/"
+                        },
+                        {
+                            "label": "AI agents",
+                            "url": "/tag/ai-agents/"
+                        },
+                        {
+                            "label": "Finance and Fintech",
+                            "url": "/tag/finance-and-fintech/"
+                        },
+                        {
+                            "label": "MCP",
+                            "url": "/tag/mcp/"
+                        }
+        ]
+    }
+  }
+</script>
+
+
+        <footer class="footer">
+    <div class="footer-container footer-top">
+        <div class="footer-navigation">
+    <div class="footer-column">
+        <p class="footer-column-title">Product<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" aria-hidden="true" class="plus">
+  <path fill="currentColor" d="M10.75 3.125a.75.75 0 0 0-1.5 0V9.25H3.125a.75.75 0 0 0 0 1.5H9.25v6.125a.75.75 0 0 0 1.5 0V10.75h6.125a.75.75 0 0 0 0-1.5H10.75z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" fill="none" aria-hidden="true" class="minus">
+  <path fill="currentColor" fill-rule="evenodd" d="M4 10.139a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1" clip-rule="evenodd"></path>
+</svg></p>
+        <ul class="footer-column-list">
+            <li role="menuitem">
+                <a href="https://apify.com/store" class="footer-column-item">Apify Store</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/integrations" class="footer-column-item">Integrations</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/proxy" class="footer-column-item">Proxy</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://crawlee.dev" target="_blank" class="footer-column-item">Crawlee<svg xmlns="http://www.w3.org/2000/svg" width="8" height="16" fill="none" class="external-link" aria-hidden="true">
+  <path fill="currentColor" fill-rule="evenodd" d="M2 1.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707L1.854 6.854a.5.5 0 1 1-.708-.708L5.293 2H2.5a.5.5 0 0 1-.5-.5" clip-rule="evenodd"></path>
+</svg></a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Developers<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" aria-hidden="true" class="plus">
+  <path fill="currentColor" d="M10.75 3.125a.75.75 0 0 0-1.5 0V9.25H3.125a.75.75 0 0 0 0 1.5H9.25v6.125a.75.75 0 0 0 1.5 0V10.75h6.125a.75.75 0 0 0 0-1.5H10.75z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" fill="none" aria-hidden="true" class="minus">
+  <path fill="currentColor" fill-rule="evenodd" d="M4 10.139a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1" clip-rule="evenodd"></path>
+</svg></p>
+        <ul class="footer-column-list">
+            <li role="menuitem">
+                <a href="https://docs.apify.com" class="footer-column-item">Documentation</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/templates" class="footer-column-item">Code templates</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://docs.apify.com/platform/actors/development/deployment" class="footer-column-item">Deploy to Apify</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://docs.apify.com/api" class="footer-column-item">API reference</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/partners/actor-developers" class="footer-column-item">Get paid on Apify</a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Consulting<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" aria-hidden="true" class="plus">
+  <path fill="currentColor" d="M10.75 3.125a.75.75 0 0 0-1.5 0V9.25H3.125a.75.75 0 0 0 0 1.5H9.25v6.125a.75.75 0 0 0 1.5 0V10.75h6.125a.75.75 0 0 0 0-1.5H10.75z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" fill="none" aria-hidden="true" class="minus">
+  <path fill="currentColor" fill-rule="evenodd" d="M4 10.139a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1" clip-rule="evenodd"></path>
+</svg></p>
+        <ul class="footer-column-list">
+            <li role="menuitem">
+                <a href="https://apify.com/professional-services" class="footer-column-item">Professional Services</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/partners" class="footer-column-item">Apify Partners</a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Support<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" aria-hidden="true" class="plus">
+  <path fill="currentColor" d="M10.75 3.125a.75.75 0 0 0-1.5 0V9.25H3.125a.75.75 0 0 0 0 1.5H9.25v6.125a.75.75 0 0 0 1.5 0V10.75h6.125a.75.75 0 0 0 0-1.5H10.75z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" fill="none" aria-hidden="true" class="minus">
+  <path fill="currentColor" fill-rule="evenodd" d="M4 10.139a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1" clip-rule="evenodd"></path>
+</svg></p>
+        <ul class="footer-column-list">
+            <li role="menuitem">
+                <a href="https://help.apify.com/en" target="_blank" class="footer-column-item">Help &amp; Support<svg xmlns="http://www.w3.org/2000/svg" width="8" height="16" fill="none" class="external-link" aria-hidden="true">
+  <path fill="currentColor" fill-rule="evenodd" d="M2 1.5a.5.5 0 0 1 .5-.5h4a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-1 0V2.707L1.854 6.854a.5.5 0 1 1-.708-.708L5.293 2H2.5a.5.5 0 0 1-.5-.5" clip-rule="evenodd"></path>
+</svg></a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/ideas" class="footer-column-item">Submit your ideas</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://discord.apify.com" class="footer-column-item">Forum</a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Company<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" aria-hidden="true" class="plus">
+  <path fill="currentColor" d="M10.75 3.125a.75.75 0 0 0-1.5 0V9.25H3.125a.75.75 0 0 0 0 1.5H9.25v6.125a.75.75 0 0 0 1.5 0V10.75h6.125a.75.75 0 0 0 0-1.5H10.75z"></path>
+</svg><svg xmlns="http://www.w3.org/2000/svg" width="20" height="21" fill="none" aria-hidden="true" class="minus">
+  <path fill="currentColor" fill-rule="evenodd" d="M4 10.139a1 1 0 0 1 1-1h10a1 1 0 1 1 0 2H5a1 1 0 0 1-1-1" clip-rule="evenodd"></path>
+</svg></p>
+        <ul class="footer-column-list">
+            <li role="menuitem">
+                <a href="https://apify.com/about" class="footer-column-item">About Apify</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/contact" class="footer-column-item">Contact us</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://blog.apify.com" class="footer-column-item">Blog</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/partners/affiliate" class="footer-column-item">Become an affiliate</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/success-stories" class="footer-column-item">Customer stories</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/change-log" class="footer-column-item">Changelog</a>
+            </li>
+            <li role="menuitem">
+                <a href="https://apify.com/jobs" class="footer-column-item">Jobs <span class="badge">We're hiring!</span></a>
+            </li>
+        </ul>
+    </div>
+</div>
+        <div class="footer-recognitions">
+    <a href="https://apify.com" aria-label="Apify" class="footer-logo">
+        <img src="https://blog.apify.com/assets/images/apify-logomark-32x32.svg?v=9475400bce" alt="Apify logo">
+    </a>
+    <div class="footer-column">
+        <p class="footer-column-title">Socials</p>
+        <ul class="footer-list">
+            <li>
+                <a href="https://www.linkedin.com/company/apify" class="footer-social" rel="noreferrer noopener" aria-label="linkedin link" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd"
+    d="M1.76665 0.0488281C0.79126 0.0488281 0 0.815997 0 1.76114V22.2411C0 23.1863 0.791353 23.9528 1.76665 23.9528H22.1373C23.1131 23.9528 23.904 23.1862 23.904 22.2408V1.76114C23.904 0.815997 23.1131 0.0488281 22.1373 0.0488281H1.76665ZM7.2643 9.29076V20.0524H3.68729V9.29076H7.2643ZM7.50008 5.96259C7.50008 6.99532 6.72366 7.82169 5.47655 7.82169L5.47627 7.82159H5.45311C4.25259 7.82159 3.47645 6.99522 3.47645 5.9625C3.47645 4.90633 4.27602 4.10303 5.50026 4.10303C6.72366 4.10303 7.47673 4.90633 7.50008 5.96259ZM12.821 20.0524H9.24423L9.24413 20.0528C9.24413 20.0528 9.2911 10.3007 9.24441 9.29113H12.8212V10.8144C13.2967 10.0813 14.1477 9.03846 16.045 9.03846C18.3983 9.03846 20.1628 10.5766 20.1628 13.882V20.0524H16.5861V14.2958C16.5861 12.849 16.0682 11.8622 14.7742 11.8622C13.7858 11.8622 13.1973 12.5277 12.9388 13.1706C12.8443 13.4 12.821 13.7221 12.821 14.0433V20.0524Z"
+    fill="currentColor" />
+</svg></a>
+            </li>
+            <li>
+                <a href="https://x.com/apify" class="footer-social" rel="noreferrer noopener" aria-label="twitter link" target="_blank"><svg xmlns="http://www.w3.org/2000/svg" width="300" height="271" viewBox="0 0 300 271">
+ <path d="m236 0h46l-101 115 118 156h-92.6l-72.5-94.8-83 94.8h-46l107-123-113-148h94.9l65.5 86.6zm-16.1 244h25.5l-165-218h-27.4z"/>
+</svg>
+</a>
+            </li>
+            <li>
+                <a href="https://github.com/apify" class="footer-social" rel="noreferrer noopener" aria-label="github link" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M11.9997 0.279786C9.14289 0.278937 6.3795 1.29731 4.20642 3.15177C2.03335 5.00624 0.593157 7.57514 0.144818 10.3965C-0.303521 13.2179 0.269408 16.1067 1.76058 18.5435C3.25176 20.9802 5.56335 22.805 8.27969 23.6898H8.55969C8.81512 23.7022 9.06563 23.6164 9.25969 23.4498C9.37644 23.3481 9.46925 23.2219 9.53149 23.0801C9.59373 22.9383 9.62385 22.7846 9.61969 22.6298V22.4198C9.61969 22.2498 9.61969 22.0198 9.61969 21.3298C9.61164 21.2649 9.59068 21.2022 9.55805 21.1456C9.52542 21.0889 9.48178 21.0393 9.42969 20.9998C9.37277 20.9542 9.30658 20.9217 9.23575 20.9044C9.16493 20.8871 9.09118 20.8856 9.01969 20.8998C6.32969 21.4798 5.75969 19.7998 5.72969 19.6898C5.39143 18.7995 4.78743 18.035 3.99969 17.4998L3.84969 17.3898C3.96777 17.3327 4.09903 17.3086 4.22969 17.3198C4.47891 17.3573 4.71444 17.4578 4.91394 17.6118C5.11344 17.7658 5.27031 17.9682 5.36969 18.1998C5.75654 18.8734 6.38957 19.3706 7.1356 19.587C7.88162 19.8033 8.68249 19.7219 9.36969 19.3598C9.44394 19.3268 9.50962 19.2772 9.56164 19.2147C9.61365 19.1523 9.65062 19.0788 9.66969 18.9998C9.71023 18.5407 9.90804 18.1098 10.2297 17.7798C10.3038 17.7158 10.3576 17.6315 10.3842 17.5373C10.4109 17.4431 10.4093 17.3431 10.3797 17.2498C10.3524 17.1563 10.2978 17.0731 10.223 17.0108C10.1482 16.9484 10.0565 16.9098 9.95969 16.8998C7.58969 16.6298 5.15969 15.7998 5.15969 11.7098C5.14242 10.6813 5.52205 9.68569 6.21969 8.92979C6.28274 8.86073 6.32472 8.77508 6.34067 8.68294C6.35662 8.5908 6.34587 8.49601 6.30969 8.40979C6.03273 7.62972 6.03627 6.77753 6.31969 5.99979C7.24312 6.1648 8.10993 6.56037 8.83969 7.14979C8.90042 7.1913 8.96987 7.2183 9.0427 7.22871C9.11552 7.23911 9.18976 7.23264 9.25969 7.20979C10.1535 6.9714 11.0746 6.85039 11.9997 6.84979C12.9284 6.84538 13.8534 6.96648 14.7497 7.20979C14.818 7.23255 14.8906 7.23899 14.9618 7.22857C15.033 7.21814 15.1008 7.19116 15.1597 7.14979C15.8885 6.55887 16.7557 6.16313 17.6797 5.99979C17.9544 6.76934 17.9544 7.61023 17.6797 8.37979C17.6435 8.46671 17.6337 8.56236 17.6515 8.65482C17.6693 8.74728 17.7139 8.83247 17.7797 8.89979C18.4665 9.64966 18.842 10.633 18.8297 11.6498C18.8297 15.7498 16.3997 16.5698 14.0197 16.8298C13.9228 16.8398 13.8311 16.8784 13.7563 16.9408C13.6815 17.0031 13.627 17.0863 13.5997 17.1798C13.5709 17.2716 13.5697 17.3699 13.5964 17.4624C13.6231 17.5548 13.6764 17.6374 13.7497 17.6998C13.9709 17.9307 14.1398 18.2065 14.2451 18.5084C14.3503 18.8104 14.3894 19.1314 14.3597 19.4498V22.6298C14.3575 22.7852 14.3894 22.9393 14.4534 23.081C14.5173 23.2227 14.6117 23.3486 14.7297 23.4498C14.8786 23.5633 15.0524 23.6397 15.2367 23.6728C15.4211 23.7058 15.6106 23.6945 15.7897 23.6398C18.4749 22.726 20.7496 20.8906 22.2103 18.4592C23.671 16.0278 24.2232 13.1576 23.7689 10.3578C23.3147 7.55794 21.8833 5.00953 19.7289 3.16466C17.5744 1.31979 14.8361 0.297719 11.9997 0.279786Z"
+    fill="currentColor" />
+</svg></a>
+            </li>
+            <li>
+                <a href="https://www.youtube.com/apify" class="footer-social" rel="noreferrer noopener" aria-label="youtube link" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path fill-rule="evenodd" clip-rule="evenodd"
+    d="M21.3766 4.05023C22.4093 4.328 23.2225 5.14649 23.4986 6.18579C24.0001 8.06956 24 12.0001 24 12.0001C24 12.0001 24 15.9304 23.4985 17.8143C23.2224 18.8536 22.4092 19.672 21.3765 19.95C19.505 20.4546 11.9999 20.4546 11.9999 20.4546C11.9999 20.4546 4.4949 20.4546 2.6233 19.95C1.59065 19.6719 0.777275 18.8536 0.501445 17.8142C0 15.9303 0 12 0 12C0 12 0 8.06956 0.501445 6.18579C0.777275 5.14649 1.59065 4.328 2.62341 4.05023C4.495 3.54541 12 3.54541 12 3.54541C12 3.54541 19.5051 3.54541 21.3766 4.05023ZM15.8181 12.0002L9.54544 15.5686V8.43153L15.8181 12.0002Z"
+    fill="currentColor" />
+</svg></a>
+            </li>
+            <li>
+                <a href="https://discord.com/invite/jyEM2PRvMU" class="footer-social" rel="noreferrer noopener" aria-label="discord link" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M20.3303 4.55593C18.7767 3.82906 17.1156 3.3008 15.3789 3C15.1656 3.38561 14.9164 3.90427 14.7446 4.31685C12.8985 4.03922 11.0693 4.03922 9.25716 4.31685C9.08539 3.90427 8.83055 3.38561 8.61536 3C6.87681 3.3008 5.21376 3.831 3.66019 4.55978C0.526643 9.29499 -0.322811 13.9126 0.101917 18.4646C2.18025 20.0166 4.19441 20.9595 6.17457 21.5764C6.66349 20.9035 7.09953 20.1882 7.47518 19.4344C6.75975 19.1626 6.07453 18.8271 5.42707 18.4376C5.59884 18.3104 5.76686 18.1773 5.92918 18.0404C9.87819 19.8875 14.1689 19.8875 18.0707 18.0404C18.235 18.1773 18.403 18.3104 18.5728 18.4376C17.9235 18.829 17.2364 19.1645 16.521 19.4363C16.8966 20.1882 17.3308 20.9055 17.8216 21.5783C19.8036 20.9614 21.8197 20.0186 23.898 18.4646C24.3964 13.1876 23.0467 8.61246 20.3303 4.55593ZM8.01318 15.6651C6.82772 15.6651 5.85555 14.5585 5.85555 13.2108C5.85555 11.8631 6.80696 10.7545 8.01318 10.7545C9.21942 10.7545 10.1916 11.8612 10.1708 13.2108C10.1727 14.5585 9.21942 15.6651 8.01318 15.6651ZM15.9867 15.6651C14.8013 15.6651 13.8291 14.5585 13.8291 13.2108C13.8291 11.8631 14.7805 10.7545 15.9867 10.7545C17.193 10.7545 18.1651 11.8612 18.1444 13.2108C18.1444 14.5585 17.193 15.6651 15.9867 15.6651Z"
+    fill="currentColor" />
+</svg></a>
+            </li>
+            <li>
+                <a href="https://www.tiktok.com/@apifytech" class="footer-social"rel="noreferrer noopener" aria-label="tik-tok link" target="_blank"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path
+    d="M19.3214 5.56219C19.1695 5.4837 19.0217 5.39765 18.8784 5.30438C18.4618 5.02896 18.0799 4.70445 17.7408 4.33781C16.8923 3.36703 16.5754 2.38219 16.4587 1.69266H16.4634C16.3659 1.12031 16.4062 0.75 16.4123 0.75H12.5479V15.6928C12.5479 15.8934 12.5479 16.0917 12.5395 16.2877C12.5395 16.312 12.5372 16.3345 12.5358 16.3608C12.5358 16.3716 12.5358 16.3828 12.5334 16.3941C12.5334 16.3969 12.5334 16.3997 12.5334 16.4025C12.4927 16.9386 12.3208 17.4566 12.0329 17.9107C11.7451 18.3648 11.35 18.7413 10.8825 19.0069C10.3952 19.2841 9.84414 19.4295 9.28357 19.4288C7.4831 19.4288 6.02388 17.9606 6.02388 16.1475C6.02388 14.3344 7.4831 12.8663 9.28357 12.8663C9.62439 12.8659 9.96311 12.9196 10.2872 13.0252L10.2918 9.09047C9.30811 8.9634 8.30872 9.04158 7.35671 9.32008C6.4047 9.59858 5.52074 10.0714 4.7606 10.7086C4.09454 11.2873 3.53457 11.9778 3.10591 12.7491C2.94279 13.0303 2.32732 14.1605 2.25279 15.9947C2.20591 17.0358 2.51857 18.1144 2.66763 18.5602V18.5695C2.76138 18.832 3.12466 19.7278 3.71669 20.483C4.19409 21.0887 4.75811 21.6208 5.3906 22.0622V22.0528L5.39997 22.0622C7.27076 23.3334 9.34497 23.25 9.34497 23.25C9.70404 23.2355 10.9068 23.25 12.2728 22.6027C13.7878 21.885 14.6503 20.8158 14.6503 20.8158C15.2013 20.1769 15.6394 19.4488 15.9459 18.6628C16.2956 17.7436 16.4123 16.6411 16.4123 16.2005V8.27297C16.4592 8.30109 17.0836 8.71406 17.0836 8.71406C17.0836 8.71406 17.9831 9.29063 19.3865 9.66609C20.3934 9.93328 21.75 9.98953 21.75 9.98953V6.15328C21.2747 6.20484 20.3095 6.05484 19.3214 5.56219Z"
+    fill="currentColor" />
+</svg></a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Security</p>
+        <ul class="footer-list">
+            <li>
+                <a href="https://docs.apify.com/legal/gdpr-information" rel="external noopener noreferrer nofollow" target="_blank" class="footer-security" aria-label="GDPR">
+                    <img src="https://blog.apify.com/assets/images/gdpr.svg?v=9475400bce" alt="GDPR image">
+                </a>
+            </li>
+            <li>
+                <a href="https://trust.apify.com" rel="external noopener noreferrer nofollow" target="_blank" class="footer-security" aria-label="SOC2">
+                    <img src="https://blog.apify.com/assets/images/soc-2.svg?v=9475400bce" alt="SOC2 image">
+                </a>
+            </li>
+        </ul>
+    </div>
+    <div class="footer-column">
+        <p class="footer-column-title">Reviews</p>
+        <ul class="footer-list">
+            <li>
+                <a href="https://www.getapp.com/business-intelligence-analytics-software/a/apify" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="GetApp Apify user reviews">
+                    <img data-test="GetApp Apify user reviews-image" src="https://blog.apify.com/assets/images/get-app.png?v=9475400bce" alt="GetApp Apify user reviews image">
+                </a>
+            </li>
+            <li>
+                <a href="https://www.softwareadvice.com/data-extraction/apify-profile" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="Software Advice Apify reviews">
+                    <img data-test="Software Advice Apify reviews-image" src="https://blog.apify.com/assets/images/software-advice.png?v=9475400bce" alt="Software Advice Apify reviews image">
+                </a>
+            </li>
+            <li>
+                <a href="https://www.capterra.com/p/150854/Apify/" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="Capterra Apify user reviews">
+                    <img data-test="Capterra Apify user reviews-image" src="https://blog.apify.com/assets/images/capterra.png?v=9475400bce" alt="Capterra Apify user reviews image">
+                </a>
+            </li>
+            <li>
+                <a href="https://www.g2.com/products/apify/reviews" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="G2 Apify user reviews">
+                    <img data-test="G2 Apify user reviews-image" src="https://blog.apify.com/assets/images/g2.png?v=9475400bce" alt="G2 Apify user reviews image">
+                </a>
+            </li>
+            <li>
+                <a href="https://www.trustradius.com/products/apify/reviews" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="TrustRadius Apify user reviews">
+                    <img data-test="TrustRadius Apify user reviews-image" src="https://blog.apify.com/assets/images/trust-radius.png?v=9475400bce" alt="TrustRadius Apify user reviews image">
+                </a>
+            </li>
+            <li>
+                <a href="https://crozdesk.com/software/apify" rel="external noopener noreferrer nofollow" target="_blank" class="footer-reviews" aria-label="Crozdesk Apify user reviews">
+                    <img data-test="Crozdesk Apify user reviews-image" src="https://blog.apify.com/assets/images/crozdesk.png?v=9475400bce" alt="Crozdesk Apify user reviews image">
+                </a>
+            </li>
+        </ul>
+    </div>
+    <button class="toggle-icon theme-icon flex js-toggle-dark-light" aria-label="Toggle theme">
+        <div class="toggle-mode flex">
+            <div class="toggle-switch">
+                <span class="icon-light"><svg><use xlink:href="#i-sun"></use></svg></span>
+                <span class="icon-dark"><svg><use xlink:href="#i-moon"></use></svg></span>
+            </div>
+        </div>
+</button>
+</div>
+    </div>
+    <div class="footer-bottom">
+        <div class="footer-container footer-bottom-links">
+            <a href="https://apify.com/terms-of-use">Terms of Use</a>
+            <a href="https://apify.com/privacy-policy">Privacy Policy</a>
+            <a href="https://apify.com/cookie-policy">Cookie Policy</a>
+            <div role="button" class="ot-sdk-show-settings pointer">Cookie settings</div>
+            <div class="copyright">&copy; 2026 Apify</div>
+        </div>
+    </div>
+</footer>
+		</div>
+		<script>
+            var nextPage = '';
+            var totalPages = '';
+        </script>
+		<script src="https://blog.apify.com/assets/js/app.bundle.min.js?v=9475400bce"></script>
+		    <script>
+        tocbot.init({
+            tocSelector: '.js-toc',
+            contentSelector: '.post-content',
+            headingSelector: 'h2, h3:not(.kg-header-card-subheader)',
+            headingsOffset: 60,
+            scrollSmoothOffset: -60
+        });
+    </script>
+
+        <!-- DO NOT INJECT ANY CODE HERE!!! (PLEASE CONTACT THE WEB TEAM IF YOU WANT TO ADD ANY INTEGRATION OR TRACKING) -->
+        <script>
+            if (config.enable_pwa && 'serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/service-worker.js');
+                });
+            }
+        </script>
+
+		<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-MNGXGGB" height="0" width="0"
+				style="display:none;visibility:hidden"></iframe></noscript>
+
+		<script type="text/javascript" id="hs-script-loader" async defer src="//js.hs-scripts.com/19497222.js"></script>
+	</body>
+</html>
+
+

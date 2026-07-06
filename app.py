@@ -291,10 +291,11 @@ async def landing_page():
     <a class="brand" href="/"><span class="mark">B</span><span>Bounty API</span></a>
     <div class="navlinks">
       <a href="#apis">APIs</a>
-      <a href="#agents">Agents</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/providers">For Developers</a>
+      <a href="/setup">Agent Setup</a>
       <a href="/docs">Docs</a>
-      <a href="/llms.txt">llms.txt</a>
-      <a class="button primary" href="/docs">Start building</a>
+      <a class="button primary" href="/providers">Publish API</a>
     </div>
   </nav>
 
@@ -302,11 +303,11 @@ async def landing_page():
     <div class="hero">
       <div class="eyebrow">Live in Singapore · Scaling globally</div>
       <h1>Specialist data APIs for AI agents.</h1>
-      <p>Bounty turns messy public datasets, government portals, and local market rules into clean endpoints agents can call without scraping the web from scratch. Starting in Singapore, expanding worldwide.</p>
+      <p>Bounty is an agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments built in. Agents discover via MCP, pay per call in USDC, and get structured data without scraping. Starting in Singapore, scaling globally.</p>
       <div class="hero-actions">
-        <a class="button primary" href="/docs">Explore API docs</a>
-        <a class="button" href="/llms.txt">Read llms.txt</a>
-        <a class="button" href="/api">View API JSON</a>
+        <a class="button primary" href="/setup">Set up your agent</a>
+        <a class="button" href="/pricing">View pricing</a>
+        <a class="button" href="/providers">Publish your API</a>
       </div>
       <div class="terminal" aria-label="Example API request">
         <div class="termbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>GET /bsd?price=1000000</span></div>
@@ -328,31 +329,31 @@ async def landing_page():
       <div class="grid">
         <article class="card">
           <div><h3>SG Stamp Duty</h3><p>BSD and ABSD calculations for Singapore property purchases. Rates verified against IRAS.</p></div>
-          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">$0.002 / call · <a href="/apis/stamp-duty">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">FREE · <a href="/apis/stamp-duty">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Postal District Mapper</h3><p>Map Singapore postal codes to districts, regions, and property market areas.</p></div>
-          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">$0.001 / call · <a href="/apis/postal-district">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">FREE · <a href="/apis/postal-district">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Rental Yield</h3><p>Gross yield, net yield, cash flow, cap rate, and price-to-rent calculations.</p></div>
-          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.002 / call · <a href="/apis/rental-yield">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.005 / call · <a href="/apis/rental-yield">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>HDB Resale Data</h3><p>HDB resale town data sourced from data.gov.sg, structured for agent workflows.</p></div>
-          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">sampled data</span></div><div class="price">$0.003 / call · <a href="/apis/hdb-resale">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">sampled data</span></div><div class="price">$0.01 / call · <a href="/apis/hdb-resale">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Mortgage Calculator</h3><p>Monthly payments, total interest, and amortization schedules for any loan.</p></div>
-          <div><div class="tagrow"><span class="tag">/mortgage</span><span class="tag">global</span></div><div class="price">$0.002 / call · <a href="/apis/mortgage">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">/mortgage</span><span class="tag">global</span></div><div class="price">FREE · <a href="/apis/mortgage">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Investment Growth</h3><p>Compound interest projections with periodic contributions and yearly growth tables.</p></div>
-          <div><div class="tagrow"><span class="tag">/invest</span><span class="tag">global</span></div><div class="price">$0.002 / call · <a href="/apis/compound">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">/invest</span><span class="tag">global</span></div><div class="price">FREE · <a href="/apis/compound">View API →</a></div></div>
         </article>
         <article class="card">
           <div><h3>Currency Converter</h3><p>Live exchange rates for 30+ currencies. ECB reference rates, cached hourly.</p></div>
-          <div><div class="tagrow"><span class="tag">/currency</span><span class="tag">30+ currencies</span></div><div class="price">$0.001 / call · <a href="/apis/currency">View API →</a></div></div>
+          <div><div class="tagrow"><span class="tag">/currency</span><span class="tag">30+ currencies</span></div><div class="price">FREE · <a href="/apis/currency">View API →</a></div></div>
         </article>
       </div>
     </section>
@@ -361,21 +362,30 @@ async def landing_page():
       <div class="split">
         <div class="panel">
           <h3>Built for agent economics.</h3>
-          <p style="color: var(--muted); line-height: 1.6; margin: 0;">The pitch is simple: a model should not spend 20k tokens and ten browser actions to recover data that should have been a one-line API call.</p>
+          <p style="color: var(--muted); line-height: 1.6; margin: 0;">Bounty is an x402-native marketplace. Agents discover APIs via MCP, pay per call in USDC on Base, and get structured data with source provenance. No API keys. No subscriptions. No scraping.</p>
           <div class="list">
-            <div class="item"><span class="check">✓</span><div><strong>x402-ready pricing</strong><span>Micropayment-native API economics for autonomous agents.</span></div></div>
-            <div class="item"><span class="check">✓</span><div><strong>MCP discovery path</strong><span>Structured descriptions via llms.txt today, MCP package next.</span></div></div>
-            <div class="item"><span class="check">✓</span><div><strong>Source-forward data</strong><span>Every API should expose provenance, not vibes dressed up as precision.</span></div></div>
+            <div class="item"><span class="check">&#10003;</span><div><strong>x402 micropayments</strong><span>Per-call USDC settlement on Base. Agents pay only for what they use.</span></div></div>
+            <div class="item"><span class="check">&#10003;</span><div><strong>MCP discovery</strong><span>Tool definitions via MCP stdio and HTTP transport. npm: bountyapi-mcp.</span></div></div>
+            <div class="item"><span class="check">&#10003;</span><div><strong>Source-forward data</strong><span>Every response carries provenance. No interpolated or fabricated values.</span></div></div>
+            <div class="item"><span class="check">&#10003;</span><div><strong>Provider marketplace</strong><span>Publish your own APIs. Keep 97% of revenue. We handle payments and discovery.</span></div></div>
+          </div>
+          <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
+            <a class="button primary" href="/setup">Agent setup guide</a>
+            <a class="button" href="/providers">Become a provider</a>
           </div>
         </div>
         <div class="codebox">
           <pre>{
   <span class="blue">"name"</span>: <span class="green">"Bounty API"</span>,
-  <span class="blue">"focus"</span>: <span class="green">"Global, starting in SG"</span>,
-  <span class="blue">"payment"</span>: <span class="green">"x402 on Base"</span>,
-  <span class="blue">"live_apis"</span>: 4,
-  <span class="blue">"docs"</span>: <span class="green">"https://bountyapi.com/docs"</span>,
-  <span class="blue">"llms"</span>: <span class="green">"https://bountyapi.com/llms.txt"</span>
+  <span class="blue">"type"</span>: <span class="green">"x402-native marketplace"</span>,
+  <span class="blue">"payment"</span>: <span class="green">"USDC on Base"</span>,
+  <span class="blue">"discovery"</span>: <span class="green">"MCP + llms.txt"</span>,
+  <span class="blue">"live_apis"</span>: 7,
+  <span class="blue">"free_endpoints"</span>: 5,
+  <span class="blue">"paid_endpoints"</span>: 2,
+  <span class="blue">"provider_share"</span>: <span class="green">"97%"</span>,
+  <span class="blue">"npm"</span>: <span class="green">"bountyapi-mcp"</span>,
+  <span class="blue">"docs"</span>: <span class="green">"bountyapi.com/docs"</span>
 }</pre>
         </div>
       </div>
@@ -395,7 +405,7 @@ API_CATALOG = {
         "title": "SG Stamp Duty Calculator",
         "eyebrow": "Verified property-tax logic",
         "summary": "Calculate Singapore BSD and ABSD for property purchases with source-forward outputs and tier breakdowns.",
-        "price": "$0.002 / call",
+        "price": "FREE",
         "source": "IRAS stamp duty rates, verified against published examples.",
         "endpoints": ["POST /stamp-duty", "GET /bsd", "GET /absd"],
         "params": ["price", "property_type", "buyer_profile", "property_count"],
@@ -408,7 +418,7 @@ API_CATALOG = {
         "title": "SG Postal District Mapper",
         "eyebrow": "Static geography primitive",
         "summary": "Map 6-digit Singapore postal codes to postal districts, regions, and common property-market areas.",
-        "price": "$0.001 / call",
+        "price": "FREE",
         "source": "Static Singapore postal district reference table.",
         "endpoints": ["GET /postal/{code}", "GET /postal/districts", "GET /postal/district/{number}"],
         "params": ["postal_code", "district_number"],
@@ -421,7 +431,7 @@ API_CATALOG = {
         "title": "Rental Yield Calculator",
         "eyebrow": "Pure math investment primitive",
         "summary": "Calculate gross yield, net yield, cap rate, annual cashflow, and price-to-rent ratios for property underwriting.",
-        "price": "$0.002 / call",
+        "price": "$0.005 / call",
         "source": "Calculated from standard real-estate formulas. No external data dependency.",
         "endpoints": ["POST /rental-yield/calculate"],
         "params": ["property_price", "monthly_rent", "annual_expenses", "property_tax_rate", "management_fee_monthly", "maintenance_monthly"],
@@ -434,7 +444,7 @@ API_CATALOG = {
         "title": "HDB Resale Data",
         "eyebrow": "Public transaction data",
         "summary": "Expose HDB resale transaction search and sampled town-level aggregates from Singapore's official open-data portal.",
-        "price": "$0.003 / call",
+        "price": "$0.01 / call",
         "source": "data.gov.sg HDB resale flat prices dataset.",
         "endpoints": ["GET /hdb/towns", "GET /hdb/median", "GET /hdb/median/{town}", "GET /hdb/search"],
         "params": ["town", "flat_type", "min_price", "max_price", "min_floor_area_sqm", "limit"],
@@ -447,7 +457,7 @@ API_CATALOG = {
         "title": "Mortgage Calculator",
         "eyebrow": "Pure math financial primitive",
         "summary": "Calculate monthly mortgage payments, total interest, and amortization schedules for any loan worldwide.",
-        "price": "$0.002 / call",
+        "price": "FREE",
         "source": "Calculated from standard amortization formula. No external data dependency.",
         "endpoints": ["POST /mortgage/calculate"],
         "params": ["principal", "annual_interest_rate", "loan_term_years", "down_payment"],
@@ -460,7 +470,7 @@ API_CATALOG = {
         "title": "Investment Growth Calculator",
         "eyebrow": "Pure math investment primitive",
         "summary": "Project compound interest growth with periodic contributions. Supports compound and simple interest, multiple compounding frequencies.",
-        "price": "$0.002 / call",
+        "price": "FREE",
         "source": "Calculated from standard compound interest formulas. No external data dependency.",
         "endpoints": ["POST /invest/calculate"],
         "params": ["principal", "annual_rate", "years", "contribution_monthly", "contribution_frequency", "interest_type", "compounding_frequency"],
@@ -473,7 +483,7 @@ API_CATALOG = {
         "title": "Currency Converter",
         "eyebrow": "Live exchange rates",
         "summary": "Convert between 30+ currencies using live ECB reference rates. Cached hourly for fast response.",
-        "price": "$0.001 / call",
+        "price": "FREE",
         "source": "European Central Bank reference rates via frankfurter.app. Updated daily on business days.",
         "endpoints": ["GET /currency/convert", "GET /currency/rates", "GET /currency/supported"],
         "params": ["from", "to", "amount", "base"],
@@ -865,6 +875,13 @@ try:
 except ImportError as e:
     print(f"Warning: mortgage router not loaded: {e}")
 
+# Marketplace pages (pricing, providers, setup, manifest)
+try:
+    from pages import router as pages_router
+    app.include_router(pages_router)
+except ImportError as e:
+    print(f"Warning: pages router not loaded: {e}")
+
 
 # ============================================================
 # llms.txt — AI discovery (the #1 AI SEO priority)
@@ -883,10 +900,18 @@ Sitemap: https://bountyapi.com/sitemap.xml
 async def sitemap_xml():
     urls = [
         "https://bountyapi.com/",
+        "https://bountyapi.com/pricing",
+        "https://bountyapi.com/providers",
+        "https://bountyapi.com/setup",
+        "https://bountyapi.com/manifest.json",
+        "https://bountyapi.com/pricing.json",
         "https://bountyapi.com/apis/stamp-duty",
         "https://bountyapi.com/apis/postal-district",
         "https://bountyapi.com/apis/rental-yield",
         "https://bountyapi.com/apis/hdb-resale",
+        "https://bountyapi.com/apis/mortgage",
+        "https://bountyapi.com/apis/compound",
+        "https://bountyapi.com/apis/currency",
         "https://bountyapi.com/docs",
         "https://bountyapi.com/llms.txt",
         "https://bountyapi.com/llms-full.txt",
@@ -915,7 +940,10 @@ async def llms_txt():
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
   "settlement_chain": "Base",
-  "live_apis": 4
+  "live_apis": 7,
+  "free_endpoints": 5,
+  "paid_endpoints": 2,
+  "provider_revenue_share": "97%"
 }
 ```
 
@@ -930,23 +958,23 @@ async def llms_txt():
 
 ### SG Stamp Duty Calculator
 - Endpoints: POST /stamp-duty, GET /bsd, GET /absd
-- Price: $0.002/call
+- Price: FREE
 - Coverage: BSD (6-tier marginal, 1%-6%), ABSD (0%-65% by buyer profile)
 - Source: iras.gov.sg, verified Jan 2026
 
 ### SG Postal Code to District
 - Endpoints: GET /postal/{code}, GET /postal/districts
-- Price: $0.001/call
+- Price: FREE
 - Coverage: All 28 Singapore postal districts with area names
 
 ### SG Rental Yield Calculator
 - Endpoints: POST /rental-yield/calculate
-- Price: $0.002/call
+- Price: $0.005/call
 - Coverage: Gross yield, net yield, cap rate, price-to-rent ratio, cashflow
 
 ### HDB Resale Price Data
 - Endpoints: GET /hdb/towns, GET /hdb/median/{town}, GET /hdb/search
-- Price: $0.003/call
+- Price: $0.01/call
 - Coverage: 234K+ HDB resale transactions, all 26 towns, 2017-present
 - Source: data.gov.sg (live)
 
@@ -963,9 +991,14 @@ Add to Claude Desktop or any MCP-compatible client:
 }
 ```
 
-## Full documentation
+## Marketplace links
 
-See: https://bountyapi.com/llms-full.txt
+- Full documentation: https://bountyapi.com/llms-full.txt
+- Pricing: https://bountyapi.com/pricing
+- Provider onboarding: https://bountyapi.com/providers
+- Agent setup: https://bountyapi.com/setup
+- Machine manifest: https://bountyapi.com/manifest.json
+- Machine pricing: https://bountyapi.com/pricing.json
 """
 
 

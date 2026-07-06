@@ -46,6 +46,17 @@ class ProxyProtoMiddleware(BaseHTTPMiddleware):
 
 app.add_middleware(ProxyProtoMiddleware)
 
+# ============================================================
+# x402 Payment Middleware — agent-native micropayments (USDC on Base)
+# ============================================================
+try:
+    from payment import create_payment_middleware
+    create_payment_middleware(app)
+except ImportError:
+    print("[x402] x402 package not installed — running in free mode")
+except Exception as e:
+    print(f"[x402] Payment middleware failed: {e}")
+
 
 # ============================================================
 # Startup: pre-warm HDB cache so first user request doesn't block

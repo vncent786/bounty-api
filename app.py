@@ -331,6 +331,18 @@ async def landing_page():
           <div><h3>HDB Resale Data</h3><p>HDB resale town data sourced from data.gov.sg, structured for agent workflows.</p></div>
           <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">sampled data</span></div><div class="price">$0.003 / call · <a href="/apis/hdb-resale">View API →</a></div></div>
         </article>
+        <article class="card">
+          <div><h3>Mortgage Calculator</h3><p>Monthly payments, total interest, and amortization schedules for any loan.</p></div>
+          <div><div class="tagrow"><span class="tag">/mortgage</span><span class="tag">global</span></div><div class="price">$0.002 / call · <a href="/apis/mortgage">View API →</a></div></div>
+        </article>
+        <article class="card">
+          <div><h3>Investment Growth</h3><p>Compound interest projections with periodic contributions and yearly growth tables.</p></div>
+          <div><div class="tagrow"><span class="tag">/invest</span><span class="tag">global</span></div><div class="price">$0.002 / call · <a href="/apis/compound">View API →</a></div></div>
+        </article>
+        <article class="card">
+          <div><h3>Currency Converter</h3><p>Live exchange rates for 30+ currencies. ECB reference rates, cached hourly.</p></div>
+          <div><div class="tagrow"><span class="tag">/currency</span><span class="tag">30+ currencies</span></div><div class="price">$0.001 / call · <a href="/apis/currency">View API →</a></div></div>
+        </article>
       </div>
     </section>
 
@@ -420,6 +432,46 @@ API_CATALOG = {
         "try_url": "/hdb/towns",
         "limit": "Current aggregate endpoints are sampled and explicitly labelled. Full-history aggregation is planned with persistent storage."
     },
+    "mortgage": {
+        "title": "Mortgage Calculator",
+        "eyebrow": "Pure math financial primitive",
+        "summary": "Calculate monthly mortgage payments, total interest, and amortization schedules for any loan worldwide.",
+        "price": "$0.002 / call",
+        "source": "Calculated from standard amortization formula. No external data dependency.",
+        "endpoints": ["POST /mortgage/calculate"],
+        "params": ["principal", "annual_interest_rate", "loan_term_years", "down_payment"],
+        "request": "curl -X POST 'https://bountyapi.com/mortgage/calculate' -H 'content-type: application/json' -d '{\"principal\":200000,\"annual_interest_rate\":6.5,\"loan_term_years\":30}'",
+        "response": '{\n  "monthly_payment": 1264.14,\n  "total_interest": 255089.78,\n  "total_paid": 455089.78\n}',
+        "try_url": "/docs#/mortgage/calculate_mortgage_calculate_post",
+        "limit": "Amortization schedule returns first 12 and last 12 months to keep response compact."
+    },
+    "compound": {
+        "title": "Investment Growth Calculator",
+        "eyebrow": "Pure math investment primitive",
+        "summary": "Project compound interest growth with periodic contributions. Supports compound and simple interest, multiple compounding frequencies.",
+        "price": "$0.002 / call",
+        "source": "Calculated from standard compound interest formulas. No external data dependency.",
+        "endpoints": ["POST /invest/calculate"],
+        "params": ["principal", "annual_rate", "years", "contribution_monthly", "contribution_frequency", "interest_type", "compounding_frequency"],
+        "request": "curl -X POST 'https://bountyapi.com/invest/calculate' -H 'content-type: application/json' -d '{\"principal\":10000,\"annual_rate\":7,\"years\":10}'",
+        "response": '{\n  "final_balance": 20096.61,\n  "total_interest_earned": 10096.61,\n  "multiplier": 2.01\n}',
+        "try_url": "/docs#/invest/calculate_investment_calculate_post",
+        "limit": "Monthly compounding by default. Supports annual, quarterly, daily, and continuous compounding."
+    },
+    "currency": {
+        "title": "Currency Converter",
+        "eyebrow": "Live exchange rates",
+        "summary": "Convert between 30+ currencies using live ECB reference rates. Cached hourly for fast response.",
+        "price": "$0.001 / call",
+        "source": "European Central Bank reference rates via frankfurter.app. Updated daily on business days.",
+        "endpoints": ["GET /currency/convert", "GET /currency/rates", "GET /currency/supported"],
+        "params": ["from", "to", "amount", "base"],
+        "request": "curl 'https://bountyapi.com/currency/convert?from=USD&to=SGD&amount=100'",
+        "response": '{\n  "from_currency": "USD",\n  "to_currency": "SGD",\n  "amount": 100,\n  "rate": 1.2905,\n  "result": 129.05\n}',
+        "try_url": "/currency/convert?from=USD&to=SGD&amount=100",
+        "limit": "Rates are ECB reference rates, updated on business days. Not real-time market rates."
+    },
+
 }
 
 
@@ -774,6 +826,24 @@ try:
     app.include_router(hdb_router)
 except ImportError as e:
     print(f"Warning: hdb_resale router not loaded: {e}")
+
+try:
+    from apis.compound import router as compound_router
+    app.include_router(compound_router)
+except ImportError as e:
+    print(f"Warning: compound router not loaded: {e}")
+
+try:
+    from apis.currency import router as currency_router
+    app.include_router(currency_router)
+except ImportError as e:
+    print(f"Warning: currency router not loaded: {e}")
+
+try:
+    from apis.mortgage import router as mortgage_router
+    app.include_router(mortgage_router)
+except ImportError as e:
+    print(f"Warning: mortgage router not loaded: {e}")
 
 
 # ============================================================

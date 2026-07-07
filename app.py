@@ -47,6 +47,28 @@ class ProxyProtoMiddleware(BaseHTTPMiddleware):
 app.add_middleware(ProxyProtoMiddleware)
 
 # ============================================================
+# Static files — favicons, OG images, public assets
+# ============================================================
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+_static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "public")
+
+@app.get("/favicon.ico")
+async def favicon_ico():
+    path = os.path.join(_static_dir, "favicon.ico")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="image/x-icon")
+    raise HTTPException(status_code=404)
+
+@app.get("/site.webmanifest")
+async def webmanifest():
+    path = os.path.join(_static_dir, "site.webmanifest")
+    if os.path.exists(path):
+        return FileResponse(path, media_type="application/manifest+json")
+    return {"name": "Bounty API", "theme_color": "#171717"}
+
+# ============================================================
 # x402 Payment Middleware — agent-native micropayments (USDC on Base)
 # ============================================================
 try:
@@ -211,6 +233,23 @@ async def landing_page():
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bounty API — Data APIs for agents</title>
   <meta name="description" content="Bounty API is a marketplace of specialist data APIs built for AI agents, developers, and x402 micropayments." />
+  <link rel="icon" href="/favicon.ico" sizes="any" />
+  <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
+  <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta property="og:title" content="Bounty API — Verified data APIs for AI agents" />
+  <meta property="og:description" content="Agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments. Pay per call in USDC." />
+  <meta property="og:image" content="/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://bountyapi.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Bounty API — Verified data APIs for AI agents" />
+  <meta name="twitter:description" content="Agent-native data marketplace. Pay per call in USDC on Base." />
+  <meta name="twitter:image" content="/twitter-card.png" />
+  <meta name="theme-color" content="#171717" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -288,7 +327,7 @@ async def landing_page():
 </head>
 <body>
   <nav class="nav">
-    <a class="brand" href="/"><span class="mark">B</span><span>Bounty API</span></a>
+    <a class="brand" href="/"><img src="/logo-mark.png" alt="Bounty" width="24" height="24" style="border-radius:5px" /><span>Bounty API</span></a>
     <div class="navlinks">
       <a href="#apis">APIs</a>
       <a href="/pricing">Pricing</a>
@@ -1096,3 +1135,12 @@ Response:
   ]
 }
 """
+
+# ============================================================
+# Mount static files LAST — serves /public/ at root level
+# Must come after all API routes so it doesn't shadow them.
+# Handles: /favicon-*.png, /logo-*.png, /apple-touch-icon.png,
+#           /og-image*.png, /twitter-card.png, etc.
+# ============================================================
+if os.path.isdir(_static_dir):
+    app.mount("/", StaticFiles(directory=_static_dir), name="public")

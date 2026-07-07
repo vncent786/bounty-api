@@ -69,7 +69,8 @@ def create_payment_middleware(app):
             mime_type="application/json",
             description="Singapore HDB resale median prices by town",
         ),
-        "GET /hdb/median/{town}": RouteConfig(
+        # NOTE: x402 middleware supports :param and [param] syntax, NOT {param}
+        "GET /hdb/median/:town": RouteConfig(
             accepts=[
                 PaymentOption(
                     scheme="exact",
@@ -93,7 +94,7 @@ def create_payment_middleware(app):
             mime_type="application/json",
             description="Search HDB resale transactions with filters",
         ),
-        "GET /rental-yield": RouteConfig(
+        "POST /rental-yield/calculate": RouteConfig(
             accepts=[
                 PaymentOption(
                     scheme="exact",

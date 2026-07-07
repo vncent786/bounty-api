@@ -1,12 +1,12 @@
 {
   "name": "bountyapi-mcp",
-  "version": "1.0.0",
-  "description": "MCP server for BountyAPI — specialist data APIs for AI agents",
+  "version": "1.1.0",
+  "description": "MCP server for BountyAPI — specialist data APIs for AI agents with x402 micropayments",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "bountyapi-mcp": "./dist/index.js"
+    "bountyapi-mcp": "dist/index.js"
   },
   "files": [
     "dist",
@@ -18,13 +18,27 @@
     "prepack": "npm run build",
     "prepublishOnly": "npm run build"
   },
-  "keywords": ["mcp", "data-api", "api", "ai-agent", "x402", "property", "stamp-duty", "hdb", "singapore"],
+  "keywords": [
+    "mcp",
+    "data-api",
+    "api",
+    "ai-agent",
+    "x402",
+    "property",
+    "stamp-duty",
+    "hdb",
+    "singapore"
+  ],
   "license": "MIT",
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@x402/core": "^2.17.0",
+    "@x402/evm": "^2.17.0",
+    "@x402/fetch": "^2.17.0",
+    "viem": "^2.48.11"
   },
   "devDependencies": {
-    "typescript": "^5.5.0",
-    "@types/node": "^22.0.0"
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
   }
 }

@@ -8,18 +8,10 @@ CCR/RCR/OCR regional classification.
 
 How the mapping works
 ---------------------
-A Singapore postal code's first two digits are the *postal sector*. Each
-sector falls within exactly one of the 28 postal districts:
-
-    01-06: D1   07-08: D2   14-16: D3   17-19: D4   20-23: D5
-    24-27: D6   28-30: D7   31-33: D8   34-37: D9   38-41: D10
-    42-45: D11  46-48: D12  49-55: D13  56-57: D14  58-63: D15
-    64-65: D16  66-67: D17  68-76: D18  77-78: D19  79-80: D20
-    81-82: D21  83-84: D22  85-86: D23  87-88: D24  89-90: D25
-    91-92: D26  93-94: D27  95-99: D28
-
-Sectors 09–13 are not assigned to any postal district under this scheme and
-will return a clear "no district" error.
+A Singapore postal code's first two digits are the *postal sector*. The
+sector-to-district mapping is NOT sequential — it follows the historical
+URA postal district scheme. See _SECTOR_RANGES below for the authoritative
+table (source: URA).
 
 Designed for x402 micropayments ($0.002/call).
 
@@ -41,147 +33,150 @@ router = APIRouter(
 # ============================================================
 # Static reference data — Singapore's 28 postal districts
 # ============================================================
+# Source: URA "List of Postal Districts" (archived Mar 2023)
+# https://web.archive.org/web/20230309010306/https://www.ura.gov.sg/realEstateIIWeb/resources/misc/list_of_postal_districts.htm
+# Confirmed by Wikipedia: Postal codes in Singapore
+#
 # Each entry: number → (district_name, general area/region, [areas])
-# `district_name` is a concise label; `areas` is the full list of localities.
 
 DISTRICTS: Dict[int, Dict] = {
     1: {
-        "name": "Raffles Place / Cecil / Marina",
+        "name": "Raffles Place, Cecil, Marina, People's Park",
         "general_area": "CBD / Core City (CCR)",
         "areas": ["Raffles Place", "Cecil", "Marina", "People's Park"],
     },
     2: {
-        "name": "Anson / Tanjong Pagar",
+        "name": "Anson, Tanjong Pagar",
         "general_area": "CBD / Core City (CCR)",
         "areas": ["Anson", "Tanjong Pagar", "Shenton Way"],
     },
     3: {
-        "name": "Queenstown / Tiong Bahru",
+        "name": "Queenstown, Tiong Bahru",
         "general_area": "City Fringe (RCR)",
         "areas": ["Queenstown", "Tiong Bahru", "Alexandra", "Commonwealth"],
     },
     4: {
-        "name": "Harbourfront / Sentosa",
+        "name": "Telok Blangah, Harbourfront",
         "general_area": "Southern (CCR)",
         "areas": ["Telok Blangah", "Harbourfront", "Mount Faber", "Sentosa", "Keppel"],
     },
     5: {
-        "name": "Buona Vista / West Coast / Clementi",
+        "name": "Pasir Panjang, Hong Leong Garden, Clementi New Town",
         "general_area": "West (RCR/OCR)",
-        "areas": ["Buona Vista", "Dover", "Pasir Panjang", "West Coast", "Clementi New Town"],
+        "areas": ["Pasir Panjang", "Hong Leong Garden", "Clementi New Town", "West Coast"],
     },
     6: {
-        "name": "City Hall / High Street / Beach Road",
+        "name": "High Street, Beach Road (part)",
         "general_area": "CBD / Core City (CCR)",
         "areas": ["High Street", "Beach Road", "City Hall", "North Bridge Road"],
     },
     7: {
-        "name": "Middle Road / Golden Mile / Bugis",
+        "name": "Middle Road, Golden Mile",
         "general_area": "City Fringe (RCR)",
-        "areas": ["Middle Road", "Golden Mile", "Bugis", "Rochor", "Beach Road"],
+        "areas": ["Middle Road", "Golden Mile", "Bugis", "Rochor"],
     },
     8: {
-        "name": "Little India / Farrer Park",
+        "name": "Little India",
         "general_area": "City Fringe (RCR)",
         "areas": ["Little India", "Farrer Park", "Serangoon Road", "Lavender"],
     },
     9: {
-        "name": "Orchard / Cairnhill / River Valley",
+        "name": "Orchard, Cairnhill, River Valley",
         "general_area": "Core Central (CCR)",
         "areas": ["Orchard", "Cairnhill", "River Valley", "Leonie Hill"],
     },
     10: {
-        "name": "Ardmore / Bukit Timah / Holland / Tanglin",
+        "name": "Ardmore, Bukit Timah, Holland Road, Tanglin",
         "general_area": "Core Central (CCR)",
-        "areas": ["Ardmore", "Bukit Timah", "Holland", "Tanglin", "Balmoral", "Watten Estate"],
+        "areas": ["Ardmore", "Bukit Timah", "Holland Road", "Tanglin", "Balmoral", "Watten Estate"],
     },
     11: {
-        "name": "Newton / Novena / Thomson / Watten",
+        "name": "Watten Estate, Novena, Thomson",
         "general_area": "Core Central (CCR)",
         "areas": ["Watten Estate", "Dunearn", "Newton", "Novena", "Thomson", "Chancery"],
     },
     12: {
-        "name": "Balestier / Toa Payoh / Serangoon",
+        "name": "Balestier, Toa Payoh, Serangoon",
         "general_area": "City Fringe (RCR)",
         "areas": ["Balestier", "Toa Payoh", "Serangoon", "Mackenzie"],
     },
     13: {
-        "name": "Macpherson / Braddell / Potong Pasir",
+        "name": "Macpherson, Braddell",
         "general_area": "Central (RCR/OCR)",
         "areas": ["Macpherson", "Braddell", "Potong Pasir", "Aljunied"],
     },
     14: {
-        "name": "Geylang / Eunos / Paya Lebar",
+        "name": "Geylang, Eunos",
         "general_area": "East (RCR/OCR)",
-        "areas": ["Geylang", "Eunos", "Paya Lebar", "Sims", "Pulau Ubin", "Pulau Tekong"],
+        "areas": ["Geylang", "Eunos", "Paya Lebar", "Sims"],
     },
     15: {
-        "name": "Katong / Marine Parade / Joo Chiat",
+        "name": "Katong, Joo Chiat, Amber Road",
         "general_area": "East Coast (RCR)",
         "areas": ["Katong", "Joo Chiat", "Amber Road", "Marine Parade", "Tanjong Rhu", "Siglap"],
     },
     16: {
-        "name": "Bedok / Upper East Coast",
+        "name": "Bedok, Upper East Coast, Eastwood, Kew Drive",
         "general_area": "East Coast (OCR)",
         "areas": ["Bedok", "Upper East Coast", "Eastwood", "Kew Drive", "Chai Chee", "Bayshore"],
     },
     17: {
-        "name": "Loyang / Changi",
+        "name": "Loyang, Changi",
         "general_area": "Far East (OCR)",
-        "areas": ["Flora Drive", "Loyang", "Changi", "Changi Bay"],
+        "areas": ["Loyang", "Changi", "Changi Bay", "Flora Drive"],
     },
     18: {
-        "name": "Tampines / Pasir Ris / Simei",
+        "name": "Tampines, Pasir Ris",
         "general_area": "East (OCR)",
         "areas": ["Tampines", "Pasir Ris", "Simei", "Tampines East"],
     },
     19: {
-        "name": "Serangoon Gardens / Hougang / Punggol / Sengkang",
+        "name": "Serangoon Garden, Hougang, Punggol",
         "general_area": "Northeast (OCR)",
         "areas": ["Serangoon Garden", "Hougang", "Punggol", "Sengkang", "Buangkok"],
     },
     20: {
-        "name": "Bishan / Ang Mo Kio / Thomson",
+        "name": "Bishan, Ang Mo Kio",
         "general_area": "Central (RCR/OCR)",
         "areas": ["Bishan", "Ang Mo Kio", "Thomson", "Sin Ming", "Marymount"],
     },
     21: {
-        "name": "Upper Bukit Timah / Clementi Park / Ulu Pandan",
+        "name": "Upper Bukit Timah, Clementi Park, Ulu Pandan",
         "general_area": "West / Central (OCR)",
         "areas": ["Upper Bukit Timah", "Ulu Pandan", "Clementi Park", "Pine Grove", "Chestnut Drive"],
     },
     22: {
-        "name": "Jurong / Boon Lay / Tuas",
+        "name": "Jurong",
         "general_area": "West (OCR)",
         "areas": ["Jurong", "Boon Lay", "Tuas", "Pioneer", "Lakeside", "Clementi West", "Jurong East"],
     },
     23: {
-        "name": "Hillview / Bukit Panjang / Choa Chu Kang",
+        "name": "Hillview, Dairy Farm, Bukit Panjang, Choa Chu Kang",
         "general_area": "West / Northwest (OCR)",
         "areas": ["Hillview", "Dairy Farm", "Bukit Panjang", "Choa Chu Kang", "Bukit Batok", "Tengah"],
     },
     24: {
-        "name": "Lim Chu Kang / Tengah / Kranji",
+        "name": "Lim Chu Kang, Tengah",
         "general_area": "Far West / Northwest (OCR)",
-        "areas": ["Lim Chu Kang", "Tengah", "Kranji"],
+        "areas": ["Lim Chu Kang", "Tengah"],
     },
     25: {
-        "name": "Admiralty / Woodlands",
+        "name": "Kranji, Woodgrove",
         "general_area": "North (OCR)",
-        "areas": ["Admiralty", "Woodlands", "Marsiling", "Sembawang", "Springleaf"],
+        "areas": ["Kranji", "Woodgrove", "Admiralty"],
     },
     26: {
-        "name": "Mandai / Upper Thomson",
+        "name": "Upper Thomson, Springleaf",
         "general_area": "North (OCR)",
-        "areas": ["Mandai", "Sungei Kadut", "Upper Thomson", "Simpang"],
+        "areas": ["Upper Thomson", "Springleaf", "Simpang"],
     },
     27: {
-        "name": "Yishun / Sembawang",
+        "name": "Yishun, Sembawang",
         "general_area": "North (OCR)",
         "areas": ["Yishun", "Sembawang", "Admiralty"],
     },
     28: {
-        "name": "Seletar / Yio Chu Kang",
+        "name": "Seletar",
         "general_area": "Northeast (OCR)",
         "areas": ["Seletar", "Yio Chu Kang"],
     },
@@ -191,37 +186,43 @@ DISTRICTS: Dict[int, Dict] = {
 # ============================================================
 # Postal sector (first 2 digits) → postal district lookup table
 # ============================================================
+# Source: URA "List of Postal Districts" (archived Mar 2023)
+# This is the authoritative mapping from Singapore's Urban Redevelopment Authority.
+# The sector→district mapping is NOT sequential — districts 4-5 fill gaps that
+# a naive sequential table would get wrong. Every entry below matches the URA source exactly.
 
 _SECTOR_RANGES = [
-    # (low, high, district_number)
-    (1, 6, 1),
-    (7, 8, 2),
-    (14, 16, 3),
-    (17, 19, 4),
-    (20, 23, 5),
-    (24, 27, 6),
-    (28, 30, 7),
-    (31, 33, 8),
-    (34, 37, 9),
-    (38, 41, 10),
-    (42, 45, 11),
-    (46, 48, 12),
-    (49, 55, 13),
-    (56, 57, 14),
-    (58, 63, 15),
-    (64, 65, 16),
-    (66, 67, 17),
-    (68, 76, 18),
-    (77, 78, 19),
-    (79, 80, 20),
-    (81, 82, 21),
-    (83, 84, 22),
-    (85, 86, 23),
-    (87, 88, 24),
-    (89, 90, 25),
-    (91, 92, 26),
-    (93, 94, 27),
-    (95, 99, 28),
+    # (low, high, district_number) — verified against URA reference
+    (1, 6, 1),        # 01-06 → D1 Raffles Place
+    (7, 8, 2),        # 07-08 → D2 Anson
+    (14, 16, 3),      # 14-16 → D3 Queenstown
+    (9, 10, 4),       # 09-10 → D4 Telok Blangah
+    (11, 13, 5),      # 11-13 → D5 Pasir Panjang/Clementi
+    (17, 17, 6),      # 17    → D6 High Street/Beach Road
+    (18, 19, 7),      # 18-19 → D7 Middle Road
+    (20, 21, 8),      # 20-21 → D8 Little India
+    (22, 23, 9),      # 22-23 → D9 Orchard
+    (24, 27, 10),     # 24-27 → D10 Bukit Timah/Tanglin
+    (28, 30, 11),     # 28-30 → D11 Novena/Thomson
+    (31, 33, 12),     # 31-33 → D12 Toa Payoh
+    (34, 37, 13),     # 34-37 → D13 Macpherson
+    (38, 41, 14),     # 38-41 → D14 Geylang
+    (42, 45, 15),     # 42-45 → D15 Katong
+    (46, 48, 16),     # 46-48 → D16 Bedok
+    (49, 50, 17),     # 49-50 → D17 Loyang/Changi
+    (81, 81, 17),     # 81    → D17 (Loyang/Changi extension)
+    (51, 52, 18),     # 51-52 → D18 Tampines
+    (53, 55, 19),     # 53-55 → D19 Serangoon Garden/Hougang
+    (82, 82, 19),     # 82    → D19 (extension)
+    (56, 57, 20),     # 56-57 → D20 Bishan/Ang Mo Kio
+    (58, 59, 21),     # 58-59 → D21 Upper Bukit Timah
+    (60, 64, 22),     # 60-64 → D22 Jurong
+    (65, 68, 23),     # 65-68 → D23 Hillview/Bukit Panjang
+    (69, 71, 24),     # 69-71 → D24 Lim Chu Kang
+    (72, 73, 25),     # 72-73 → D25 Kranji/Woodgrove
+    (77, 78, 26),     # 77-78 → D26 Upper Thomson
+    (75, 76, 27),     # 75-76 → D27 Yishun/Sembawang
+    (79, 80, 28),     # 79-80 → D28 Seletar
 ]
 
 # Flat lookup: sector int → district int (1..99)
@@ -384,7 +385,7 @@ async def get_postal_code(postal_code: str) -> PostalCodeResult:
     """
     Resolve a 6-digit Singapore postal code to its postal district.
 
-    Example: `238801` → sector `23`, **District 5** (Buona Vista / West Coast / Clementi).
+    Example: `238801` → sector `23`, **District 9** (Orchard, Cairnhill, River Valley).
 
     Returns the district number, district name, general area, and the list of
     areas within that district.

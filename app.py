@@ -301,9 +301,9 @@ async def landing_page():
 
   <main>
     <div class="hero">
-      <div class="eyebrow">Live in Singapore · Scaling globally</div>
+      <div class="eyebrow">Agent-native data marketplace</div>
       <h1>Specialist data APIs for AI agents.</h1>
-      <p>Bounty is an agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments built in. Agents discover via MCP, pay per call in USDC, and get structured data without scraping. Starting in Singapore, scaling globally.</p>
+      <p>Bounty is an agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments built in. Agents discover via MCP, pay per call in USDC, and get structured data without scraping. Every response carries its source — no interpolated or fabricated values.</p>
       <div class="hero-actions">
         <a class="button primary" href="/setup">Set up your agent</a>
         <a class="button" href="/pricing">View pricing</a>
@@ -942,14 +942,14 @@ async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""
     return """# Bounty API
 
-> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Starting in Singapore, scaling globally.
+> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Every response carries its source.
 
 ```json
 {
   "name": "Bounty API",
   "url": "https://bountyapi.com",
   "category": "Data API Marketplace",
-  "focus": "Global, starting with Singapore",
+  "focus": "Global",
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
@@ -966,7 +966,7 @@ async def llms_txt():
 - A marketplace of specialist data APIs where buyers are AI agents
 - Discovery via MCP (single endpoint exposes all APIs as tools)
 - Payment via x402 (USDC on Base, sub-second settlement)
-- Starting with Singapore data, expanding globally
+- Currently offering Singapore property data, expanding to more verticals
 
 ## Available APIs
 

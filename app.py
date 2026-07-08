@@ -340,9 +340,9 @@ async def landing_page():
 
   <main>
     <div class="hero">
-      <div class="eyebrow">Agent-native data marketplace</div>
-      <h1>Specialist data APIs for AI agents.</h1>
-      <p>Bounty is an agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments built in. Agents discover via MCP, pay per call in USDC, and get structured data without scraping. Every response carries its source — no interpolated or fabricated values.</p>
+      <div class="eyebrow">Verified Singapore data APIs · Expanding globally</div>
+      <h1>Singapore property &amp; financial data for AI agents.</h1>
+      <p>Bounty gives AI agents verified Singapore property, tax, affordability, and location data through clean MCP endpoints. Stamp duty, HDB transactions, TDSR/MSR, MRT proximity, and property ranking — all with source provenance. Pay per call in USDC. Singapore live now, more markets coming.</p>
       <div class="hero-actions">
         <a class="button primary" href="/setup">Set up your agent</a>
         <a class="button" href="/pricing">View pricing</a>
@@ -416,13 +416,15 @@ async def landing_page():
         <div class="codebox">
           <pre>{
   <span class="blue">"name"</span>: <span class="green">"Bounty API"</span>,
-  <span class="blue">"type"</span>: <span class="green">"x402-native marketplace"</span>,
+  <span class="blue">"type"</span>: <span class="green">"Verified data APIs"</span>,
+  <span class="blue">"region_live"</span>: <span class="green">"Singapore"</span>,
+  <span class="blue">"region_roadmap"</span>: <span class="green">"HK, UAE, AU, JP"</span>,
   <span class="blue">"payment"</span>: <span class="green">"USDC on Base"</span>,
   <span class="blue">"discovery"</span>: <span class="green">"MCP + llms.txt"</span>,
-  <span class="blue">"live_apis"</span>: 7,
-  <span class="blue">"free_endpoints"</span>: 5,
-  <span class="blue">"paid_endpoints"</span>: 2,
-  <span class="blue">"provider_share"</span>: <span class="green">"97%"</span>,
+  <span class="blue">"live_apis"</span>: 14,
+  <span class="blue">"mcp_tools"</span>: 11,
+  <span class="blue">"free_endpoints"</span>: 8,
+  <span class="blue">"paid_endpoints"</span>: 5,
   <span class="blue">"npm"</span>: <span class="green">"bountyapi-mcp"</span>,
   <span class="blue">"docs"</span>: <span class="green">"bountyapi.com/docs"</span>
 }</pre>
@@ -794,6 +796,7 @@ def _build_mcp_http_server():
     async def sg_property_analyze(
         property_price: float,
         property_type: str = "hdb",
+        region: str = "SG",
         town: str = "",
         flat_type: str = "",
         postal_code: str = "",
@@ -812,6 +815,7 @@ def _build_mcp_http_server():
                 f"{API_BASE}/property/analyze",
                 json={
                     "property_type": property_type,
+                    "region": region,
                     "property_price": property_price,
                     "town": town,
                     "flat_type": flat_type,
@@ -823,6 +827,30 @@ def _build_mcp_http_server():
                     "existing_monthly_debt": existing_monthly_debt,
                     "loan_tenure_years": loan_tenure_years,
                     "borrower_age": borrower_age,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_property_rank(
+        candidates: List[dict],
+        region: str = "SG",
+        buyer_profile: str = "SC",
+        monthly_income: float = 0,
+        existing_monthly_debt: float = 0,
+    ) -> str:
+        """Rank candidate Singapore properties by investment value.
+        Accepts properties from any source, then scores value vs comps, yield,
+        affordability, and location. Region-ready: SG live, HK/AE/AU/JP planned."""
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                f"{API_BASE}/property/rank",
+                json={
+                    "candidates": candidates,
+                    "region": region,
+                    "buyer_profile": buyer_profile,
+                    "monthly_income": monthly_income if monthly_income else None,
+                    "existing_monthly_debt": existing_monthly_debt,
                 },
             )
             return r.text
@@ -956,6 +984,51 @@ async def health():
     return {"status": "ok", "timestamp": datetime.now().isoformat()}
 
 
+# ============================================================
+# Anonymous MCP install ping — tracks real installs vs npm bots
+# ============================================================
+
+_mcp_install_log = []
+
+
+@app.get("/ping")
+async def mcp_ping(
+    version: str = Query(default="unknown"),
+    client: str = Query(default="unknown"),
+):
+    """Anonymous install/usage ping from MCP server startup.
+
+    Called by bountyapi-mcp on launch to track real installs.
+    No user data, no wallet address, just version + client type.
+    """
+    global _mcp_install_log
+    from datetime import datetime as dt
+    entry = {
+        "version": version,
+        "client": client,
+        "timestamp": dt.now().isoformat(),
+    }
+    _mcp_install_log.append(entry)
+    # Keep last 10000 entries
+    if len(_mcp_install_log) > 10000:
+        _mcp_install_log = _mcp_install_log[-10000:]
+    return {"status": "ok", "version": version}
+
+
+@app.get("/ping/stats")
+async def mcp_ping_stats():
+    """Anonymous MCP install statistics."""
+    from collections import Counter
+    versions = Counter(e["version"] for e in _mcp_install_log)
+    clients = Counter(e["client"] for e in _mcp_install_log)
+    return {
+        "total_pings": len(_mcp_install_log),
+        "by_version": dict(versions),
+        "by_client": dict(clients),
+        "note": "Tracks anonymous MCP server launches. No user data collected.",
+    }
+
+
 @app.get("/x402-status")
 async def x402_status():
     """Diagnostic: shows whether x402 payment middleware is active."""
@@ -1033,6 +1106,12 @@ try:
 except ImportError as e:
     print(f"Warning: property_analysis router not loaded: {e}")
 
+try:
+    from apis.property_rank import router as rank_router
+    app.include_router(rank_router)
+except ImportError as e:
+    print(f"Warning: property_rank router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1098,9 +1177,12 @@ async def llms_txt():
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
   "settlement_chain": "Base",
-  "live_apis": 12,
+  "live_apis": 14,
   "free_endpoints": 8,
-  "paid_endpoints": 4,
+  "paid_endpoints": 5,
+  "mcp_tools": 11,
+  "region_live": "Singapore",
+  "region_roadmap": "HK, UAE, AU, JP",
   "provider_revenue_share": "97%"
 }
 ```
@@ -1137,6 +1219,12 @@ async def llms_txt():
 - Price: $0.05/call
 - Coverage: Complete property analysis — stamp duty, transaction comparables, rental yield, affordability, location intelligence, and risk assessment in one call. The most comprehensive Singapore property analysis endpoint.
 - Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
+
+### SG Property Ranking
+- Endpoints: POST /property/rank
+- Price: $0.10/call
+- Coverage: Accepts candidate properties from ANY source (user, web search, listing portals) and enriches + ranks them using Bounty's verified data. Returns transparent 0-100 scores across 4 dimensions: value vs comps, rental yield, affordability, location. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned).
+- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA, LTA
 
 ### SG Postal Code to District
 - Endpoints: GET /postal/{code}, GET /postal/districts

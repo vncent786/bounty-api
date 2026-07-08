@@ -38,6 +38,7 @@ PRICE_HDB = "$0.01"        # HDB resale data — real government data, costs us 
 PRICE_YIELD = "$0.005"     # Rental yield — computed but valuable
 PRICE_ANALYSIS = "$0.05"   # Full property analysis — composite, high value
 PRICE_AFFORDABILITY = "$0.01"  # TDSR/MSR — regulatory computation
+PRICE_RANK = "$0.10"       # Property ranking — highest-value workflow endpoint
 
 
 def create_payment_middleware(app):
@@ -131,6 +132,18 @@ def create_payment_middleware(app):
             ],
             mime_type="application/json",
             description="Singapore TDSR/MSR mortgage affordability calculator",
+        ),
+        "POST /property/rank": RouteConfig(
+            accepts=[
+                PaymentOption(
+                    scheme="exact",
+                    pay_to=PAY_TO_ADDRESS,
+                    price=PRICE_RANK,
+                    network=EVM_NETWORK,
+                ),
+            ],
+            mime_type="application/json",
+            description="Rank candidate properties by investment value — stamp duty, comps, yield, affordability, location",
         ),
     }
 

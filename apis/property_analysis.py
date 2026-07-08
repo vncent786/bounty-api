@@ -23,6 +23,7 @@ from enum import Enum
 from datetime import datetime
 import math
 import httpx
+import os
 
 router = APIRouter(tags=["Property Analysis"])
 
@@ -41,7 +42,16 @@ class BuyerProfile(str, Enum):
     ENTITY = "entity"
 
 
+class Region(str, Enum):
+    SG = "SG"
+    HK = "HK"
+    AE = "AE"
+    AU = "AU"
+    JP = "JP"
+
+
 class PropertyAnalysisRequest(BaseModel):
+    region: Region = Field(default=Region.SG, description="Region/country code. SG supported now; HK/AE/AU/JP planned.")
     property_type: PropertyType = Field(default=PropertyType.HDB, description="HDB or private property")
     property_price: float = Field(..., gt=0, description="Property price / asking price in SGD")
     town: Optional[str] = Field(default=None, description="HDB town (e.g. 'TAMPINES'). Required for HDB.")
@@ -57,9 +67,14 @@ class PropertyAnalysisRequest(BaseModel):
 
 
 async def _call_internal(path: str, method: str = "GET", json_body: dict = None) -> dict:
-    """Call another Bounty API endpoint internally (bypasses x402 payment)."""
+    """Call another Bounty API endpoint internally (bypasses x402 payment).
+
+    Uses INTERNAL_API_BASE if set; otherwise localhost:$PORT. Railway exposes
+    the actual runtime port via PORT, so avoid hard-coding 8000.
+    """
+    base = os.environ.get("INTERNAL_API_BASE") or f"http://127.0.0.1:{os.environ.get('PORT', '8000')}"
     async with httpx.AsyncClient(timeout=15) as client:
-        url = f"http://127.0.0.1:8000{path}" if path.startswith("/") else f"http://127.0.0.1:8000/{path}"
+        url = f"{base}{path}" if path.startswith("/") else f"{base}/{path}"
         if method == "GET":
             r = await client.get(url)
         else:
@@ -81,9 +96,18 @@ async def analyze_property(req: PropertyAnalysisRequest):
     no agent can replicate this analysis by scraping, because it requires
     combining government transaction data with MAS regulatory formulas.
     """
+    if req.region != Region.SG:
+        return {
+            "error": f"Region '{req.region.value}' not yet supported.",
+            "supported_regions": ["SG"],
+            "roadmap": ["SG (live)", "HK (planned)", "AE (planned)", "AU (planned)", "JP (planned)"],
+            "message": "Bounty currently covers Singapore property analysis. The API shape is region-ready so we can expand without breaking clients.",
+        }
+
     results = {
         "analysis_date": datetime.now().strftime("%Y-%m-%d"),
         "property": {
+            "region": req.region.value,
             "type": req.property_type.value,
             "price": req.property_price,
             "town": req.town,

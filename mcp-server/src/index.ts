@@ -40,6 +40,18 @@ import { registerExactEvmScheme } from "@x402/evm/exact/client";
 // ============================================================
 
 const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
+
+// ============================================================
+// Anonymous install ping — no user data, just version + client
+// ============================================================
+
+try {
+  const pingUrl = `${API_BASE}/ping?version=1.3.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
+} catch {
+  // ping failure should never affect functionality
+}
+
 const rawPrivateKey = process.env.EVM_PRIVATE_KEY || "";
 const MAX_SPEND_USD = parseFloat(process.env.MAX_SPEND_USD || "1.00");
 
@@ -201,11 +213,12 @@ const TOOLS = [
   },
   {
     name: "sg_property_analyze",
-    description: `COMPLETE property investment analysis in one call. Combines stamp duty (IRAS), HDB transaction comparables (data.gov.sg), rental yield, MAS TDSR/MSR affordability check, and MRT location intelligence. Returns a verdict with risk flags. This is the most comprehensive Singapore property analysis endpoint available — no agent can replicate this by scraping. ${PAID_BADGE}`,
+    description: `COMPLETE property investment analysis in one call. Combines stamp duty (IRAS), HDB transaction comparables (data.gov.sg), rental yield, MAS TDSR/MSR affordability check, and MRT location intelligence. Returns a verdict with risk flags. This is the most comprehensive Singapore property analysis endpoint available — no agent can replicate this by scraping. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned). ${PAID_BADGE}`,
     inputSchema: {
       type: "object",
       properties: {
         property_type: { type: "string", enum: ["hdb", "private"], default: "hdb" },
+        region: { type: "string", enum: ["SG", "HK", "AE", "AU", "JP"], default: "SG", description: "Region/country code. SG supported now; HK/AE/AU/JP planned." },
         property_price: { type: "number", description: "Property price / asking price in SGD" },
         town: { type: "string", description: "HDB town (e.g. 'TAMPINES'). Required for HDB analysis." },
         flat_type: { type: "string", description: "HDB flat type (e.g. '4 ROOM')" },
@@ -219,6 +232,39 @@ const TOOLS = [
         borrower_age: { type: "integer", description: "Age of youngest borrower", default: 35 }
       },
       required: ["property_price"]
+    }
+  },
+  {
+    name: "sg_property_rank",
+    description: `Rank multiple candidate properties by investment value. Accepts properties from ANY source (user, web search, listing portals) and enriches each with stamp duty, transaction comps, rental yield, affordability, and location data. Returns ranked list with transparent scores (0-100) across 4 dimensions: value vs comps, rental yield, affordability, location. This is the decision layer — an agent gathers listings anywhere, Bounty tells it which one is best. ${PAID_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        candidates: {
+          type: "array",
+          description: "List of candidate properties to evaluate",
+          minItems: 1,
+          maxItems: 50,
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "Property name or address (optional)" },
+              property_type: { type: "string", default: "hdb", description: "hdb, private, condo, landed" },
+              price: { type: "number", description: "Asking price in SGD" },
+              town: { type: "string", description: "Town or area (e.g. 'TAMPINES')" },
+              flat_type: { type: "string", description: "HDB flat type (e.g. '4 ROOM')" },
+              postal_code: { type: "string", description: "Postal code for location (optional)" },
+              monthly_rent: { type: "number", description: "Expected monthly rent (optional)" }
+            },
+            required: ["price"]
+          }
+        },
+        region: { type: "string", enum: ["SG", "HK", "AE", "AU", "JP"], default: "SG", description: "Region/country code. SG supported now; HK/AE/AU/JP planned." },
+        buyer_profile: { type: "string", enum: ["SC", "SPR", "FR", "entity"], default: "SC" },
+        monthly_income: { type: "number", description: "Gross monthly income for affordability (optional)" },
+        existing_monthly_debt: { type: "number", description: "Existing monthly debt obligations", default: 0 }
+      },
+      required: ["candidates"]
     }
   }
 ];
@@ -375,7 +421,7 @@ async function callAPI(path: string, method = "GET", body: unknown = null): Prom
 // ============================================================
 
 const server = new Server(
-  { name: "bountyapi-mcp", version: "1.2.0" },
+  { name: "bountyapi-mcp", version: "1.3.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -437,6 +483,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "sg_property_analyze":
         result = await callAPI("/property/analyze", "POST", {
           property_type: toolArgs.property_type || "hdb",
+          region: toolArgs.region || "SG",
           property_price: toolArgs.property_price,
           town: toolArgs.town,
           flat_type: toolArgs.flat_type,
@@ -448,6 +495,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           existing_monthly_debt: toolArgs.existing_monthly_debt || 0,
           loan_tenure_years: toolArgs.loan_tenure_years || 30,
           borrower_age: toolArgs.borrower_age || 35
+        });
+        break;
+
+      case "sg_property_rank":
+        result = await callAPI("/property/rank", "POST", {
+          candidates: toolArgs.candidates,
+          region: toolArgs.region || "SG",
+          buyer_profile: toolArgs.buyer_profile || "SC",
+          monthly_income: toolArgs.monthly_income,
+          existing_monthly_debt: toolArgs.existing_monthly_debt || 0,
         });
         break;
 
@@ -495,6 +552,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(`bountyapi-mcp v1.1.0 running on stdio`);
+console.error(`bountyapi-mcp v1.3.0 running on stdio`);
 console.error(`API base: ${API_BASE}`);
 console.error(`Payment: ${walletAddress ? "enabled" : "disabled (free endpoints only)"}`);

@@ -36,6 +36,8 @@ PAY_TO_ADDRESS = os.environ.get("X402_PAY_TO", "")
 # Pricing (per request)
 PRICE_HDB = "$0.01"        # HDB resale data — real government data, costs us to fetch
 PRICE_YIELD = "$0.005"     # Rental yield — computed but valuable
+PRICE_ANALYSIS = "$0.05"   # Full property analysis — composite, high value
+PRICE_AFFORDABILITY = "$0.01"  # TDSR/MSR — regulatory computation
 
 
 def create_payment_middleware(app):
@@ -105,6 +107,30 @@ def create_payment_middleware(app):
             ],
             mime_type="application/json",
             description="Rental yield investment calculator",
+        ),
+        "POST /property/analyze": RouteConfig(
+            accepts=[
+                PaymentOption(
+                    scheme="exact",
+                    pay_to=PAY_TO_ADDRESS,
+                    price=PRICE_ANALYSIS,
+                    network=EVM_NETWORK,
+                ),
+            ],
+            mime_type="application/json",
+            description="Complete property investment analysis — stamp duty, comparables, yield, affordability, location",
+        ),
+        "POST /affordability/calculate": RouteConfig(
+            accepts=[
+                PaymentOption(
+                    scheme="exact",
+                    pay_to=PAY_TO_ADDRESS,
+                    price=PRICE_AFFORDABILITY,
+                    network=EVM_NETWORK,
+                ),
+            ],
+            mime_type="application/json",
+            description="Singapore TDSR/MSR mortgage affordability calculator",
         ),
     }
 

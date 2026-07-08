@@ -741,6 +741,93 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_address_intel(postal_code: str) -> str:
+        """Full address intelligence: district, planning area, CCR/RCR/OCR region,
+        HDB town, approximate coordinates, and 5 nearest MRT stations with walking distance."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/address/{postal_code}")
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_mrt_near(postal_code: str, limit: int = 5) -> str:
+        """Find nearest MRT stations to a Singapore postal code.
+        Returns station name, lines, distance, and walking time."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/mrt/near/{postal_code}?limit={limit}")
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_mrt_search(q: str, limit: int = 10) -> str:
+        """Search MRT stations by name. Returns all matching stations with line codes."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/mrt/search?q={q}&limit={limit}")
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_affordability(
+        monthly_income: float,
+        property_price: float,
+        loan_type: str = "bank_private",
+        existing_monthly_debt: float = 0,
+        loan_tenure_years: int = 30,
+        borrower_age: int = 35,
+        housing_loan_count: int = 1,
+    ) -> str:
+        """Calculate MAS TDSR/MSR affordability. Checks if a property is affordable
+        under Singapore's mortgage regulations. Returns max loan and property price."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{API_BASE}/affordability/calculate",
+                json={
+                    "monthly_income": monthly_income,
+                    "property_price": property_price,
+                    "loan_type": loan_type,
+                    "existing_monthly_debt": existing_monthly_debt,
+                    "loan_tenure_years": loan_tenure_years,
+                    "borrower_age": borrower_age,
+                    "housing_loan_count": housing_loan_count,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_property_analyze(
+        property_price: float,
+        property_type: str = "hdb",
+        town: str = "",
+        flat_type: str = "",
+        postal_code: str = "",
+        monthly_rent: float = 0,
+        buyer_profile: str = "SC",
+        property_count: int = 1,
+        monthly_income: float = 0,
+        existing_monthly_debt: float = 0,
+        loan_tenure_years: int = 30,
+        borrower_age: int = 35,
+    ) -> str:
+        """Complete property investment analysis: stamp duty, comparables, yield,
+        affordability, and location in one call. The most comprehensive SG property API."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.post(
+                f"{API_BASE}/property/analyze",
+                json={
+                    "property_type": property_type,
+                    "property_price": property_price,
+                    "town": town,
+                    "flat_type": flat_type,
+                    "postal_code": postal_code,
+                    "monthly_rent": monthly_rent,
+                    "buyer_profile": buyer_profile,
+                    "property_count": property_count,
+                    "monthly_income": monthly_income,
+                    "existing_monthly_debt": existing_monthly_debt,
+                    "loan_tenure_years": loan_tenure_years,
+                    "borrower_age": borrower_age,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
     async def sg_rental_yield(
         property_price: float,
         monthly_rent: float,
@@ -928,6 +1015,24 @@ try:
 except ImportError as e:
     print(f"Warning: mortgage router not loaded: {e}")
 
+try:
+    from apis.affordability import router as affordability_router
+    app.include_router(affordability_router)
+except ImportError as e:
+    print(f"Warning: affordability router not loaded: {e}")
+
+try:
+    from apis.address_intel import router as address_router
+    app.include_router(address_router)
+except ImportError as e:
+    print(f"Warning: address_intel router not loaded: {e}")
+
+try:
+    from apis.property_analysis import router as analysis_router
+    app.include_router(analysis_router)
+except ImportError as e:
+    print(f"Warning: property_analysis router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -993,9 +1098,9 @@ async def llms_txt():
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
   "settlement_chain": "Base",
-  "live_apis": 7,
-  "free_endpoints": 5,
-  "paid_endpoints": 2,
+  "live_apis": 12,
+  "free_endpoints": 8,
+  "paid_endpoints": 4,
   "provider_revenue_share": "97%"
 }
 ```
@@ -1014,6 +1119,24 @@ async def llms_txt():
 - Price: FREE
 - Coverage: BSD (6-tier marginal, 1%-6%), ABSD (0%-65% by buyer profile)
 - Source: iras.gov.sg, verified Jan 2026
+
+### SG Address Intelligence
+- Endpoints: GET /address/{postal_code}, GET /mrt/near/{postal_code}, GET /mrt/search, GET /mrt/stations
+- Price: FREE
+- Coverage: Postal code → district, planning area (URA Master Plan), CCR/RCR/OCR region, HDB town, 5 nearest MRT stations with walking distance. 142 MRT stations across all 6 lines.
+- Source: URA Master Plan 2019, LTA DataMall, SLA postal sectors
+
+### SG TDSR/MSR Affordability Calculator
+- Endpoints: POST /affordability/calculate, GET /affordability/quick
+- Price: $0.01/call
+- Coverage: MAS TDSR (55%), MSR (30% for HDB), LTV limits, stress-tested at MAS minimum rates (3%/3.5%/4.5%). Returns max affordable loan and property price.
+- Source: MAS TDSR framework, HDB MSR rules, LTV limits (Dec 2021)
+
+### SG Property Investment Analysis
+- Endpoints: POST /property/analyze
+- Price: $0.05/call
+- Coverage: Complete property analysis — stamp duty, transaction comparables, rental yield, affordability, location intelligence, and risk assessment in one call. The most comprehensive Singapore property analysis endpoint.
+- Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
 
 ### SG Postal Code to District
 - Endpoints: GET /postal/{code}, GET /postal/districts

@@ -108,6 +108,58 @@ const TOOLS = [
     }
   },
   {
+    name: "sg_address_intel",
+    description: `Full address intelligence for a Singapore postal code. Returns district, planning area (URA Master Plan), market region (CCR/RCR/OCR), HDB town, approximate coordinates, and the 5 nearest MRT stations with walking distance and time. 140+ MRT stations in database covering all 6 lines. ${FREE_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        postal_code: { type: "string", description: "Singapore postal code (6 digits), e.g. 238582" }
+      },
+      required: ["postal_code"]
+    }
+  },
+  {
+    name: "sg_mrt_near",
+    description: `Find nearest MRT/LRT stations to a Singapore postal code. Returns station name, MRT lines, distance in km, and estimated walking time. Free endpoint. ${FREE_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        postal_code: { type: "string", description: "Singapore postal code (6 digits)" },
+        limit: { type: "integer", description: "Max results (default 5, max 20)", default: 5 }
+      },
+      required: ["postal_code"]
+    }
+  },
+  {
+    name: "sg_mrt_search",
+    description: `Search MRT stations by name. Returns station name, MRT line codes, and coordinates. Covers all 140+ stations across 6 MRT lines. ${FREE_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        q: { type: "string", description: "Station name to search (partial match), e.g. 'Bishan' or 'Tamp'" },
+        limit: { type: "integer", description: "Max results (default 10)", default: 10 }
+      },
+      required: ["q"]
+    }
+  },
+  {
+    name: "sg_affordability",
+    description: `Calculate Singapore property loan affordability under MAS TDSR/MSR framework. Checks if a borrower can afford a property based on Total Debt Servicing Ratio (55%), Mortgage Servicing Ratio (30% for HDB), LTV limits, and stress-tested interest rates. Returns max affordable loan and property price. ${PAID_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        monthly_income: { type: "number", description: "Gross monthly income in SGD (all borrowers combined)" },
+        property_price: { type: "number", description: "Property purchase price in SGD" },
+        loan_type: { type: "string", enum: ["hdb", "bank_hdb", "bank_private"], default: "bank_private", description: "hdb=HDB loan, bank_hdb=bank loan for HDB, bank_private=bank loan for private property" },
+        existing_monthly_debt: { type: "number", description: "Total existing monthly debt obligations (car loans, credit cards, other mortgages)", default: 0 },
+        loan_tenure_years: { type: "integer", description: "Loan tenure in years (max 30 HDB, 35 private)", default: 30 },
+        borrower_age: { type: "integer", description: "Age of youngest borrower", default: 35 },
+        housing_loan_count: { type: "integer", description: "Number of outstanding housing loans including this one", default: 1 }
+      },
+      required: ["monthly_income", "property_price"]
+    }
+  },
+  {
     name: "sg_rental_yield",
     description: `Calculate rental investment metrics for a Singapore property. Returns gross yield, net yield, cap rate, price-to-rent ratio, monthly cashflow, and years to break even. ${PAID_BADGE}`,
     inputSchema: {
@@ -145,6 +197,28 @@ const TOOLS = [
         max_price: { type: "number", description: "Maximum price in SGD (optional)" },
         limit: { type: "integer", description: "Max results (default 20, max 100)", default: 20 }
       }
+    }
+  },
+  {
+    name: "sg_property_analyze",
+    description: `COMPLETE property investment analysis in one call. Combines stamp duty (IRAS), HDB transaction comparables (data.gov.sg), rental yield, MAS TDSR/MSR affordability check, and MRT location intelligence. Returns a verdict with risk flags. This is the most comprehensive Singapore property analysis endpoint available — no agent can replicate this by scraping. ${PAID_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        property_type: { type: "string", enum: ["hdb", "private"], default: "hdb" },
+        property_price: { type: "number", description: "Property price / asking price in SGD" },
+        town: { type: "string", description: "HDB town (e.g. 'TAMPINES'). Required for HDB analysis." },
+        flat_type: { type: "string", description: "HDB flat type (e.g. '4 ROOM')" },
+        postal_code: { type: "string", description: "Postal code for location intelligence (optional)" },
+        monthly_rent: { type: "number", description: "Expected monthly rent in SGD (optional, for yield analysis)" },
+        buyer_profile: { type: "string", enum: ["SC", "SPR", "FR", "entity"], default: "SC" },
+        property_count: { type: "integer", description: "Number of properties owned including this one", default: 1 },
+        monthly_income: { type: "number", description: "Gross monthly income for affordability check (optional)" },
+        existing_monthly_debt: { type: "number", description: "Existing monthly debt obligations", default: 0 },
+        loan_tenure_years: { type: "integer", description: "Loan tenure in years", default: 30 },
+        borrower_age: { type: "integer", description: "Age of youngest borrower", default: 35 }
+      },
+      required: ["property_price"]
     }
   }
 ];
@@ -301,7 +375,7 @@ async function callAPI(path: string, method = "GET", body: unknown = null): Prom
 // ============================================================
 
 const server = new Server(
-  { name: "bountyapi-mcp", version: "1.1.0" },
+  { name: "bountyapi-mcp", version: "1.2.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -330,6 +404,51 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "sg_postal_lookup":
         result = await callAPI(`/postal/${toolArgs.postal_code}`);
+        break;
+
+      case "sg_address_intel":
+        result = await callAPI(`/address/${toolArgs.postal_code}`);
+        break;
+
+      case "sg_mrt_near": {
+        const mrtLimit = (toolArgs.limit as number) || 5;
+        result = await callAPI(`/mrt/near/${toolArgs.postal_code}?limit=${mrtLimit}`);
+        break;
+      }
+
+      case "sg_mrt_search": {
+        const searchLimit = (toolArgs.limit as number) || 10;
+        result = await callAPI(`/mrt/search?q=${encodeURIComponent(toolArgs.q as string)}&limit=${searchLimit}`);
+        break;
+      }
+
+      case "sg_affordability":
+        result = await callAPI("/affordability/calculate", "POST", {
+          monthly_income: toolArgs.monthly_income,
+          property_price: toolArgs.property_price,
+          loan_type: toolArgs.loan_type || "bank_private",
+          existing_monthly_debt: toolArgs.existing_monthly_debt || 0,
+          loan_tenure_years: toolArgs.loan_tenure_years || 30,
+          borrower_age: toolArgs.borrower_age || 35,
+          housing_loan_count: toolArgs.housing_loan_count || 1
+        });
+        break;
+
+      case "sg_property_analyze":
+        result = await callAPI("/property/analyze", "POST", {
+          property_type: toolArgs.property_type || "hdb",
+          property_price: toolArgs.property_price,
+          town: toolArgs.town,
+          flat_type: toolArgs.flat_type,
+          postal_code: toolArgs.postal_code,
+          monthly_rent: toolArgs.monthly_rent,
+          buyer_profile: toolArgs.buyer_profile || "SC",
+          property_count: toolArgs.property_count || 1,
+          monthly_income: toolArgs.monthly_income,
+          existing_monthly_debt: toolArgs.existing_monthly_debt || 0,
+          loan_tenure_years: toolArgs.loan_tenure_years || 30,
+          borrower_age: toolArgs.borrower_age || 35
+        });
         break;
 
       case "sg_rental_yield":

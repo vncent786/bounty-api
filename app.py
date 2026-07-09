@@ -856,6 +856,50 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_property_pitch(
+        property_price: float,
+        property_type: str = "hdb",
+        town: str = "",
+        flat_type: str = "",
+        project_name: str = "",
+        postal_code: str = "",
+        sqft: float = 0,
+        monthly_rent: float = 0,
+        tenure: str = "",
+        top_year: int = 0,
+        buyer_profile: str = "SC",
+        property_count: int = 1,
+        monthly_income: float = 0,
+        existing_monthly_debt: float = 0,
+        buyer_notes: str = "",
+    ) -> str:
+        """Generate a complete property investment pitch — the kind of one-page
+        analysis a property agent presents to a client. Includes price fairness,
+        stamp duty, affordability, yield, location, tenure risk, and verdict."""
+        async with httpx.AsyncClient(timeout=60) as client:
+            r = await client.post(
+                f"{API_BASE}/property/pitch",
+                json={
+                    "property_type": property_type,
+                    "property_price": property_price,
+                    "town": town,
+                    "flat_type": flat_type,
+                    "project_name": project_name,
+                    "postal_code": postal_code,
+                    "sqft": sqft if sqft else None,
+                    "monthly_rent": monthly_rent if monthly_rent else None,
+                    "tenure": tenure if tenure else None,
+                    "top_year": top_year if top_year else None,
+                    "buyer_profile": buyer_profile,
+                    "property_count": property_count,
+                    "monthly_income": monthly_income if monthly_income else None,
+                    "existing_monthly_debt": existing_monthly_debt,
+                    "buyer_notes": buyer_notes if buyer_notes else None,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
     async def sg_rental_yield(
         property_price: float,
         monthly_rent: float,
@@ -1112,6 +1156,12 @@ try:
 except ImportError as e:
     print(f"Warning: property_rank router not loaded: {e}")
 
+try:
+    from apis.property_pitch import router as pitch_router
+    app.include_router(pitch_router)
+except ImportError as e:
+    print(f"Warning: property_pitch router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1176,11 +1226,10 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "settlement_chain": "Base",
-  "live_apis": 14,
+  "live_apis": 15,
+  "mcp_tools": 12,
   "free_endpoints": 8,
-  "paid_endpoints": 5,
-  "mcp_tools": 11,
+  "paid_endpoints": 6,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
   "provider_revenue_share": "97%"

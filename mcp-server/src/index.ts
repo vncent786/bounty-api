@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.3.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.4.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -266,6 +266,31 @@ const TOOLS = [
       },
       required: ["candidates"]
     }
+  },
+  {
+    name: "sg_property_pitch",
+    description: `Generate a complete property investment pitch — the kind of one-page analysis a property agent presents to a client. Combines price fairness vs transaction comps, stamp duty breakdown, MAS affordability check, rental yield projection, location intelligence (MRT, district, region), tenure/lease risk assessment, and a plain-English verdict with recommendation. This is the highest-value output for property agents and investors. ${PAID_BADGE}`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        property_type: { type: "string", default: "hdb", description: "hdb, private, condo, landed" },
+        property_price: { type: "number", description: "Asking price in SGD" },
+        town: { type: "string", description: "HDB town (e.g. 'TAMPINES') or area name" },
+        flat_type: { type: "string", description: "HDB flat type (e.g. '4 ROOM') or unit type" },
+        project_name: { type: "string", description: "Condo/project name (for private property)" },
+        postal_code: { type: "string", description: "Postal code for location intelligence" },
+        sqft: { type: "number", description: "Floor area in square feet" },
+        monthly_rent: { type: "number", description: "Expected monthly rent (optional)" },
+        tenure: { type: "string", description: "Freehold, 99-year, 999-year, etc." },
+        top_year: { type: "integer", description: "Year of Temporary Occupation Permit (TOP)" },
+        buyer_profile: { type: "string", enum: ["SC", "SPR", "FR", "entity"], default: "SC" },
+        property_count: { type: "integer", default: 1 },
+        monthly_income: { type: "number", description: "Gross monthly income" },
+        existing_monthly_debt: { type: "number", default: 0 },
+        buyer_notes: { type: "string", description: "Any specific concerns or goals" }
+      },
+      required: ["property_price"]
+    }
   }
 ];
 
@@ -421,7 +446,7 @@ async function callAPI(path: string, method = "GET", body: unknown = null): Prom
 // ============================================================
 
 const server = new Server(
-  { name: "bountyapi-mcp", version: "1.3.0" },
+  { name: "bountyapi-mcp", version: "1.4.0" },
   { capabilities: { tools: {} } }
 );
 
@@ -508,6 +533,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
         break;
 
+      case "sg_property_pitch":
+        result = await callAPI("/property/pitch", "POST", {
+          property_type: toolArgs.property_type || "hdb",
+          property_price: toolArgs.property_price,
+          town: toolArgs.town,
+          flat_type: toolArgs.flat_type,
+          project_name: toolArgs.project_name,
+          postal_code: toolArgs.postal_code,
+          sqft: toolArgs.sqft,
+          monthly_rent: toolArgs.monthly_rent,
+          tenure: toolArgs.tenure,
+          top_year: toolArgs.top_year,
+          buyer_profile: toolArgs.buyer_profile || "SC",
+          property_count: toolArgs.property_count || 1,
+          monthly_income: toolArgs.monthly_income,
+          existing_monthly_debt: toolArgs.existing_monthly_debt || 0,
+          buyer_notes: toolArgs.buyer_notes,
+        });
+        break;
+
       case "sg_rental_yield":
         result = await callAPI("/rental-yield/calculate", "POST", {
           property_price: toolArgs.property_price,
@@ -552,6 +597,6 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 // Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
-console.error(`bountyapi-mcp v1.3.0 running on stdio`);
+console.error(`bountyapi-mcp v1.4.0 running on stdio`);
 console.error(`API base: ${API_BASE}`);
 console.error(`Payment: ${walletAddress ? "enabled" : "disabled (free endpoints only)"}`);

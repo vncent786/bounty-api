@@ -133,6 +133,12 @@ _resource_lock = threading.Lock()
 _bg_lock = threading.Lock()
 _bg_running = False
 
+# Town-specific cache: {town: (data, timestamp)}
+# Populated on demand when the global sample is too sparse for a specific town.
+_TOWN_CACHE: Dict[str, Tuple[Dict[str, Any], float]] = {}
+_TOWN_CACHE_TTL = 24 * 60 * 60  # 24 hours
+_TOWN_FETCH_BATCH = 500  # records per HTTP request during town-specific fetch
+
 
 # ---------------------------------------------------------------------------
 # Low-level HTTP helpers
@@ -395,6 +401,62 @@ def _get_aggregate(
     return None, "HDB data is warming up. Please retry in ~30 seconds."
 
 
+def _fetch_town_median(town: str) -> Optional[Dict[str, Any]]:
+    """Fetch all records for a specific town from data.gov.sg and compute medians.
+
+    Used as a targeted fallback when the global sample is too sparse for a
+    given town. Fetches up to ~2000 records (4 pages of 500) which is enough
+    for reliable median computation even for large towns like Tampines.
+    """
+    # Check town-specific cache first
+    cached = _TOWN_CACHE.get(town)
+    if cached and (time.time() - cached[1]) < _TOWN_CACHE_TTL:
+        return cached[0]
+
+    try:
+        resource_id = _select_resource_id()
+    except RuntimeError:
+        return None
+
+    town_filters = json.dumps({"town": town})
+    all_records: List[Dict[str, Any]] = []
+    total = None
+
+    for offset in range(0, 2000, _TOWN_FETCH_BATCH):
+        try:
+            url = (
+                f"{DATA_SOURCE_URL}?"
+                + urlencode({
+                    "resource_id": resource_id,
+                    "limit": _TOWN_FETCH_BATCH,
+                    "offset": offset,
+                    "filters": town_filters,
+                })
+            )
+            payload = _http_get_json(url)
+            if not payload.get("success"):
+                break
+            result = payload.get("result", {})
+            records = result.get("records", []) or []
+            total = result.get("total")
+            all_records.extend(records)
+            if len(records) < _TOWN_FETCH_BATCH:
+                break  # reached the end
+        except Exception:
+            break
+
+    if not all_records:
+        return None
+
+    # Build the same aggregate structure used elsewhere
+    aggregate = _build_aggregate(all_records, source_total=total, sample_offset=0)
+    aggregate["source"] = "data.gov.sg (town-specific fetch)"
+
+    # Cache it
+    _TOWN_CACHE[town] = (aggregate, time.time())
+    return aggregate
+
+
 # ---------------------------------------------------------------------------
 # Response builders (shared by endpoints)
 # ---------------------------------------------------------------------------
@@ -558,8 +620,21 @@ def get_all_median() -> AllTownsMedianResponse:
 )
 def get_town_median(town: str) -> TownMedianResponse:
     """Median resale price (and min/max/price-per-sqft range) for each flat
-    type in the requested town. ``town`` is matched case-insensitively."""
+    type in the requested town. ``town`` is matched case-insensitively.
+
+    Uses a targeted town-specific fetch from data.gov.sg for accurate medians,
+    falling back to the cached global sample if the targeted fetch fails.
+    """
     town_norm = town.strip().upper()
+
+    # Primary path: targeted town-specific fetch for accurate medians
+    town_aggregate = _fetch_town_median(town_norm)
+    if town_aggregate and town_aggregate.get("groups"):
+        result = _town_median(town_aggregate, town_norm)
+        if result.flat_types:
+            return result
+
+    # Fallback: use the cached global sample
     aggregate, warning = _get_aggregate()
     if aggregate is None:
         raise HTTPException(
@@ -584,9 +659,6 @@ def get_town_median(town: str) -> TownMedianResponse:
         )
 
     result = _town_median(aggregate, town_norm)
-    # Surface a stale-cache warning without breaking the response contract.
-    if warning:
-        result = result.model_copy(update={"town": result.town})
     return result
 
 

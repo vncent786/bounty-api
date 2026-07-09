@@ -39,6 +39,7 @@ PRICE_YIELD = "$0.005"     # Rental yield — computed but valuable
 PRICE_ANALYSIS = "$0.05"   # Full property analysis — composite, high value
 PRICE_AFFORDABILITY = "$0.01"  # TDSR/MSR — regulatory computation
 PRICE_RANK = "$0.10"       # Property ranking — highest-value workflow endpoint
+PRICE_PITCH = "$0.05"     # Property pitch — investment thesis one-pager
 
 
 def create_payment_middleware(app):
@@ -144,6 +145,18 @@ def create_payment_middleware(app):
             ],
             mime_type="application/json",
             description="Rank candidate properties by investment value — stamp duty, comps, yield, affordability, location",
+        ),
+        "POST /property/pitch": RouteConfig(
+            accepts=[
+                PaymentOption(
+                    scheme="exact",
+                    pay_to=PAY_TO_ADDRESS,
+                    price=PRICE_PITCH,
+                    network=EVM_NETWORK,
+                ),
+            ],
+            mime_type="application/json",
+            description="Generate a complete property investment pitch — price fairness, stamp duty, affordability, yield, location, tenure risk, and plain-English verdict",
         ),
     }
 

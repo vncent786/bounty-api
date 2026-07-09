@@ -1,7 +1,7 @@
 # Bounty API — Active Work State
 
-**Last updated:** 2026-07-09 09:35 SGT
-**Status:** BUILDING — UEN/company lookup endpoint + helping Vincent with URA/directory submissions
+**Last updated:** 2026-07-09 10:10 SGT
+**Status:** IDLE — 4 new calculators shipped and live, waiting on Vincent for URA + directory submissions
 
 ## What just shipped
 - `POST /property/pitch` — live on bountyapi.com, $0.05/call

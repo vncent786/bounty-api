@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.5.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.5.1&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -344,6 +344,18 @@ const TOOLS = [
       },
       required: ["monthly_income", "age"]
     }
+  },
+  {
+    name: "sg_salary_benchmark",
+    description: `Benchmark salary for a Singapore role using live MyCareersFuture (government job portal) data. Returns median, percentile ranges, annual equivalents from real employer-posted salary ranges. Not self-reported — actual job postings. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        role: { type: "string", description: "Job title or keyword (e.g. 'equity analyst', 'software engineer', 'project manager')" },
+        limit: { type: "integer", description: "Max job listings to scan", default: 100 }
+      },
+      required: ["role"]
+    }
   }
 ];
 
@@ -630,6 +642,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "sg_cpf_housing":
         result = await callAPI(`/cpf/housing?monthly_income=${toolArgs.monthly_income}&age=${toolArgs.age}&existing_oa_balance=${toolArgs.existing_oa_balance || 0}`);
+        break;
+
+      case "sg_salary_benchmark":
+        result = await callAPI(`/salary/search?role=${encodeURIComponent(toolArgs.role as string)}&limit=${toolArgs.limit || 100}`);
         break;
 
       case "hdb_resale_median":

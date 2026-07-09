@@ -999,6 +999,21 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_salary_benchmark(
+        role: str,
+        limit: int = 100,
+    ) -> str:
+        """Benchmark salary for a Singapore role using live MyCareersFuture job postings.
+        Returns median, percentile ranges, and annual equivalents from real employer-posted
+        salary data. Free."""
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get(
+                f"{API_BASE}/salary/search",
+                params={"role": role, "limit": limit},
+            )
+            return r.text
+
+    @mcp_server.tool()
     async def hdb_resale_median(town: str) -> str:
         """Get HDB resale median prices by flat type for a Singapore town.
         Returns median price, count, min, max for each flat type."""
@@ -1248,6 +1263,12 @@ try:
 except ImportError as e:
     print(f"Warning: sg_calculators router not loaded: {e}")
 
+try:
+    from apis.salary_benchmark import router as salary_router
+    app.include_router(salary_router)
+except ImportError as e:
+    print(f"Warning: salary_benchmark router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1312,9 +1333,9 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 18,
-  "mcp_tools": 16,
-  "free_endpoints": 12,
+  "live_apis": 19,
+  "mcp_tools": 17,
+  "free_endpoints": 13,
   "paid_endpoints": 6,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
@@ -1406,6 +1427,12 @@ async def llms_txt():
 - Price: FREE
 - Coverage: CPF Ordinary Account accumulation for housing. Monthly OA contribution by age band, 3-year and 5-year projected balances at 2.5% interest.
 - Source: CPF Board contribution rates (Jan 2024), OA interest rate
+
+### SG Salary Benchmark
+- Endpoints: GET /salary/search
+- Price: FREE
+- Coverage: Benchmark salary for any Singapore role using live MyCareersFuture job postings. Returns median, percentile ranges, annual equivalents, and experience-based breakdowns from real employer-posted salary data (not self-reported).
+- Source: MyCareersFuture (api.mycareersfuture.gov.sg) — Singapore's official government job portal
 
 ## How AI agents connect
 

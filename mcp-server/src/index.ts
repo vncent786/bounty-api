@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.4.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.5.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -290,6 +290,59 @@ const TOOLS = [
         buyer_notes: { type: "string", description: "Any specific concerns or goals" }
       },
       required: ["property_price"]
+    }
+  },
+  {
+    name: "sg_income_tax",
+    description: `Calculate Singapore individual income tax. Resident progressive rates (0-22%, YA 2024+). Non-residents: 15% flat or progressive. Returns marginal breakdown, effective rate, and tax payable. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        annual_income: { type: "number", description: "Gross annual income in SGD" },
+        deductions: { type: "number", description: "Total deductions (CPF, expenses, donations)", default: 0 },
+        reliefs: { type: "number", description: "Total personal reliefs (earned income, spouse, child)", default: 0 },
+        is_resident: { type: "boolean", description: "Tax residency status", default: true }
+      },
+      required: ["annual_income"]
+    }
+  },
+  {
+    name: "sg_gst",
+    description: `Add or remove Singapore GST (9% from 1 Jan 2024). mode='add' calculates GST on a price; mode='remove' extracts GST from a GST-inclusive price. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        amount: { type: "number", description: "Amount in SGD" },
+        mode: { type: "string", enum: ["add", "remove"], default: "add", description: "'add' (add GST) or 'remove' (extract GST from inclusive price)" }
+      },
+      required: ["amount"]
+    }
+  },
+  {
+    name: "sg_property_commission",
+    description: `Estimate Singapore property agent commission for sale or rental transactions. HDB, private, landed. Rates are market norms (CEA), not legally fixed. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        transaction_type: { type: "string", enum: ["sale", "rental", "sublet"], description: "Type of property transaction" },
+        property_type: { type: "string", enum: ["hdb", "private", "landed"], default: "hdb" },
+        price: { type: "number", description: "Sale price or monthly rent in SGD" },
+        is_seller_landlord: { type: "boolean", default: true, description: "true = seller/landlord side, false = buyer/tenant side" }
+      },
+      required: ["transaction_type", "price"]
+    }
+  },
+  {
+    name: "sg_cpf_housing",
+    description: `Estimate CPF Ordinary Account (OA) accumulation for housing use. Shows monthly OA contribution by age band, 3-year and 5-year projected balances at 2.5% interest. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        monthly_income: { type: "number", description: "Gross monthly income in SGD" },
+        age: { type: "integer", description: "Current age (16-65)" },
+        existing_oa_balance: { type: "number", description: "Existing CPF OA balance", default: 0 }
+      },
+      required: ["monthly_income", "age"]
     }
   }
 ];
@@ -561,6 +614,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           maintenance_monthly: toolArgs.maintenance_monthly || 0,
           annual_expenses: toolArgs.annual_expenses || 0
         });
+        break;
+
+      case "sg_income_tax":
+        result = await callAPI(`/tax/income?annual_income=${toolArgs.annual_income}&deductions=${toolArgs.deductions || 0}&reliefs=${toolArgs.reliefs || 0}&is_resident=${toolArgs.is_resident !== false}`);
+        break;
+
+      case "sg_gst":
+        result = await callAPI(`/gst?amount=${toolArgs.amount}&mode=${toolArgs.mode || "add"}`);
+        break;
+
+      case "sg_property_commission":
+        result = await callAPI(`/commission?transaction_type=${toolArgs.transaction_type}&property_type=${toolArgs.property_type || "hdb"}&price=${toolArgs.price}&is_seller_landlord=${toolArgs.is_seller_landlord !== false}`);
+        break;
+
+      case "sg_cpf_housing":
+        result = await callAPI(`/cpf/housing?monthly_income=${toolArgs.monthly_income}&age=${toolArgs.age}&existing_oa_balance=${toolArgs.existing_oa_balance || 0}`);
         break;
 
       case "hdb_resale_median":

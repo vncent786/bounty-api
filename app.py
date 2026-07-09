@@ -919,6 +919,86 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_income_tax(
+        annual_income: float,
+        deductions: float = 0,
+        reliefs: float = 0,
+        is_resident: bool = True,
+    ) -> str:
+        """Calculate Singapore individual income tax. Resident progressive rates
+        (YA 2024+): 0-22% marginal. Non-residents: 15% flat or progressive,
+        whichever higher. Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/tax/income",
+                params={
+                    "annual_income": annual_income,
+                    "deductions": deductions,
+                    "reliefs": reliefs,
+                    "is_resident": str(is_resident).lower(),
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_gst(
+        amount: float,
+        mode: str = "add",
+    ) -> str:
+        """Add or remove Singapore GST (9% from 1 Jan 2024).
+        mode='add': calculate GST on a GST-exclusive price.
+        mode='remove': extract GST component from a GST-inclusive price.
+        Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/gst",
+                params={"amount": amount, "mode": mode},
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_property_commission(
+        transaction_type: str,
+        property_type: str = "hdb",
+        price: float = 0,
+        is_seller_landlord: bool = True,
+    ) -> str:
+        """Estimate Singapore property agent commission.
+        transaction_type: 'sale' or 'rental'. property_type: 'hdb', 'private', 'landed'.
+        Rates are market norms (CEA), not legally fixed. Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/commission",
+                params={
+                    "transaction_type": transaction_type,
+                    "property_type": property_type,
+                    "price": price,
+                    "is_seller_landlord": str(is_seller_landlord).lower(),
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_cpf_housing(
+        monthly_income: float,
+        age: int,
+        existing_oa_balance: float = 0,
+    ) -> str:
+        """Estimate CPF Ordinary Account accumulation for housing use.
+        Shows monthly OA contribution, 3-year and 5-year projected balances.
+        Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/cpf/housing",
+                params={
+                    "monthly_income": monthly_income,
+                    "age": age,
+                    "existing_oa_balance": existing_oa_balance,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
     async def hdb_resale_median(town: str) -> str:
         """Get HDB resale median prices by flat type for a Singapore town.
         Returns median price, count, min, max for each flat type."""
@@ -1162,6 +1242,12 @@ try:
 except ImportError as e:
     print(f"Warning: property_pitch router not loaded: {e}")
 
+try:
+    from apis.sg_calculators import router as sg_calc_router
+    app.include_router(sg_calc_router)
+except ImportError as e:
+    print(f"Warning: sg_calculators router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1226,9 +1312,9 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 15,
-  "mcp_tools": 12,
-  "free_endpoints": 8,
+  "live_apis": 18,
+  "mcp_tools": 16,
+  "free_endpoints": 12,
   "paid_endpoints": 6,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
@@ -1296,6 +1382,30 @@ async def llms_txt():
 - Price: $0.01/call
 - Coverage: 234K+ HDB resale transactions, all 26 towns, 2017-present
 - Source: data.gov.sg (live)
+
+### SG Income Tax Calculator
+- Endpoints: GET /tax/income, POST /tax/income
+- Price: FREE
+- Coverage: Singapore individual income tax, resident progressive rates (0-22%, YA 2024+), non-resident (15% flat or progressive). Marginal breakdown with tier details.
+- Source: IRAS individual income tax rates
+
+### SG GST Calculator
+- Endpoints: GET /gst
+- Price: FREE
+- Coverage: Add or remove GST from any amount. Current rate 9% (from 1 Jan 2024).
+- Source: IRAS GST rates
+
+### SG Property Agent Commission Estimator
+- Endpoints: GET /commission
+- Price: FREE
+- Coverage: Estimated commission for property sale/rental transactions. HDB, private, landed. Seller/buyer/landlord/tenant breakdown. Includes GST.
+- Source: CEA guidelines + prevailing market rates
+
+### SG CPF Housing Calculator
+- Endpoints: GET /cpf/housing
+- Price: FREE
+- Coverage: CPF Ordinary Account accumulation for housing. Monthly OA contribution by age band, 3-year and 5-year projected balances at 2.5% interest.
+- Source: CPF Board contribution rates (Jan 2024), OA interest rate
 
 ## How AI agents connect
 

@@ -1,6 +1,7 @@
 {
   "name": "bountyapi-mcp",
   "version": "1.4.0",
+  "mcpName": "io.github.vncent786/bounty-api",
   "description": "MCP server for BountyAPI — specialist data APIs for AI agents with x402 micropayments",
   "type": "module",
   "main": "./dist/index.js",

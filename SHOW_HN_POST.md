@@ -1,70 +1,82 @@
-# Show HN: Bounty API — An API marketplace where AI agents pay per request in USDC
+# Show HN: Bounty API — Singapore property data APIs where AI agents pay per request in USDC
 
-Bounty is an API marketplace built for AI agents. Agents discover data via MCP (Model Context Protocol), call endpoints, and pay automatically using x402 micropayments (USDC on Base). No API keys. No subscriptions. One price per call, known upfront.
+Bounty API is a set of specialist data APIs built for AI agents. Agents discover data via MCP (Model Context Protocol), call endpoints, and (for paid ones) pay automatically using x402 micropayments (USDC on Base). No API keys. No subscriptions. One price per call, known upfront.
 
-Live at https://bountyapi.com | Code: https://github.com/vncent786/bounty-api
+Live at https://bountyapi.com | Code: https://github.com/vncent786/bounty-api | npm: bountyapi-mcp@1.4.0
 
 ## How it works
 
-An agent calls a paid endpoint. The server responds with HTTP 402 + payment instructions. The agent signs a USDC transfer on Base, retries with the payment proof, and gets the data. Settlement happens in ~2 seconds.
+An agent calls a paid endpoint. The server responds with HTTP 402 + payment instructions. The agent signs a USDC transfer on Base, retries with the payment proof, and gets the data. Settlement happens in ~2 seconds. Free endpoints need no payment at all.
 
 Real transaction from our MCP test — an AI agent autonomously paid $0.01 for HDB resale data:
 https://basescan.org/tx/0xc42354ea66478958099236920b293629eb1711d235b5bacad6f90d9b82beb6c5
 
 ## What's live now
 
-7 endpoints:
-- Stamp duty calculator (FREE) — verified against IRAS tax rates
-- Postal district mapper (FREE) — 28 SG districts from URA source
-- Mortgage/compound/currency calculators (FREE)
-- HDB resale transaction data (PAID — $0.01/call, from data.gov.sg)
-- Rental yield investment calculator (PAID — $0.005/call)
+15 APIs across 12 MCP tools (8 free, 6 paid). Singapore is the live region; the API shape carries a region parameter for future expansion (HK, UAE, AU, JP planned).
+
+Free:
+- Stamp duty calculator (BSD + ABSD) — verified against IRAS tax rates
+- Postal district mapper — 28 SG districts
+- Address intelligence — postal code to district, planning area (URA), CCR/RCR/OCR, 5 nearest MRT stations (142 stations, all 6 lines)
+- MRT search / nearest-MRT lookup
+- Mortgage, compound-growth, and currency calculators
+
+Paid (x402):
+- TDSR/MSR affordability calculator — $0.01/call (MAS framework)
+- HDB resale transaction data — $0.01/call (234K+ transactions, data.gov.sg)
+- Rental yield calculator — $0.005/call
+- Property investment analysis — $0.05/call (composite)
+- Property pitch (client-ready investment thesis) — $0.05/call
+- Property ranking (score N candidates 0–100) — $0.10/call
 
 Every response carries source provenance. No interpolated or fabricated data.
 
 ## MCP integration
 
-npm package: `bountyapi-mcp@1.1.0`
+Two ways to connect — remote (HTTP) or local (stdio):
 
+Remote:
 ```json
 {
   "mcpServers": {
-    "bounty": {
+    "bountyapi": { "url": "https://bountyapi.com/mcp" }
+  }
+}
+```
+
+Local:
+```json
+{
+  "mcpServers": {
+    "bountyapi": {
       "command": "npx",
       "args": ["bountyapi-mcp"],
-      "env": {
-        "EVM_PRIVATE_KEY": "0x...",
-        "MAX_SPEND_USD": "1.00"
-      }
+      "env": { "EVM_PRIVATE_KEY": "0x...", "MAX_SPEND_USD": "1.00" }
     }
   }
 }
 ```
 
-The MCP server handles the full x402 payment flow automatically. When an agent calls a paid endpoint, the server detects the 402, checks the price against MAX_SPEND_USD, signs the payment, and retries. The agent never sees the payment — it just gets data.
-
-Also supports hosted MCP at https://bountyapi.com/mcp (Streamable HTTP transport).
+The stdio MCP server handles the full x402 payment flow automatically. When an agent calls a paid endpoint, the server detects the 402, checks the price against MAX_SPEND_USD, signs the payment, and retries. Without EVM_PRIVATE_KEY set, the 8 free endpoints work and paid ones return a 402 challenge (so it's safe to try).
 
 ## Tech
 
 - Backend: FastAPI on Railway
 - Payments: x402 protocol, USDC on Base, PayAI facilitator
 - MCP: TypeScript, @modelcontextprotocol/sdk, @x402/evm
-- Data sources: IRAS, URA, data.gov.sg
+- Data sources: IRAS, URA, data.gov.sg, MAS, LTA
 
 ## Why we built this
 
-API marketplaces today have two problems:
+Most data APIs are built for humans: you sign up, get an API key, manage billing, and commit to a plan. That friction kills agentic workflows. We wanted data that an autonomous agent could discover, price, and consume end-to-end with zero human setup — pay-per-call in stablecoin, no account.
 
-1. **Pricing opacity.** Platforms like Apify charge for compute, proxies, storage, and data transfer separately. You can't know the real cost until you run something. We charge one price per call. That's it.
-
-2. **No quality verification.** Most API marketplaces let anyone publish. There's no quality bar. We're building continuous endpoint monitoring so agents know what actually works before they pay.
+We're a single provider today (not a marketplace). The bet is that per-call, key-less, protocol-native data access is the right shape for agents. Singapore property is the first vertical because the government data is high quality and well structured.
 
 ## What's next
 
-- More APIs: company registry lookups, compliance screening, financial fundamentals
+- More Singapore APIs: URA private-property transactions (pending an AccessKey), condo/project database, market trend data, buy-vs-rent analysis
 - Quality monitoring: continuous testing of every endpoint, published publicly
-- Provider onboarding: let third-party developers publish APIs on Bounty
-- Routing: when multiple providers offer the same capability, automatically route to the best one
+- More regions using the same region-parameterized shape (HK, UAE, AU, JP)
 
-Happy to answer questions about the x402 protocol, MCP integration, or the marketplace model.
+Happy to answer questions about the x402 protocol, MCP integration, or the data model.

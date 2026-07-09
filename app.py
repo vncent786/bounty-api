@@ -232,14 +232,14 @@ async def landing_page():
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bounty API — Data APIs for agents</title>
-  <meta name="description" content="Bounty API is a marketplace of specialist data APIs built for AI agents, developers, and x402 micropayments." />
+  <meta name="description" content="Bounty API — specialist data APIs built for AI agents, developers, and x402 micropayments. Singapore property, tax, and location data, live now." />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
   <meta property="og:title" content="Bounty API — Verified data APIs for AI agents" />
-  <meta property="og:description" content="Agent-native data marketplace. Clean endpoints, source provenance, and x402 micropayments. Pay per call in USDC." />
+  <meta property="og:description" content="Agent-native data APIs. Clean endpoints, source provenance, and x402 micropayments. Singapore property data, live now. Pay per call in USDC." />
   <meta property="og:image" content="/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
@@ -401,7 +401,7 @@ async def landing_page():
       <div class="split">
         <div class="panel">
           <h3>Built for agent economics.</h3>
-          <p style="color: var(--muted); line-height: 1.6; margin: 0;">Bounty is an x402-native marketplace. Agents discover APIs via MCP, pay per call in USDC on Base, and get structured data with source provenance. No API keys. No subscriptions. No scraping.</p>
+          <p style="color: var(--muted); line-height: 1.6; margin: 0;">Bounty is an x402-native data API. Agents discover APIs via MCP, pay per call in USDC on Base, and get structured data with source provenance. No API keys. No subscriptions. No scraping.</p>
           <div class="list">
             <div class="item"><span class="check">&#10003;</span><div><strong>x402 micropayments</strong><span>Per-call USDC settlement on Base. Agents pay only for what they use.</span></div></div>
             <div class="item"><span class="check">&#10003;</span><div><strong>MCP discovery</strong><span>Tool definitions via MCP stdio and HTTP transport. npm: bountyapi-mcp.</span></div></div>
@@ -421,10 +421,10 @@ async def landing_page():
   <span class="blue">"region_roadmap"</span>: <span class="green">"HK, UAE, AU, JP"</span>,
   <span class="blue">"payment"</span>: <span class="green">"USDC on Base"</span>,
   <span class="blue">"discovery"</span>: <span class="green">"MCP + llms.txt"</span>,
-  <span class="blue">"live_apis"</span>: 14,
-  <span class="blue">"mcp_tools"</span>: 11,
+  <span class="blue">"live_apis"</span>: 15,
+  <span class="blue">"mcp_tools"</span>: 12,
   <span class="blue">"free_endpoints"</span>: 8,
-  <span class="blue">"paid_endpoints"</span>: 5,
+  <span class="blue">"paid_endpoints"</span>: 6,
   <span class="blue">"npm"</span>: <span class="green">"bountyapi-mcp"</span>,
   <span class="blue">"docs"</span>: <span class="green">"bountyapi.com/docs"</span>
 }</pre>
@@ -1221,8 +1221,8 @@ async def llms_txt():
 {
   "name": "Bounty API",
   "url": "https://bountyapi.com",
-  "category": "Data API Marketplace",
-  "focus": "Global",
+  "category": "Specialist Data APIs",
+  "focus": "Singapore",
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
@@ -1238,10 +1238,10 @@ async def llms_txt():
 
 ## What it is
 
-- A marketplace of specialist data APIs where buyers are AI agents
+- Specialist data APIs for AI agents. Bounty is a single provider today (a multi-provider marketplace is a roadmap item, not the current product).
 - Discovery via MCP (single endpoint exposes all APIs as tools)
 - Payment via x402 (USDC on Base, sub-second settlement)
-- Currently offering Singapore property data, expanding to more verticals
+- Live now: Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
 
 ## Available APIs
 

@@ -1,67 +1,118 @@
-# Asia Data API
+# Bounty API
 
-> Agent-paid marketplace for structured Asia (starting with Singapore) reference data.
-> Every endpoint is pay-per-call via the x402 protocol (HTTP 402 → native payment → data),
-> so autonomous AI agents can use us with NO human signup, NO API key, NO billing setup.
+> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Every response carries its source.
 
 ```json
 {
-  "name": "Asia Data API",
-  "category": "reference-data",
-  "region": "Asia (Singapore first)",
-  "protocols": ["REST", "MCP"],
-  "payment": "x402 (USDC on Base, per-call)",
-  "pricing_range": "$0.001–$0.002 per call",
-  "openapi": "https://asiadataapi.com/openapi.yaml"
+  "name": "Bounty API",
+  "url": "https://bountyapi.com",
+  "category": "Specialist Data APIs",
+  "focus": "Singapore",
+  "payment_protocol": "x402",
+  "discovery_protocol": "MCP",
+  "settlement_currency": "USDC",
+  "live_apis": 15,
+  "mcp_tools": 12,
+  "free_endpoints": 8,
+  "paid_endpoints": 6,
+  "region_live": "Singapore",
+  "region_roadmap": "HK, UAE, AU, JP",
+  "provider_revenue_share": "97%"
 }
 ```
 
-## What it IS
-- A marketplace of small, precise, low-latency data/calculation APIs for Asia.
-- Each API is independently priced per-call and payable natively by AI agents via x402.
-- Rates and figures are sourced from primary authorities (e.g. IRAS, URA, HDB) and verified.
+## What it is
 
-## What it is NOT
-- Not a bulk data dump / CSV marketplace. Each call returns a precise computed answer.
-- Not a free public dataset. Every call requires a micro-payment (this is how agents self-serve).
-- Not a human SaaS with a dashboard. There is no login; agents call endpoints directly.
+- Specialist data APIs for AI agents. Bounty is a single provider today (a multi-provider marketplace is a roadmap item, not the current product).
+- Discovery via MCP (single endpoint exposes all APIs as tools)
+- Payment via x402 (USDC on Base, sub-second settlement)
+- Live now: Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
 
-## APIs
+## Available APIs
 
-### SG Stamp Duty API — v1.0.0 (LIVE)
-Singapore property stamp duty: Buyer's Stamp Duty (BSD) + Additional Buyer's Stamp Duty (ABSD).
-Rates verified against IRAS (iras.gov.sg). BSD residential: 6-tier marginal 1%–6% (effective 15 Feb 2023). BSD non-residential: 4-tier 1%–4%. ABSD 0%–65% by buyer profile (effective 27 Apr 2023). Verified against IRAS worked example: $4,500,100 → BSD $209,606 (matches exactly).
+### SG Stamp Duty Calculator
+- Endpoints: POST /stamp-duty, GET /bsd, GET /absd
+- Price: FREE
+- Coverage: BSD (6-tier marginal, 1%-6%), ABSD (0%-65% by buyer profile)
+- Source: iras.gov.sg, verified Jan 2026
 
-- [POST /stamp-duty — full calculation (BSD+ABSD+breakdown)](https://asiadataapi.com/stamp-duty.md): $0.002/call. Params: price (SGD), property_type (residential|non-residential), buyer_profile (SC|SPR|FR|entity|developer|trustee), property_count.
-- [GET /bsd — Buyer's Stamp Duty only](https://asiadataapi.com/bsd.md): $0.001/call. Params: price, property_type.
-- [GET /absd — Additional Buyer's Stamp Duty only](https://asiadataapi.com/absd.md): $0.001/call. Params: price, buyer_profile, property_count.
-- [GET /health](https://asiadataapi.com/health): free.
-- [GET /docs](https://asiadataapi.com/docs): interactive Swagger UI (free).
+### SG Address Intelligence
+- Endpoints: GET /address/{postal_code}, GET /mrt/near/{postal_code}, GET /mrt/search, GET /mrt/stations
+- Price: FREE
+- Coverage: Postal code -> district, planning area (URA Master Plan), CCR/RCR/OCR region, HDB town, 5 nearest MRT stations with walking distance. 142 MRT stations across all 6 lines.
+- Source: URA Master Plan 2019, LTA DataMall, SLA postal sectors
 
-## Payment (x402 — how agents pay)
-Calls without payment receive `HTTP 402 Payment Required` with a payment challenge. The agent pays USDC on Base mainnet and re-requests; the response is then returned. No account, API key, or human onboarding required. See [x402 payment flow](https://asiadataapi.com/x402.md).
+### SG TDSR/MSR Affordability Calculator
+- Endpoints: POST /affordability/calculate, GET /affordability/quick
+- Price: $0.01/call
+- Coverage: MAS TDSR (55%), MSR (30% for HDB), LTV limits, stress-tested at MAS minimum rates (3%/3.5%/4.5%). Returns max affordable loan and property price.
+- Source: MAS TDSR framework, HDB MSR rules, LTV limits (Dec 2021)
 
-## Connect via MCP
-Install the Asia Data API as an MCP tool source in Claude Desktop, Cursor, or any MCP-compatible client:
+### SG Property Investment Analysis
+- Endpoints: POST /property/analyze
+- Price: $0.05/call
+- Coverage: Complete property analysis — stamp duty, transaction comparables, rental yield, affordability, location intelligence, and risk assessment in one call.
+- Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
+
+### SG Property Ranking
+- Endpoints: POST /property/rank
+- Price: $0.10/call
+- Coverage: Accepts candidate properties from ANY source and enriches + ranks them using Bounty's verified data. Transparent 0-100 scores across value, yield, affordability, location. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned).
+- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA, LTA
+
+### SG Property Pitch
+- Endpoints: POST /property/pitch
+- Price: $0.05/call
+- Coverage: Client-ready property investment thesis: price fairness vs comparables, stamp duty, MAS affordability, rental yield, location/MRT intelligence, tenure risk, and plain-English recommendation.
+- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA/LTA location data
+
+### SG Postal Code to District
+- Endpoints: GET /postal/{code}, GET /postal/districts
+- Price: FREE
+- Coverage: All 28 Singapore postal districts with area names
+
+### SG Rental Yield Calculator
+- Endpoints: POST /rental-yield/calculate
+- Price: $0.005/call
+- Coverage: Gross yield, net yield, cap rate, price-to-rent ratio, cashflow
+
+### HDB Resale Price Data
+- Endpoints: GET /hdb/towns, GET /hdb/median/{town}, GET /hdb/search
+- Price: $0.01/call
+- Coverage: 234K+ HDB resale transactions, all 26 towns, 2017-present
+- Source: data.gov.sg (live)
+
+## How AI agents connect
+
+Add to Claude Desktop or any MCP-compatible client:
+
+Remote (HTTP) MCP:
 ```json
 {
   "mcpServers": {
-    "asia-data-api": {
-      "url": "https://asiadataapi.com/mcp"
+    "bountyapi": {
+      "url": "https://bountyapi.com/mcp"
     }
   }
 }
 ```
-Once connected, an agent can call `sg_stamp_duty` and all other marketplace tools directly. See [MCP manifest](https://asiadataapi.com/mcp/manifest.json).
 
-## FAQ
-- **How does an agent pay?** It receives an HTTP 402 with a payment challenge, pays USDC on Base, then gets the data. No human step.
-- **Are the rates current?** SG Stamp Duty rates verified against IRAS as of Jan 2026. Each API page lists its source and verification date.
-- **Do I need an API key?** No. Payment is the auth.
-- **Is there a free tier?** Health/docs are free. Data calls are paid (from $0.001).
-- **Can I get bulk data?** Not yet — each call returns a precise computed answer.
+Local (stdio) MCP:
+```json
+{
+  "mcpServers": {
+    "bountyapi": {
+      "command": "npx",
+      "args": ["bountyapi-mcp"]
+    }
+  }
+}
+```
+
+## Payment (x402)
+
+Paid calls without payment receive HTTP 402 with a payment challenge. The agent pays USDC on Base mainnet and re-requests; the response is then returned. No account, API key, or human onboarding required. Set `EVM_PRIVATE_KEY` on the stdio MCP server to enable auto-pay for paid endpoints.
 
 ## Optional
-- [Pricing overview](https://asiadataapi.com/pricing.md)
-- [Full crawlable documentation (llms-full.txt)](https://asiadataapi.com/llms-full.txt)
-- [Phase 2 roadmap (HDB resale, URA transactions, postal→district)](https://asiadataapi.com/roadmap.md)
+- Interactive docs: https://bountyapi.com/docs
+- Health: https://bountyapi.com/health

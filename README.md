@@ -1,6 +1,6 @@
 # Bounty API
 
-**Agent-native API marketplace where AI agents pay per request in USDC on Base.**
+**Agent-native data APIs where AI agents pay per request in USDC on Base. Singapore property & financial data, live now.**
 
 Live at [bountyapi.com](https://bountyapi.com)
 
@@ -111,7 +111,7 @@ curl https://bountyapi.com/hdb/towns
 
 ```
 ├── app.py              # Main FastAPI app, landing page, routes
-├── pages.py            # Marketplace pages (pricing, providers, setup)
+├── pages.py            # Site pages (pricing, setup, API detail pages)
 ├── payment.py          # x402 payment middleware config
 ├── apis/               # API modules (postal, rental, hdb, mortgage, etc.)
 ├── mcp-server/         # TypeScript MCP server (published to npm)

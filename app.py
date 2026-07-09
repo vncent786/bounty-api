@@ -1275,6 +1275,12 @@ async def llms_txt():
 - Coverage: Accepts candidate properties from ANY source (user, web search, listing portals) and enriches + ranks them using Bounty's verified data. Returns transparent 0-100 scores across 4 dimensions: value vs comps, rental yield, affordability, location. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned).
 - Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA, LTA
 
+### SG Property Pitch
+- Endpoints: POST /property/pitch
+- Price: $0.05/call
+- Coverage: Generates a client-ready property investment thesis: price fairness vs transaction comparables, stamp duty, MAS affordability, rental yield, location/MRT intelligence, tenure risk, upfront costs, strengths, risk flags, and plain-English recommendation. Accepts listing data from any source as input.
+- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA/LTA location data. Private-property transaction comparables require URA API access.
+
 ### SG Postal Code to District
 - Endpoints: GET /postal/{code}, GET /postal/districts
 - Price: FREE
@@ -1393,6 +1399,33 @@ Response:
     {"type": "3 ROOM", "median_price": 350000, "count": 5034, "min_price": 200000, "max_price": 600000},
     {"type": "4 ROOM", "median_price": 520000, "count": 6892, "min_price": 350000, "max_price": 800000}
   ]
+}
+
+## SG Property Pitch
+
+### POST /property/pitch
+Request:
+{
+  "property_type": "hdb",
+  "property_price": 550000,
+  "town": "TOA PAYOH",
+  "flat_type": "4 ROOM",
+  "postal_code": "310074",
+  "sqft": 968,
+  "monthly_rent": 3200,
+  "buyer_profile": "SC",
+  "monthly_income": 8000
+}
+
+Response includes:
+{
+  "price_per_sqft": 568.18,
+  "price_assessment": {"verdict": "Below median — potential value"},
+  "stamp_duty": {"bsd": 11100, "absd": 0, "total": 11100},
+  "affordability": {"affordable": true, "binding_constraint": "MSR"},
+  "rental_yield": {"gross_yield_pct": 6.98},
+  "location": {"region": "RCR", "nearest_mrt": [{"station": "Bishan"}]},
+  "verdict": {"recommendation": "WORTH PURSUING"}
 }
 """
 

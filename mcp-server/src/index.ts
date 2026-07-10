@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.6.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.7.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -384,6 +384,45 @@ const TOOLS = [
       },
       required: ["property_price", "monthly_rent"]
     }
+  },
+  {
+    name: "sg_school_proximity",
+    description: `Find Singapore primary/secondary schools within 1km and 2km of a postal code. Useful for Primary 1 distance-priority and property valuation. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        postal_code: { type: "string", description: "Singapore 6-digit postal code" },
+        radius_km: { type: "number", default: 2, description: "Search radius in km (0.5-5)" },
+        school_type: { type: "string", enum: ["", "primary", "secondary"], default: "", description: "Optional filter" }
+      },
+      required: ["postal_code"]
+    }
+  },
+  {
+    name: "hdb_eip_quota",
+    description: `Explain HDB Ethnic Integration Policy (EIP) and SPR quota limits for a buyer. Includes quota percentages and transaction-risk guidance. Real-time block availability still requires HDB portal verification. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        town: { type: "string", description: "HDB town, e.g. 'ANG MO KIO'" },
+        buyer_ethnicity: { type: "string", description: "Malay, Chinese, Indian, or Others" },
+        is_spr: { type: "boolean", default: false, description: "Whether buyer is an SPR" },
+        is_malaysian_spr: { type: "boolean", default: false, description: "Whether buyer is Malaysian SPR (exempt from SPR quota)" }
+      },
+      required: ["town", "buyer_ethnicity"]
+    }
+  },
+  {
+    name: "hdb_lease_decay",
+    description: `Analyze HDB lease decay: remaining lease, financing/CPF restrictions, risk thresholds, SERS caveat, and optional value impact. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        lease_commencement_year: { type: "integer", description: "HDB 99-year lease commencement year" },
+        current_value: { type: "number", default: 0, description: "Optional current value in SGD for value-impact estimate" }
+      },
+      required: ["lease_commencement_year"]
+    }
   }
 ];
 
@@ -683,6 +722,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case "sg_buy_vs_rent":
         result = await callAPI(`/buy-vs-rent?property_price=${toolArgs.property_price}&monthly_rent=${toolArgs.monthly_rent}&holding_period_years=${toolArgs.holding_period_years || 10}&mortgage_rate=${toolArgs.mortgage_rate || 2.6}&down_payment_pct=${toolArgs.down_payment_pct || 25}`);
         break;
+
+      case "sg_school_proximity":
+        result = await callAPI(`/schools/near/${encodeURIComponent(toolArgs.postal_code as string)}?radius_km=${toolArgs.radius_km || 2}&school_type=${encodeURIComponent((toolArgs.school_type as string) || "")}`);
+        break;
+
+      case "hdb_eip_quota":
+        result = await callAPI(`/hdb/eip/${encodeURIComponent(toolArgs.town as string)}?buyer_ethnicity=${encodeURIComponent(toolArgs.buyer_ethnicity as string)}&is_spr=${toolArgs.is_spr === true}&is_malaysian_spr=${toolArgs.is_malaysian_spr === true}`);
+        break;
+
+      case "hdb_lease_decay": {
+        const params = new URLSearchParams();
+        params.set("lease_commencement_year", String(toolArgs.lease_commencement_year));
+        if (toolArgs.current_value && Number(toolArgs.current_value) > 0) params.set("current_value", String(toolArgs.current_value));
+        result = await callAPI(`/hdb/lease-decay?${params}`);
+        break;
+      }
 
       case "hdb_resale_median":
         result = await callAPI(`/hdb/median/${encodeURIComponent(toolArgs.town as string)}`);

@@ -1057,6 +1057,54 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_school_proximity(
+        postal_code: str,
+        radius_km: float = 2.0,
+        school_type: str = "",
+    ) -> str:
+        """Find primary/secondary schools near a Singapore postal code.
+        Splits schools within 1km and 1-2km for Primary 1 priority analysis. Free."""
+        async with httpx.AsyncClient(timeout=20) as client:
+            r = await client.get(
+                f"{API_BASE}/schools/near/{postal_code}",
+                params={"radius_km": radius_km, "school_type": school_type},
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def hdb_eip_quota(
+        town: str,
+        buyer_ethnicity: str,
+        is_spr: bool = False,
+        is_malaysian_spr: bool = False,
+    ) -> str:
+        """Explain HDB Ethnic Integration Policy (EIP) and SPR quota limits.
+        Real-time HDB quota requires portal verification, but this returns official quota rules and transaction risk. Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/hdb/eip/{town}",
+                params={
+                    "buyer_ethnicity": buyer_ethnicity,
+                    "is_spr": str(is_spr).lower(),
+                    "is_malaysian_spr": str(is_malaysian_spr).lower(),
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def hdb_lease_decay(
+        lease_commencement_year: int,
+        current_value: float = 0,
+    ) -> str:
+        """Analyze HDB lease decay: remaining years, financing/CPF restrictions, risk thresholds, and value impact. Free."""
+        params = {"lease_commencement_year": lease_commencement_year}
+        if current_value > 0:
+            params["current_value"] = current_value
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{API_BASE}/hdb/lease-decay", params=params)
+            return r.text
+
+    @mcp_server.tool()
     async def hdb_resale_median(town: str) -> str:
         """Get HDB resale median prices by flat type for a Singapore town.
         Returns median price, count, min, max for each flat type."""
@@ -1313,6 +1361,24 @@ except ImportError as e:
     print(f"Warning: salary_benchmark router not loaded: {e}")
 
 try:
+    from apis.school_proximity import router as school_router
+    app.include_router(school_router)
+except ImportError as e:
+    print(f"Warning: school_proximity router not loaded: {e}")
+
+try:
+    from apis.hdb_quota import router as hdb_quota_router
+    app.include_router(hdb_quota_router)
+except ImportError as e:
+    print(f"Warning: hdb_quota router not loaded: {e}")
+
+try:
+    from apis.hdb_lease_decay import router as hdb_lease_router
+    app.include_router(hdb_lease_router)
+except ImportError as e:
+    print(f"Warning: hdb_lease_decay router not loaded: {e}")
+
+try:
     from apis.property_decisions import router as decisions_router
     app.include_router(decisions_router)
 except ImportError as e:
@@ -1382,9 +1448,9 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 21,
-  "mcp_tools": 19,
-  "free_endpoints": 15,
+  "live_apis": 25,
+  "mcp_tools": 22,
+  "free_endpoints": 19,
   "paid_endpoints": 6,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
@@ -1494,6 +1560,24 @@ async def llms_txt():
 - Price: FREE
 - Coverage: Total cost comparison of buying vs renting over a configurable holding period. Includes mortgage amortization, stamp duty, property tax, maintenance, property appreciation, and opportunity cost of down payment invested. Returns net cost for each path and a recommendation.
 - Source: Composite — IRAS rates, standard mortgage amortization, transparent assumptions
+
+### SG School Proximity
+- Endpoints: GET /schools/near/{postal_code}, GET /schools/list
+- Price: FREE
+- Coverage: 294 Singapore primary/secondary schools with coordinates. Finds schools within 1km and 2km of a postal code for Primary 1 distance-priority/property valuation analysis.
+- Source: OpenStreetMap school coordinates; distance by haversine formula
+
+### HDB EIP / SPR Quota Rules
+- Endpoints: GET /hdb/eip/{town}
+- Price: FREE
+- Coverage: HDB Ethnic Integration Policy and SPR quota limits by buyer ethnicity/status, with transaction-risk guidance. Real-time block availability still requires HDB portal verification.
+- Source: HDB Ethnic Integration Policy and SPR quota rules
+
+### HDB Lease Decay
+- Endpoints: GET /hdb/lease-decay
+- Price: FREE
+- Coverage: Remaining lease, financing thresholds, CPF restriction timeline, SERS caveat, and lease-risk assessment for HDB flats.
+- Source: HDB lease framework, MAS mortgage rules, CPF housing rules
 
 ## How AI agents connect
 

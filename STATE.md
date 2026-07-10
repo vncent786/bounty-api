@@ -1,7 +1,7 @@
 # Bounty API — Active Work State
 
-**Last updated:** 2026-07-09 10:25 SGT
-**Status:** IDLE — salary benchmark shipped and verified live. 17 MCP tools. Waiting on Vincent for URA + directory submissions.
+**Last updated:** 2026-07-09 10:50 SGT
+**Status:** IDLE — property vertical deep build progressing. 19 MCP tools, 21 APIs. Waiting on URA AccessKey for private transactions.
 
 ## What just shipped
 - `POST /property/pitch` — live on bountyapi.com, $0.05/call

@@ -1014,6 +1014,49 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def sg_property_tax(
+        annual_value: float,
+        property_type: str = "residential",
+        is_owner_occupied: bool = True,
+    ) -> str:
+        """Calculate Singapore property tax. Owner-occupier progressive 0-32%,
+        non-owner-occupied 10-20%, non-residential flat 10%. Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/property-tax",
+                params={
+                    "annual_value": annual_value,
+                    "property_type": property_type,
+                    "is_owner_occupied": str(is_owner_occupied).lower(),
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
+    async def sg_buy_vs_rent(
+        property_price: float,
+        monthly_rent: float,
+        holding_period_years: int = 10,
+        mortgage_rate: float = 2.6,
+        down_payment_pct: float = 25,
+    ) -> str:
+        """Buy-vs-rent analysis: total cost of buying vs renting over a holding period.
+        Includes mortgage, stamp duty, property tax, maintenance, opportunity cost.
+        Returns net cost comparison and recommendation. Free."""
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{API_BASE}/buy-vs-rent",
+                params={
+                    "property_price": property_price,
+                    "monthly_rent": monthly_rent,
+                    "holding_period_years": holding_period_years,
+                    "mortgage_rate": mortgage_rate,
+                    "down_payment_pct": down_payment_pct,
+                },
+            )
+            return r.text
+
+    @mcp_server.tool()
     async def hdb_resale_median(town: str) -> str:
         """Get HDB resale median prices by flat type for a Singapore town.
         Returns median price, count, min, max for each flat type."""
@@ -1269,6 +1312,12 @@ try:
 except ImportError as e:
     print(f"Warning: salary_benchmark router not loaded: {e}")
 
+try:
+    from apis.property_decisions import router as decisions_router
+    app.include_router(decisions_router)
+except ImportError as e:
+    print(f"Warning: property_decisions router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1333,9 +1382,9 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 19,
-  "mcp_tools": 17,
-  "free_endpoints": 13,
+  "live_apis": 21,
+  "mcp_tools": 19,
+  "free_endpoints": 15,
   "paid_endpoints": 6,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
@@ -1433,6 +1482,18 @@ async def llms_txt():
 - Price: FREE
 - Coverage: Benchmark salary for any Singapore role using live MyCareersFuture job postings. Returns median, percentile ranges, annual equivalents, and experience-based breakdowns from real employer-posted salary data (not self-reported).
 - Source: MyCareersFuture (api.mycareersfuture.gov.sg) — Singapore's official government job portal
+
+### SG Property Tax Calculator
+- Endpoints: GET /property-tax
+- Price: FREE
+- Coverage: Singapore property tax calculator. Owner-occupier progressive rates 0-32%, non-owner-occupied 10-20%, non-residential flat 10%. Computed from Annual Value with tier breakdown.
+- Source: IRAS property tax rates (effective 1 Jan 2024), verified from iras.gov.sg
+
+### SG Buy-vs-Rent Analysis
+- Endpoints: GET /buy-vs-rent
+- Price: FREE
+- Coverage: Total cost comparison of buying vs renting over a configurable holding period. Includes mortgage amortization, stamp duty, property tax, maintenance, property appreciation, and opportunity cost of down payment invested. Returns net cost for each path and a recommendation.
+- Source: Composite — IRAS rates, standard mortgage amortization, transparent assumptions
 
 ## How AI agents connect
 

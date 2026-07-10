@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.5.1&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.6.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -356,6 +356,34 @@ const TOOLS = [
       },
       required: ["role"]
     }
+  },
+  {
+    name: "sg_property_tax",
+    description: `Calculate Singapore property tax. Owner-occupier residential: progressive 0-32%. Non-owner-occupied: 10-20%. Non-residential: flat 10%. Based on IRAS Annual Value. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        annual_value: { type: "number", description: "Annual Value of the property in SGD" },
+        property_type: { type: "string", enum: ["residential", "non-residential"], default: "residential" },
+        is_owner_occupied: { type: "boolean", default: true, description: "Whether owner lives in the property" }
+      },
+      required: ["annual_value"]
+    }
+  },
+  {
+    name: "sg_buy_vs_rent",
+    description: `Buy-vs-rent analysis for Singapore property. Compares total cost of buying (mortgage, stamp duty, property tax, maintenance) vs renting (rent + opportunity cost of down payment invested). Returns net cost comparison and recommendation. FREE`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        property_price: { type: "number", description: "Property purchase price in SGD" },
+        monthly_rent: { type: "number", description: "Monthly rent for comparable property" },
+        holding_period_years: { type: "integer", default: 10, description: "How long you plan to hold" },
+        mortgage_rate: { type: "number", default: 2.6, description: "Mortgage interest rate %" },
+        down_payment_pct: { type: "number", default: 25, description: "Down payment percentage" }
+      },
+      required: ["property_price", "monthly_rent"]
+    }
   }
 ];
 
@@ -646,6 +674,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case "sg_salary_benchmark":
         result = await callAPI(`/salary/search?role=${encodeURIComponent(toolArgs.role as string)}&limit=${toolArgs.limit || 100}`);
+        break;
+
+      case "sg_property_tax":
+        result = await callAPI(`/property-tax?annual_value=${toolArgs.annual_value}&property_type=${toolArgs.property_type || "residential"}&is_owner_occupied=${toolArgs.is_owner_occupied !== false}`);
+        break;
+
+      case "sg_buy_vs_rent":
+        result = await callAPI(`/buy-vs-rent?property_price=${toolArgs.property_price}&monthly_rent=${toolArgs.monthly_rent}&holding_period_years=${toolArgs.holding_period_years || 10}&mortgage_rate=${toolArgs.mortgage_rate || 2.6}&down_payment_pct=${toolArgs.down_payment_pct || 25}`);
         break;
 
       case "hdb_resale_median":

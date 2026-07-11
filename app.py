@@ -1670,6 +1670,12 @@ All endpoints are relative to this base URL.
 
 All paid endpoints require micropayment via x402 protocol. Payments are processed on Base mainnet (eip155:8453). Free endpoints require no payment and no authentication.
 
+## Discovery
+
+- OpenAPI spec with x402 payment metadata: https://bountyapi.com/openapi.json
+- AgentCash well-known: https://bountyapi.com/.well-known/agentcash.json
+- 13 paid routes tagged with `x-payment-info` and `responses.402`
+
 ## Agent Workflow (Progressive)
 
 ### Option A: AgentCash (recommended — automatic payment handling)
@@ -1680,7 +1686,7 @@ All paid endpoints require micropayment via x402 protocol. Payments are processe
 4. Check endpoint schema and pricing: `mcp__agentcash__check_endpoint_schema("https://bountyapi.com/stamp-duty")`
 5. Execute: `mcp__agentcash__fetch("https://bountyapi.com/bsd?price=1000000")`
 
-AgentCash handles wallet creation, USDC payment, and 402 challenge resolution automatically. Paid 200s return `{ success: true, data: <HTTP body> }`.
+AgentCash handles wallet creation, USDC payment, and 402 challenge resolution automatically. Paid 200s return `{ success: true, data: <HTTP body> }` — parse endpoint fields at `.data.*`.
 
 ### Option B: Direct MCP (tool discovery without auto-pay)
 

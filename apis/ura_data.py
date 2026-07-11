@@ -97,7 +97,7 @@ async def _call_ura_service(service: str, params: dict = None) -> dict:
         "Accept": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=60) as client:
         r = await client.get(url, headers=_ura_data_headers)
         if r.status_code != 200:
             raise HTTPException(

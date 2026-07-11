@@ -239,20 +239,30 @@ async def ura_pipeline(
     try:
         data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch}, timeout=28)
         return _format_ura_response(data, "pipeline_supply", batch)
-    except HTTPException:
-        # Pipeline may not support batch param on all URA API versions.
-        # Retry without batch with max timeout, cap results for performance.
-        data = await _call_ura_service("PMI_Resi_Pipeline", timeout=28)
-        records = _extract_records(data)
-        return {
-            "dataset": "pipeline_supply",
-            "total_records": len(records),
-            "batch": None,
-            "records": records[:50],
-            "source": "URA Developer API",
-            "queried_at": datetime.now().strftime("%Y-%m-%d"),
-            "note": "Results capped at 50. Full dataset available via direct URA API.",
-        }
+    except Exception as first_err:
+        # Batch may not be supported. Try without batch.
+        try:
+            data = await _call_ura_service("PMI_Resi_Pipeline", timeout=28)
+            records = _extract_records(data)
+            return {
+                "dataset": "pipeline_supply",
+                "total_records": len(records),
+                "batch": None,
+                "records": records[:50],
+                "source": "URA Developer API",
+                "queried_at": datetime.now().strftime("%Y-%m-%d"),
+                "note": "Results capped at 50. Full dataset available via direct URA API.",
+            }
+        except Exception as second_err:
+            # Both attempts failed — return diagnostic info
+            return {
+                "dataset": "pipeline_supply",
+                "status": "error",
+                "error_batch": str(first_err.detail) if hasattr(first_err, 'detail') else str(first_err),
+                "error_nobatch": str(second_err.detail) if hasattr(second_err, 'detail') else str(second_err),
+                "source": "URA Developer API",
+                "note": "URA pipeline service returned an error. Other URA endpoints are working.",
+            }
 
 
 @router.get("/ura/rental-contracts")

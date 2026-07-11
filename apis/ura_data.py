@@ -104,7 +104,11 @@ async def _call_ura_service(service: str, params: dict = None, timeout: int = 25
                 status_code=502,
                 detail=f"URA data request failed: {r.status_code} - {r.text[:200]}",
             )
-        return r.json()
+        # URA sometimes returns non-UTF-8 bytes (Windows-1252 / mixed encoding).
+        # Decode with replacement to avoid crashes on pipeline + other heavy datasets.
+        raw = r.content
+        text = raw.decode("utf-8", errors="replace")
+        return json.loads(text)
 
 
 def _is_ura_available() -> bool:
@@ -239,30 +243,19 @@ async def ura_pipeline(
     try:
         data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch}, timeout=28)
         return _format_ura_response(data, "pipeline_supply", batch)
-    except Exception as first_err:
-        # Batch may not be supported. Try without batch.
-        try:
-            data = await _call_ura_service("PMI_Resi_Pipeline", timeout=28)
-            records = _extract_records(data)
-            return {
-                "dataset": "pipeline_supply",
-                "total_records": len(records),
-                "batch": None,
-                "records": records[:50],
-                "source": "URA Developer API",
-                "queried_at": datetime.now().strftime("%Y-%m-%d"),
-                "note": "Results capped at 50. Full dataset available via direct URA API.",
-            }
-        except Exception as second_err:
-            # Both attempts failed — return diagnostic info
-            return {
-                "dataset": "pipeline_supply",
-                "status": "error",
-                "error_batch": str(first_err.detail) if hasattr(first_err, 'detail') else str(first_err),
-                "error_nobatch": str(second_err.detail) if hasattr(second_err, 'detail') else str(second_err),
-                "source": "URA Developer API",
-                "note": "URA pipeline service returned an error. Other URA endpoints are working.",
-            }
+    except Exception:
+        # Some URA API versions don't support batch for pipeline. Retry without.
+        data = await _call_ura_service("PMI_Resi_Pipeline", timeout=28)
+        records = _extract_records(data)
+        return {
+            "dataset": "pipeline_supply",
+            "total_records": len(records),
+            "batch": None,
+            "records": records[:50],
+            "source": "URA Developer API",
+            "queried_at": datetime.now().strftime("%Y-%m-%d"),
+            "note": "Results capped at 50. Full dataset available via direct URA API.",
+        }
 
 
 @router.get("/ura/rental-contracts")

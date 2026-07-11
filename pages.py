@@ -14,70 +14,106 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 router = APIRouter()
 
-# Shared CSS — matches homepage design language
+# Shared CSS — Linear school dark theme (matches homepage)
 BASE_CSS = """
 :root {
-  --ink: #171717; --muted: #5f5f5f; --faint: #8a8a8a;
-  --line: rgba(0,0,0,.08); --panel: #fff; --wash: #fafafa;
-  --accent: #0a72ef; --green: #0f8a55; --amber: #a16207;
-  --radius: 14px; --shadow: rgba(0,0,0,.08) 0 0 0 1px, rgba(0,0,0,.04) 0 2px 2px, rgba(0,0,0,.04) 0 10px 24px -16px;
+  --ground: #08090A; --surface-1: #141519; --surface-2: #1C1D22; --surface-3: #26272E;
+  --text-primary: #F7F8F8; --text-secondary: #9CA3AF; --text-muted: #6B7280;
+  --hairline: rgba(255,255,255,0.06); --hairline-strong: rgba(255,255,255,0.10);
+  --accent: #D4A537; --accent-dim: rgba(212,165,55,0.08); --accent-text: #E8C766;
+  --free: #3BA55D; --free-dim: rgba(59,165,93,0.10);
+  --r-sm: 6px; --r-md: 12px; --ease: cubic-bezier(0.22,1,0.36,1); --speed: 150ms;
 }
-* { box-sizing: border-box; }
-body { margin:0; font-family:'Geist',system-ui,-apple-system,sans-serif; color:var(--ink); background:#fff; -webkit-font-smoothing:antialiased; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family:'Geist',system-ui,-apple-system,sans-serif; background:var(--ground); color:var(--text-primary); -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; font-size:15px; line-height:1.55; }
 a { color:inherit; text-decoration:none; }
-.nav { position:sticky; top:0; z-index:20; display:flex; align-items:center; justify-content:space-between; padding:16px 28px; background:rgba(255,255,255,.82); backdrop-filter:blur(18px); box-shadow:rgba(0,0,0,.08) 0 1px 0; }
-.brand { display:flex; align-items:center; gap:10px; font-weight:600; letter-spacing:-.03em; }
-.mark { width:24px; height:24px; border-radius:7px; background:#171717; color:#fff; display:grid; place-items:center; font-size:13px; font-family:'Geist Mono',monospace; }
-.navlinks { display:flex; align-items:center; gap:22px; font-size:14px; color:#4d4d4d; }
-.button { display:inline-flex; align-items:center; gap:8px; min-height:38px; padding:0 15px; border-radius:8px; font-size:14px; font-weight:500; box-shadow:var(--shadow); background:#fff; }
-.button.primary { background:#171717; color:#fff; box-shadow:none; }
-.hero { max-width:1080px; margin:0 auto; padding:80px 28px 40px; }
-.hero h1 { font-size:clamp(38px,7vw,72px); line-height:.96; letter-spacing:-.06em; margin:20px 0 16px; max-width:880px; }
-.hero p { font-size:19px; line-height:1.65; color:var(--muted); max-width:720px; }
-.eyebrow { display:inline-flex; gap:8px; align-items:center; padding:6px 10px; border-radius:999px; background:#f5f5f5; box-shadow:rgba(0,0,0,.08) 0 0 0 1px; color:#4d4d4d; font-size:13px; font-weight:500; }
-section.content { max-width:1080px; margin:0 auto; padding:32px 28px 64px; }
-pre { margin:0; padding:20px; overflow-x:auto; font:13px/1.7 'Geist Mono',ui-monospace,monospace; color:#d4d4d4; background:#0d0d0d; border-radius:14px; }
-.codeblock { border-radius:14px; overflow:hidden; }
-.codebar { display:flex; align-items:center; gap:8px; padding:13px 16px; border-bottom:1px solid rgba(255,255,255,.09); color:#9ca3af; font:13px 'Geist Mono',monospace; }
-.dot { width:10px; height:10px; border-radius:50%; background:#666; }
-.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-.card { background:var(--panel); border-radius:var(--radius); padding:24px; box-shadow:var(--shadow); }
-.card h3 { margin:0 0 10px; font-size:20px; letter-spacing:-.04em; }
-.card p { margin:0; color:var(--muted); line-height:1.55; font-size:14px; }
-.check { width:20px; height:20px; flex:0 0 auto; border-radius:50%; display:grid; place-items:center; background:#ecfdf5; color:#047857; font-size:12px; margin-top:1px; }
+.nav { position:sticky; top:0; z-index:50; display:flex; align-items:center; justify-content:space-between; padding:0 32px; height:56px; background:rgba(8,9,10,0.80); backdrop-filter:blur(20px) saturate(180%); -webkit-backdrop-filter:blur(20px) saturate(180%); border-bottom:1px solid var(--hairline); }
+.nav-brand { display:flex; align-items:center; gap:10px; font-weight:600; font-size:15px; letter-spacing:-0.02em; }
+.nav-brand img { border-radius:5px; }
+.nav-links { display:flex; align-items:center; gap:28px; font-size:14px; color:var(--text-secondary); }
+.nav-links a { transition:color var(--speed) var(--ease); }
+.nav-links a:hover { color:var(--text-primary); }
+.nav-live { display:flex; align-items:center; gap:6px; font:12px 'Geist Mono',monospace; color:var(--text-muted); padding-left:16px; border-left:1px solid var(--hairline); }
+.live-dot { width:6px; height:6px; border-radius:50%; background:var(--free); box-shadow:0 0 0 0 rgba(59,165,93,0.4); animation:live-pulse 2s infinite; }
+@keyframes live-pulse { 0%{box-shadow:0 0 0 0 rgba(59,165,93,0.4)} 70%{box-shadow:0 0 0 6px rgba(59,165,93,0)} 100%{box-shadow:0 0 0 0 rgba(59,165,93,0)} }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; padding:0 16px; border-radius:var(--r-sm); font-size:14px; font-weight:500; cursor:pointer; transition:all var(--speed) var(--ease); border:1px solid transparent; }
+.btn-primary { background:var(--text-primary); color:var(--ground); }
+.btn-primary:hover { background:#E5E7EB; }
+.btn-ghost { background:transparent; color:var(--text-secondary); border-color:var(--hairline-strong); }
+.btn-ghost:hover { color:var(--text-primary); border-color:var(--text-muted); }
+.btn-accent { background:var(--accent-dim); color:var(--accent-text); border-color:rgba(212,165,55,0.20); }
+.btn-accent:hover { border-color:var(--accent); }
+.hero { max-width:1080px; margin:0 auto; padding:80px 32px 40px; }
+.hero h1 { font-size:clamp(36px,6vw,56px); line-height:1.05; letter-spacing:-0.03em; margin:20px 0 16px; max-width:680px; font-weight:600; }
+.hero p { font-size:18px; line-height:1.6; color:var(--text-secondary); max-width:560px; }
+.eyebrow { display:inline-flex; gap:8px; align-items:center; padding:4px 12px; border-radius:999px; background:var(--accent-dim); border:1px solid rgba(212,165,55,0.15); color:var(--accent-text); font:13px 'Geist Mono',monospace; }
+section.content { max-width:1080px; margin:0 auto; padding:32px 32px 64px; }
+pre { margin:0; padding:24px; overflow-x:auto; font:13px/1.7 'Geist Mono',ui-monospace,monospace; color:var(--text-secondary); background:var(--surface-1); border-radius:var(--r-md); border:1px solid var(--hairline); }
+.codeblock { border-radius:var(--r-md); overflow:hidden; border:1px solid var(--hairline); }
+.codebar { display:flex; align-items:center; gap:8px; padding:12px 16px; border-bottom:1px solid var(--hairline); color:var(--text-muted); font:12px 'Geist Mono',monospace; }
+.dot { width:10px; height:10px; border-radius:50%; background:var(--text-muted); }
+.grid2 { display:grid; grid-template-columns:1fr 1fr; gap:0; border:1px solid var(--hairline); border-radius:var(--r-md); overflow:hidden; }
+.grid2 > .card { border-radius:0; box-shadow:none; border-right:1px solid var(--hairline); }
+.grid2 > .card:last-child { border-right:none; }
+.card { background:transparent; border-radius:var(--r-md); padding:32px; }
+.card h3 { margin:0 0 10px; font-size:18px; letter-spacing:-0.02em; font-weight:600; }
+.card p { margin:0; color:var(--text-secondary); line-height:1.6; font-size:14px; }
+.check { width:20px; height:20px; flex:0 0 auto; border-radius:var(--r-sm); border:1px solid var(--accent); display:grid; place-items:center; color:var(--accent-text); font:11px 'Geist Mono',monospace; margin-top:1px; }
 .list { display:grid; gap:16px; margin-top:20px; }
 .item { display:flex; gap:12px; align-items:flex-start; }
-.item strong { display:block; font-size:15px; margin-bottom:3px; }
-.item span { color:var(--muted); font-size:14px; line-height:1.45; }
-.footer { max-width:1080px; margin:0 auto; padding:48px 28px 72px; color:var(--faint); font-size:13px; display:flex; justify-content:space-between; gap:18px; border-top:1px solid #ebebeb; }
-.tag { font:12px 'Geist Mono',monospace; padding:5px 8px; border-radius:999px; background:#f5f5f5; color:#525252; }
-.price-free { color:var(--green); font:13px 'Geist Mono',monospace; }
-.price-paid { color:var(--accent); font:13px 'Geist Mono',monospace; }
-.table-row { display:grid; grid-template-columns:2fr 1fr 1fr 2fr; gap:16px; padding:16px 0; border-bottom:1px solid #f0f0f0; align-items:center; }
-.table-header { font:13px 'Geist Mono',monospace; color:var(--faint); text-transform:uppercase; letter-spacing:.05em; }
+.item strong { display:block; font-size:14px; font-weight:500; margin-bottom:2px; color:var(--text-primary); }
+.item span { color:var(--text-muted); font-size:13px; line-height:1.45; }
+.footer { max-width:1080px; margin:0 auto; padding:48px 32px 40px; display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px; border-top:1px solid var(--hairline); }
+.footer-brand { display:flex; align-items:center; gap:10px; font-weight:600; font-size:14px; margin-bottom:10px; letter-spacing:-0.02em; }
+.footer-brand img { border-radius:5px; }
+.footer-tag { font-size:13px; color:var(--text-muted); line-height:1.5; max-width:280px; }
+.footer-col h4 { font:11px 'Geist Mono',monospace; color:var(--text-muted); letter-spacing:0.05em; text-transform:uppercase; margin-bottom:14px; }
+.footer-col a { display:block; font-size:14px; color:var(--text-secondary); margin-bottom:8px; transition:color var(--speed) var(--ease); }
+.footer-col a:hover { color:var(--text-primary); }
+.footer-bottom { max-width:1080px; margin:0 auto; padding:24px 32px 40px; border-top:1px solid var(--hairline); display:flex; justify-content:space-between; font:12px 'Geist Mono',monospace; color:var(--text-muted); }
+.tag { font:12px 'Geist Mono',monospace; padding:4px 7px; border-radius:var(--r-sm); background:var(--surface-1); color:var(--text-secondary); border:1px solid var(--hairline); }
+.price-free { color:var(--free); font:13px 'Geist Mono',monospace; }
+.price-paid { color:var(--accent-text); font:13px 'Geist Mono',monospace; }
+.table-row { display:grid; grid-template-columns:2fr 1fr 1fr 2fr; gap:16px; padding:16px 0; border-bottom:1px solid var(--hairline); align-items:center; }
+.table-header { font:11px 'Geist Mono',monospace; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; }
 .cta { display:inline-flex; margin-top:24px; gap:12px; flex-wrap:wrap; }
-@media(max-width:820px){ .grid2{grid-template-columns:1fr} .navlinks{display:none} .table-row{grid-template-columns:1fr; gap:4px;} }
+.button { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:36px; padding:0 16px; border-radius:var(--r-sm); font-size:14px; font-weight:500; cursor:pointer; transition:all var(--speed) var(--ease); border:1px solid transparent; }
+.button.primary { background:var(--text-primary); color:var(--ground); }
+.step { display:flex; gap:20px; margin-bottom:32px; align-items:flex-start; }
+.step-num { width:36px; height:36px; flex:0 0 auto; border-radius:var(--r-sm); border:1px solid var(--accent); color:var(--accent-text); display:grid; place-items:center; font:14px 'Geist Mono',monospace; }
+.step-content h3 { margin:0 0 8px; font-size:18px; letter-spacing:-0.02em; font-weight:600; }
+.step-content p { margin:0; color:var(--text-secondary); line-height:1.6; font-size:14px; max-width:680px; }
+.tab { display:inline-block; padding:8px 16px; border-radius:var(--r-sm) var(--r-sm) 0 0; background:var(--surface-1); font-size:14px; cursor:pointer; color:var(--text-muted); }
+.tab.active { background:var(--surface-2); color:var(--text-primary); }
+@media(max-width:768px){ .grid2{grid-template-columns:1fr} .grid2>.card{border-right:none;border-bottom:1px solid var(--hairline)} .grid2>.card:last-child{border-bottom:none} .nav-links{display:none} .table-row{grid-template-columns:1fr;gap:4px} .footer{grid-template-columns:1fr} .footer-bottom{flex-direction:column;gap:8px} }
 """
 
 NAV_HTML = """
 <nav class="nav">
-  <a class="brand" href="/"><img src="/logo-mark.png" alt="Bounty" width="24" height="24" style="border-radius:5px" /><span>Bounty API</span></a>
-  <div class="navlinks">
-    <a href="/#apis">APIs</a>
-    <a href="/pricing">Pricing</a>
-    <a href="/providers">For Developers</a>
-    <a href="/setup">Agent Setup</a>
-    <a href="/docs">Docs</a>
-    <a class="button primary" href="/providers">Publish API</a>
+  <a class="nav-brand" href="/"><img src="/logo-mark-dark.png" alt="Bounty" width="22" height="22"><span>Bounty</span></a>
+  <div style="display:flex;align-items:center;gap:24px">
+    <div class="nav-links">
+      <a href="/#apis">APIs</a>
+      <a href="/pricing">Pricing</a>
+      <a href="/setup">Setup</a>
+      <a href="/docs">Docs</a>
+    </div>
+    <div class="nav-live"><span class="live-dot"></span><span>31 APIs &middot; LIVE</span></div>
   </div>
 </nav>
 """
 
 FOOTER_HTML = """
 <footer class="footer">
-  <span>&copy; 2026 Bounty API</span>
-  <span>Specialist data APIs for AI agents. x402 payments on Base.</span>
+  <div>
+    <div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
+    <p class="footer-tag">Specialist data APIs for AI agents. MCP-native, x402 payments. Singapore live now.</p>
+  </div>
+  <div class="footer-col"><h4>Product</h4><a href="/#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div>
+  <div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div>
+  <div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a></div>
 </footer>
+<div class="footer-bottom"><span>Bounty API &middot; Singapore</span><span>v1.8.0 &middot; 31 APIs &middot; 27 MCP tools</span></div>
 """
 
 
@@ -324,10 +360,6 @@ async def providers_page():
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>__BASE_CSS__
-.step {{ display:flex; gap:20px; margin-bottom:32px; align-items:flex-start; }}
-.step-num {{ width:36px; height:36px; flex:0 0 auto; border-radius:10px; background:#171717; color:#fff; display:grid; place-items:center; font-size:16px; font-weight:600; font-family:'Geist Mono',monospace; }}
-.step-content h3 {{ margin:0 0 8px; font-size:20px; letter-spacing:-.04em; }}
-.step-content p {{ margin:0; color:var(--muted); line-height:1.55; font-size:15px; max-width:680px; }}
 </style>
 </head>
 <body>
@@ -431,8 +463,6 @@ async def setup_page():
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>__BASE_CSS__
-.tab {{ display:inline-block; padding:8px 16px; border-radius:8px 8px 0 0; background:#f5f5f5; font-size:14px; cursor:pointer; }}
-.tab.active {{ background:#0d0d0d; color:#fff; }}
 </style>
 </head>
 <body>

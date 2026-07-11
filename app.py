@@ -425,7 +425,7 @@ async def landing_page():
 </head>
 <body>
   <nav class="nav">
-    <a class="nav-brand" href="/"><img src="/logo-mark.png" alt="Bounty" width="22" height="22"><span>Bounty</span></a>
+    <a class="nav-brand" href="/"><img src="/logo-mark-dark.png" alt="Bounty" width="22" height="22"><span>Bounty</span></a>
     <div style="display:flex;align-items:center;gap:24px">
       <div class="nav-links">
         <a href="#apis">APIs</a>
@@ -582,7 +582,7 @@ async def landing_page():
     <footer class="footer">
       <div class="footer-inner">
         <div>
-          <div class="footer-brand"><img src="/logo-mark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
+          <div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
           <p class="footer-tag">Specialist data APIs for AI agents. MCP-native, x402 payments. Singapore live now.</p>
         </div>
         <div class="footer-col"><h4>Product</h4><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div>

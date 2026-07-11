@@ -1105,6 +1105,58 @@ def _build_mcp_http_server():
             return r.text
 
     @mcp_server.tool()
+    async def ura_status() -> str:
+        """Check if URA private property data is connected and available. Free."""
+        async with httpx.AsyncClient(timeout=15) as client:
+            r = await client.get(f"{API_BASE}/ura/status")
+            return r.text
+
+    @mcp_server.tool()
+    async def ura_transactions(
+        batch: int = 1,
+    ) -> str:
+        """Get private residential property transactions (caveat data) from URA.
+        Returns project name, price, PSF, area, tenure, transaction date, sale type.
+        Batch 1 is most recent. $0.05/call."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{API_BASE}/ura/transactions", params={"batch": batch})
+            return r.text
+
+    @mcp_server.tool()
+    async def ura_rental_median(
+        project_name: str = "",
+    ) -> str:
+        """Get median rental rates ($psf/month) for private residential projects from URA.
+        Filter by project name or get all. $0.05/call."""
+        params = {}
+        if project_name:
+            params["project_name"] = project_name
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{API_BASE}/ura/rental-median", params=params or None)
+            return r.text
+
+    @mcp_server.tool()
+    async def ura_developer_sales(
+        ref_period: str = "",
+    ) -> str:
+        """Get developer units sold by project from URA. Units launched, sold, remaining, median price.
+        Leave ref_period empty for latest, or use format like '2506' for Jun 2025. $0.05/call."""
+        params = {}
+        if ref_period:
+            params["ref_period"] = ref_period
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{API_BASE}/ura/developer-sales", params=params or None)
+            return r.text
+
+    @mcp_server.tool()
+    async def ura_pipeline() -> str:
+        """Get future private residential supply pipeline from URA.
+        Upcoming projects, units planned, expected completion. Key for supply analysis. $0.05/call."""
+        async with httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(f"{API_BASE}/ura/pipeline")
+            return r.text
+
+    @mcp_server.tool()
     async def hdb_resale_median(town: str) -> str:
         """Get HDB resale median prices by flat type for a Singapore town.
         Returns median price, count, min, max for each flat type."""
@@ -1379,6 +1431,12 @@ except ImportError as e:
     print(f"Warning: hdb_lease_decay router not loaded: {e}")
 
 try:
+    from apis.ura_data import router as ura_router
+    app.include_router(ura_router)
+except ImportError as e:
+    print(f"Warning: ura_data router not loaded: {e}")
+
+try:
     from apis.property_decisions import router as decisions_router
     app.include_router(decisions_router)
 except ImportError as e:
@@ -1448,10 +1506,10 @@ async def llms_txt():
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 25,
-  "mcp_tools": 22,
-  "free_endpoints": 19,
-  "paid_endpoints": 6,
+  "live_apis": 31,
+  "mcp_tools": 27,
+  "free_endpoints": 20,
+  "paid_endpoints": 11,
   "region_live": "Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
   "provider_revenue_share": "97%"
@@ -1578,6 +1636,36 @@ async def llms_txt():
 - Price: FREE
 - Coverage: Remaining lease, financing thresholds, CPF restriction timeline, SERS caveat, and lease-risk assessment for HDB flats.
 - Source: HDB lease framework, MAS mortgage rules, CPF housing rules
+
+### URA Private Property Transactions
+- Endpoints: GET /ura/transactions, GET /ura/status
+- Price: $0.05/call (status check is free)
+- Coverage: Caveat-level private residential transactions — project name, street, market segment (CCR/RCR/OCR), property type, sale price, area (sqm/sqft), PSF, transaction date, sale type (new/resale/sub-sale), tenure.
+- Source: URA Developer API (PMI_Resi_Transaction)
+
+### URA Median Rentals by Project
+- Endpoints: GET /ura/rental-median
+- Price: $0.05/call
+- Coverage: Median rental rates ($psf/month) for private residential projects, by property type and quarter.
+- Source: URA Developer API (PMI_Resi_Rental_Median)
+
+### URA Developer Sales
+- Endpoints: GET /ura/developer-sales
+- Price: $0.05/call
+- Coverage: Units launched and sold by developers, remaining inventory, median price by project.
+- Source: URA Developer API (PMI_Resi_Developer_Sales)
+
+### URA Future Supply Pipeline
+- Endpoints: GET /ura/pipeline
+- Price: $0.05/call
+- Coverage: Private residential projects in the planning/construction pipeline — units planned, expected completion, project stage.
+- Source: URA Developer API (PMI_Resi_Pipeline)
+
+### URA Rental Contracts
+- Endpoints: GET /ura/rental-contracts
+- Price: $0.05/call
+- Coverage: Aggregate rental contract statistics by area and property type.
+- Source: URA Developer API (PMI_Resi_Rental)
 
 ## How AI agents connect
 

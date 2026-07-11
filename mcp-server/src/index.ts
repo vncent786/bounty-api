@@ -46,7 +46,7 @@ const API_BASE = process.env.BOUNTY_API_URL || "https://bountyapi.com";
 // ============================================================
 
 try {
-  const pingUrl = `${API_BASE}/ping?version=1.7.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
+  const pingUrl = `${API_BASE}/ping?version=1.8.0&client=${encodeURIComponent(process.env.MCP_CLIENT_NAME || "unknown")}`;
   fetch(pingUrl).catch(() => {}); // fire and forget, never block startup
 } catch {
   // ping failure should never affect functionality
@@ -423,6 +423,46 @@ const TOOLS = [
       },
       required: ["lease_commencement_year"]
     }
+  },
+  {
+    name: "ura_status",
+    description: `Check if URA private property data is connected and available. FREE`,
+    inputSchema: { type: "object", properties: {} }
+  },
+  {
+    name: "ura_transactions",
+    description: `Get private residential property transactions (caveat data) from URA. Returns project, price, PSF, area, tenure, date, sale type. Batch 1 is most recent. $0.05/call`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        batch: { type: "integer", default: 1, description: "Batch number (paginated)" }
+      }
+    }
+  },
+  {
+    name: "ura_rental_median",
+    description: `Get median rental rates ($psf/month) for private residential projects from URA. Optional project name filter. $0.05/call`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_name: { type: "string", default: "", description: "Optional project/condo name filter" }
+      }
+    }
+  },
+  {
+    name: "ura_developer_sales",
+    description: `Get developer units sold by project from URA. Units launched, sold, remaining, median price. $0.05/call`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        ref_period: { type: "string", default: "", description: "Format 'YYMM', e.g. '2506'. Empty for latest." }
+      }
+    }
+  },
+  {
+    name: "ura_pipeline",
+    description: `Get future private residential supply pipeline from URA. Upcoming projects, units planned, expected completion. $0.05/call`,
+    inputSchema: { type: "object", properties: {} }
   }
 ];
 
@@ -738,6 +778,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await callAPI(`/hdb/lease-decay?${params}`);
         break;
       }
+
+      case "ura_status":
+        result = await callAPI(`/ura/status`);
+        break;
+
+      case "ura_transactions":
+        result = await callAPI(`/ura/transactions?batch=${toolArgs.batch || 1}`);
+        break;
+
+      case "ura_rental_median":
+        result = await callAPI(`/ura/rental-median${toolArgs.project_name ? `?project_name=${encodeURIComponent(toolArgs.project_name as string)}` : ""}`);
+        break;
+
+      case "ura_developer_sales":
+        result = await callAPI(`/ura/developer-sales${toolArgs.ref_period ? `?ref_period=${encodeURIComponent(toolArgs.ref_period as string)}` : ""}`);
+        break;
+
+      case "ura_pipeline":
+        result = await callAPI(`/ura/pipeline`);
+        break;
 
       case "hdb_resale_median":
         result = await callAPI(`/hdb/median/${encodeURIComponent(toolArgs.town as string)}`);

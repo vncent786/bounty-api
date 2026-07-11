@@ -97,7 +97,7 @@ async def _call_ura_service(service: str, params: dict = None) -> dict:
         "Accept": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=25) as client:
         r = await client.get(url, headers=_ura_data_headers)
         if r.status_code != 200:
             raise HTTPException(
@@ -219,7 +219,9 @@ async def ura_developer_sales(
 
 
 @router.get("/ura/pipeline")
-async def ura_pipeline():
+async def ura_pipeline(
+    batch: int = Query(1, ge=1, description="Batch number (results paginated, ~10,000 records per batch)"),
+):
     """Get future private residential supply pipeline from URA.
 
     Returns projects that are in the planning/construction pipeline:
@@ -229,12 +231,13 @@ async def ura_pipeline():
     - Project stage
 
     This tells buyers/investors about upcoming supply that could affect prices.
+    Data is paginated in batches to avoid timeouts on the full dataset.
 
     Price: $0.05/call
     Source: URA Developer API (PMI_Resi_Pipeline)
     """
-    data = await _call_ura_service("PMI_Resi_Pipeline")
-    return _format_ura_response(data, "pipeline_supply")
+    data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch})
+    return _format_ura_response(data, "pipeline_supply", batch)
 
 
 @router.get("/ura/rental-contracts")

@@ -18,7 +18,7 @@ Spec: https://agentcash.dev/merchants.md
 
 import os
 import json
-from typing import dict as Dict, Any
+from typing import Any, Dict
 
 # ============================================================
 # Pricing map — must match payment.py RouteConfig entries

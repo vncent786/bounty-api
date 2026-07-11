@@ -1,13 +1,13 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.vncent786/bounty-api",
-  "description": "Singapore property & financial data APIs for AI agents. 12 MCP tools. x402 micropayments.",
+  "description": "Singapore property & financial data APIs for AI agents. 27 MCP tools. x402 micropayments.",
   "repository": {
     "url": "https://github.com/vncent786/bounty-api",
     "source": "github",
     "subfolder": "mcp-server"
   },
-  "version": "1.4.0",
+  "version": "1.8.0",
   "websiteUrl": "https://bountyapi.com",
   "remotes": [
     {
@@ -19,7 +19,7 @@
     {
       "registryType": "npm",
       "identifier": "bountyapi-mcp",
-      "version": "1.4.0",
+      "version": "1.8.0",
       "transport": {
         "type": "stdio"
       },

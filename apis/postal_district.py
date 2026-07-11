@@ -373,9 +373,36 @@ async def list_sectors() -> PostalSectorInfo:
     return PostalSectorInfo(total_sectors=len(sectors), sectors=sectors)
 
 
+@router.get(
+    "/district/{district_number}",
+    response_model=DistrictInfo,
+    summary="Get details for a specific postal district (1–28)",
+)
+async def get_district(district_number: int) -> DistrictInfo:
+    """
+    Return the name, general area, localities, and postal sectors for a
+    single Singapore postal district by its number (1–28).
+
+    Example: `GET /postal/district/9` → District 9 (Orchard, Cairnhill, River Valley).
+    """
+    if district_number < 1 or district_number > 28:
+        raise HTTPException(
+            status_code=404,
+            detail=f"District {district_number} does not exist. Singapore has 28 postal districts (1–28).",
+        )
+    info = DISTRICTS[district_number]
+    return DistrictInfo(
+        district_number=district_number,
+        district_name=info["name"],
+        general_area=info["general_area"],
+        areas=list(info["areas"]),
+        postal_sectors=_district_sectors(district_number),
+    )
+
+
 # IMPORTANT: the `/{postal_code}` route is declared *after* the fixed-path
-# routes (`/districts`, `/sectors`) so FastAPI matches those first instead of
-# treating "districts" as a postal code path parameter.
+# routes (`/districts`, `/sectors`, `/district/{number}`) so FastAPI matches
+# those first instead of treating "districts" as a postal code path parameter.
 @router.get(
     "/{postal_code}",
     response_model=PostalCodeResult,

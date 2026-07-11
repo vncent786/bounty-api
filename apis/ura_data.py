@@ -54,8 +54,15 @@ async def _get_ura_token() -> str:
             detail="URA_ACCESS_KEY not configured. This endpoint requires the URA developer API key.",
         )
 
+    # URA's Layer 7 firewall blocks Python User-Agents. Must use a browser/curl UA.
+    _ura_headers = {
+        "AccessKey": URA_ACCESS_KEY,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+
     async with httpx.AsyncClient(timeout=15) as client:
-        r = await client.get(URA_TOKEN_URL, headers={"AccessKey": URA_ACCESS_KEY})
+        r = await client.get(URA_TOKEN_URL, headers=_ura_headers)
         if r.status_code != 200:
             raise HTTPException(
                 status_code=502,
@@ -83,8 +90,15 @@ async def _call_ura_service(service: str, params: dict = None) -> dict:
         for k, v in params.items():
             url += f"&{k}={v}"
 
+    _ura_data_headers = {
+        "Token": token,
+        "AccessKey": URA_ACCESS_KEY,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+    }
+
     async with httpx.AsyncClient(timeout=30) as client:
-        r = await client.get(url, headers={"Token": token, "AccessKey": URA_ACCESS_KEY})
+        r = await client.get(url, headers=_ura_data_headers)
         if r.status_code != 200:
             raise HTTPException(
                 status_code=502,

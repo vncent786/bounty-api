@@ -61,7 +61,7 @@ pre { margin:0; padding:20px; overflow-x:auto; font:13px/1.7 'Geist Mono',ui-mon
 
 NAV_HTML = """
 <nav class="nav">
-  <a class="brand" href="/"><span class="mark">B</span><span>Bounty API</span></a>
+  <a class="brand" href="/"><img src="/logo-mark.png" alt="Bounty" width="24" height="24" style="border-radius:5px" /><span>Bounty API</span></a>
   <div class="navlinks">
     <a href="/#apis">APIs</a>
     <a href="/pricing">Pricing</a>
@@ -76,7 +76,7 @@ NAV_HTML = """
 FOOTER_HTML = """
 <footer class="footer">
   <span>&copy; 2026 Bounty API</span>
-  <span>Agent-native data marketplace. x402 payments on Base.</span>
+  <span>Specialist data APIs for AI agents. x402 payments on Base.</span>
 </footer>
 """
 
@@ -117,6 +117,72 @@ __NAV__
     <span style="color:var(--muted);font-size:14px">Cheap to serve. Drives discovery.</span>
   </div>
   <div class="table-row">
+    <span><strong>SG Address Intelligence</strong><br><span class="tag">/address</span> <span class="tag">/mrt</span></span>
+    <span class="price-free">FREE</span>
+    <span>Static data</span>
+    <span style="color:var(--muted);font-size:14px">District, region (CCR/RCR/OCR), MRT proximity.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Income Tax</strong><br><span class="tag">/tax/income</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">Resident progressive, non-resident flat.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG GST</strong><br><span class="tag">/gst</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">Add or remove 9% GST.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Commission</strong><br><span class="tag">/commission</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">Agent commission by property type.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG CPF Housing</strong><br><span class="tag">/cpf/housing</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">OA accumulation for housing.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Salary Benchmark</strong><br><span class="tag">/salary/search</span></span>
+    <span class="price-free">FREE</span>
+    <span>Live data</span>
+    <span style="color:var(--muted);font-size:14px">Real employer-posted salary from MyCareersFuture.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Property Tax</strong><br><span class="tag">/property-tax</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">IRAS progressive rates.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Buy-vs-Rent</strong><br><span class="tag">/buy-vs-rent</span></span>
+    <span class="price-free">FREE</span>
+    <span>Computed math</span>
+    <span style="color:var(--muted);font-size:14px">Total cost comparison with opportunity cost.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG School Proximity</strong><br><span class="tag">/schools</span></span>
+    <span class="price-free">FREE</span>
+    <span>Static data</span>
+    <span style="color:var(--muted);font-size:14px">294 schools. Within 1km/2km for P1 priority.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>HDB EIP/SPR Quota</strong><br><span class="tag">/hdb/eip</span></span>
+    <span class="price-free">FREE</span>
+    <span>Rules</span>
+    <span style="color:var(--muted);font-size:14px">Ethnic integration policy + SPR quota limits.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>HDB Lease Decay</strong><br><span class="tag">/hdb/lease-decay</span></span>
+    <span class="price-free">FREE</span>
+    <span>Rules</span>
+    <span style="color:var(--muted);font-size:14px">Financing/CPF restriction timeline.</span>
+  </div>
+  <div class="table-row">
     <span><strong>Postal District Mapper</strong><br><span class="tag">/postal</span></span>
     <span class="price-free">FREE</span>
     <span>Static data</span>
@@ -140,17 +206,68 @@ __NAV__
     <span>Live data</span>
     <span style="color:var(--muted);font-size:14px">ECB rates, cached hourly.</span>
   </div>
+
+  <div style="margin-top:24px;font-size:13px;color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em">Premium data endpoints</div>
+
   <div class="table-row">
-    <span><strong>Rental Yield Calculator</strong><br><span class="tag">/rental-yield</span></span>
+    <span><strong>Rental Yield</strong><br><span class="tag">/rental-yield</span></span>
     <span class="price-paid">$0.005 / call</span>
     <span>Investment analysis</span>
     <span style="color:var(--muted);font-size:14px">Decision-grade output for underwriting.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Affordability (TDSR/MSR)</strong><br><span class="tag">/affordability</span></span>
+    <span class="price-paid">$0.01 / call</span>
+    <span>MAS/HDB rules</span>
+    <span style="color:var(--muted);font-size:14px">Multi-step regulatory computation.</span>
   </div>
   <div class="table-row">
     <span><strong>HDB Resale Data</strong><br><span class="tag">/hdb</span></span>
     <span class="price-paid">$0.01 / call</span>
     <span>Government data</span>
     <span style="color:var(--muted);font-size:14px">Live from data.gov.sg. Costs to fetch.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>URA Transactions</strong><br><span class="tag">/ura/transactions</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Exclusive data</span>
+    <span style="color:var(--muted);font-size:14px">Private property caveat-level data. URA API.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>URA Median Rentals</strong><br><span class="tag">/ura/rental-median</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Exclusive data</span>
+    <span style="color:var(--muted);font-size:14px">Private rental rates by project. URA API.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>URA Developer Sales</strong><br><span class="tag">/ura/developer-sales</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Exclusive data</span>
+    <span style="color:var(--muted);font-size:14px">Units sold by developers. URA API.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>URA Pipeline Supply</strong><br><span class="tag">/ura/pipeline</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Exclusive data</span>
+    <span style="color:var(--muted);font-size:14px">Future supply pipeline. URA API.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Property Analysis</strong><br><span class="tag">/property/analyze</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Composite</span>
+    <span style="color:var(--muted);font-size:14px">Full analysis: stamp duty + comps + yield + location.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Property Pitch</strong><br><span class="tag">/property/pitch</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Composite</span>
+    <span style="color:var(--muted);font-size:14px">Client-ready investment thesis one-pager.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>SG Property Ranking</strong><br><span class="tag">/property/rank</span></span>
+    <span class="price-paid">$0.10 / call</span>
+    <span>Composite</span>
+    <span style="color:var(--muted);font-size:14px">Multi-property comparison with transparent scoring.</span>
   </div>
 
   <div class="grid2" style="margin-top:48px">
@@ -417,9 +534,9 @@ async def manifest():
     """Machine-readable marketplace manifest for agent discovery."""
     return {
         "name": "Bounty API",
-        "description": "Agent-native data marketplace. Specialist APIs for AI agents with x402 micropayments.",
+        "description": "Specialist data APIs for AI agents. Singapore property, tax, salary, and location data with x402 micropayments.",
         "url": "https://bountyapi.com",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "payment": {
             "protocol": "x402",
             "network": "eip155:8453",
@@ -431,79 +548,47 @@ async def manifest():
             "stdio": "npx bountyapi-mcp",
             "http": "https://bountyapi.com/mcp",
             "npm_package": "bountyapi-mcp",
-            "tools": 5
+            "npm_version": "1.8.0",
+            "tools": 27
         },
+        "stats": {
+            "total_apis": 31,
+            "mcp_tools": 27,
+            "free_endpoints": 20,
+            "paid_endpoints": 11
+        },
+        "region_live": "Singapore",
+        "region_roadmap": "HK, UAE, AU, JP",
         "apis": [
-            {
-                "name": "SG Stamp Duty",
-                "slug": "stamp-duty",
-                "endpoints": ["/bsd", "/absd", "/stamp-duty"],
-                "price": "$0.00",
-                "free": True,
-                "region": "Singapore",
-                "category": "property-tax",
-                "source": "iras.gov.sg"
-            },
-            {
-                "name": "Postal District Mapper",
-                "slug": "postal-district",
-                "endpoints": ["/postal/{code}", "/postal/districts"],
-                "price": "$0.00",
-                "free": True,
-                "region": "Singapore",
-                "category": "geography",
-                "source": "Static reference"
-            },
-            {
-                "name": "Mortgage Calculator",
-                "slug": "mortgage",
-                "endpoints": ["/mortgage/calculate"],
-                "price": "$0.00",
-                "free": True,
-                "region": "Global",
-                "category": "finance",
-                "source": "Standard formula"
-            },
-            {
-                "name": "Investment Growth Calculator",
-                "slug": "compound",
-                "endpoints": ["/invest/calculate"],
-                "price": "$0.00",
-                "free": True,
-                "region": "Global",
-                "category": "finance",
-                "source": "Standard formula"
-            },
-            {
-                "name": "Currency Converter",
-                "slug": "currency",
-                "endpoints": ["/currency/convert", "/currency/rates"],
-                "price": "$0.00",
-                "free": True,
-                "region": "Global",
-                "category": "fx",
-                "source": "ECB via frankfurter.app"
-            },
-            {
-                "name": "Rental Yield Calculator",
-                "slug": "rental-yield",
-                "endpoints": ["/rental-yield/calculate"],
-                "price": "$0.005",
-                "free": False,
-                "region": "Global",
-                "category": "real-estate",
-                "source": "Standard formulas"
-            },
-            {
-                "name": "HDB Resale Data",
-                "slug": "hdb-resale",
-                "endpoints": ["/hdb/towns", "/hdb/median/{town}", "/hdb/search"],
-                "price": "$0.01",
-                "free": False,
-                "region": "Singapore",
-                "category": "property-data",
-                "source": "data.gov.sg"
-            }
+            {"name": "SG Stamp Duty (BSD+ABSD)", "slug": "stamp-duty", "endpoints": ["/bsd", "/absd", "/stamp-duty"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property-tax", "source": "iras.gov.sg"},
+            {"name": "Postal District Mapper", "slug": "postal-district", "endpoints": ["/postal/{code}", "/postal/districts"], "price": "$0.00", "free": True, "region": "Singapore", "category": "geography", "source": "Static reference"},
+            {"name": "SG Address Intelligence", "slug": "address-intel", "endpoints": ["/address/{code}"], "price": "$0.00", "free": True, "region": "Singapore", "category": "geography", "source": "URA/LTA/SLA"},
+            {"name": "SG MRT Intelligence", "slug": "mrt", "endpoints": ["/mrt/near/{code}", "/mrt/search"], "price": "$0.00", "free": True, "region": "Singapore", "category": "transport", "source": "LTA"},
+            {"name": "SG Income Tax", "slug": "income-tax", "endpoints": ["/tax/income"], "price": "$0.00", "free": True, "region": "Singapore", "category": "tax", "source": "iras.gov.sg"},
+            {"name": "SG GST Calculator", "slug": "gst", "endpoints": ["/gst"], "price": "$0.00", "free": True, "region": "Singapore", "category": "tax", "source": "iras.gov.sg"},
+            {"name": "SG Agent Commission", "slug": "commission", "endpoints": ["/commission"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property", "source": "CEA norms"},
+            {"name": "SG CPF Housing", "slug": "cpf-housing", "endpoints": ["/cpf/housing"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property", "source": "CPF Board"},
+            {"name": "SG Salary Benchmark", "slug": "salary", "endpoints": ["/salary/search"], "price": "$0.00", "free": True, "region": "Singapore", "category": "careers", "source": "MyCareersFuture"},
+            {"name": "SG Property Tax", "slug": "property-tax", "endpoints": ["/property-tax"], "price": "$0.00", "free": True, "region": "Singapore", "category": "tax", "source": "iras.gov.sg"},
+            {"name": "SG Buy-vs-Rent Analysis", "slug": "buy-vs-rent", "endpoints": ["/buy-vs-rent"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property", "source": "Composite"},
+            {"name": "SG School Proximity", "slug": "schools", "endpoints": ["/schools/near/{code}", "/schools/list"], "price": "$0.00", "free": True, "region": "Singapore", "category": "education", "source": "OpenStreetMap"},
+            {"name": "HDB EIP/SPR Quota", "slug": "hdb-eip", "endpoints": ["/hdb/eip/{town}"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property", "source": "HDB"},
+            {"name": "HDB Lease Decay", "slug": "hdb-lease", "endpoints": ["/hdb/lease-decay"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property", "source": "HDB/MAS/CPF"},
+            {"name": "Mortgage Calculator", "slug": "mortgage", "endpoints": ["/mortgage/calculate"], "price": "$0.00", "free": True, "region": "Global", "category": "finance", "source": "Standard formula"},
+            {"name": "Investment Growth", "slug": "compound", "endpoints": ["/invest/calculate"], "price": "$0.00", "free": True, "region": "Global", "category": "finance", "source": "Standard formula"},
+            {"name": "Currency Converter", "slug": "currency", "endpoints": ["/currency/convert", "/currency/rates"], "price": "$0.00", "free": True, "region": "Global", "category": "fx", "source": "ECB via frankfurter.app"},
+            {"name": "URA Status", "slug": "ura-status", "endpoints": ["/ura/status"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "Rental Yield", "slug": "rental-yield", "endpoints": ["/rental-yield/calculate"], "price": "$0.005", "free": False, "region": "Global", "category": "real-estate", "source": "Standard formulas"},
+            {"name": "SG Affordability (TDSR/MSR)", "slug": "affordability", "endpoints": ["/affordability"], "price": "$0.01", "free": False, "region": "Singapore", "category": "property", "source": "MAS/HDB rules"},
+            {"name": "HDB Resale Data", "slug": "hdb-resale", "endpoints": ["/hdb/towns", "/hdb/median/{town}", "/hdb/search"], "price": "$0.01", "free": False, "region": "Singapore", "category": "property-data", "source": "data.gov.sg"},
+            {"name": "URA Transactions", "slug": "ura-transactions", "endpoints": ["/ura/transactions"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "URA Median Rentals", "slug": "ura-rental-median", "endpoints": ["/ura/rental-median"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "URA Developer Sales", "slug": "ura-developer-sales", "endpoints": ["/ura/developer-sales"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "URA Pipeline Supply", "slug": "ura-pipeline", "endpoints": ["/ura/pipeline"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "URA Rental Contracts", "slug": "ura-rental-contracts", "endpoints": ["/ura/rental-contracts"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property-data", "source": "URA Developer API"},
+            {"name": "SG Property Analysis", "slug": "property-analysis", "endpoints": ["/property/analyze"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property", "source": "Composite"},
+            {"name": "SG Property Pitch", "slug": "property-pitch", "endpoints": ["/property/pitch"], "price": "$0.05", "free": False, "region": "Singapore", "category": "property", "source": "Composite"},
+            {"name": "SG Property Ranking", "slug": "property-rank", "endpoints": ["/property/rank"], "price": "$0.10", "free": False, "region": "Singapore", "category": "property", "source": "Composite"},
         ],
         "provider_program": {
             "url": "https://bountyapi.com/providers",
@@ -530,45 +615,44 @@ async def pricing_json():
         "network": "Base (eip155:8453)",
         "payment_protocol": "x402",
         "free_endpoints": [
-            {"path": "/bsd", "method": "GET", "description": "Singapore buyer stamp duty"},
-            {"path": "/absd", "method": "GET", "description": "Additional buyer stamp duty"},
+            {"path": "/bsd", "description": "Singapore buyer stamp duty"},
+            {"path": "/absd", "description": "Additional buyer stamp duty"},
             {"path": "/stamp-duty", "method": "POST", "description": "Full stamp duty calculation"},
-            {"path": "/postal/{code}", "method": "GET", "description": "Postal code to district"},
-            {"path": "/postal/districts", "method": "GET", "description": "All postal districts"},
+            {"path": "/postal/{code}", "description": "Postal code to district"},
+            {"path": "/postal/districts", "description": "All postal districts"},
+            {"path": "/address/{code}", "description": "Full address intelligence (district, region, MRT proximity)"},
+            {"path": "/mrt/near/{code}", "description": "Nearest MRT stations to a postal code"},
+            {"path": "/mrt/search", "description": "Search MRT station database"},
             {"path": "/mortgage/calculate", "method": "POST", "description": "Mortgage payment calculator"},
             {"path": "/invest/calculate", "method": "POST", "description": "Compound interest calculator"},
-            {"path": "/currency/convert", "method": "GET", "description": "Currency conversion"},
-            {"path": "/currency/rates", "method": "GET", "description": "Live exchange rates"}
+            {"path": "/currency/convert", "description": "Currency conversion"},
+            {"path": "/currency/rates", "description": "Live exchange rates"},
+            {"path": "/tax/income", "description": "Singapore income tax calculator"},
+            {"path": "/gst", "description": "GST add/remove calculator"},
+            {"path": "/commission", "description": "Property agent commission calculator"},
+            {"path": "/cpf/housing", "description": "CPF OA accumulation for housing"},
+            {"path": "/salary/search", "description": "Salary benchmark from live job postings"},
+            {"path": "/property-tax", "description": "Property tax calculator"},
+            {"path": "/buy-vs-rent", "description": "Buy-vs-rent total cost comparison"},
+            {"path": "/schools/near/{code}", "description": "Schools within 1km/2km of postal code"},
+            {"path": "/hdb/eip/{town}", "description": "HDB ethnic integration policy quota check"},
+            {"path": "/hdb/lease-decay", "description": "HDB lease decay analysis"},
+            {"path": "/ura/status", "description": "URA API connection status"}
         ],
         "paid_endpoints": [
-            {
-                "path": "/rental-yield/calculate",
-                "method": "POST",
-                "price": "$0.005",
-                "price_atomic": "5000",
-                "description": "Rental yield investment analysis"
-            },
-            {
-                "path": "/hdb/towns",
-                "method": "GET",
-                "price": "$0.01",
-                "price_atomic": "10000",
-                "description": "HDB resale town-level data"
-            },
-            {
-                "path": "/hdb/median/{town}",
-                "method": "GET",
-                "price": "$0.01",
-                "price_atomic": "10000",
-                "description": "HDB resale median prices by town"
-            },
-            {
-                "path": "/hdb/search",
-                "method": "GET",
-                "price": "$0.01",
-                "price_atomic": "10000",
-                "description": "Search HDB resale transactions"
-            }
+            {"path": "/rental-yield/calculate", "method": "POST", "price": "$0.005", "price_atomic": "5000", "description": "Rental yield investment analysis"},
+            {"path": "/affordability", "price": "$0.01", "price_atomic": "10000", "description": "TDSR/MSR affordability check"},
+            {"path": "/hdb/towns", "price": "$0.01", "price_atomic": "10000", "description": "HDB resale town-level data"},
+            {"path": "/hdb/median/{town}", "price": "$0.01", "price_atomic": "10000", "description": "HDB resale median by town"},
+            {"path": "/hdb/search", "price": "$0.01", "price_atomic": "10000", "description": "Search HDB resale transactions"},
+            {"path": "/ura/transactions", "price": "$0.05", "price_atomic": "50000", "description": "Private property caveat-level transactions"},
+            {"path": "/ura/rental-median", "price": "$0.05", "price_atomic": "50000", "description": "Median private rental rates by project"},
+            {"path": "/ura/developer-sales", "price": "$0.05", "price_atomic": "50000", "description": "Developer units sold"},
+            {"path": "/ura/pipeline", "price": "$0.05", "price_atomic": "50000", "description": "Future supply pipeline"},
+            {"path": "/ura/rental-contracts", "price": "$0.05", "price_atomic": "50000", "description": "Rental contract statistics"},
+            {"path": "/property/analyze", "method": "POST", "price": "$0.05", "price_atomic": "50000", "description": "Full property analysis composite"},
+            {"path": "/property/pitch", "method": "POST", "price": "$0.05", "price_atomic": "50000", "description": "Client-ready investment thesis"},
+            {"path": "/property/rank", "method": "POST", "price": "$0.10", "price_atomic": "100000", "description": "Multi-property comparison ranking"}
         ],
         "note": "Atomic units are USDC 6-decimal. Payment via x402 PAYMENT-SIGNATURE header."
     }

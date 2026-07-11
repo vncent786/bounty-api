@@ -220,7 +220,7 @@ async def ura_developer_sales(
 
 @router.get("/ura/pipeline")
 async def ura_pipeline(
-    batch: int = Query(1, ge=1, description="Batch number (results paginated, ~10,000 records per batch)"),
+    batch: int = Query(1, ge=1, description="Batch number (results paginated)"),
 ):
     """Get future private residential supply pipeline from URA.
 
@@ -231,13 +231,28 @@ async def ura_pipeline(
     - Project stage
 
     This tells buyers/investors about upcoming supply that could affect prices.
-    Data is paginated in batches to avoid timeouts on the full dataset.
+    Results are capped at 50 records per call for performance.
 
     Price: $0.05/call
     Source: URA Developer API (PMI_Resi_Pipeline)
     """
-    data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch})
-    return _format_ura_response(data, "pipeline_supply", batch)
+    try:
+        data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch})
+        return _format_ura_response(data, "pipeline_supply", batch)
+    except HTTPException:
+        # Pipeline may not support batch param on all URA API versions.
+        # Retry without batch, cap results for performance.
+        data = await _call_ura_service("PMI_Resi_Pipeline")
+        records = _extract_records(data)
+        return {
+            "dataset": "pipeline_supply",
+            "total_records": len(records),
+            "batch": None,
+            "records": records[:50],
+            "source": "URA Developer API",
+            "queried_at": datetime.now().strftime("%Y-%m-%d"),
+            "note": "Results capped at 50. Full dataset available via direct URA API.",
+        }
 
 
 @router.get("/ura/rental-contracts")

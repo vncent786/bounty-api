@@ -81,7 +81,7 @@ async def _get_ura_token() -> str:
         return token
 
 
-async def _call_ura_service(service: str, params: dict = None) -> dict:
+async def _call_ura_service(service: str, params: dict = None, timeout: int = 25) -> dict:
     """Call a URA data service with token auth."""
     token = await _get_ura_token()
 
@@ -97,7 +97,7 @@ async def _call_ura_service(service: str, params: dict = None) -> dict:
         "Accept": "application/json",
     }
 
-    async with httpx.AsyncClient(timeout=25) as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         r = await client.get(url, headers=_ura_data_headers)
         if r.status_code != 200:
             raise HTTPException(
@@ -237,12 +237,12 @@ async def ura_pipeline(
     Source: URA Developer API (PMI_Resi_Pipeline)
     """
     try:
-        data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch})
+        data = await _call_ura_service("PMI_Resi_Pipeline", {"batch": batch}, timeout=28)
         return _format_ura_response(data, "pipeline_supply", batch)
     except HTTPException:
         # Pipeline may not support batch param on all URA API versions.
-        # Retry without batch, cap results for performance.
-        data = await _call_ura_service("PMI_Resi_Pipeline")
+        # Retry without batch with max timeout, cap results for performance.
+        data = await _call_ura_service("PMI_Resi_Pipeline", timeout=28)
         records = _extract_records(data)
         return {
             "dataset": "pipeline_supply",

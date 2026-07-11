@@ -1604,6 +1604,14 @@ try:
 except ImportError as e:
     print(f"Warning: pages router not loaded: {e}")
 
+# AgentCash discovery — enriches /openapi.json with x402 payment metadata
+# so agents running `npx agentcash install` can discover and pay for our API
+try:
+    from agentcash_discovery import mount_agentcash_discovery
+    mount_agentcash_discovery(app)
+except ImportError as e:
+    print(f"Warning: agentcash_discovery not loaded: {e}")
+
 
 # ============================================================
 # llms.txt — AI discovery (the #1 AI SEO priority)

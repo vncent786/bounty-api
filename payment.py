@@ -40,6 +40,7 @@ PRICE_ANALYSIS = "$0.05"   # Full property analysis — composite, high value
 PRICE_AFFORDABILITY = "$0.01"  # TDSR/MSR — regulatory computation
 PRICE_RANK = "$0.10"       # Property ranking — highest-value workflow endpoint
 PRICE_PITCH = "$0.05"     # Property pitch — investment thesis one-pager
+PRICE_URA = "$0.05"       # URA private property data — exclusive government API data
 
 
 def create_payment_middleware(app):
@@ -157,6 +158,31 @@ def create_payment_middleware(app):
             ],
             mime_type="application/json",
             description="Generate a complete property investment pitch — price fairness, stamp duty, affordability, yield, location, tenure risk, and plain-English verdict",
+        ),
+        "GET /ura/transactions": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="URA private residential property transactions (caveat data)",
+        ),
+        "GET /ura/rental-median": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="URA median rentals by private residential project",
+        ),
+        "GET /ura/developer-sales": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="URA private residential developer sales data",
+        ),
+        "GET /ura/pipeline": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="URA private residential future supply pipeline",
+        ),
+        "GET /ura/rental-contracts": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="URA private residential rental contract statistics",
         ),
     }
 

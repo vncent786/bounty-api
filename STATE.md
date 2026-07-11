@@ -1,7 +1,7 @@
 # Bounty API — Active Work State
 
-**Last updated:** 2026-07-10 14:20 SGT
-**Status:** IDLE — SG property vertical deepened. 25 APIs, 22 MCP tools, npm@1.7.0. Waiting on URA AccessKey for private transactions.
+**Last updated:** 2026-07-10 15:00 SGT
+**Status:** IDLE — URA private property data is LIVE. 31 APIs, 27 MCP tools, npm@1.8.0. URA moat unlocked.
 
 ## What just shipped
 - `POST /property/pitch` — live on bountyapi.com, $0.05/call

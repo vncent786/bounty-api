@@ -231,41 +231,66 @@ async def landing_page():
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bounty API — Data APIs for agents</title>
-  <meta name="description" content="Bounty API — specialist data APIs built for AI agents, developers, and x402 micropayments. Singapore property, tax, and location data, live now." />
+  <title>Bounty API — Verified Singapore data APIs for AI agents</title>
+  <meta name="description" content="31 specialist data APIs for AI agents. URA private transactions, HDB resale, stamp duty, salary benchmarks, property pitch. MCP-native, x402 micropayments. Singapore live now." />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <meta property="og:title" content="Bounty API — Verified data APIs for AI agents" />
-  <meta property="og:description" content="Agent-native data APIs. Clean endpoints, source provenance, and x402 micropayments. Singapore property data, live now. Pay per call in USDC." />
+  <meta property="og:title" content="Bounty API — Verified Singapore data APIs for AI agents" />
+  <meta property="og:description" content="31 APIs. URA private property transactions, HDB resale, salary benchmarks, property investment analysis. MCP-native, x402 payments. Singapore live now." />
   <meta property="og:image" content="/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://bountyapi.com" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Bounty API — Verified data APIs for AI agents" />
-  <meta name="twitter:description" content="Agent-native data marketplace. Pay per call in USDC on Base." />
+  <meta name="twitter:title" content="Bounty API — Verified Singapore data APIs for AI agents" />
+  <meta name="twitter:description" content="31 APIs. URA private transactions, HDB resale, salary benchmarks, property analysis. MCP + x402." />
   <meta name="twitter:image" content="/twitter-card.png" />
-  <meta name="theme-color" content="#171717" />
+  <meta name="theme-color" content="#0d1117" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- Schema.org structured data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Bounty API",
+    "applicationCategory": "BusinessApplication",
+    "applicationSubCategory": "Data API",
+    "operatingSystem": "Web",
+    "url": "https://bountyapi.com",
+    "description": "Specialist data APIs for AI agents. URA private property transactions, HDB resale data, salary benchmarks, property investment analysis. MCP-native with x402 micropayments.",
+    "offers": [
+      {"@type": "Offer", "name": "Free tier", "price": "0", "priceCurrency": "USD", "description": "19 free endpoints: stamp duty, GST, salary, MRT, schools"},
+      {"@type": "Offer", "name": "Paid tier", "price": "0.005", "priceCurrency": "USD", "description": "$0.005-$0.10 per call for decision-grade data"}
+    ]
+  }
+  </script>
+
   <style>
     :root {
-      --ink: #171717;
-      --muted: #5f5f5f;
-      --faint: #8a8a8a;
-      --line: rgba(0, 0, 0, 0.08);
+      /* Stripe-inspired palette */
+      --ink: #061b31;        /* deep navy, not black */
+      --body: #64748d;        /* slate body text */
+      --label: #273951;       /* dark slate labels */
+      --faint: #94a3b8;
+      --line: #e5edf5;        /* soft blue border */
       --panel: #ffffff;
-      --wash: #fafafa;
-      --accent: #0a72ef;
+      --wash: #f8fafc;
+      --accent: #533afd;      /* Stripe purple for interactive */
       --green: #0f8a55;
       --amber: #a16207;
-      --radius: 14px;
-      --shadow: rgba(0,0,0,0.08) 0 0 0 1px, rgba(0,0,0,0.04) 0 2px 2px, rgba(0,0,0,0.04) 0 10px 24px -16px;
+      --radius: 10px;
+      /* Blue-tinted multi-layer shadows (Stripe signature) */
+      --shadow-sm: rgba(50,50,93,0.08) 0 2px 5px -2px, rgba(0,0,0,0.05) 0 1px 3px -1px;
+      --shadow: rgba(50,50,93,0.12) 0 0 0 1px, rgba(0,0,0,0.04) 0 4px 12px -4px;
+      --shadow-lg: rgba(50,50,93,0.25) 0 12px 30px -15px, rgba(0,0,0,0.1) 0 4px 12px -4px;
+      --shadow-dark: rgba(50,50,93,0.18) 0 24px 70px -34px;
     }
     * { box-sizing: border-box; }
     html { scroll-behavior: smooth; }
@@ -276,166 +301,424 @@ async def landing_page():
       background: #fff;
       -webkit-font-smoothing: antialiased;
       text-rendering: optimizeLegibility;
+      font-weight: 400;
     }
     a { color: inherit; text-decoration: none; }
+
+    /* === NAV === */
     .nav {
-      position: sticky; top: 0; z-index: 20;
+      position: sticky; top: 0; z-index: 50;
       display: flex; align-items: center; justify-content: space-between;
-      padding: 16px 28px;
-      background: rgba(255,255,255,0.82);
-      backdrop-filter: blur(18px);
-      box-shadow: rgba(0,0,0,0.08) 0 1px 0;
+      padding: 14px 32px;
+      background: rgba(255,255,255,0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--line);
     }
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.03em; }
-    .mark { width: 24px; height: 24px; border-radius: 7px; background: #171717; color: #fff; display: grid; place-items: center; font-size: 13px; font-family: 'Geist Mono', monospace; }
-    .navlinks { display: flex; align-items: center; gap: 22px; font-size: 14px; color: #4d4d4d; }
-    .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 0 15px; border-radius: 8px; font-size: 14px; font-weight: 500; box-shadow: var(--shadow); background: #fff; }
-    .button.primary { background: #171717; color: #fff; box-shadow: none; }
-    .hero { max-width: 1180px; margin: 0 auto; padding: 92px 28px 54px; text-align: center; }
-    .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 6px 10px; border-radius: 999px; background: #f5f5f5; box-shadow: rgba(0,0,0,0.08) 0 0 0 1px; color: #4d4d4d; font-size: 13px; font-weight: 500; }
-    .hero h1 { margin: 26px auto 18px; max-width: 900px; font-size: clamp(46px, 8vw, 86px); line-height: 0.94; letter-spacing: -0.065em; font-weight: 600; }
-    .hero p { max-width: 720px; margin: 0 auto; color: var(--muted); font-size: 20px; line-height: 1.65; }
-    .hero-actions { margin-top: 32px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-    .terminal { max-width: 920px; margin: 46px auto 0; text-align: left; border-radius: 16px; background: #0d0d0d; color: #f5f5f5; overflow: hidden; box-shadow: rgba(0,0,0,0.18) 0 24px 70px -34px; }
-    .termbar { display: flex; align-items: center; gap: 8px; padding: 13px 16px; border-bottom: 1px solid rgba(255,255,255,0.09); color: #9ca3af; font: 13px 'Geist Mono', monospace; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #666; }
-    pre { margin: 0; padding: 22px; overflow-x: auto; font: 13px/1.7 'Geist Mono', ui-monospace, monospace; color: #d4d4d4; }
-    .blue { color: #7dd3fc; } .green { color: #86efac; } .gray { color: #a3a3a3; }
-    section { max-width: 1180px; margin: 0 auto; padding: 64px 28px; }
-    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 22px; }
-    .section-head h2 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1; letter-spacing: -0.055em; }
-    .section-head p { max-width: 460px; margin: 0; color: var(--muted); line-height: 1.55; }
-    .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
-    .card { background: var(--panel); border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); min-height: 230px; display: flex; flex-direction: column; justify-content: space-between; }
-    .card h3 { margin: 0 0 10px; font-size: 20px; line-height: 1.12; letter-spacing: -0.04em; }
-    .card p { margin: 0; color: var(--muted); line-height: 1.5; font-size: 14px; }
-    .tagrow { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 18px; }
-    .tag { font: 12px 'Geist Mono', monospace; padding: 5px 8px; border-radius: 999px; background: #f5f5f5; color: #525252; }
-    .price { margin-top: 18px; font: 13px 'Geist Mono', monospace; color: var(--green); }
-    .split { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 16px; }
-    .panel { background: var(--wash); border-radius: 18px; padding: 28px; box-shadow: rgba(0,0,0,0.08) 0 0 0 1px; }
-    .panel h3 { margin: 0 0 12px; font-size: 26px; letter-spacing: -0.045em; }
-    .list { display: grid; gap: 14px; margin-top: 20px; }
-    .item { display: flex; gap: 12px; align-items: flex-start; }
-    .check { width: 20px; height: 20px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 12px; margin-top: 1px; }
-    .item strong { display: block; font-size: 15px; margin-bottom: 3px; }
-    .item span { color: var(--muted); font-size: 14px; line-height: 1.45; }
-    .codebox { background: #111; border-radius: 14px; overflow: hidden; height: 100%; min-height: 342px; }
-    .footer { max-width: 1180px; margin: 0 auto; padding: 48px 28px 72px; color: var(--faint); font-size: 13px; display: flex; justify-content: space-between; gap: 18px; border-top: 1px solid #ebebeb; }
-    @media (max-width: 920px) { .grid, .split { grid-template-columns: 1fr; } .navlinks { display: none; } .section-head { align-items: flex-start; flex-direction: column; } .hero { padding-top: 68px; } }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.03em; font-size: 16px; color: var(--ink); }
+    .navlinks { display: flex; align-items: center; gap: 28px; font-size: 14px; color: var(--body); }
+    .navlinks a:hover { color: var(--ink); }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 18px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: var(--ink); color: #fff; box-shadow: var(--shadow-sm); }
+    .btn-primary:hover { background: #0d253d; }
+    .btn-secondary { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+    .btn-secondary:hover { box-shadow: var(--shadow-lg); }
+    .btn-ghost { color: var(--accent); padding: 0; min-height: auto; }
+    .btn-ghost:hover { text-decoration: underline; }
+
+    /* === HERO === */
+    .hero { max-width: 1100px; margin: 0 auto; padding: 88px 32px 48px; text-align: center; }
+    .eyebrow { display: inline-flex; gap: 8px; align-items: center; padding: 6px 14px; border-radius: 999px; background: #f0f0f5; border: 1px solid var(--line); color: var(--body); font-size: 13px; font-weight: 500; }
+    .eyebrow .dot-live { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    .hero h1 { margin: 28px auto 20px; max-width: 820px; font-size: clamp(40px, 7vw, 72px); line-height: 1.02; letter-spacing: -0.055em; font-weight: 600; color: var(--ink); }
+    .hero-sub { max-width: 680px; margin: 0 auto; color: var(--body); font-size: 19px; line-height: 1.6; }
+    .hero-actions { margin-top: 36px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+    /* === STATS BAR === */
+    .stats { max-width: 1100px; margin: 0 auto; padding: 0 32px 64px; }
+    .stats-inner { display: flex; justify-content: center; gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 28px 0; }
+    .stat { flex: 1; text-align: center; border-right: 1px solid var(--line); }
+    .stat:last-child { border-right: none; }
+    .stat-num { font-size: 32px; font-weight: 600; letter-spacing: -0.04em; color: var(--ink); font-variant-numeric: tabular-nums; }
+    .stat-label { font-size: 13px; color: var(--faint); margin-top: 4px; font-weight: 400; }
+
+    /* === SECTIONS === */
+    section.block { max-width: 1100px; margin: 0 auto; padding: 80px 32px; }
+    .section-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; color: var(--accent); margin-bottom: 12px; }
+    .section-head { text-align: center; max-width: 640px; margin: 0 auto 52px; }
+    .section-head h2 { margin: 0 0 16px; font-size: clamp(28px, 4vw, 42px); line-height: 1.1; letter-spacing: -0.04em; font-weight: 600; color: var(--ink); }
+    .section-head p { margin: 0; color: var(--body); font-size: 17px; line-height: 1.6; }
+
+    /* === HOW IT WORKS === */
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .step { text-align: center; padding: 36px 28px; border-radius: var(--radius); background: var(--wash); border: 1px solid var(--line); }
+    .step-num { width: 36px; height: 36px; margin: 0 auto 20px; border-radius: 50%; background: var(--ink); color: #fff; display: grid; place-items: center; font-size: 15px; font-weight: 600; font-family: 'Geist Mono', monospace; }
+    .step h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; color: var(--ink); }
+    .step p { margin: 0; color: var(--body); font-size: 14px; line-height: 1.55; }
+
+    /* === API CARDS === */
+    .api-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    .api-card { background: var(--panel); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; transition: box-shadow .2s, transform .2s; }
+    .api-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+    .api-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .api-card h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+    .api-card .badge { font: 11px 'Geist Mono', monospace; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+    .badge-free { background: #ecfdf5; color: #047857; }
+    .badge-paid { background: #f0f0f5; color: var(--ink); }
+    .api-card p { margin: 0; color: var(--body); font-size: 14px; line-height: 1.5; flex: 1; }
+    .api-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .api-tag { font: 11px 'Geist Mono', monospace; padding: 4px 7px; border-radius: 6px; background: var(--wash); color: var(--label); border: 1px solid var(--line); }
+    .api-card-footer { display: flex; justify-content: space-between; align-items: center; padding-top: 14px; border-top: 1px solid var(--line); }
+    .api-price { font: 13px 'Geist Mono', monospace; color: var(--green); font-weight: 500; }
+    .api-price.paid { color: var(--ink); }
+
+    /* === CATEGORY ROW === */
+    .categories { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 0; }
+    .cat-card { padding: 24px; border-radius: var(--radius); background: var(--wash); border: 1px solid var(--line); text-align: center; transition: all .2s; }
+    .cat-card:hover { border-color: var(--accent); box-shadow: var(--shadow-sm); }
+    .cat-icon { font-size: 28px; margin-bottom: 12px; }
+    .cat-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; color: var(--ink); }
+    .cat-count { font-size: 13px; color: var(--faint); }
+
+    /* === TRUST ROW === */
+    .trust-row { display: flex; justify-content: center; align-items: center; gap: 40px; flex-wrap: wrap; }
+    .trust-label { font-size: 13px; font-weight: 500; color: var(--faint); letter-spacing: 0.02em; }
+    .trust-items { display: flex; gap: 32px; flex-wrap: wrap; }
+    .trust-item { font-size: 15px; font-weight: 600; color: var(--body); letter-spacing: -0.02em; }
+
+    /* === SPLIT SECTION === */
+    .split { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 20px; align-items: stretch; }
+    .panel { background: var(--wash); border-radius: 14px; padding: 36px; border: 1px solid var(--line); }
+    .panel h3 { margin: 0 0 14px; font-size: 24px; font-weight: 600; letter-spacing: -0.03em; color: var(--ink); }
+    .panel > p { color: var(--body); line-height: 1.6; margin: 0 0 24px; font-size: 15px; }
+    .feature-list { display: grid; gap: 16px; }
+    .feature { display: flex; gap: 14px; align-items: flex-start; }
+    .check { width: 22px; height: 22px; flex: 0 0 auto; border-radius: 50%; display: grid; place-items: center; background: #ecfdf5; color: #047857; font-size: 13px; }
+    .feature strong { display: block; font-size: 15px; margin-bottom: 3px; color: var(--ink); }
+    .feature span { color: var(--body); font-size: 14px; line-height: 1.45; }
+
+    /* === CODE TERMINAL === */
+    .terminal { border-radius: 14px; background: #0d1117; color: #e6edf3; overflow: hidden; box-shadow: var(--shadow-dark); display: flex; flex-direction: column; }
+    .termbar { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); color: #8b949e; font: 12px 'Geist Mono', monospace; }
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot.r { background: #ff5f56; } .dot.y { background: #ffbd2e; } .dot.g { background: #27c93f; }
+    .terminal pre { margin: 0; padding: 20px; overflow-x: auto; font: 13px/1.65 'Geist Mono', ui-monospace, monospace; color: #d4d4d4; flex: 1; }
+    .blue { color: #79c0ff; } .green { color: #7ee787; } .gray { color: #8b949e; } .purple { color: #d2a8ff; }
+
+    /* === CTA SECTION === */
+    .cta-section { max-width: 1100px; margin: 0 auto; padding: 80px 32px; text-align: center; }
+    .cta-box { background: var(--ink); border-radius: 18px; padding: 64px 32px; color: #fff; }
+    .cta-box h2 { margin: 0 0 16px; font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -0.04em; line-height: 1.1; }
+    .cta-box p { margin: 0 auto 32px; color: rgba(255,255,255,0.7); font-size: 17px; line-height: 1.6; max-width: 480px; }
+    .cta-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+    .cta-box .btn-primary { background: #fff; color: var(--ink); }
+    .cta-box .btn-primary:hover { background: #f0f0f5; }
+    .cta-box .btn-secondary { background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.2); box-shadow: none; }
+    .cta-box .btn-secondary:hover { background: rgba(255,255,255,0.08); }
+
+    /* === FOOTER === */
+    .footer { border-top: 1px solid var(--line); }
+    .footer-inner { max-width: 1100px; margin: 0 auto; padding: 48px 32px 40px; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; gap: 32px; }
+    .footer-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.03em; margin-bottom: 10px; color: var(--ink); }
+    .footer-brand img { border-radius: 5px; }
+    .footer-tagline { font-size: 13px; color: var(--faint); line-height: 1.5; }
+    .footer-col h4 { margin: 0 0 14px; font-size: 13px; font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.03em; }
+    .footer-col a { display: block; font-size: 14px; color: var(--body); margin-bottom: 8px; }
+    .footer-col a:hover { color: var(--ink); }
+    .footer-bottom { max-width: 1100px; margin: 0 auto; padding: 24px 32px 40px; display: flex; justify-content: space-between; border-top: 1px solid var(--line); font-size: 13px; color: var(--faint); }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 960px) {
+      .api-grid { grid-template-columns: 1fr 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .categories { grid-template-columns: 1fr 1fr; }
+      .footer-inner { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .navlinks { display: none; }
+      .hero { padding-top: 60px; }
+      .api-grid { grid-template-columns: 1fr; }
+      .categories { grid-template-columns: 1fr 1fr; }
+      .stats-inner { flex-wrap: wrap; gap: 20px 0; }
+      .stat { flex: 1 1 45%; border-right: none; }
+      .footer-inner { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; gap: 8px; }
+    }
   </style>
 </head>
 <body>
+
+  <!-- ====== NAV ====== -->
   <nav class="nav">
     <a class="brand" href="/"><img src="/logo-mark.png" alt="Bounty" width="24" height="24" style="border-radius:5px" /><span>Bounty API</span></a>
     <div class="navlinks">
       <a href="#apis">APIs</a>
       <a href="/pricing">Pricing</a>
-      <a href="/providers">For Developers</a>
-      <a href="/setup">Agent Setup</a>
+      <a href="/setup">Setup</a>
+      <a href="/providers">Providers</a>
       <a href="/docs">Docs</a>
-      <a class="button primary" href="/providers">Publish API</a>
+      <a class="btn btn-primary" href="/setup" style="min-height:36px;padding:0 16px">Get Started</a>
     </div>
   </nav>
 
   <main>
-    <div class="hero">
-      <div class="eyebrow">Verified Singapore data APIs · Expanding globally</div>
-      <h1>Singapore property &amp; financial data for AI agents.</h1>
-      <p>Bounty gives AI agents verified Singapore property, tax, affordability, and location data through clean MCP endpoints. Stamp duty, HDB transactions, TDSR/MSR, MRT proximity, and property ranking — all with source provenance. Pay per call in USDC. Singapore live now, more markets coming.</p>
-      <div class="hero-actions">
-        <a class="button primary" href="/setup">Set up your agent</a>
-        <a class="button" href="/pricing">View pricing</a>
-        <a class="button" href="/providers">Publish your API</a>
-      </div>
-      <div class="terminal" aria-label="Example API request">
-        <div class="termbar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>GET /bsd?price=1000000</span></div>
-        <pre><span class="gray">curl</span> <span class="green">https://bountyapi.com/bsd?price=1000000</span>
 
-{
-  <span class="blue">"price"</span>: 1000000,
-  <span class="blue">"bsd"</span>: 24600,
-  <span class="blue">"source"</span>: <span class="green">"iras.gov.sg"</span>
-}</pre>
+    <!-- ====== HERO ====== -->
+    <div class="hero">
+      <div class="eyebrow"><span class="dot-live"></span> Singapore live now · 31 APIs · MCP-native</div>
+      <h1>Verified Singapore data<br/>for AI agents.</h1>
+      <p class="hero-sub">Property transactions, salary benchmarks, tax calculators, and investment analysis. Agents discover via MCP, pay per call in USDC, and get structured JSON with source provenance. No API keys. No subscriptions.</p>
+      <div class="hero-actions">
+        <a class="btn btn-primary" href="/setup">Set up your agent</a>
+        <a class="btn btn-secondary" href="/pricing">View pricing</a>
       </div>
     </div>
 
-    <section id="apis">
-      <div class="section-head">
-        <h2>API catalog</h2>
-        <p>Apify-style marketplace clarity, but for high-margin data primitives agents actually need. More regions coming.</p>
+    <!-- ====== STATS BAR ====== -->
+    <div class="stats">
+      <div class="stats-inner">
+        <div class="stat"><div class="stat-num">31</div><div class="stat-label">API endpoints</div></div>
+        <div class="stat"><div class="stat-num">27</div><div class="stat-label">MCP tools</div></div>
+        <div class="stat"><div class="stat-num">19</div><div class="stat-label">Free endpoints</div></div>
+        <div class="stat"><div class="stat-num">293</div><div class="stat-label">URA transaction records</div></div>
+        <div class="stat"><div class="stat-num">$0.005</div><div class="stat-label">Paid calls from</div></div>
       </div>
-      <div class="grid">
-        <article class="card">
-          <div><h3>SG Stamp Duty</h3><p>BSD and ABSD calculations for Singapore property purchases. Rates verified against IRAS.</p></div>
-          <div><div class="tagrow"><span class="tag">/bsd</span><span class="tag">/absd</span><span class="tag">/stamp-duty</span></div><div class="price">FREE · <a href="/apis/stamp-duty">View API →</a></div></div>
+    </div>
+
+    <!-- ====== HOW IT WORKS ====== -->
+    <section class="block">
+      <div class="section-head">
+        <div class="section-eyebrow">How it works</div>
+        <h2>Three steps from install to data.</h2>
+        <p>No API keys to manage, no billing dashboard to configure. Agents discover, call, and pay autonomously.</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <h3>Install the MCP server</h3>
+          <p>Add Bounty to any MCP-compatible agent with a single npm install. Works with Claude Desktop, Cursor, Hermes, and any MCP client.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <h3>Agent discovers APIs</h3>
+          <p>Your agent sees all 31 endpoints as MCP tools. It picks the right one based on the user's question. No manual API selection.</p>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <h3>Pay per call in USDC</h3>
+          <p>Paid endpoints settle via x402 micropayments on Base. Sub-second, sub-cent. Free endpoints cost nothing, forever.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== FEATURED APIs ====== -->
+    <section class="block" id="apis" style="padding-top:0">
+      <div class="section-head">
+        <div class="section-eyebrow">Featured APIs</div>
+        <h2>The tools agents ask for most.</h2>
+        <p>Curated from 31 endpoints. Property, finance, location, and salary data that agents need to answer real questions.</p>
+      </div>
+      <div class="api-grid">
+        <article class="api-card">
+          <div class="api-card-head"><h3>Property Pitch</h3><span class="badge badge-paid">$0.05</span></div>
+          <p>Full investment thesis for any Singapore property. Combines URA transactions, rental yield, stamp duty, and affordability into one report.</p>
+          <div class="api-tags"><span class="api-tag">URA data</span><span class="api-tag">rental yield</span><span class="api-tag">BSD</span></div>
+          <div class="api-card-footer"><span class="api-price paid">Decision-grade</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
-        <article class="card">
-          <div><h3>Postal District Mapper</h3><p>Map Singapore postal codes to districts, regions, and property market areas.</p></div>
-          <div><div class="tagrow"><span class="tag">/postal/{code}</span><span class="tag">28 districts</span></div><div class="price">FREE · <a href="/apis/postal-district">View API →</a></div></div>
+        <article class="api-card">
+          <div class="api-card-head"><h3>URA Transactions</h3><span class="badge badge-paid">Paid</span></div>
+          <p>Private property transaction records from URA. Price, PSF, area, tenure, contract date. The only MCP server offering this data.</p>
+          <div class="api-tags"><span class="api-tag">293 records</span><span class="api-tag">caveat data</span><span class="api-tag">live</span></div>
+          <div class="api-card-footer"><span class="api-price paid">Data moat</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
-        <article class="card">
-          <div><h3>Rental Yield</h3><p>Gross yield, net yield, cash flow, cap rate, and price-to-rent calculations.</p></div>
-          <div><div class="tagrow"><span class="tag">yield</span><span class="tag">cashflow</span></div><div class="price">$0.005 / call · <a href="/apis/rental-yield">View API →</a></div></div>
+        <article class="api-card">
+          <div class="api-card-head"><h3>Salary Benchmark</h3><span class="badge badge-free">FREE</span></div>
+          <p>Real salary ranges from MyCareersFuture job listings. Search by role, get median, min, max. No API key needed.</p>
+          <div class="api-tags"><span class="api-tag">MyCareersFuture</span><span class="api-tag">live data</span></div>
+          <div class="api-card-footer"><span class="api-price">FREE</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
-        <article class="card">
-          <div><h3>HDB Resale Data</h3><p>HDB resale town data sourced from data.gov.sg, structured for agent workflows.</p></div>
-          <div><div class="tagrow"><span class="tag">26 towns</span><span class="tag">sampled data</span></div><div class="price">$0.01 / call · <a href="/apis/hdb-resale">View API →</a></div></div>
+        <article class="api-card">
+          <div class="api-card-head"><h3>HDB Resale Search</h3><span class="badge badge-paid">$0.01</span></div>
+          <p>Search HDB resale transactions by town, flat type, price range. Sourced from data.gov.sg, structured for agent workflows.</p>
+          <div class="api-tags"><span class="api-tag">data.gov.sg</span><span class="api-tag">26 towns</span></div>
+          <div class="api-card-footer"><span class="api-price paid">$0.01/call</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
-        <article class="card">
-          <div><h3>Mortgage Calculator</h3><p>Monthly payments, total interest, and amortization schedules for any loan.</p></div>
-          <div><div class="tagrow"><span class="tag">/mortgage</span><span class="tag">global</span></div><div class="price">FREE · <a href="/apis/mortgage">View API →</a></div></div>
+        <article class="api-card">
+          <div class="api-card-head"><h3>Stamp Duty</h3><span class="badge badge-free">FREE</span></div>
+          <p>BSD and ABSD calculations for Singapore property. Verified against IRAS published rates and examples.</p>
+          <div class="api-tags"><span class="api-tag">IRAS verified</span><span class="api-tag">/bsd</span><span class="api-tag">/absd</span></div>
+          <div class="api-card-footer"><span class="api-price">FREE</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
-        <article class="card">
-          <div><h3>Investment Growth</h3><p>Compound interest projections with periodic contributions and yearly growth tables.</p></div>
-          <div><div class="tagrow"><span class="tag">/invest</span><span class="tag">global</span></div><div class="price">FREE · <a href="/apis/compound">View API →</a></div></div>
-        </article>
-        <article class="card">
-          <div><h3>Currency Converter</h3><p>Live exchange rates for 30+ currencies. ECB reference rates, cached hourly.</p></div>
-          <div><div class="tagrow"><span class="tag">/currency</span><span class="tag">30+ currencies</span></div><div class="price">FREE · <a href="/apis/currency">View API →</a></div></div>
+        <article class="api-card">
+          <div class="api-card-head"><h3>Schools Nearby</h3><span class="badge badge-free">FREE</span></div>
+          <p>Find primary and secondary schools within 1km and 2km of any postal code. 294 schools from OpenStreetMap.</p>
+          <div class="api-tags"><span class="api-tag">294 schools</span><span class="api-tag">1km / 2km</span></div>
+          <div class="api-card-footer"><span class="api-price">FREE</span><a class="btn-ghost" href="/docs">Try it &rarr;</a></div>
         </article>
       </div>
     </section>
 
-    <section id="agents">
+    <!-- ====== CATEGORIES ====== -->
+    <section class="block" style="padding-top:0">
+      <div class="section-head">
+        <div class="section-eyebrow">Full catalog</div>
+        <h2>31 APIs across 4 categories.</h2>
+        <p>Free tools drive discovery. Paid tools drive revenue. Every response carries source provenance.</p>
+      </div>
+      <div class="categories">
+        <div class="cat-card">
+          <div class="cat-icon">&#127968;</div>
+          <h3>Property</h3>
+          <div class="cat-count">12 endpoints</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon">&#128176;</div>
+          <h3>Financial</h3>
+          <div class="cat-count">9 endpoints</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon">&#128205;</div>
+          <h3>Location</h3>
+          <div class="cat-count">4 endpoints</div>
+        </div>
+        <div class="cat-card">
+          <div class="cat-icon">&#128202;</div>
+          <h3>URA Data</h3>
+          <div class="cat-count">6 endpoints</div>
+        </div>
+      </div>
+      <div style="text-align:center;margin-top:32px">
+        <a class="btn btn-secondary" href="/docs">View all 31 APIs &rarr;</a>
+      </div>
+    </section>
+
+    <!-- ====== TRUST: AGENTS ====== -->
+    <section class="block" style="padding-top:0">
+      <div class="section-head" style="margin-bottom:36px">
+        <div class="section-eyebrow">Built for these agents</div>
+        <h2>Works with any MCP client.</h2>
+      </div>
+      <div class="trust-row">
+        <div class="trust-items">
+          <span class="trust-item">Claude Desktop</span>
+          <span class="trust-item">Cursor</span>
+          <span class="trust-item">Hermes</span>
+          <span class="trust-item">LangChain</span>
+          <span class="trust-item">Any MCP client</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== TRUST: DIRECTORIES ====== -->
+    <section class="block" style="padding-top:0">
+      <div class="section-head" style="margin-bottom:36px">
+        <div class="section-eyebrow">Listed on</div>
+        <h2>Discoverable where agents look.</h2>
+      </div>
+      <div class="trust-row">
+        <div class="trust-items">
+          <span class="trust-item">mcp.so</span>
+          <span class="trust-item">Glama</span>
+          <span class="trust-item">PulseMCP</span>
+          <span class="trust-item">npm</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====== X402 / PAYMENT SECTION ====== -->
+    <section class="block" id="payment" style="padding-top:0">
       <div class="split">
         <div class="panel">
-          <h3>Built for agent economics.</h3>
-          <p style="color: var(--muted); line-height: 1.6; margin: 0;">Bounty is an x402-native data API. Agents discover APIs via MCP, pay per call in USDC on Base, and get structured data with source provenance. No API keys. No subscriptions. No scraping.</p>
-          <div class="list">
-            <div class="item"><span class="check">&#10003;</span><div><strong>x402 micropayments</strong><span>Per-call USDC settlement on Base. Agents pay only for what they use.</span></div></div>
-            <div class="item"><span class="check">&#10003;</span><div><strong>MCP discovery</strong><span>Tool definitions via MCP stdio and HTTP transport. npm: bountyapi-mcp.</span></div></div>
-            <div class="item"><span class="check">&#10003;</span><div><strong>Source-forward data</strong><span>Every response carries provenance. No interpolated or fabricated values.</span></div></div>
-            <div class="item"><span class="check">&#10003;</span><div><strong>Provider marketplace</strong><span>Publish your own APIs. Keep 97% of revenue. We handle payments and discovery.</span></div></div>
+          <div class="section-eyebrow">How payments work</div>
+          <h3>x402: agents pay autonomously.</h3>
+          <p>AI agents cannot fill out forms, enter credit cards, or sign contracts. x402 lets them pay per request with USDC on Base. Sub-second settlement, less than $0.001 transaction fee. Zero support tickets.</p>
+          <div class="feature-list">
+            <div class="feature"><span class="check">&#10003;</span><div><strong>Per-call pricing</strong><span>Free for commoditized data. $0.005-$0.10 for decision-grade endpoints. No subscriptions.</span></div></div>
+            <div class="feature"><span class="check">&#10003;</span><div><strong>MCP-native discovery</strong><span>Agents see all 31 tools automatically. npm: bountyapi-mcp. Stdio and HTTP transport.</span></div></div>
+            <div class="feature"><span class="check">&#10003;</span><div><strong>Source-forward data</strong><span>Every response carries provenance. No interpolated or fabricated values. Ever.</span></div></div>
+            <div class="feature"><span class="check">&#10003;</span><div><strong>Provider marketplace</strong><span>Publish your own APIs. Keep 97% of revenue. We handle payments and discovery.</span></div></div>
           </div>
-          <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap">
-            <a class="button primary" href="/setup">Agent setup guide</a>
-            <a class="button" href="/providers">Become a provider</a>
+          <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap">
+            <a class="btn btn-primary" href="/setup">Agent setup guide</a>
+            <a class="btn btn-secondary" href="/providers">Become a provider</a>
           </div>
         </div>
-        <div class="codebox">
-          <pre>{
-  <span class="blue">"name"</span>: <span class="green">"Bounty API"</span>,
-  <span class="blue">"type"</span>: <span class="green">"Verified data APIs"</span>,
-  <span class="blue">"region_live"</span>: <span class="green">"Singapore"</span>,
-  <span class="blue">"region_roadmap"</span>: <span class="green">"HK, UAE, AU, JP"</span>,
-  <span class="blue">"payment"</span>: <span class="green">"USDC on Base"</span>,
-  <span class="blue">"discovery"</span>: <span class="green">"MCP + llms.txt"</span>,
-  <span class="blue">"live_apis"</span>: 15,
-  <span class="blue">"mcp_tools"</span>: 12,
-  <span class="blue">"free_endpoints"</span>: 8,
-  <span class="blue">"paid_endpoints"</span>: 6,
-  <span class="blue">"npm"</span>: <span class="green">"bountyapi-mcp"</span>,
-  <span class="blue">"docs"</span>: <span class="green">"bountyapi.com/docs"</span>
-}</pre>
+        <div class="terminal">
+          <div class="termbar">
+            <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+            <span style="margin-left:8px">bountyapi-mcp</span>
+          </div>
+          <pre><span class="gray"># Install the MCP server</span>
+<span class="green">npm install</span> bountyapi-mcp
+
+<span class="gray"># Add to your agent config</span>
+{
+  <span class="blue">"mcpServers"</span>: {
+    <span class="blue">"bounty"</span>: {
+      <span class="blue">"command"</span>: <span class="green">"bountyapi-mcp"</span>
+    }
+  }
+}
+
+<span class="gray"># Your agent can now call:</span>
+<span class="purple">- bounty_stamp_duty</span>(price=1M)     <span class="gray"># FREE</span>
+<span class="purple">- bounty_salary_benchmark</span>(role)  <span class="gray"># FREE</span>
+<span class="purple">- bounty_ura_transactions</span>(area)  <span class="gray"># PAID</span>
+<span class="purple">- bounty_property_pitch</span>(postal)  <span class="gray"># $0.05</span>
+
+<span class="gray"># 31 tools. 19 free. Agents</span>
+<span class="gray"># discover and pay autonomously.</span></pre>
         </div>
       </div>
     </section>
+
+    <!-- ====== CTA ====== -->
+    <div class="cta-section">
+      <div class="cta-box">
+        <h2>The agent economy is here.<br/>Your data should be earning.</h2>
+        <p>Singapore is live with 31 verified APIs. More markets coming. Whether you're building agents or have data to monetize, Bounty is your infrastructure.</p>
+        <div class="cta-actions">
+          <a class="btn btn-primary" href="/setup">Get started free</a>
+          <a class="btn btn-secondary" href="/providers">Publish your API</a>
+        </div>
+      </div>
+    </div>
+
   </main>
 
+  <!-- ====== FOOTER ====== -->
   <footer class="footer">
-    <span>© 2026 Bounty API</span>
-    <span>Data APIs for agents, developers, and automated workflows.</span>
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand"><img src="/logo-mark.png" alt="Bounty" width="22" height="22" /><span>Bounty API</span></div>
+        <p class="footer-tagline">Specialist data APIs for AI agents. MCP-native, x402 payments. Singapore live now, more markets coming.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#apis">APIs</a>
+        <a href="/pricing">Pricing</a>
+        <a href="/docs">Documentation</a>
+        <a href="/setup">Agent Setup</a>
+      </div>
+      <div class="footer-col">
+        <h4>Developers</h4>
+        <a href="/providers">Publish API</a>
+        <a href="/llms.txt">llms.txt</a>
+        <a href="https://www.npmjs.com/package/bountyapi-mcp">npm package</a>
+        <a href="https://github.com/vncent786/bounty-api">GitHub</a>
+      </div>
+      <div class="footer-col">
+        <h4>Protocol</h4>
+        <a href="https://x402.org">x402 Standard</a>
+        <a href="https://modelcontextprotocol.io">MCP Spec</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Bounty API. Singapore.</span>
+      <span>Built for agents, developers, and automated workflows.</span>
+    </div>
   </footer>
 </body>
 </html>"""

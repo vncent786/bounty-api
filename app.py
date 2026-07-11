@@ -1650,179 +1650,31 @@ async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""
     return """# Bounty API
 
-> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Every response carries its source.
+> Singapore property & financial data APIs for AI agents. Government data (URA, IRAS, HDB, MAS), computed financial logic, and market intelligence. Pay-per-call via x402 (USDC on Base). No API keys, no subscriptions. Every response carries its source.
 
-```json
-{
-  "name": "Bounty API",
-  "url": "https://bountyapi.com",
-  "category": "Specialist Data APIs",
-  "focus": "Singapore",
-  "payment_protocol": "x402",
-  "discovery_protocol": "MCP",
-  "settlement_currency": "USDC",
-  "live_apis": 31,
-  "mcp_tools": 27,
-  "free_endpoints": 20,
-  "paid_endpoints": 11,
-  "region_live": "Singapore",
-  "region_roadmap": "HK, UAE, AU, JP",
-  "provider_revenue_share": "97%"
-}
-```
+## Base URL
 
-## What it is
+https://bountyapi.com
 
-- Specialist data APIs for AI agents. Bounty is a single provider today (a multi-provider marketplace is a roadmap item, not the current product).
-- Discovery via MCP (single endpoint exposes all APIs as tools)
-- Payment via x402 (USDC on Base, sub-second settlement)
-- Live now: Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
+All endpoints are relative to this base URL.
 
-## Available APIs
+## Authentication
 
-### SG Stamp Duty Calculator
-- Endpoints: POST /stamp-duty, GET /bsd, GET /absd
-- Price: FREE
-- Coverage: BSD (6-tier marginal, 1%-6%), ABSD (0%-65% by buyer profile)
-- Source: iras.gov.sg, verified Jan 2026
+All paid endpoints require micropayment via x402 protocol. Payments are processed on Base mainnet (eip155:8453). Free endpoints require no payment and no authentication.
 
-### SG Address Intelligence
-- Endpoints: GET /address/{postal_code}, GET /mrt/near/{postal_code}, GET /mrt/search, GET /mrt/stations
-- Price: FREE
-- Coverage: Postal code → district, planning area (URA Master Plan), CCR/RCR/OCR region, HDB town, 5 nearest MRT stations with walking distance. 142 MRT stations across all 6 lines.
-- Source: URA Master Plan 2019, LTA DataMall, SLA postal sectors
+## Agent Workflow (Progressive)
 
-### SG TDSR/MSR Affordability Calculator
-- Endpoints: POST /affordability/calculate, GET /affordability/quick
-- Price: $0.01/call
-- Coverage: MAS TDSR (55%), MSR (30% for HDB), LTV limits, stress-tested at MAS minimum rates (3%/3.5%/4.5%). Returns max affordable loan and property price.
-- Source: MAS TDSR framework, HDB MSR rules, LTV limits (Dec 2021)
+### Option A: AgentCash (recommended — automatic payment handling)
 
-### SG Property Investment Analysis
-- Endpoints: POST /property/analyze
-- Price: $0.05/call
-- Coverage: Complete property analysis — stamp duty, transaction comparables, rental yield, affordability, location intelligence, and risk assessment in one call. The most comprehensive Singapore property analysis endpoint.
-- Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
+1. Install AgentCash MCP server: `npx agentcash@latest install`
+2. Fund your wallet: `npx agentcash@latest accounts` (gives you Base/Solana deposit addresses)
+3. Discover Bounty endpoints: `mcp__agentcash__discover_api_endpoints("https://bountyapi.com")`
+4. Check endpoint schema and pricing: `mcp__agentcash__check_endpoint_schema("https://bountyapi.com/stamp-duty")`
+5. Execute: `mcp__agentcash__fetch("https://bountyapi.com/bsd?price=1000000")`
 
-### SG Property Ranking
-- Endpoints: POST /property/rank
-- Price: $0.10/call
-- Coverage: Accepts candidate properties from ANY source (user, web search, listing portals) and enriches + ranks them using Bounty's verified data. Returns transparent 0-100 scores across 4 dimensions: value vs comps, rental yield, affordability, location. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned).
-- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA, LTA
+AgentCash handles wallet creation, USDC payment, and 402 challenge resolution automatically. Paid 200s return `{ success: true, data: <HTTP body> }`.
 
-### SG Property Pitch
-- Endpoints: POST /property/pitch
-- Price: $0.05/call
-- Coverage: Generates a client-ready property investment thesis: price fairness vs transaction comparables, stamp duty, MAS affordability, rental yield, location/MRT intelligence, tenure risk, upfront costs, strengths, risk flags, and plain-English recommendation. Accepts listing data from any source as input.
-- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA/LTA location data. Private-property transaction comparables require URA API access.
-
-### SG Postal Code to District
-- Endpoints: GET /postal/{code}, GET /postal/districts
-- Price: FREE
-- Coverage: All 28 Singapore postal districts with area names
-
-### SG Rental Yield Calculator
-- Endpoints: POST /rental-yield/calculate
-- Price: $0.005/call
-- Coverage: Gross yield, net yield, cap rate, price-to-rent ratio, cashflow
-
-### HDB Resale Price Data
-- Endpoints: GET /hdb/towns, GET /hdb/median/{town}, GET /hdb/search
-- Price: $0.01/call
-- Coverage: 234K+ HDB resale transactions, all 26 towns, 2017-present
-- Source: data.gov.sg (live)
-
-### SG Income Tax Calculator
-- Endpoints: GET /tax/income, POST /tax/income
-- Price: FREE
-- Coverage: Singapore individual income tax, resident progressive rates (0-22%, YA 2024+), non-resident (15% flat or progressive). Marginal breakdown with tier details.
-- Source: IRAS individual income tax rates
-
-### SG GST Calculator
-- Endpoints: GET /gst
-- Price: FREE
-- Coverage: Add or remove GST from any amount. Current rate 9% (from 1 Jan 2024).
-- Source: IRAS GST rates
-
-### SG Property Agent Commission Estimator
-- Endpoints: GET /commission
-- Price: FREE
-- Coverage: Estimated commission for property sale/rental transactions. HDB, private, landed. Seller/buyer/landlord/tenant breakdown. Includes GST.
-- Source: CEA guidelines + prevailing market rates
-
-### SG CPF Housing Calculator
-- Endpoints: GET /cpf/housing
-- Price: FREE
-- Coverage: CPF Ordinary Account accumulation for housing. Monthly OA contribution by age band, 3-year and 5-year projected balances at 2.5% interest.
-- Source: CPF Board contribution rates (Jan 2024), OA interest rate
-
-### SG Salary Benchmark
-- Endpoints: GET /salary/search
-- Price: FREE
-- Coverage: Benchmark salary for any Singapore role using live MyCareersFuture job postings. Returns median, percentile ranges, annual equivalents, and experience-based breakdowns from real employer-posted salary data (not self-reported).
-- Source: MyCareersFuture (api.mycareersfuture.gov.sg) — Singapore's official government job portal
-
-### SG Property Tax Calculator
-- Endpoints: GET /property-tax
-- Price: FREE
-- Coverage: Singapore property tax calculator. Owner-occupier progressive rates 0-32%, non-owner-occupied 10-20%, non-residential flat 10%. Computed from Annual Value with tier breakdown.
-- Source: IRAS property tax rates (effective 1 Jan 2024), verified from iras.gov.sg
-
-### SG Buy-vs-Rent Analysis
-- Endpoints: GET /buy-vs-rent
-- Price: FREE
-- Coverage: Total cost comparison of buying vs renting over a configurable holding period. Includes mortgage amortization, stamp duty, property tax, maintenance, property appreciation, and opportunity cost of down payment invested. Returns net cost for each path and a recommendation.
-- Source: Composite — IRAS rates, standard mortgage amortization, transparent assumptions
-
-### SG School Proximity
-- Endpoints: GET /schools/near/{postal_code}, GET /schools/list
-- Price: FREE
-- Coverage: 294 Singapore primary/secondary schools with coordinates. Finds schools within 1km and 2km of a postal code for Primary 1 distance-priority/property valuation analysis.
-- Source: OpenStreetMap school coordinates; distance by haversine formula
-
-### HDB EIP / SPR Quota Rules
-- Endpoints: GET /hdb/eip/{town}
-- Price: FREE
-- Coverage: HDB Ethnic Integration Policy and SPR quota limits by buyer ethnicity/status, with transaction-risk guidance. Real-time block availability still requires HDB portal verification.
-- Source: HDB Ethnic Integration Policy and SPR quota rules
-
-### HDB Lease Decay
-- Endpoints: GET /hdb/lease-decay
-- Price: FREE
-- Coverage: Remaining lease, financing thresholds, CPF restriction timeline, SERS caveat, and lease-risk assessment for HDB flats.
-- Source: HDB lease framework, MAS mortgage rules, CPF housing rules
-
-### URA Private Property Transactions
-- Endpoints: GET /ura/transactions, GET /ura/status
-- Price: $0.05/call (status check is free)
-- Coverage: Caveat-level private residential transactions — project name, street, market segment (CCR/RCR/OCR), property type, sale price, area (sqm/sqft), PSF, transaction date, sale type (new/resale/sub-sale), tenure.
-- Source: URA Developer API (PMI_Resi_Transaction)
-
-### URA Median Rentals by Project
-- Endpoints: GET /ura/rental-median
-- Price: $0.05/call
-- Coverage: Median rental rates ($psf/month) for private residential projects, by property type and quarter.
-- Source: URA Developer API (PMI_Resi_Rental_Median)
-
-### URA Developer Sales
-- Endpoints: GET /ura/developer-sales
-- Price: $0.05/call
-- Coverage: Units launched and sold by developers, remaining inventory, median price by project.
-- Source: URA Developer API (PMI_Resi_Developer_Sales)
-
-### URA Future Supply Pipeline
-- Endpoints: GET /ura/pipeline
-- Price: $0.05/call
-- Coverage: Private residential projects in the planning/construction pipeline — units planned, expected completion, project stage.
-- Source: URA Developer API (PMI_Resi_Pipeline)
-
-### URA Rental Contracts
-- Endpoints: GET /ura/rental-contracts
-- Price: $0.05/call
-- Coverage: Aggregate rental contract statistics by area and property type.
-- Source: URA Developer API (PMI_Resi_Rental)
-
-## How AI agents connect
+### Option B: Direct MCP (tool discovery without auto-pay)
 
 Add to Claude Desktop or any MCP-compatible client:
 ```json
@@ -1835,14 +1687,390 @@ Add to Claude Desktop or any MCP-compatible client:
 }
 ```
 
-## Marketplace links
+This exposes all 27 MCP tools. Free tools work immediately. Paid tools return 402 with payment instructions — you need an x402-aware HTTP client to complete payment.
 
-- Full documentation: https://bountyapi.com/llms-full.txt
+### Option C: Direct HTTP (no MCP)
+
+Call endpoints directly with curl or any HTTP client. Free endpoints return data. Paid endpoints return HTTP 402 with a `payment-required` header containing x402 payment instructions.
+
+```bash
+# Free — works immediately
+curl "https://bountyapi.com/bsd?price=1000000"
+
+# Paid — returns 402
+curl "https://bountyapi.com/hdb/towns"
+```
+
+If no endpoint matches the user task, stop this flow and tell the user what data is available.
+
+---
+
+# Property Investment Research Methodology
+
+Use this playbook for property analysis requests (e.g., "Is this condo worth buying?", "Can I afford this property?", "Compare these 3 properties"):
+
+1. **Identify the property**: Get the address, postal code, or project name. If the user provides a PropertyGuru/99.co listing URL, extract the price, size (sqft), project name, and postal code from the page.
+2. **Stamp duty** (FREE): Call `POST /stamp-duty` with `{"price": <asking_price>, "buyer_profile": "SC", "property_count": 1}`. Returns BSD + ABSD breakdown.
+3. **Affordability check** (FREE): Call `GET /buy-vs-rent?monthly_rent=<est_rent>&property_price=<price>&holding_years=10`. Returns full buy-vs-rent comparison.
+4. **Mortgage** (FREE): Call `POST /mortgage/calculate` with `{"principal": <price*0.75>, "annual_interest_rate": 3.5, "loan_term_years": 25}`. Returns monthly payment.
+5. **Transaction comparables** ($0.05): Call `GET /ura/transactions?batch=1` to get recent private property transactions. Filter by district to find comparable sales.
+6. **Rental yield** ($0.005): Call `POST /rental-yield/calculate` with `{"property_price": <price>, "monthly_rent": <est_rent>}`. Returns gross/net yield.
+7. **Salary context** (FREE): Call `GET /salary/search?role=<user_job>` to benchmark whether the user can afford the monthly costs.
+8. **One-call summary** ($0.05): Call `POST /property/pitch` with the property details. Returns a client-ready investment thesis with verdict.
+
+**Cost optimization**: Steps 2-4 and 7 are FREE. Do those first. Only pay for steps 5-6 and 8 if the user wants deep analysis.
+
+---
+
+# Free Endpoints (no payment required)
+
+## GET /bsd
+Buyer's Stamp Duty calculation for residential property.
+Query: `?price=1000000`
+Price: FREE
+Source: iras.gov.sg
+
+Example:
+```
+GET /bsd?price=1000000
+```
+Response: `{"price": 1000000, "bsd": 24600, "breakdown": [...], "source": "iras.gov.sg"}`
+
+---
+
+## POST /stamp-duty
+Full stamp duty calculation (BSD + ABSD). Use this instead of /bsd when buyer profile matters.
+Price: FREE
+Source: iras.gov.sg, verified Jan 2026
+
+Example:
+```json
+{
+  "price": 1500000,
+  "buyer_profile": "SC",
+  "property_count": 1
+}
+```
+buyer_profile values: SC, SPR, FR, entity, developer, trustee
+ABSD rates: SC 1st=0%, 2nd=20%, 3rd=30%. SPR 1st=5%, 2nd=30%. FR=60%. Entity=65%.
+
+---
+
+## GET /absd
+Additional Buyer's Stamp Duty only.
+Query: `?price=1500000&buyer_profile=SPR&property_count=1`
+Price: FREE
+
+---
+
+## POST /mortgage/calculate
+Fixed-rate mortgage with amortization schedule.
+Price: FREE
+
+Example:
+```json
+{
+  "principal": 1125000,
+  "annual_interest_rate": 3.5,
+  "loan_term_years": 25
+}
+```
+Response: `{"monthly_payment": 5629.76, "total_interest": 563928.18, "total_paid": 1686428.18}`
+
+---
+
+## GET /buy-vs-rent
+Total cost comparison of buying vs renting over a holding period. Includes mortgage, stamp duty, property tax, maintenance, appreciation, and opportunity cost.
+Query: `?monthly_rent=4500&property_price=1500000&holding_years=10`
+Price: FREE
+Source: Composite — IRAS rates, standard amortization
+
+---
+
+## GET /property-tax
+Singapore property tax. Owner-occupier 0-32%, non-owner-occupied 10-20%.
+Query: `?annual_value=36000&owner_occupied=true`
+Price: FREE
+Source: IRAS, effective 1 Jan 2024
+
+---
+
+## GET /tax/income
+Singapore individual income tax. Resident progressive 0-22%, non-resident 15% flat.
+Query: `?annual_income=120000`
+Price: FREE
+Source: IRAS individual income tax rates
+
+---
+
+## GET /gst
+Add or remove GST (9% from 1 Jan 2024).
+Query: `?amount=100&mode=add`
+Price: FREE
+
+---
+
+## GET /commission
+Estimated property agent commission for sale/rental.
+Query: `?price=1500000&transaction_type=sale`
+Price: FREE
+
+---
+
+## GET /cpf/housing
+CPF Ordinary Account accumulation for housing.
+Query: `?monthly_income=8000&age=30`
+Price: FREE
+
+---
+
+## GET /salary/search
+Benchmark salary for any Singapore role using live MyCareersFuture job postings. Not self-reported — real employer-posted data.
+Query: `?role=software engineer`
+Price: FREE
+Source: MyCareersFuture (api.mycareersfuture.gov.sg)
+
+---
+
+## GET /address/{postal_code}
+Postal code to district, planning area, CCR/RCR/OCR region, HDB town.
+Price: FREE
+Source: URA Master Plan 2019, SLA postal sectors
+
+---
+
+## GET /mrt/near/{postal_code}
+5 nearest MRT stations with walking distance.
+Price: FREE
+Source: LTA DataMall, 142 stations across all 6 lines
+
+---
+
+## GET /schools/near/{postal_code}
+Schools within 1km and 2km for Primary 1 distance priority.
+Price: FREE
+Source: OpenStreetMap, 294 schools
+
+---
+
+## GET /postal/{code}
+Postal code to district number and name.
+Price: FREE
+
+---
+
+## GET /hdb/lease-decay
+HDB remaining lease analysis — financing thresholds, CPF restrictions, SERS caveat.
+Query: `?lease_remaining=65`
+Price: FREE
+
+---
+
+## GET /hdb/eip/{town}
+HDB Ethnic Integration Policy and SPR quota limits.
+Price: FREE
+
+---
+
+## GET /currency/
+Currency exchange rates.
+Price: FREE
+
+---
+
+## GET /invest/
+Investment growth calculator.
+Price: FREE
+
+---
+
+# Paid Endpoints (x402 micropayment required)
+
+## GET /hdb/towns
+All HDB towns with transaction counts.
+Price: $0.01/call
+Source: data.gov.sg (live)
+
+---
+
+## GET /hdb/median/{town}
+Median resale price by flat type for a specific town.
+Price: $0.01/call
+Source: data.gov.sg
+
+---
+
+## GET /hdb/search
+Search HDB resale transactions with filters (town, flat_type, price range).
+Price: $0.01/call
+Source: data.gov.sg, 234K+ transactions 2017-present
+
+---
+
+## POST /rental-yield/calculate
+Gross yield, net yield, cap rate, price-to-rent ratio, cashflow.
+Price: $0.005/call
+
+Example:
+```json
+{
+  "property_price": 1500000,
+  "monthly_rent": 4500
+}
+```
+
+---
+
+## POST /affordability/calculate
+MAS TDSR (55%) and HDB MSR (30%) affordability check. Returns max loan and property price.
+Price: $0.01/call
+Source: MAS TDSR framework, HDB MSR rules
+
+---
+
+## POST /property/analyze
+Complete property analysis in one call: stamp duty, comparables, rental yield, affordability, location, risk.
+Price: $0.05/call
+Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
+
+---
+
+## POST /property/pitch
+Client-ready investment thesis: price fairness, stamp duty, affordability, yield, location, tenure risk, upfront costs, strengths, risk flags, plain-English verdict.
+Price: $0.05/call
+
+Example:
+```json
+{
+  "property_type": "condo",
+  "project_name": "One Leicester",
+  "address": "500 Potong Pasir Ave 1",
+  "price": 2499000,
+  "monthly_rent": 4500,
+  "buyer_profile": "SC"
+}
+```
+
+---
+
+## POST /property/rank
+Rank multiple candidate properties by investment value. Returns 0-100 scores across 4 dimensions.
+Price: $0.10/call
+
+---
+
+## GET /ura/transactions
+Private residential property transactions (caveat data). Project, street, price, PSF, tenure, sale type.
+Query: `?batch=1`
+Price: $0.05/call
+Source: URA Developer API (PMI_Resi_Transaction)
+
+---
+
+## GET /ura/rental-median
+Median rental rates by private residential project.
+Query: `?project_name=One Leicester`
+Price: $0.05/call
+Source: URA Developer API
+
+---
+
+## GET /ura/developer-sales
+Developer units launched and sold by project.
+Price: $0.05/call
+Source: URA Developer API
+
+---
+
+## GET /ura/pipeline
+Future private residential supply pipeline.
+Query: `?batch=1`
+Price: $0.05/call
+Source: URA Developer API
+
+---
+
+## GET /ura/rental-contracts
+Aggregate rental contract statistics by area and property type.
+Price: $0.05/call
+Source: URA Developer API
+
+---
+
+## GET /ura/status
+Check if URA API is configured. Free — use before paid URA calls.
+Price: FREE
+
+---
+
+# Pricing Summary
+
+| Endpoint | Price |
+|----------|-------|
+| Stamp Duty (BSD/ABSD) | FREE |
+| Mortgage Calculator | FREE |
+| Buy vs Rent Analysis | FREE |
+| Property Tax | FREE |
+| Income Tax | FREE |
+| GST Calculator | FREE |
+| Commission Estimator | FREE |
+| CPF Housing | FREE |
+| Salary Benchmark | FREE |
+| Address Intelligence | FREE |
+| MRT Proximity | FREE |
+| School Proximity | FREE |
+| Postal District | FREE |
+| HDB Lease Decay | FREE |
+| HDB EIP/SPR Quota | FREE |
+| Currency | FREE |
+| Investment Growth | FREE |
+| URA Status | FREE |
+| HDB Resale Data | $0.01 |
+| Affordability (TDSR/MSR) | $0.01 |
+| Rental Yield | $0.005 |
+| Property Analysis | $0.05 |
+| Property Pitch | $0.05 |
+| URA Transactions | $0.05 |
+| URA Rental Median | $0.05 |
+| URA Developer Sales | $0.05 |
+| URA Pipeline | $0.05 |
+| URA Rental Contracts | $0.05 |
+| Property Ranking | $0.10 |
+
+---
+
+# MCP Integration
+
+Bounty exposes all endpoints as MCP tools via `https://bountyapi.com/mcp`.
+
+Claude Desktop config:
+```json
+{
+  "mcpServers": {
+    "bounty-api": {
+      "url": "https://bountyapi.com/mcp"
+    }
+  }
+}
+```
+
+npm package for stdio transport: `bountyapi-mcp` (v1.8.0)
+```bash
+npx bountyapi-mcp
+```
+
+---
+
+# Links
+
 - Pricing: https://bountyapi.com/pricing
-- Provider onboarding: https://bountyapi.com/providers
 - Agent setup: https://bountyapi.com/setup
+- Provider onboarding: https://bountyapi.com/providers
 - Machine manifest: https://bountyapi.com/manifest.json
 - Machine pricing: https://bountyapi.com/pricing.json
+- Full documentation: https://bountyapi.com/llms-full.txt
+- GitHub: https://github.com/vncent786/bounty-api
+- npm: https://www.npmjs.com/package/bountyapi-mcp
 """
 
 

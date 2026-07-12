@@ -1,13 +1,11 @@
 """
-Bounty API — Specialist data APIs for AI agents.
-Singapore property, financial, and geographic data.
-Designed for x402 micropayments and MCP discovery.
+Bounty API — Pay-per-call data APIs for AI agents.
+Global research endpoints plus Singapore property/financial workflows.
+Designed for x402 micropayments and MCP/AgentCash discovery.
 
 APIs:
-- SG Stamp Duty (BSD + ABSD) — verified against IRAS
-- SG Postal Code to District mapper
-- SG Rental Yield Calculator
-- HDB Resale Price data (live from data.gov.sg)
+- Company intelligence, news search, job signals, app reviews
+- SG property/tax/location/finance workflows
 """
 
 from fastapi import FastAPI, Query, HTTPException, Request
@@ -22,8 +20,8 @@ import os
 
 app = FastAPI(
     title="Bounty API",
-    description="Specialist data APIs for AI agents. Pay-per-call, agent-native, globally scalable.",
-    version="2.0.0",
+    description="Pay-per-call data APIs for AI agents: company intelligence, news, jobs, app reviews, and Singapore property workflows.",
+    version="2.1.0",
 )
 
 app.add_middleware(
@@ -225,30 +223,25 @@ class StampDutyResult(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 async def landing_page():
-    """Public marketplace landing page — Linear school + gold accent."""
+    """Public landing page — agent-native data infrastructure."""
     return """<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Bounty API — Verified Singapore data APIs for AI agents</title>
-  <meta name="description" content="31 specialist data APIs for AI agents. URA private transactions, HDB resale, stamp duty, salary benchmarks, property pitch. MCP-native, x402 micropayments. Singapore live now." />
+  <title>Bounty API — Pay-per-call data APIs for AI agents</title>
+  <meta name="description" content="Agent-native data APIs for company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP discovery, x402 payments, no API keys or subscriptions." />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
-  <meta property="og:title" content="Bounty API — Verified Singapore data APIs for AI agents" />
-  <meta property="og:description" content="31 APIs. URA private property transactions, HDB resale, salary benchmarks, property investment analysis. MCP-native, x402 payments. Singapore live now." />
+  <meta property="og:title" content="Bounty API — Pay-per-call data APIs for AI agents" />
+  <meta property="og:description" content="Company intelligence, news, jobs, app reviews, and Singapore property workflows. Agents discover via MCP and pay per call with x402." />
   <meta property="og:image" content="/og-image.png" />
-  <meta property="og:image:width" content="1200" />
-  <meta property="og:image:height" content="630" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://bountyapi.com" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Bounty API — Verified Singapore data APIs for AI agents" />
-  <meta name="twitter:description" content="31 APIs. URA private transactions, HDB resale, salary benchmarks, property analysis. MCP + x402." />
-  <meta name="twitter:image" content="/twitter-card.png" />
   <meta name="theme-color" content="#08090A" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -258,340 +251,85 @@ async def landing_page():
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
     "name": "Bounty API",
-    "applicationCategory": "BusinessApplication",
-    "applicationSubCategory": "Data API",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "Agent data API",
     "operatingSystem": "Web",
     "url": "https://bountyapi.com",
-    "description": "Specialist data APIs for AI agents. URA private property transactions, HDB resale data, salary benchmarks, property investment analysis. MCP-native with x402 micropayments.",
+    "description": "Pay-per-call data APIs for AI agents: company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP-native with x402 micropayments.",
     "offers": [
-      {"@type": "Offer", "name": "Free tier", "price": "0", "priceCurrency": "USD", "description": "19 free endpoints"},
-      {"@type": "Offer", "name": "Paid tier", "price": "0.005", "priceCurrency": "USD", "description": "$0.005-$0.10 per call"}
+      {"@type": "Offer", "name": "Free utility endpoints", "price": "0", "priceCurrency": "USD"},
+      {"@type": "Offer", "name": "Paid data endpoints", "price": "0.005", "priceCurrency": "USD", "description": "$0.005-$0.10 per call"}
     ]
   }
   </script>
   <style>
     :root {
-      --ground: #08090A; --surface-1: #141519; --surface-2: #1C1D22; --surface-3: #26272E;
-      --text-primary: #F7F8F8; --text-secondary: #9CA3AF; --text-muted: #6B7280;
-      --hairline: rgba(255,255,255,0.06); --hairline-strong: rgba(255,255,255,0.10);
-      --accent: #D4A537; --accent-dim: rgba(212,165,55,0.08); --accent-text: #E8C766;
-      --free: #3BA55D; --free-dim: rgba(59,165,93,0.10);
-      --r-sm: 6px; --r-md: 12px;
-      --ease: cubic-bezier(0.22, 1, 0.36, 1); --speed: 150ms;
+      --ground:#08090A; --surface-1:#141519; --surface-2:#1C1D22; --surface-3:#26272E;
+      --text-primary:#F7F8F8; --text-secondary:#A7ADB8; --text-muted:#6F7682;
+      --hairline:rgba(255,255,255,.07); --hairline-strong:rgba(255,255,255,.12);
+      --accent:#D4A537; --accent-dim:rgba(212,165,55,.09); --accent-text:#E8C766;
+      --ok:#3BA55D; --ok-dim:rgba(59,165,93,.11); --r-sm:6px; --r-md:14px;
+      --ease:cubic-bezier(.22,1,.36,1); --speed:150ms;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Geist', system-ui, -apple-system, sans-serif;
-      background: var(--ground); color: var(--text-primary);
-      -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
-      font-size: 15px; line-height: 1.55; font-weight: 400;
-    }
-    a { color: inherit; text-decoration: none; }
-    code, .mono { font-family: 'Geist Mono', ui-monospace, monospace; }
-    .nav {
-      position: sticky; top: 0; z-index: 50; display: flex; align-items: center; justify-content: space-between;
-      padding: 0 32px; height: 56px; background: rgba(8,9,10,0.80);
-      backdrop-filter: blur(20px) saturate(180%); -webkit-backdrop-filter: blur(20px) saturate(180%);
-      border-bottom: 1px solid var(--hairline);
-    }
-    .nav-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; letter-spacing: -0.02em; }
-    .nav-brand img { border-radius: 5px; }
-    .nav-links { display: flex; align-items: center; gap: 28px; font-size: 14px; color: var(--text-secondary); font-weight: 400; }
-    .nav-links a { transition: color var(--speed) var(--ease); }
-    .nav-links a:hover { color: var(--text-primary); }
-    .nav-live {
-      display: flex; align-items: center; gap: 6px;
-      font: 12px 'Geist Mono', monospace; color: var(--text-muted);
-      padding-left: 16px; border-left: 1px solid var(--hairline);
-    }
-    .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--free); box-shadow: 0 0 0 0 rgba(59,165,93,0.4); animation: live-pulse 2s infinite; }
-    @keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(59,165,93,0.4); } 70% { box-shadow: 0 0 0 6px rgba(59,165,93,0); } 100% { box-shadow: 0 0 0 0 rgba(59,165,93,0); } }
-    .btn {
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      height: 36px; padding: 0 16px; border-radius: var(--r-sm);
-      font-size: 14px; font-weight: 500; cursor: pointer;
-      transition: all var(--speed) var(--ease); border: 1px solid transparent;
-    }
-    .btn-primary { background: var(--text-primary); color: var(--ground); }
-    .btn-primary:hover { background: #E5E7EB; }
-    .btn-ghost { background: transparent; color: var(--text-secondary); border-color: var(--hairline-strong); }
-    .btn-ghost:hover { color: var(--text-primary); border-color: var(--text-muted); }
-    .btn-accent { background: var(--accent-dim); color: var(--accent-text); border-color: rgba(212,165,55,0.20); }
-    .btn-accent:hover { border-color: var(--accent); }
-    .container { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
-    .hero { padding: 96px 0 64px; }
-    .hero-eyebrow {
-      display: inline-flex; align-items: center; gap: 8px;
-      font: 13px 'Geist Mono', monospace; color: var(--accent-text);
-      background: var(--accent-dim); border: 1px solid rgba(212,165,55,0.15);
-      padding: 4px 12px; border-radius: 999px; margin-bottom: 28px;
-    }
-    .hero h1 { font-size: 56px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; max-width: 680px; margin-bottom: 20px; }
-    .hero-sub { font-size: 18px; color: var(--text-secondary); line-height: 1.6; max-width: 560px; margin-bottom: 36px; font-weight: 400; }
-    .hero-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .hero-actions .install {
-      font: 13px 'Geist Mono', monospace; color: var(--text-muted);
-      background: var(--surface-1); border: 1px solid var(--hairline);
-      padding: 8px 14px; border-radius: var(--r-sm);
-      display: flex; align-items: center; gap: 8px;
-    }
-    .hero-actions .install span { color: var(--accent-text); }
-    .terminal {
-      margin-top: 56px; border-radius: var(--r-md); overflow: hidden;
-      border: 1px solid var(--hairline); background: var(--surface-1);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 24px 48px -24px rgba(0,0,0,0.5);
-    }
-    .term-header { display: flex; align-items: center; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--hairline); font: 12px 'Geist Mono', monospace; color: var(--text-muted); }
-    .term-tab { padding: 4px 10px; border-radius: 4px; font-size: 11px; color: var(--text-secondary); }
-    .term-tab.active { background: var(--surface-2); color: var(--text-primary); }
-    .term-body { padding: 24px; font: 13px/1.7 'Geist Mono', ui-monospace, monospace; color: var(--text-secondary); overflow-x: auto; }
-    .term-comment { color: var(--text-muted); }
-    .term-prompt { color: var(--accent); }
-    .term-key { color: #79C0FF; }
-    .term-str { color: #7EE787; }
-    .term-src { display: inline-block; font-size: 11px; color: var(--accent-text); background: var(--accent-dim); padding: 1px 6px; border-radius: 3px; margin-left: 4px; }
-    .term-free { display: inline-block; font-size: 11px; color: var(--free); background: var(--free-dim); padding: 1px 6px; border-radius: 3px; margin-left: 4px; }
-    .section { padding: 80px 0; border-top: 1px solid var(--hairline); }
-    .section-label { font: 12px 'Geist Mono', monospace; color: var(--accent-text); letter-spacing: 0.04em; margin-bottom: 12px; }
-    .section h2 { font-size: 32px; font-weight: 600; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 12px; max-width: 520px; }
-    .section-desc { color: var(--text-secondary); font-size: 16px; line-height: 1.6; max-width: 520px; margin-bottom: 48px; }
-    .api-table { border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden; }
-    .api-table-head {
-      display: grid; grid-template-columns: 2fr 1fr 100px 80px;
-      padding: 12px 20px; background: var(--surface-1); border-bottom: 1px solid var(--hairline);
-      font: 11px 'Geist Mono', monospace; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase;
-    }
-    .api-row {
-      display: grid; grid-template-columns: 2fr 1fr 100px 80px;
-      padding: 16px 20px; align-items: center; border-bottom: 1px solid var(--hairline);
-      transition: background var(--speed) var(--ease);
-    }
-    .api-row:last-child { border-bottom: none; }
-    .api-row:hover { background: var(--surface-1); }
-    .api-name { font-weight: 500; font-size: 15px; }
-    .api-desc { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
-    .api-src { font: 12px 'Geist Mono', monospace; color: var(--accent-text); }
-    .api-price { font: 13px 'Geist Mono', monospace; }
-    .api-price.free { color: var(--free); }
-    .api-price.paid { color: var(--text-primary); }
-    .api-status { font: 11px 'Geist Mono', monospace; text-align: right; }
-    .api-status .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--free); margin-right: 6px; }
-    .api-more { text-align: center; padding: 20px; border: 1px solid var(--hairline); border-top: none; border-radius: 0 0 var(--r-md) var(--r-md); }
-    .api-more a { font-size: 14px; color: var(--text-secondary); transition: color var(--speed) var(--ease); }
-    .api-more a:hover { color: var(--accent-text); }
-    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden; }
-    .step { padding: 32px 28px; border-right: 1px solid var(--hairline); }
-    .step:last-child { border-right: none; }
-    .step-num { font: 13px 'Geist Mono', monospace; color: var(--accent-text); margin-bottom: 16px; }
-    .step h3 { font-size: 16px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em; }
-    .step p { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
-    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden; }
-    .split-left { padding: 40px; border-right: 1px solid var(--hairline); }
-    .split-right { background: var(--surface-1); padding: 0; font: 13px/1.65 'Geist Mono', monospace; overflow-x: auto; }
-    .split-right pre { padding: 24px; color: var(--text-secondary); }
-    .split-left h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; margin-bottom: 12px; }
-    .split-left > p { color: var(--text-secondary); font-size: 15px; line-height: 1.6; margin-bottom: 28px; }
-    .feature-list { display: flex; flex-direction: column; gap: 20px; }
-    .feature { display: flex; gap: 12px; align-items: flex-start; }
-    .feature-icon { width: 20px; height: 20px; flex: 0 0 auto; border-radius: var(--r-sm); border: 1px solid var(--accent); display: grid; place-items: center; font-size: 11px; color: var(--accent-text); margin-top: 1px; }
-    .feature strong { display: block; font-size: 14px; font-weight: 500; margin-bottom: 2px; }
-    .feature span { font-size: 13px; color: var(--text-muted); line-height: 1.45; }
-    .directory-row { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; padding: 24px 0; border-top: 1px solid var(--hairline); }
-    .directory-label { font: 12px 'Geist Mono', monospace; color: var(--text-muted); }
-    .directory-items { display: flex; gap: 24px; flex-wrap: wrap; }
-    .directory-item { font: 14px 'Geist', sans-serif; font-weight: 500; color: var(--text-secondary); transition: color var(--speed) var(--ease); }
-    .directory-item:hover { color: var(--text-primary); }
-    .footer { border-top: 1px solid var(--hairline); padding: 48px 0 40px; }
-    .footer-inner { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; }
-    .footer-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; margin-bottom: 10px; letter-spacing: -0.02em; }
-    .footer-tag { font-size: 13px; color: var(--text-muted); line-height: 1.5; max-width: 280px; }
-    .footer-col h4 { font: 11px 'Geist Mono', monospace; color: var(--text-muted); letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 14px; }
-    .footer-col a { display: block; font-size: 14px; color: var(--text-secondary); margin-bottom: 8px; transition: color var(--speed) var(--ease); }
-    .footer-col a:hover { color: var(--text-primary); }
-    .footer-bottom { padding: 24px 0 0; border-top: 1px solid var(--hairline); margin-top: 40px; display: flex; justify-content: space-between; font: 12px 'Geist Mono', monospace; color: var(--text-muted); }
-    @media (max-width: 768px) {
-      .hero h1 { font-size: 36px; } .hero-sub { font-size: 16px; }
-      .steps { grid-template-columns: 1fr; }
-      .step { border-right: none; border-bottom: 1px solid var(--hairline); }
-      .split { grid-template-columns: 1fr; }
-      .split-left { border-right: none; border-bottom: 1px solid var(--hairline); }
-      .footer-inner { grid-template-columns: 1fr; }
-      .nav-links { display: none; }
-      .api-table-head { display: none; }
-      .api-row { grid-template-columns: 1fr; gap: 4px; }
-    }
+    *{box-sizing:border-box;margin:0;padding:0} html{scroll-behavior:smooth}
+    body{font-family:'Geist',system-ui,-apple-system,sans-serif;background:var(--ground);color:var(--text-primary);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    a{color:inherit;text-decoration:none} code,.mono{font-family:'Geist Mono',ui-monospace,monospace}
+    .nav{position:sticky;top:0;z-index:50;height:56px;padding:0 32px;display:flex;align-items:center;justify-content:space-between;background:rgba(8,9,10,.82);backdrop-filter:blur(20px) saturate(180%);border-bottom:1px solid var(--hairline)}
+    .nav-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px;letter-spacing:-.02em}.nav-brand img{border-radius:5px}.nav-links{display:flex;align-items:center;gap:28px;font-size:14px;color:var(--text-secondary)}.nav-links a:hover{color:var(--text-primary)}
+    .nav-live{display:flex;align-items:center;gap:6px;font:12px 'Geist Mono',monospace;color:var(--text-muted);padding-left:16px;border-left:1px solid var(--hairline)}.live-dot{width:6px;height:6px;border-radius:50%;background:var(--ok)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;height:36px;padding:0 16px;border-radius:var(--r-sm);font-size:14px;font-weight:500;border:1px solid transparent;transition:all var(--speed) var(--ease)}.btn-primary{background:var(--text-primary);color:var(--ground)}.btn-primary:hover{background:#E5E7EB}.btn-ghost{color:var(--text-secondary);border-color:var(--hairline-strong)}.btn-ghost:hover{color:var(--text-primary);border-color:var(--text-muted)}.btn-accent{background:var(--accent-dim);color:var(--accent-text);border-color:rgba(212,165,55,.20)}
+    .container{max-width:1120px;margin:0 auto;padding:0 32px}.hero{padding:96px 0 64px}.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;font:13px 'Geist Mono',monospace;color:var(--accent-text);background:var(--accent-dim);border:1px solid rgba(212,165,55,.15);padding:4px 12px;border-radius:999px;margin-bottom:28px}.hero h1{font-size:58px;font-weight:600;letter-spacing:-.035em;line-height:1.04;max-width:780px;margin-bottom:20px}.hero-sub{font-size:18px;color:var(--text-secondary);line-height:1.65;max-width:650px;margin-bottom:34px}.hero-actions{display:flex;gap:12px;align-items:center;flex-wrap:wrap}.install{font:13px 'Geist Mono',monospace;color:var(--text-muted);background:var(--surface-1);border:1px solid var(--hairline);padding:8px 14px;border-radius:var(--r-sm)}.install span{color:var(--accent-text)}
+    .terminal{margin-top:54px;border-radius:var(--r-md);overflow:hidden;border:1px solid var(--hairline);background:var(--surface-1);box-shadow:0 24px 48px -24px rgba(0,0,0,.55)}.term-header{display:flex;gap:8px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--hairline);font:12px 'Geist Mono',monospace;color:var(--text-muted)}.term-tab{padding:4px 10px;border-radius:4px;font-size:11px}.term-tab.active{background:var(--surface-2);color:var(--text-primary)}.term-body{padding:24px;font:13px/1.75 'Geist Mono',monospace;color:var(--text-secondary);overflow-x:auto}.term-comment{color:var(--text-muted)}.term-prompt{color:var(--accent)}.term-key{color:#79C0FF}.term-str{color:#7EE787}.term-src{display:inline-block;font-size:11px;color:var(--accent-text);background:var(--accent-dim);padding:1px 6px;border-radius:3px;margin-left:4px}.term-paid{display:inline-block;font-size:11px;color:var(--text-primary);background:rgba(255,255,255,.08);padding:1px 6px;border-radius:3px;margin-left:4px}
+    .section{padding:78px 0;border-top:1px solid var(--hairline)}.section-label{font:12px 'Geist Mono',monospace;color:var(--accent-text);letter-spacing:.04em;margin-bottom:12px}.section h2{font-size:34px;font-weight:600;letter-spacing:-.026em;line-height:1.15;max-width:620px;margin-bottom:12px}.section-desc{color:var(--text-secondary);font-size:16px;line-height:1.65;max-width:640px;margin-bottom:44px}.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden}.card{background:var(--ground);padding:28px}.card h3{font-size:16px;font-weight:600;margin-bottom:8px}.card p{color:var(--text-secondary);font-size:14px;line-height:1.55}.tag{display:inline-flex;margin-bottom:18px;font:12px 'Geist Mono',monospace;color:var(--accent-text);background:var(--accent-dim);padding:3px 8px;border-radius:999px}.api-table{border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden}.api-table-head,.api-row{display:grid;grid-template-columns:1.6fr 1.1fr 120px 1fr;gap:20px;align-items:center}.api-table-head{padding:12px 20px;background:var(--surface-1);border-bottom:1px solid var(--hairline);font:11px 'Geist Mono',monospace;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase}.api-row{padding:18px 20px;border-bottom:1px solid var(--hairline)}.api-row:last-child{border-bottom:none}.api-name{font-weight:500}.api-desc{font-size:13px;color:var(--text-muted);margin-top:2px}.api-src{font:12px 'Geist Mono',monospace;color:var(--accent-text)}.api-price{font:13px 'Geist Mono',monospace}.api-price.free{color:var(--ok)}.api-use{font-size:13px;color:var(--text-secondary)}.split{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--hairline);border-radius:var(--r-md);overflow:hidden}.split-left{padding:40px;border-right:1px solid var(--hairline)}.split-right{background:var(--surface-1);overflow-x:auto}.split-right pre{padding:24px;font:13px/1.7 'Geist Mono',monospace;color:var(--text-secondary)}.feature-list{display:flex;flex-direction:column;gap:20px}.feature{display:flex;gap:12px}.feature-icon{width:20px;height:20px;flex:0 0 auto;border-radius:var(--r-sm);border:1px solid var(--accent);display:grid;place-items:center;font:11px 'Geist Mono';color:var(--accent-text);margin-top:1px}.feature strong{display:block;font-size:14px;font-weight:500;margin-bottom:2px}.feature span{display:block;font-size:13px;color:var(--text-muted);line-height:1.45}.footer{border-top:1px solid var(--hairline);padding:48px 0 40px}.footer-inner{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:40px}.footer-brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px;margin-bottom:10px}.footer-tag{font-size:13px;color:var(--text-muted);line-height:1.5;max-width:310px}.footer-col h4{font:11px 'Geist Mono',monospace;color:var(--text-muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:14px}.footer-col a{display:block;font-size:14px;color:var(--text-secondary);margin-bottom:8px}.footer-col a:hover{color:var(--text-primary)}.footer-bottom{padding-top:24px;border-top:1px solid var(--hairline);margin-top:40px;display:flex;justify-content:space-between;font:12px 'Geist Mono',monospace;color:var(--text-muted)}
+    @media(max-width:900px){.hero h1{font-size:40px}.grid{grid-template-columns:1fr}.api-table-head{display:none}.api-row{grid-template-columns:1fr;gap:6px}.split{grid-template-columns:1fr}.split-left{border-right:none;border-bottom:1px solid var(--hairline)}.footer-inner{grid-template-columns:1fr}.nav-links{display:none}}
   </style>
 </head>
 <body>
   <nav class="nav">
     <a class="nav-brand" href="/"><img src="/logo-mark-dark.png" alt="Bounty" width="22" height="22"><span>Bounty</span></a>
-    <div style="display:flex;align-items:center;gap:24px">
-      <div class="nav-links">
-        <a href="#apis">APIs</a>
-        <a href="/pricing">Pricing</a>
-        <a href="/setup">Setup</a>
-        <a href="/docs">Docs</a>
-      </div>
-      <div class="nav-live"><span class="live-dot"></span><span>31 APIs &middot; LIVE</span></div>
-    </div>
+    <div style="display:flex;align-items:center;gap:24px"><div class="nav-links"><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/setup">Setup</a><a href="/docs">Docs</a></div><div class="nav-live"><span class="live-dot"></span><span>GLOBAL + SG LIVE</span></div></div>
   </nav>
-
-  <div class="container">
-    <div class="hero">
-      <div class="hero-eyebrow">Singapore &middot; MCP-native &middot; x402</div>
-      <h1>Verified data APIs<br>for AI agents.</h1>
-      <p class="hero-sub">Property transactions, salary benchmarks, tax calculators, and investment analysis. Every response carries source provenance. Agents discover via MCP and pay per call in USDC.</p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="/setup">Get started</a>
-        <div class="install"><span>$</span> npx bountyapi-mcp</div>
-      </div>
-      <div class="terminal">
-        <div class="term-header"><div class="term-tab active">bountyapi-mcp</div><div class="term-tab">stdout</div></div>
-        <div class="term-body">
-<span class="term-comment"># Agent calls stamp duty calculator</span>
-<span class="term-prompt">&gt;</span> bounty_stamp_duty(price=1_000_000)
+  <main>
+    <div class="container"><section class="hero">
+      <div class="hero-eyebrow">MCP discovery · x402 payments · no API keys</div>
+      <h1>Data APIs agents can discover, price, and call by themselves.</h1>
+      <p class="hero-sub">Bounty gives AI agents pay-per-call access to company intelligence, news, job postings, app reviews, and Singapore property workflows. No accounts. No subscriptions. Every response keeps source provenance and leaves missing data as missing.</p>
+      <div class="hero-actions"><a class="btn btn-primary" href="/setup">Connect an agent</a><a class="btn btn-ghost" href="/pricing">View pricing</a><div class="install"><span>$</span> npx agentcash@latest install</div></div>
+      <div class="terminal"><div class="term-header"><div class="term-tab active">agent workflow</div><div class="term-tab">stdout</div></div><div class="term-body">
+<span class="term-comment"># Agent researches a prospect without creating 4 vendor accounts</span>
+<span class="term-prompt">&gt;</span> GET /company/stripe.com <span class="term-paid">$0.05</span>
+<span class="term-prompt">&gt;</span> GET /news/search?q=Stripe+AI <span class="term-paid">$0.01</span>
+<span class="term-prompt">&gt;</span> GET /jobs/search?q=Stripe+AI+engineer <span class="term-paid">$0.02</span>
 
 {
-  <span class="term-key">"price"</span>: 1000000,
-  <span class="term-key">"bsd"</span>: 24600,
-  <span class="term-key">"absd"</span>: 0,
-  <span class="term-key">"total"</span>: 24600 <span class="term-free">FREE</span> <span class="term-src">src: iras.gov.sg</span>
+  <span class="term-key">"workflow"</span>: <span class="term-str">"company due diligence"</span>,
+  <span class="term-key">"sources"</span>: [<span class="term-str">"company website"</span>, <span class="term-str">"Google News RSS"</span>, <span class="term-str">"job feeds"</span>],
+  <span class="term-key">"auth"</span>: <span class="term-str">"x402 payment, no API key"</span>
 }
+      </div></div>
+    </section></div>
 
-<span class="term-comment"># Agent queries URA private transactions</span>
-<span class="term-prompt">&gt;</span> bounty_ura_transactions(area="orchard")
+    <div class="container"><section class="section"><div class="section-label">// POSITIONING</div><h2>Not a Singapore property site. That was the first vertical.</h2><p class="section-desc">The product is an agent-native data layer: wrap useful data sources behind clean HTTP, MCP discovery, transparent per-call prices, and x402 payment. Singapore property remains live because it has verified source-backed workflows. The new global layer targets agent research tasks with broader demand.</p><div class="grid"><div class="card"><span class="tag">research</span><h3>Company intelligence</h3><p>Website tech stack, contacts, social links, SSL, and security headers for prospecting and due diligence.</p></div><div class="card"><span class="tag">monitoring</span><h3>News search</h3><p>Current articles by query for launches, lawsuits, funding, layoffs, and market events.</p></div><div class="card"><span class="tag">gtm</span><h3>Job signals</h3><p>Hiring demand and expansion vectors from job postings and hiring threads.</p></div><div class="card"><span class="tag">product</span><h3>App reviews</h3><p>Recent App Store review snapshots for competitor complaints, ratings, and feature gaps.</p></div></div></section></div>
 
-{
-  <span class="term-key">"records"</span>: 293,
-  <span class="term-key">"median_psf"</span>: 2847,
-  <span class="term-key">"sample"</span>: [
-    { <span class="term-key">"project"</span>: <span class="term-str">"ION ORCHARD"</span>, <span class="term-key">"price"</span>: 3850000, <span class="term-key">"psf"</span>: 3128 }
-  ] <span class="term-src">src: ura.gov.sg</span>
-}
+    <div class="container"><section class="section" id="apis"><div class="section-label">// LIVE API CATALOG</div><h2>Global research APIs plus Singapore property workflows.</h2><p class="section-desc">Agents should start with the global research endpoints for company, market, GTM, and product questions. Use the Singapore vertical when the task is explicitly property, tax, affordability, or local location analysis.</p><div class="api-table"><div class="api-table-head"><div>Endpoint</div><div>Source</div><div>Price</div><div>Best for</div></div>
+      <div class="api-row"><div><div class="api-name">Company Intelligence</div><div class="api-desc">Tech stack, contacts, social links, SSL, security headers.</div></div><div class="api-src">company website</div><div class="api-price">$0.05</div><div class="api-use">B2B prospecting, DD</div></div>
+      <div class="api-row"><div><div class="api-name">News Search</div><div class="api-desc">Structured current news by keyword.</div></div><div class="api-src">news RSS</div><div class="api-price">$0.01</div><div class="api-use">monitoring, events</div></div>
+      <div class="api-row"><div><div class="api-name">Job Search</div><div class="api-desc">Job postings and hiring signals.</div></div><div class="api-src">job feeds</div><div class="api-price">$0.02</div><div class="api-use">GTM, recruiting, market maps</div></div>
+      <div class="api-row"><div><div class="api-name">App Reviews</div><div class="api-desc">Recent App Store reviews, rating sample, topic flags.</div></div><div class="api-src">Apple RSS</div><div class="api-price">$0.02</div><div class="api-use">product research</div></div>
+      <div class="api-row"><div><div class="api-name">Singapore Property Analysis</div><div class="api-desc">Stamp duty, URA/HDB comps, yield, affordability, location.</div></div><div class="api-src">IRAS, URA, HDB</div><div class="api-price">FREE-$0.10</div><div class="api-use">property workflows</div></div>
+    </div></section></div>
 
-<span class="term-comment"># 19 free endpoints. 12 paid ($0.005-$0.10).</span>
-<span class="term-comment"># Every value traces to a primary source.</span>
-        </div>
-      </div>
-    </div>
-  </div>
+    <div class="container"><section class="section"><div class="section-label">// HOW AGENTS USE IT</div><h2>Discovery before documentation. Payment before accounts.</h2><p class="section-desc">AgentCash and OpenAPI metadata tell agents what exists, what it costs, and how to pay. Humans can still use curl, but the main customer is an autonomous agent that cannot fill vendor signup forms.</p><div class="split"><div class="split-left"><div class="feature-list"><div class="feature"><div class="feature-icon">1</div><div><strong>Discover endpoints</strong><span>OpenAPI, llms.txt, and AgentCash expose routes, schemas, prices, and use cases.</span></div></div><div class="feature"><div class="feature-icon">2</div><div><strong>Call free utilities first</strong><span>Calculators and source-light routes remain free to reduce friction.</span></div></div><div class="feature"><div class="feature-icon">3</div><div><strong>Pay only for data-heavy calls</strong><span>x402 returns HTTP 402, the agent pays USDC on Base, then retries with proof.</span></div></div><div class="feature"><div class="feature-icon">4</div><div><strong>Preserve data integrity</strong><span>No interpolation. No invented fields. Missing values stay null.</span></div></div></div></div><div class="split-right"><pre><span class="term-comment"># Option A: easiest agent setup</span>
+<span class="term-prompt">$</span> npx agentcash@latest install
+<span class="term-prompt">&gt;</span> discover_api_endpoints("https://bountyapi.com")
+<span class="term-prompt">&gt;</span> fetch("https://bountyapi.com/company/stripe.com")
 
-  <div class="container">
-    <section class="section" id="apis">
-      <div class="section-label">// API CATALOG</div>
-      <h2>31 endpoints. Every value sourced.</h2>
-      <p class="section-desc">No interpolated data. No fabricated values. Every response links to its primary source.</p>
-      <div class="api-table">
-        <div class="api-table-head"><div>Endpoint</div><div>Source</div><div>Price</div><div>Status</div></div>
-        <div class="api-row"><div><div class="api-name">URA Private Transactions</div><div class="api-desc">Caveat-level transaction records. Price, PSF, tenure, area.</div></div><div class="api-src">ura.gov.sg</div><div class="api-price paid">$0.01</div><div class="api-status"><span class="dot"></span>293 records</div></div>
-        <div class="api-row"><div><div class="api-name">Salary Benchmark</div><div class="api-desc">Real salary ranges from MyCareersFuture listings.</div></div><div class="api-src">mycareersfuture.gov.sg</div><div class="api-price free">FREE</div><div class="api-status"><span class="dot"></span>live</div></div>
-        <div class="api-row"><div><div class="api-name">Stamp Duty (BSD + ABSD)</div><div class="api-desc">Buyer's and Additional Buyer's Stamp Duty. Verified against IRAS.</div></div><div class="api-src">iras.gov.sg</div><div class="api-price free">FREE</div><div class="api-status"><span class="dot"></span>verified</div></div>
-        <div class="api-row"><div><div class="api-name">Property Pitch</div><div class="api-desc">Full investment thesis: URA data + yield + stamp duty + affordability.</div></div><div class="api-src">composite</div><div class="api-price paid">$0.05</div><div class="api-status"><span class="dot"></span>decision-grade</div></div>
-        <div class="api-row"><div><div class="api-name">HDB Resale Search</div><div class="api-desc">Search resale transactions by town, flat type, price range.</div></div><div class="api-src">data.gov.sg</div><div class="api-price paid">$0.01</div><div class="api-status"><span class="dot"></span>26 towns</div></div>
-        <div class="api-row"><div><div class="api-name">Schools Nearby</div><div class="api-desc">Primary/secondary schools within 1km and 2km of any postal code.</div></div><div class="api-src">openstreetmap</div><div class="api-price free">FREE</div><div class="api-status"><span class="dot"></span>294 schools</div></div>
-        <div class="api-row"><div><div class="api-name">Income Tax Calculator</div><div class="api-desc">Resident and non-resident SG income tax. Progressive tiers.</div></div><div class="api-src">iras.gov.sg</div><div class="api-price free">FREE</div><div class="api-status"><span class="dot"></span>verified</div></div>
-        <div class="api-row"><div><div class="api-name">URA Rental Median</div><div class="api-desc">Median rental PSF by project and quarter.</div></div><div class="api-src">ura.gov.sg</div><div class="api-price paid">$0.01</div><div class="api-status"><span class="dot"></span>917 records</div></div>
-        <div class="api-more"><a href="/docs">View all 31 endpoints &rarr;</a></div>
-      </div>
-    </section>
-  </div>
+<span class="term-comment"># Option B: direct HTTP</span>
+<span class="term-prompt">$</span> curl -i https://bountyapi.com/jobs/search?q=AI+engineer
+<span class="term-comment"># HTTP 402 Payment Required + payment-required header</span></pre></div></div></section></div>
+  </main>
 
-  <div class="container">
-    <section class="section">
-      <div class="section-label">// HOW IT WORKS</div>
-      <h2>Install. Discover. Pay per call.</h2>
-      <p class="section-desc">No API keys. No billing dashboard. Agents handle everything autonomously.</p>
-      <div class="steps">
-        <div class="step"><div class="step-num">01</div><h3>Install the MCP server</h3><p>Add Bounty to any MCP-compatible agent. Works with Claude Desktop, Cursor, Hermes, and any MCP client.</p></div>
-        <div class="step"><div class="step-num">02</div><h3>Agent discovers tools</h3><p>Your agent sees all 31 endpoints as MCP tools and picks the right one based on context.</p></div>
-        <div class="step"><div class="step-num">03</div><h3>Pay per call in USDC</h3><p>Paid endpoints settle via x402 on Base. Free endpoints cost nothing, forever.</p></div>
-      </div>
-    </section>
-  </div>
-
-  <div class="container">
-    <section class="section">
-      <div class="section-label">// PAYMENTS</div>
-      <h2>x402: agents pay autonomously.</h2>
-      <p class="section-desc">AI agents cannot fill forms, enter credit cards, or sign contracts. x402 lets them pay per request with USDC on Base.</p>
-      <div class="split">
-        <div class="split-left">
-          <div class="feature-list">
-            <div class="feature"><div class="feature-icon">$</div><div><strong>Per-call pricing</strong><span>Free for commoditized data. $0.005 to $0.10 for decision-grade endpoints. No subscriptions.</span></div></div>
-            <div class="feature"><div class="feature-icon">$</div><div><strong>MCP-native discovery</strong><span>Agents see all 31 tools automatically via stdio and HTTP transport.</span></div></div>
-            <div class="feature"><div class="feature-icon">$</div><div><strong>Source-forward data</strong><span>Every response carries provenance. No interpolated or fabricated values. Ever.</span></div></div>
-            <div class="feature"><div class="feature-icon">$</div><div><strong>Provider marketplace</strong><span>Publish your own APIs. Keep 97% of revenue. We handle payments and discovery.</span></div></div>
-          </div>
-          <div style="margin-top:28px;display:flex;gap:12px;flex-wrap:wrap">
-            <a class="btn btn-accent" href="/setup">Agent setup guide</a>
-            <a class="btn btn-ghost" href="/providers">Become a provider</a>
-          </div>
-        </div>
-        <div class="split-right">
-<pre><span class="term-comment"># Install</span>
-<span class="term-prompt">$</span> npm install bountyapi-mcp
-
-<span class="term-comment"># Add to agent config</span>
-{
-  <span class="term-key">"mcpServers"</span>: {
-    <span class="term-key">"bounty"</span>: {
-      <span class="term-key">"command"</span>: <span class="term-str">"bountyapi-mcp"</span>
-    }
-  }
-}
-
-<span class="term-comment"># 31 tools available immediately</span>
-<span class="term-comment"># 19 free. 12 paid ($0.005-$0.10)</span>
-<span class="term-comment"># Agents pay autonomously via x402</span>
-<span class="term-comment"># Settlement: USDC on Base, &lt;$0.001 fee</span>
-
-<span class="term-comment"># Sources:</span>
-<span class="term-comment">#   ura.gov.sg, iras.gov.sg,</span>
-<span class="term-comment">#   data.gov.sg, mycareersfuture,</span>
-<span class="term-comment">#   openstreetmap, ecb.europa.eu</span></pre>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="container">
-    <section class="section" style="padding-bottom:0">
-      <div class="directory-row">
-        <span class="directory-label">Listed on</span>
-        <div class="directory-items">
-          <a class="directory-item" href="https://mcp.so">mcp.so</a>
-          <a class="directory-item" href="https://glama.ai">Glama</a>
-          <a class="directory-item" href="https://pulsemcp.com">PulseMCP</a>
-          <a class="directory-item" href="https://www.npmjs.com/package/bountyapi-mcp">npm</a>
-        </div>
-      </div>
-      <div class="directory-row">
-        <span class="directory-label">Works with</span>
-        <div class="directory-items">
-          <span class="directory-item">Claude Desktop</span>
-          <span class="directory-item">Cursor</span>
-          <span class="directory-item">Hermes</span>
-          <span class="directory-item">LangChain</span>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <div class="container">
-    <footer class="footer">
-      <div class="footer-inner">
-        <div>
-          <div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
-          <p class="footer-tag">Specialist data APIs for AI agents. MCP-native, x402 payments. Singapore live now.</p>
-        </div>
-        <div class="footer-col"><h4>Product</h4><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div>
-        <div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div>
-        <div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a></div>
-      </div>
-      <div class="footer-bottom"><span>Bounty API &middot; Singapore</span><span>v1.8.0 &middot; 31 APIs &middot; 27 MCP tools</span></div>
-    </footer>
-  </div>
+  <div class="container"><footer class="footer"><div class="footer-inner"><div><div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div><p class="footer-tag">Pay-per-call data APIs for AI agents. Global research endpoints plus Singapore property workflows. MCP-native, x402 payments.</p></div><div class="footer-col"><h4>Product</h4><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div><div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div><div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a><a href="https://agentcash.dev">AgentCash</a></div></div><div class="footer-bottom"><span>Bounty API · Global + Singapore</span><span>Agent data infrastructure</span></div></footer></div>
 </body>
 </html>"""
 
@@ -741,19 +479,25 @@ async def root():
     """Machine-readable API info."""
     return {
         "name": "Bounty API",
-        "version": "2.0.0",
-        "description": "Specialist data APIs for AI agents. Pay-per-call, agent-native, globally scalable.",
+        "version": "2.1.0",
+        "description": "Pay-per-call data APIs for AI agents: company intelligence, news, job postings, app reviews, and Singapore property workflows.",
+        "positioning": "agent-native data infrastructure, not just Singapore property",
         "endpoints": {
             "/": "Public landing page",
             "/api": "Machine-readable API info",
+            "/company/{domain}": "Company website intelligence",
+            "/news/search": "Current news search",
+            "/jobs/search": "Job postings and hiring signals",
+            "/reviews/app/{country}/{app_id}": "App Store review intelligence",
             "/stamp-duty": "Full stamp duty calculation (BSD + ABSD)",
             "/bsd": "Buyer's Stamp Duty only",
             "/absd": "Additional Buyer's Stamp Duty only",
-            "/docs": "Interactive API documentation (Swagger UI)",
-            "/llms.txt": "LLM discovery file",
+            "/openapi.json": "OpenAPI with x402 payment metadata",
+            "/llms.txt": "LLM discovery and workflow instructions",
+            "/.well-known/agentcash.json": "AgentCash discovery manifest",
         },
-        "pricing": "Pay-per-call. x402 micropayment support planned.",
-        "rate_source": "iras.gov.sg, verified Jan 2026",
+        "pricing": "Free utility endpoints plus paid x402 endpoints from $0.005-$0.10 per call.",
+        "payment": "x402 USDC on Base mainnet (eip155:8453)",
     }
 
 
@@ -1611,6 +1355,18 @@ try:
 except ImportError as e:
     print(f"Warning: news_search router not loaded: {e}")
 
+try:
+    from apis.job_search import router as job_search_router
+    app.include_router(job_search_router)
+except ImportError as e:
+    print(f"Warning: job_search router not loaded: {e}")
+
+try:
+    from apis.app_reviews import router as app_reviews_router
+    app.include_router(app_reviews_router)
+except ImportError as e:
+    print(f"Warning: app_reviews router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router
@@ -1670,436 +1426,7 @@ async def sitemap_xml():
 @app.get("/llms.txt", response_class=PlainTextResponse)
 async def llms_txt():
     """llms.txt — structured description for LLM discovery at inference time."""
-    return """# Bounty API
-
-> Singapore property & financial data APIs for AI agents. Government data (URA, IRAS, HDB, MAS), computed financial logic, and market intelligence. Pay-per-call via x402 (USDC on Base). No API keys, no subscriptions. Every response carries its source.
-
-## Base URL
-
-https://bountyapi.com
-
-All endpoints are relative to this base URL.
-
-## Authentication
-
-All paid endpoints require micropayment via x402 protocol. Payments are processed on Base mainnet (eip155:8453). Free endpoints require no payment and no authentication.
-
-## Discovery
-
-- OpenAPI spec with x402 payment metadata: https://bountyapi.com/openapi.json
-- AgentCash well-known: https://bountyapi.com/.well-known/agentcash.json
-- 13 paid routes tagged with `x-payment-info` and `responses.402`
-
-## Agent Workflow (Progressive)
-
-### Option A: AgentCash (recommended — automatic payment handling)
-
-1. Install AgentCash MCP server: `npx agentcash@latest install`
-2. Fund your wallet: `npx agentcash@latest accounts` (gives you Base/Solana deposit addresses)
-3. Discover Bounty endpoints: `mcp__agentcash__discover_api_endpoints("https://bountyapi.com")`
-4. Check endpoint schema and pricing: `mcp__agentcash__check_endpoint_schema("https://bountyapi.com/stamp-duty")`
-5. Execute: `mcp__agentcash__fetch("https://bountyapi.com/bsd?price=1000000")`
-
-AgentCash handles wallet creation, USDC payment, and 402 challenge resolution automatically. Paid 200s return `{ success: true, data: <HTTP body> }` — parse endpoint fields at `.data.*`.
-
-### Option B: Direct MCP (tool discovery without auto-pay)
-
-Add to Claude Desktop or any MCP-compatible client:
-```json
-{
-  "mcpServers": {
-    "bounty-api": {
-      "url": "https://bountyapi.com/mcp"
-    }
-  }
-}
-```
-
-This exposes all 27 MCP tools. Free tools work immediately. Paid tools return 402 with payment instructions — you need an x402-aware HTTP client to complete payment.
-
-### Option C: Direct HTTP (no MCP)
-
-Call endpoints directly with curl or any HTTP client. Free endpoints return data. Paid endpoints return HTTP 402 with a `payment-required` header containing x402 payment instructions.
-
-```bash
-# Free — works immediately
-curl "https://bountyapi.com/bsd?price=1000000"
-
-# Paid — returns 402
-curl "https://bountyapi.com/hdb/towns"
-```
-
-If no endpoint matches the user task, stop this flow and tell the user what data is available.
-
----
-
-# Property Investment Research Methodology
-
-Use this playbook for property analysis requests (e.g., "Is this condo worth buying?", "Can I afford this property?", "Compare these 3 properties"):
-
-1. **Identify the property**: Get the address, postal code, or project name. If the user provides a PropertyGuru/99.co listing URL, extract the price, size (sqft), project name, and postal code from the page.
-2. **Stamp duty** (FREE): Call `POST /stamp-duty` with `{"price": <asking_price>, "buyer_profile": "SC", "property_count": 1}`. Returns BSD + ABSD breakdown.
-3. **Affordability check** (FREE): Call `GET /buy-vs-rent?monthly_rent=<est_rent>&property_price=<price>&holding_years=10`. Returns full buy-vs-rent comparison.
-4. **Mortgage** (FREE): Call `POST /mortgage/calculate` with `{"principal": <price*0.75>, "annual_interest_rate": 3.5, "loan_term_years": 25}`. Returns monthly payment.
-5. **Transaction comparables** ($0.05): Call `GET /ura/transactions?batch=1` to get recent private property transactions. Filter by district to find comparable sales.
-6. **Rental yield** ($0.005): Call `POST /rental-yield/calculate` with `{"property_price": <price>, "monthly_rent": <est_rent>}`. Returns gross/net yield.
-7. **Salary context** (FREE): Call `GET /salary/search?role=<user_job>` to benchmark whether the user can afford the monthly costs.
-8. **One-call summary** ($0.05): Call `POST /property/pitch` with the property details. Returns a client-ready investment thesis with verdict.
-
-**Cost optimization**: Steps 2-4 and 7 are FREE. Do those first. Only pay for steps 5-6 and 8 if the user wants deep analysis.
-
----
-
-# Free Endpoints (no payment required)
-
-## GET /bsd
-Buyer's Stamp Duty calculation for residential property.
-Query: `?price=1000000`
-Price: FREE
-Source: iras.gov.sg
-
-Example:
-```
-GET /bsd?price=1000000
-```
-Response: `{"price": 1000000, "bsd": 24600, "breakdown": [...], "source": "iras.gov.sg"}`
-
----
-
-## POST /stamp-duty
-Full stamp duty calculation (BSD + ABSD). Use this instead of /bsd when buyer profile matters.
-Price: FREE
-Source: iras.gov.sg, verified Jan 2026
-
-Example:
-```json
-{
-  "price": 1500000,
-  "buyer_profile": "SC",
-  "property_count": 1
-}
-```
-buyer_profile values: SC, SPR, FR, entity, developer, trustee
-ABSD rates: SC 1st=0%, 2nd=20%, 3rd=30%. SPR 1st=5%, 2nd=30%. FR=60%. Entity=65%.
-
----
-
-## GET /absd
-Additional Buyer's Stamp Duty only.
-Query: `?price=1500000&buyer_profile=SPR&property_count=1`
-Price: FREE
-
----
-
-## POST /mortgage/calculate
-Fixed-rate mortgage with amortization schedule.
-Price: FREE
-
-Example:
-```json
-{
-  "principal": 1125000,
-  "annual_interest_rate": 3.5,
-  "loan_term_years": 25
-}
-```
-Response: `{"monthly_payment": 5629.76, "total_interest": 563928.18, "total_paid": 1686428.18}`
-
----
-
-## GET /buy-vs-rent
-Total cost comparison of buying vs renting over a holding period. Includes mortgage, stamp duty, property tax, maintenance, appreciation, and opportunity cost.
-Query: `?monthly_rent=4500&property_price=1500000&holding_years=10`
-Price: FREE
-Source: Composite — IRAS rates, standard amortization
-
----
-
-## GET /property-tax
-Singapore property tax. Owner-occupier 0-32%, non-owner-occupied 10-20%.
-Query: `?annual_value=36000&owner_occupied=true`
-Price: FREE
-Source: IRAS, effective 1 Jan 2024
-
----
-
-## GET /tax/income
-Singapore individual income tax. Resident progressive 0-22%, non-resident 15% flat.
-Query: `?annual_income=120000`
-Price: FREE
-Source: IRAS individual income tax rates
-
----
-
-## GET /gst
-Add or remove GST (9% from 1 Jan 2024).
-Query: `?amount=100&mode=add`
-Price: FREE
-
----
-
-## GET /commission
-Estimated property agent commission for sale/rental.
-Query: `?price=1500000&transaction_type=sale`
-Price: FREE
-
----
-
-## GET /cpf/housing
-CPF Ordinary Account accumulation for housing.
-Query: `?monthly_income=8000&age=30`
-Price: FREE
-
----
-
-## GET /salary/search
-Benchmark salary for any Singapore role using live MyCareersFuture job postings. Not self-reported — real employer-posted data.
-Query: `?role=software engineer`
-Price: FREE
-Source: MyCareersFuture (api.mycareersfuture.gov.sg)
-
----
-
-## GET /address/{postal_code}
-Postal code to district, planning area, CCR/RCR/OCR region, HDB town.
-Price: FREE
-Source: URA Master Plan 2019, SLA postal sectors
-
----
-
-## GET /mrt/near/{postal_code}
-5 nearest MRT stations with walking distance.
-Price: FREE
-Source: LTA DataMall, 142 stations across all 6 lines
-
----
-
-## GET /schools/near/{postal_code}
-Schools within 1km and 2km for Primary 1 distance priority.
-Price: FREE
-Source: OpenStreetMap, 294 schools
-
----
-
-## GET /postal/{code}
-Postal code to district number and name.
-Price: FREE
-
----
-
-## GET /hdb/lease-decay
-HDB remaining lease analysis — financing thresholds, CPF restrictions, SERS caveat.
-Query: `?lease_remaining=65`
-Price: FREE
-
----
-
-## GET /hdb/eip/{town}
-HDB Ethnic Integration Policy and SPR quota limits.
-Price: FREE
-
----
-
-## GET /currency/
-Currency exchange rates.
-Price: FREE
-
----
-
-## GET /invest/
-Investment growth calculator.
-Price: FREE
-
----
-
-# Paid Endpoints (x402 micropayment required)
-
-## GET /hdb/towns
-All HDB towns with transaction counts.
-Price: $0.01/call
-Source: data.gov.sg (live)
-
----
-
-## GET /hdb/median/{town}
-Median resale price by flat type for a specific town.
-Price: $0.01/call
-Source: data.gov.sg
-
----
-
-## GET /hdb/search
-Search HDB resale transactions with filters (town, flat_type, price range).
-Price: $0.01/call
-Source: data.gov.sg, 234K+ transactions 2017-present
-
----
-
-## POST /rental-yield/calculate
-Gross yield, net yield, cap rate, price-to-rent ratio, cashflow.
-Price: $0.005/call
-
-Example:
-```json
-{
-  "property_price": 1500000,
-  "monthly_rent": 4500
-}
-```
-
----
-
-## POST /affordability/calculate
-MAS TDSR (55%) and HDB MSR (30%) affordability check. Returns max loan and property price.
-Price: $0.01/call
-Source: MAS TDSR framework, HDB MSR rules
-
----
-
-## POST /property/analyze
-Complete property analysis in one call: stamp duty, comparables, rental yield, affordability, location, risk.
-Price: $0.05/call
-Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
-
----
-
-## POST /property/pitch
-Client-ready investment thesis: price fairness, stamp duty, affordability, yield, location, tenure risk, upfront costs, strengths, risk flags, plain-English verdict.
-Price: $0.05/call
-
-Example:
-```json
-{
-  "property_type": "condo",
-  "project_name": "One Leicester",
-  "address": "500 Potong Pasir Ave 1",
-  "price": 2499000,
-  "monthly_rent": 4500,
-  "buyer_profile": "SC"
-}
-```
-
----
-
-## POST /property/rank
-Rank multiple candidate properties by investment value. Returns 0-100 scores across 4 dimensions.
-Price: $0.10/call
-
----
-
-## GET /ura/transactions
-Private residential property transactions (caveat data). Project, street, price, PSF, tenure, sale type.
-Query: `?batch=1`
-Price: $0.05/call
-Source: URA Developer API (PMI_Resi_Transaction)
-
----
-
-## GET /ura/rental-median
-Median rental rates by private residential project.
-Query: `?project_name=One Leicester`
-Price: $0.05/call
-Source: URA Developer API
-
----
-
-## GET /ura/developer-sales
-Developer units launched and sold by project.
-Price: $0.05/call
-Source: URA Developer API
-
----
-
-## GET /ura/pipeline
-Future private residential supply pipeline.
-Query: `?batch=1`
-Price: $0.05/call
-Source: URA Developer API
-
----
-
-## GET /ura/rental-contracts
-Aggregate rental contract statistics by area and property type.
-Price: $0.05/call
-Source: URA Developer API
-
----
-
-## GET /ura/status
-Check if URA API is configured. Free — use before paid URA calls.
-Price: FREE
-
----
-
-# Pricing Summary
-
-| Endpoint | Price |
-|----------|-------|
-| Stamp Duty (BSD/ABSD) | FREE |
-| Mortgage Calculator | FREE |
-| Buy vs Rent Analysis | FREE |
-| Property Tax | FREE |
-| Income Tax | FREE |
-| GST Calculator | FREE |
-| Commission Estimator | FREE |
-| CPF Housing | FREE |
-| Salary Benchmark | FREE |
-| Address Intelligence | FREE |
-| MRT Proximity | FREE |
-| School Proximity | FREE |
-| Postal District | FREE |
-| HDB Lease Decay | FREE |
-| HDB EIP/SPR Quota | FREE |
-| Currency | FREE |
-| Investment Growth | FREE |
-| URA Status | FREE |
-| HDB Resale Data | $0.01 |
-| Affordability (TDSR/MSR) | $0.01 |
-| Rental Yield | $0.005 |
-| Property Analysis | $0.05 |
-| Property Pitch | $0.05 |
-| URA Transactions | $0.05 |
-| URA Rental Median | $0.05 |
-| URA Developer Sales | $0.05 |
-| URA Pipeline | $0.05 |
-| URA Rental Contracts | $0.05 |
-| Property Ranking | $0.10 |
-
----
-
-# MCP Integration
-
-Bounty exposes all endpoints as MCP tools via `https://bountyapi.com/mcp`.
-
-Claude Desktop config:
-```json
-{
-  "mcpServers": {
-    "bounty-api": {
-      "url": "https://bountyapi.com/mcp"
-    }
-  }
-}
-```
-
-npm package for stdio transport: `bountyapi-mcp` (v1.8.0)
-```bash
-npx bountyapi-mcp
-```
-
----
-
-# Links
-
-- Pricing: https://bountyapi.com/pricing
-- Agent setup: https://bountyapi.com/setup
-- Provider onboarding: https://bountyapi.com/providers
-- Machine manifest: https://bountyapi.com/manifest.json
-- Machine pricing: https://bountyapi.com/pricing.json
-- Full documentation: https://bountyapi.com/llms-full.txt
-- GitHub: https://github.com/vncent786/bounty-api
-- npm: https://www.npmjs.com/package/bountyapi-mcp
-"""
+    return '# Bounty API\n\n> Pay-per-call data APIs for AI agents. Bounty provides no-account access to company intelligence, news, job postings, app reviews, and Singapore property/financial workflows. Agents discover endpoints via OpenAPI/MCP/AgentCash and pay per request via x402 USDC on Base. No API keys, no subscriptions. Missing data stays missing; source provenance is preserved.\n\n## Base URL\n\nhttps://bountyapi.com\n\nAll endpoints are relative to this base URL.\n\n## What Bounty is now\n\nBounty is agent-native data infrastructure, not just Singapore property.\n\nUse Bounty when an AI agent needs structured data without creating vendor accounts, storing API keys, or buying monthly subscriptions. The current live product has two layers:\n\n1. **Global research endpoints** for company, market, GTM, and product research.\n2. **Singapore property/finance vertical** for source-backed property, tax, affordability, and location workflows.\n\n## Discovery\n\n- OpenAPI with x402 metadata: https://bountyapi.com/openapi.json\n- AgentCash manifest: https://bountyapi.com/.well-known/agentcash.json\n- Pricing JSON: https://bountyapi.com/pricing.json\n- Machine manifest: https://bountyapi.com/manifest.json\n\nPaid operations include `x-payment-info` and `responses.402` in OpenAPI.\n\n## Authentication and payment\n\nFree endpoints require no authentication. Paid endpoints require x402 payment on Base mainnet (`eip155:8453`) in USDC.\n\nIf called without payment, paid endpoints return:\n\n- HTTP status: `402 Payment Required`\n- Header: `payment-required` with x402 payment instructions\n\nAgentCash can handle discovery, wallet, payment, and retry automatically.\n\n## Recommended agent workflow\n\n### Option A: AgentCash, recommended\n\n1. Install AgentCash MCP server: `npx agentcash@latest install`\n2. Fund the wallet: `npx agentcash@latest accounts`\n3. Discover endpoints: `mcp__agentcash__discover_api_endpoints("https://bountyapi.com")`\n4. Check schema and price: `mcp__agentcash__check_endpoint_schema("https://bountyapi.com/company/stripe.com")`\n5. Execute: `mcp__agentcash__fetch("https://bountyapi.com/company/stripe.com")`\n\nAgentCash handles the 402 challenge and returns paid 200s as `{ success: true, data: <HTTP body> }`.\n\n### Option B: Direct HTTP\n\n```bash\n# Free endpoint works immediately\ncurl "https://bountyapi.com/bsd?price=1000000"\n\n# Paid endpoint returns 402 unless the client supplies x402 payment proof\ncurl -i "https://bountyapi.com/company/stripe.com"\n```\n\n## Global research endpoints\n\n### GET /company/{domain}\n\nBuiltWith-style website intelligence for any company domain.\n\nPrice: `$0.05 / call`\n\nReturns:\n- detected technology stack by category\n- contact emails found on the site\n- social links\n- SSL certificate summary\n- security headers\n- metadata and source URL\n\nUse for B2B prospecting, competitor research, vendor diligence, and investment research.\n\nExample:\n\n```bash\ncurl -i "https://bountyapi.com/company/stripe.com"\n```\n\n### GET /news/search\n\nCurrent news search by keyword.\n\nPrice: `$0.01 / call`\n\nQuery parameters:\n- `q`: search query\n- `limit`: 1-25\n- `days`: optional recency window\n\nUse for company monitoring, launches, lawsuits, layoffs, funding, and market-event checks.\n\nExample:\n\n```bash\ncurl -i "https://bountyapi.com/news/search?q=OpenAI&limit=5"\n```\n\n### GET /jobs/search\n\nJob postings and hiring signals across public sources.\n\nPrice: `$0.02 / call`\n\nQuery parameters:\n- `q`: role, company, skill, or market query\n- `location`: optional location substring\n- `limit`: 1-25\n\nReturns normalized job results with title, company, location, tags, salary fields when published, URL, source, and notes. Missing salary/location values are returned as null.\n\nUse for hiring-signal research, GTM lead qualification, recruiting, market maps, and expansion analysis.\n\nExample:\n\n```bash\ncurl -i "https://bountyapi.com/jobs/search?q=AI+engineer&location=remote&limit=10"\n```\n\n### GET /reviews/app/{country}/{app_id}\n\nRecent Apple App Store customer reviews for a country/app ID.\n\nPrice: `$0.02 / call`\n\nPath parameters:\n- `country`: two-letter App Store country code, e.g. `us`, `sg`, `gb`\n- `app_id`: numeric App Store app ID\n\nQuery parameters:\n- `limit`: 1-50\n- `min_rating`: optional 1-5\n- `max_rating`: optional 1-5\n\nReturns review title, rating, content, version when Apple provides it, URL, sample rating distribution, and deterministic topic flags. Topic flags are keyword matches, not model-generated sentiment.\n\nUse for subscription-app competitor research, product-validation complaints, feature gaps, and rating snapshots.\n\nExample:\n\n```bash\ncurl -i "https://bountyapi.com/reviews/app/us/544007664?limit=10&max_rating=3"\n```\n\n## Company / GTM / market research playbook\n\nWhen a user asks for company research, competitor research, GTM research, product validation, or market monitoring:\n\n1. Call `/company/{domain}` for website intelligence.\n2. Call `/news/search?q=<company or market>` for current events.\n3. Call `/jobs/search?q=<company role skill>` for hiring signals.\n4. If researching a consumer/subscription app, call `/reviews/app/{country}/{app_id}` for review complaints and rating snapshot.\n5. Do not fabricate missing fields. If source data omits salary, author, version, or date, preserve null/missing.\n\n## Singapore property and finance endpoints\n\nThese remain live, but they are one vertical, not the whole product.\n\n### Free utility endpoints\n\n- `GET /bsd?price=1000000` — Buyer Stamp Duty. Source: IRAS.\n- `POST /stamp-duty` — full BSD + ABSD calculation.\n- `GET /absd` — ABSD only.\n- `POST /mortgage/calculate` — mortgage amortization.\n- `GET /buy-vs-rent` — buy-vs-rent total cost comparison.\n- `GET /property-tax` — Singapore property tax.\n- `GET /tax/income` — Singapore income tax.\n- `GET /gst` — GST add/remove calculator.\n- `GET /commission` — property agent commission estimate.\n- `GET /cpf/housing` — CPF OA housing accumulation.\n- `GET /salary/search` — Singapore salary benchmark from live job postings.\n- `GET /address/{postal_code}` — address intelligence.\n- `GET /mrt/near/{postal_code}` — nearest MRT stations.\n- `GET /schools/near/{postal_code}` — schools within 1km/2km.\n- `GET /postal/{code}` — postal district lookup.\n- `GET /hdb/lease-decay` — HDB lease constraints.\n- `GET /hdb/eip/{town}` — HDB EIP/SPR quota.\n- `GET /currency/convert` — currency conversion.\n- `POST /invest/calculate` — compound growth calculator.\n\n### Paid Singapore endpoints\n\n- `GET /hdb/towns` — `$0.01`\n- `GET /hdb/median/{town}` — `$0.01`\n- `GET /hdb/search` — `$0.01`\n- `POST /rental-yield/calculate` — `$0.005`\n- `POST /affordability/calculate` — `$0.01`\n- `POST /property/analyze` — `$0.05`\n- `POST /property/pitch` — `$0.05`\n- `POST /property/rank` — `$0.10`\n- `GET /ura/transactions` — `$0.05`\n- `GET /ura/rental-median` — `$0.05`\n- `GET /ura/developer-sales` — `$0.05`\n- `GET /ura/pipeline` — `$0.05`\n- `GET /ura/rental-contracts` — `$0.05`\n\n## Property investment playbook\n\nUse this only when the user task is clearly about Singapore property:\n\n1. Identify property address, postal code, project name, price, size, tenure, and estimated rent.\n2. Use free calculators first: `/stamp-duty`, `/buy-vs-rent`, `/mortgage/calculate`.\n3. Use `/address/{postal_code}`, `/mrt/near/{postal_code}`, and `/schools/near/{postal_code}` for location context.\n4. Use paid data if needed: `/ura/transactions`, `/ura/rental-median`, `/hdb/search`.\n5. Use `/property/pitch` or `/property/rank` for composite outputs.\n\n## Data integrity rules for agents\n\n- Do not interpolate, estimate, or fill missing values unless the user explicitly asks.\n- Preserve null/missing fields.\n- Cite the source field returned by the endpoint.\n- Do not treat sample ratings or sample distributions as lifetime values.\n- If an endpoint returns zero records, report zero records instead of broadening the query silently.\n\n## Pricing summary\n\n- Global company intelligence: `$0.05`\n- Global news search: `$0.01`\n- Global job search: `$0.02`\n- Global App Store reviews: `$0.02`\n- Singapore free utility endpoints: `$0.00`\n- Singapore data/composite endpoints: `$0.005-$0.10`\n\n## Links\n\n- Website: https://bountyapi.com\n- Pricing: https://bountyapi.com/pricing\n- Setup: https://bountyapi.com/setup\n- Machine manifest: https://bountyapi.com/manifest.json\n- Machine pricing: https://bountyapi.com/pricing.json\n- OpenAPI: https://bountyapi.com/openapi.json\n'
 
 
 @app.get("/llms-full.txt", response_class=PlainTextResponse)

@@ -12,7 +12,7 @@ Bounty API
 Singapore property data APIs that pay-per-call in USDC — for AI agents
 
 (Note: 69 chars — trim to:)
-Verified Singapore data APIs for AI agents — pay per call in USDC
+Pay-per-call data APIs for AI agents — company intelligence, news, jobs, app reviews, and Singapore property. Pay per call in USDC
 
 (Final 58-char option:)
 Singapore data APIs for AI agents — pay-per-call in USDC

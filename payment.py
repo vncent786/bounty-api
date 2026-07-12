@@ -43,6 +43,8 @@ PRICE_PITCH = "$0.05"     # Property pitch — investment thesis one-pager
 PRICE_URA = "$0.05"       # URA private property data — exclusive government API data
 PRICE_COMPANY_INTEL = "$0.05"  # Company website intelligence — replaces BuiltWith ($295/mo)
 PRICE_NEWS = "$0.01"      # News search — replaces NewsAPI ($449/mo)
+PRICE_JOBS = "$0.02"      # Job/hiring signal aggregation — replaces job-board scraping workflows
+PRICE_REVIEWS = "$0.02"   # App Store review intelligence — replaces manual competitor-review scraping
 
 
 def create_payment_middleware(app):
@@ -195,6 +197,16 @@ def create_payment_middleware(app):
             accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_NEWS, network=EVM_NETWORK)],
             mime_type="application/json",
             description="Search news articles by keyword — aggregated from Google News and other free sources. Replaces NewsAPI.",
+        ),
+        "GET /jobs/search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_JOBS, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Search job postings and hiring signals across public sources for market mapping, recruiting, and lead generation.",
+        ),
+        "GET /reviews/app/:country/:app_id": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_REVIEWS, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Fetch recent App Store reviews with rating distribution and deterministic complaint topic flags.",
         ),
     }
 

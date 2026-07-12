@@ -89,7 +89,7 @@ Primary: https://mcp.so/submit (form, GitHub/Google OAuth).
 Fallback: GitHub issue in https://github.com/chatmcp/mcpso/issues (needs `gh` or browser login).
 
 ### GitHub issue title
-`Submit MCP Server: Bounty API — Singapore property & financial data APIs for AI agents`
+`Submit MCP Server: Bounty API — Pay-per-call data APIs for AI agents`
 
 ### GitHub issue body (accurate, non-overclaim)
 ```markdown

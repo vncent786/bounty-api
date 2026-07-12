@@ -1,15 +1,15 @@
 # Bounty API
 
-**Agent-native data APIs where AI agents pay per request in USDC on Base. Singapore property & financial data, live now.**
+**Agent-native data APIs where AI agents pay per request in USDC on Base. Global research endpoints plus Singapore property workflows, live now.**
 
 Live at [bountyapi.com](https://bountyapi.com)
 
 ## What it does
 
-AI agents discover data APIs via MCP, call them, and pay automatically using x402 micropayments. No API keys. No subscriptions. No scraping. One price per call, known upfront, settled on-chain.
+AI agents discover data APIs via MCP, call them, and pay automatically using x402 micropayments. No API keys. No subscriptions. One price per call, known upfront, settled on-chain.
 
 ```
-Agent calls GET /company-lookup?name=ACME
+Agent calls GET /company/stripe.com
   → Server returns 402 Payment Required ($0.05 USDC)
   → Agent signs payment on Base
   → Server returns data + settlement receipt
@@ -40,15 +40,18 @@ Layer 3: MCP discovery (npm: bountyapi-mcp)
   → Wallet-aware: auto-pays for paid endpoints when configured
 ```
 
-## Live APIs (7 endpoints)
+## Live APIs
 
 | API | Type | Price | Description |
 |-----|------|-------|-------------|
+| Company Intelligence | PAID | $0.05/call | Tech stack, contacts, social links, SSL/security headers from company websites |
+| News Search | PAID | $0.01/call | Structured current news by keyword |
+| Job Search | PAID | $0.02/call | Job postings and hiring signals for GTM/recruiting research |
+| App Reviews | PAID | $0.02/call | Recent App Store reviews with rating sample and topic flags |
 | Stamp Duty (BSD + ABSD) | FREE | $0 | Singapore property stamp duty, verified against IRAS |
-| Postal District Lookup | FREE | $0 | 28 postal districts, mapped from URA source |
+| Postal District Lookup | FREE | $0 | Singapore postal district mapping |
 | Mortgage Calculator | FREE | $0 | Standard amortization |
-| Compound Interest | FREE | $0 | Growth projections |
-| Currency Converter | FREE | $0 | 30+ currencies, ECB rates |
+| Currency Converter | FREE | $0 | ECB rates |
 | HDB Resale Data | PAID | $0.01/call | Government transaction data from data.gov.sg |
 | Rental Yield Calculator | PAID | $0.005/call | Investment metrics (gross yield, cap rate, cashflow) |
 

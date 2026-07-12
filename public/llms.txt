@@ -1,132 +1,237 @@
 # Bounty API
 
-> Specialist data APIs for AI agents. Government data, computed financial logic, and market intelligence, structured for autonomous workflows. Pay-per-call via x402 micropayments (USDC on Base). No API keys, no subscriptions. Every response carries its source.
+> Pay-per-call data APIs for AI agents. Bounty provides no-account access to company intelligence, news, job postings, app reviews, and Singapore property/financial workflows. Agents discover endpoints via OpenAPI/MCP/AgentCash and pay per request via x402 USDC on Base. No API keys, no subscriptions. Missing data stays missing; source provenance is preserved.
 
-```json
-{
-  "name": "Bounty API",
-  "url": "https://bountyapi.com",
-  "category": "Specialist Data APIs",
-  "focus": "Global company intelligence + Singapore property",
-  "payment_protocol": "x402",
-  "discovery_protocol": "MCP",
-  "settlement_currency": "USDC",
-  "live_apis": 17,
-  "mcp_tools": 14,
-  "free_endpoints": 8,
-  "paid_endpoints": 8,
-  "region_live": "Global + Singapore",
-  "region_roadmap": "HK, UAE, AU, JP",
-  "provider_revenue_share": "97%"
-}
+## Base URL
+
+https://bountyapi.com
+
+All endpoints are relative to this base URL.
+
+## What Bounty is now
+
+Bounty is agent-native data infrastructure, not just Singapore property.
+
+Use Bounty when an AI agent needs structured data without creating vendor accounts, storing API keys, or buying monthly subscriptions. The current live product has two layers:
+
+1. **Global research endpoints** for company, market, GTM, and product research.
+2. **Singapore property/finance vertical** for source-backed property, tax, affordability, and location workflows.
+
+## Discovery
+
+- OpenAPI with x402 metadata: https://bountyapi.com/openapi.json
+- AgentCash manifest: https://bountyapi.com/.well-known/agentcash.json
+- Pricing JSON: https://bountyapi.com/pricing.json
+- Machine manifest: https://bountyapi.com/manifest.json
+
+Paid operations include `x-payment-info` and `responses.402` in OpenAPI.
+
+## Authentication and payment
+
+Free endpoints require no authentication. Paid endpoints require x402 payment on Base mainnet (`eip155:8453`) in USDC.
+
+If called without payment, paid endpoints return:
+
+- HTTP status: `402 Payment Required`
+- Header: `payment-required` with x402 payment instructions
+
+AgentCash can handle discovery, wallet, payment, and retry automatically.
+
+## Recommended agent workflow
+
+### Option A: AgentCash, recommended
+
+1. Install AgentCash MCP server: `npx agentcash@latest install`
+2. Fund the wallet: `npx agentcash@latest accounts`
+3. Discover endpoints: `mcp__agentcash__discover_api_endpoints("https://bountyapi.com")`
+4. Check schema and price: `mcp__agentcash__check_endpoint_schema("https://bountyapi.com/company/stripe.com")`
+5. Execute: `mcp__agentcash__fetch("https://bountyapi.com/company/stripe.com")`
+
+AgentCash handles the 402 challenge and returns paid 200s as `{ success: true, data: <HTTP body> }`.
+
+### Option B: Direct HTTP
+
+```bash
+# Free endpoint works immediately
+curl "https://bountyapi.com/bsd?price=1000000"
+
+# Paid endpoint returns 402 unless the client supplies x402 payment proof
+curl -i "https://bountyapi.com/company/stripe.com"
 ```
 
-## What it is
+## Global research endpoints
 
-- Specialist data APIs for AI agents. Bounty is a single provider today (a multi-provider marketplace is a roadmap item, not the current product).
-- Discovery via MCP (single endpoint exposes all APIs as tools)
-- Payment via x402 (USDC on Base, sub-second settlement)
-- Live now: Global company intelligence and news search, plus Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
+### GET /company/{domain}
 
-## Available APIs
+BuiltWith-style website intelligence for any company domain.
 
-### Company Intelligence
-- Endpoint: GET /company/{domain}
-- Price: $0.05/call
-- Coverage: BuiltWith-style website intelligence for any company domain: detected tech stack, CMS, JS framework, analytics, CDN/hosting, payment processors, chat/support tools, auth providers, monitoring tools, contact emails, social links, SSL certificate status, and security headers.
-- Source: Live scrape of the target company's public website. Zero upstream subscription; pay-per-call.
-- Best for: B2B prospecting, competitor research, vendor due diligence, sales qualification, investor research.
+Price: `$0.05 / call`
 
-### News Search
-- Endpoint: GET /news/search?q={query}&limit={limit}
-- Price: $0.01/call
-- Coverage: Structured current news search with title, source, URL, publish date, description, and image when available.
-- Source: Google News RSS and selected free feeds. Zero upstream subscription; pay-per-call.
-- Best for: company monitoring, research agents, market events, lawsuits, funding, layoffs, product launches.
+Returns:
+- detected technology stack by category
+- contact emails found on the site
+- social links
+- SSL certificate summary
+- security headers
+- metadata and source URL
 
-### SG Stamp Duty Calculator
-- Endpoints: POST /stamp-duty, GET /bsd, GET /absd
-- Price: FREE
-- Coverage: BSD (6-tier marginal, 1%-6%), ABSD (0%-65% by buyer profile)
-- Source: iras.gov.sg, verified Jan 2026
+Use for B2B prospecting, competitor research, vendor diligence, and investment research.
 
-### SG Address Intelligence
-- Endpoints: GET /address/{postal_code}, GET /mrt/near/{postal_code}, GET /mrt/search, GET /mrt/stations
-- Price: FREE
-- Coverage: Postal code -> district, planning area (URA Master Plan), CCR/RCR/OCR region, HDB town, 5 nearest MRT stations with walking distance. 142 MRT stations across all 6 lines.
-- Source: URA Master Plan 2019, LTA DataMall, SLA postal sectors
+Example:
 
-### SG TDSR/MSR Affordability Calculator
-- Endpoints: POST /affordability/calculate, GET /affordability/quick
-- Price: $0.01/call
-- Coverage: MAS TDSR (55%), MSR (30% for HDB), LTV limits, stress-tested at MAS minimum rates (3%/3.5%/4.5%). Returns max affordable loan and property price.
-- Source: MAS TDSR framework, HDB MSR rules, LTV limits (Dec 2021)
-
-### SG Property Investment Analysis
-- Endpoints: POST /property/analyze
-- Price: $0.05/call
-- Coverage: Complete property analysis — stamp duty, transaction comparables, rental yield, affordability, location intelligence, and risk assessment in one call.
-- Source: Composite — IRAS, data.gov.sg, MAS, URA, LTA
-
-### SG Property Ranking
-- Endpoints: POST /property/rank
-- Price: $0.10/call
-- Coverage: Accepts candidate properties from ANY source and enriches + ranks them using Bounty's verified data. Transparent 0-100 scores across value, yield, affordability, location. Region parameter supports future expansion (SG now, HK/AE/AU/JP planned).
-- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA, LTA
-
-### SG Property Pitch
-- Endpoints: POST /property/pitch
-- Price: $0.05/call
-- Coverage: Client-ready property investment thesis: price fairness vs comparables, stamp duty, MAS affordability, rental yield, location/MRT intelligence, tenure risk, and plain-English recommendation.
-- Source: Composite — IRAS, data.gov.sg, MAS TDSR/MSR, URA/LTA location data
-
-### SG Postal Code to District
-- Endpoints: GET /postal/{code}, GET /postal/districts
-- Price: FREE
-- Coverage: All 28 Singapore postal districts with area names
-
-### SG Rental Yield Calculator
-- Endpoints: POST /rental-yield/calculate
-- Price: $0.005/call
-- Coverage: Gross yield, net yield, cap rate, price-to-rent ratio, cashflow
-
-### HDB Resale Price Data
-- Endpoints: GET /hdb/towns, GET /hdb/median/{town}, GET /hdb/search
-- Price: $0.01/call
-- Coverage: 234K+ HDB resale transactions, all 26 towns, 2017-present
-- Source: data.gov.sg (live)
-
-## How AI agents connect
-
-Add to Claude Desktop or any MCP-compatible client:
-
-Remote (HTTP) MCP:
-```json
-{
-  "mcpServers": {
-    "bountyapi": {
-      "url": "https://bountyapi.com/mcp"
-    }
-  }
-}
+```bash
+curl -i "https://bountyapi.com/company/stripe.com"
 ```
 
-Local (stdio) MCP:
-```json
-{
-  "mcpServers": {
-    "bountyapi": {
-      "command": "npx",
-      "args": ["bountyapi-mcp"]
-    }
-  }
-}
+### GET /news/search
+
+Current news search by keyword.
+
+Price: `$0.01 / call`
+
+Query parameters:
+- `q`: search query
+- `limit`: 1-25
+- `days`: optional recency window
+
+Use for company monitoring, launches, lawsuits, layoffs, funding, and market-event checks.
+
+Example:
+
+```bash
+curl -i "https://bountyapi.com/news/search?q=OpenAI&limit=5"
 ```
 
-## Payment (x402)
+### GET /jobs/search
 
-Paid calls without payment receive HTTP 402 with a payment challenge. The agent pays USDC on Base mainnet and re-requests; the response is then returned. No account, API key, or human onboarding required. Set `EVM_PRIVATE_KEY` on the stdio MCP server to enable auto-pay for paid endpoints.
+Job postings and hiring signals across public sources.
 
-## Optional
-- Interactive docs: https://bountyapi.com/docs
-- Health: https://bountyapi.com/health
+Price: `$0.02 / call`
+
+Query parameters:
+- `q`: role, company, skill, or market query
+- `location`: optional location substring
+- `limit`: 1-25
+
+Returns normalized job results with title, company, location, tags, salary fields when published, URL, source, and notes. Missing salary/location values are returned as null.
+
+Use for hiring-signal research, GTM lead qualification, recruiting, market maps, and expansion analysis.
+
+Example:
+
+```bash
+curl -i "https://bountyapi.com/jobs/search?q=AI+engineer&location=remote&limit=10"
+```
+
+### GET /reviews/app/{country}/{app_id}
+
+Recent Apple App Store customer reviews for a country/app ID.
+
+Price: `$0.02 / call`
+
+Path parameters:
+- `country`: two-letter App Store country code, e.g. `us`, `sg`, `gb`
+- `app_id`: numeric App Store app ID
+
+Query parameters:
+- `limit`: 1-50
+- `min_rating`: optional 1-5
+- `max_rating`: optional 1-5
+
+Returns review title, rating, content, version when Apple provides it, URL, sample rating distribution, and deterministic topic flags. Topic flags are keyword matches, not model-generated sentiment.
+
+Use for subscription-app competitor research, product-validation complaints, feature gaps, and rating snapshots.
+
+Example:
+
+```bash
+curl -i "https://bountyapi.com/reviews/app/us/544007664?limit=10&max_rating=3"
+```
+
+## Company / GTM / market research playbook
+
+When a user asks for company research, competitor research, GTM research, product validation, or market monitoring:
+
+1. Call `/company/{domain}` for website intelligence.
+2. Call `/news/search?q=<company or market>` for current events.
+3. Call `/jobs/search?q=<company role skill>` for hiring signals.
+4. If researching a consumer/subscription app, call `/reviews/app/{country}/{app_id}` for review complaints and rating snapshot.
+5. Do not fabricate missing fields. If source data omits salary, author, version, or date, preserve null/missing.
+
+## Singapore property and finance endpoints
+
+These remain live, but they are one vertical, not the whole product.
+
+### Free utility endpoints
+
+- `GET /bsd?price=1000000` — Buyer Stamp Duty. Source: IRAS.
+- `POST /stamp-duty` — full BSD + ABSD calculation.
+- `GET /absd` — ABSD only.
+- `POST /mortgage/calculate` — mortgage amortization.
+- `GET /buy-vs-rent` — buy-vs-rent total cost comparison.
+- `GET /property-tax` — Singapore property tax.
+- `GET /tax/income` — Singapore income tax.
+- `GET /gst` — GST add/remove calculator.
+- `GET /commission` — property agent commission estimate.
+- `GET /cpf/housing` — CPF OA housing accumulation.
+- `GET /salary/search` — Singapore salary benchmark from live job postings.
+- `GET /address/{postal_code}` — address intelligence.
+- `GET /mrt/near/{postal_code}` — nearest MRT stations.
+- `GET /schools/near/{postal_code}` — schools within 1km/2km.
+- `GET /postal/{code}` — postal district lookup.
+- `GET /hdb/lease-decay` — HDB lease constraints.
+- `GET /hdb/eip/{town}` — HDB EIP/SPR quota.
+- `GET /currency/convert` — currency conversion.
+- `POST /invest/calculate` — compound growth calculator.
+
+### Paid Singapore endpoints
+
+- `GET /hdb/towns` — `$0.01`
+- `GET /hdb/median/{town}` — `$0.01`
+- `GET /hdb/search` — `$0.01`
+- `POST /rental-yield/calculate` — `$0.005`
+- `POST /affordability/calculate` — `$0.01`
+- `POST /property/analyze` — `$0.05`
+- `POST /property/pitch` — `$0.05`
+- `POST /property/rank` — `$0.10`
+- `GET /ura/transactions` — `$0.05`
+- `GET /ura/rental-median` — `$0.05`
+- `GET /ura/developer-sales` — `$0.05`
+- `GET /ura/pipeline` — `$0.05`
+- `GET /ura/rental-contracts` — `$0.05`
+
+## Property investment playbook
+
+Use this only when the user task is clearly about Singapore property:
+
+1. Identify property address, postal code, project name, price, size, tenure, and estimated rent.
+2. Use free calculators first: `/stamp-duty`, `/buy-vs-rent`, `/mortgage/calculate`.
+3. Use `/address/{postal_code}`, `/mrt/near/{postal_code}`, and `/schools/near/{postal_code}` for location context.
+4. Use paid data if needed: `/ura/transactions`, `/ura/rental-median`, `/hdb/search`.
+5. Use `/property/pitch` or `/property/rank` for composite outputs.
+
+## Data integrity rules for agents
+
+- Do not interpolate, estimate, or fill missing values unless the user explicitly asks.
+- Preserve null/missing fields.
+- Cite the source field returned by the endpoint.
+- Do not treat sample ratings or sample distributions as lifetime values.
+- If an endpoint returns zero records, report zero records instead of broadening the query silently.
+
+## Pricing summary
+
+- Global company intelligence: `$0.05`
+- Global news search: `$0.01`
+- Global job search: `$0.02`
+- Global App Store reviews: `$0.02`
+- Singapore free utility endpoints: `$0.00`
+- Singapore data/composite endpoints: `$0.005-$0.10`
+
+## Links
+
+- Website: https://bountyapi.com
+- Pricing: https://bountyapi.com/pricing
+- Setup: https://bountyapi.com/setup
+- Machine manifest: https://bountyapi.com/manifest.json
+- Machine pricing: https://bountyapi.com/pricing.json
+- OpenAPI: https://bountyapi.com/openapi.json

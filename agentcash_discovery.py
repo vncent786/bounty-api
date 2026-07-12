@@ -86,12 +86,22 @@ PAID_ROUTES: Dict[str, Dict[str, Any]] = {
         "price": "0.010000",
         "description": "Search current news by keyword. Structured articles from Google News RSS and other free feeds. Replaces NewsAPI-style lookups.",
     },
+    "GET /jobs/search": {
+        "price": "0.020000",
+        "description": "Search job postings and hiring signals across Remote OK and Hacker News hiring sources. Useful for recruiting, market maps, and GTM lead research.",
+    },
+    "GET /reviews/app/{country}/{app_id}": {
+        "price": "0.020000",
+        "description": "Fetch recent App Store reviews for a country/app ID with sample rating distribution and deterministic complaint topic flags.",
+    },
 }
 
 # Agent guidance — injected as info.x-guidance
 # This is what agents read to understand how to use our API
 AGENT_GUIDANCE = """\
-Bounty provides specialist data APIs for Asian property and financial markets, starting with Singapore.
+Bounty provides pay-per-call data APIs for AI agents. The core product is no-account access to data agents need for research, monitoring, GTM, and investment workflows: company intelligence, news, job postings, app reviews, and Singapore property/financial analysis.
+
+Bounty is no longer just Singapore property. Singapore property remains one vertical; the broader product is agent-native data infrastructure with MCP discovery and x402 payments.
 
 FREE endpoints (no payment needed):
 - /postal/{code} — postal code to district mapping
@@ -110,6 +120,8 @@ FREE endpoints (no payment needed):
 PAID endpoints (x402 micropayment, USDC on Base):
 - /company/{domain} — company website intelligence: tech stack, contacts, social links, SSL, security headers, metadata ($0.05/call)
 - /news/search?q=... — current news search with structured articles ($0.01/call)
+- /jobs/search?q=... — job postings and hiring signals across public sources ($0.02/call)
+- /reviews/app/{country}/{app_id} — recent App Store reviews with rating distribution and deterministic topic flags ($0.02/call)
 - /hdb/towns, /hdb/search — HDB resale transaction data ($0.01/call)
 - /rental-yield/calculate — rental yield investment metrics ($0.005/call)
 - /affordability/calculate — TDSR/MSR affordability ($0.01/call)
@@ -118,10 +130,12 @@ PAID endpoints (x402 micropayment, USDC on Base):
 - /property/rank — rank properties by investment value ($0.10/call)
 - /ura/transactions, /ura/rental-median, /ura/developer-sales, /ura/pipeline, /ura/rental-contracts — URA private property data ($0.05/call)
 
-Company Research Workflow:
-1. Use /company/{domain} when you need BuiltWith-style company intelligence: tech stack, analytics, CDN, payments, chat, auth, social links, SSL/security headers.
-2. Use /news/search?q=<company or topic> when you need current news, launches, lawsuits, funding, layoffs, or market events.
-3. Combine both for B2B prospecting, investor research, competitor analysis, and due diligence.
+Company / GTM / Market Research Workflow:
+1. Use /company/{domain} for BuiltWith-style company intelligence: tech stack, analytics, CDN, payments, chat, auth, social links, SSL/security headers.
+2. Use /news/search?q=<company or topic> for current news, launches, lawsuits, funding, layoffs, or market events.
+3. Use /jobs/search?q=<role/company/skill> to detect hiring plans, expansion vectors, and talent demand.
+4. Use /reviews/app/{country}/{app_id} for subscription app competitor reviews, customer complaints, feature gaps, and rating snapshots.
+5. Combine these for B2B prospecting, investor research, competitor monitoring, product validation, and due diligence.
 
 Property Investment Research Workflow:
 1. Identify the property (address, postal code, or listing URL)
@@ -244,7 +258,7 @@ def mount_agentcash_discovery(app):
     async def agentcash_well_known():
         return JSONResponse({
             "name": "Bounty API",
-            "description": "Pay-per-call APIs for AI agents: company intelligence, news search, and Asian property/financial data.",
+            "description": "Pay-per-call data APIs for AI agents: company intelligence, news, job postings, app reviews, and Singapore property/financial analysis.",
             "url": "https://bountyapi.com",
             "openapi_url": "https://bountyapi.com/openapi.json",
             "llms_txt_url": "https://bountyapi.com/llms.txt",
@@ -255,7 +269,7 @@ def mount_agentcash_discovery(app):
                 "max": "$0.10",
                 "currency": "USDC on Base"
             },
-            "categories": ["company-intelligence", "news", "b2b", "property", "finance", "geography"],
+            "categories": ["company-intelligence", "news", "jobs", "app-reviews", "b2b", "gtm", "product-research", "property", "finance"],
             "regions": ["Global", "Singapore"],
             "contact": CONTACT_EMAIL,
         })

@@ -107,7 +107,7 @@ FOOTER_HTML = """
 <footer class="footer">
   <div>
     <div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
-    <p class="footer-tag">Specialist data APIs for AI agents. MCP-native, x402 payments. Singapore live now.</p>
+    <p class="footer-tag">Pay-per-call data APIs for AI agents. Global research endpoints plus Singapore property workflows.</p>
   </div>
   <div class="footer-col"><h4>Product</h4><a href="/#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div>
   <div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div>
@@ -145,6 +145,35 @@ __NAV__
     <span>Type</span>
     <span>Why</span>
   </div>
+
+  <div style="margin:24px 0 8px;font-size:13px;color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em">Global research endpoints</div>
+
+  <div class="table-row">
+    <span><strong>Company Intelligence</strong><br><span class="tag">/company/{domain}</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Website intelligence</span>
+    <span style="color:var(--muted);font-size:14px">Tech stack, contacts, social links, SSL, security headers.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>News Search</strong><br><span class="tag">/news/search</span></span>
+    <span class="price-paid">$0.01 / call</span>
+    <span>Current events</span>
+    <span style="color:var(--muted);font-size:14px">Structured news by keyword for monitoring and research.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>Job Search</strong><br><span class="tag">/jobs/search</span></span>
+    <span class="price-paid">$0.02 / call</span>
+    <span>Hiring signals</span>
+    <span style="color:var(--muted);font-size:14px">Job postings and hiring threads for GTM, recruiting, market maps.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>App Reviews</strong><br><span class="tag">/reviews/app/{country}/{app_id}</span></span>
+    <span class="price-paid">$0.02 / call</span>
+    <span>Product research</span>
+    <span style="color:var(--muted);font-size:14px">Recent App Store reviews, rating sample, deterministic complaint flags.</span>
+  </div>
+
+  <div style="margin:24px 0 8px;font-size:13px;color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em">Free utility endpoints</div>
 
   <div class="table-row">
     <span><strong>SG Stamp Duty</strong><br><span class="tag">/bsd</span> <span class="tag">/absd</span></span>
@@ -564,7 +593,7 @@ async def manifest():
     """Machine-readable marketplace manifest for agent discovery."""
     return {
         "name": "Bounty API",
-        "description": "Specialist data APIs for AI agents. Singapore property, tax, salary, and location data with x402 micropayments.",
+        "description": "Pay-per-call data APIs for AI agents: company intelligence, news, job postings, app reviews, and Singapore property/financial workflows.",
         "url": "https://bountyapi.com",
         "version": "3.0.0",
         "payment": {
@@ -582,14 +611,21 @@ async def manifest():
             "tools": 27
         },
         "stats": {
-            "total_apis": 31,
+            "total_apis": 35,
             "mcp_tools": 27,
             "free_endpoints": 20,
-            "paid_endpoints": 11
+            "paid_endpoints": 15
         },
-        "region_live": "Singapore",
+        "region_live": "Global + Singapore",
+        "positioning": "agent-native data infrastructure, not just Singapore property",
+        "global_categories_live": ["company-intelligence", "news", "jobs", "app-reviews"],
+        "singapore_vertical_live": ["property", "tax", "affordability", "location", "salary"],
         "region_roadmap": "HK, UAE, AU, JP",
         "apis": [
+            {"name": "Company Intelligence", "slug": "company-intel", "endpoints": ["/company/{domain}"], "price": "$0.05", "free": False, "region": "Global", "category": "company-intelligence", "source": "Company website"},
+            {"name": "News Search", "slug": "news-search", "endpoints": ["/news/search"], "price": "$0.01", "free": False, "region": "Global", "category": "news", "source": "News RSS"},
+            {"name": "Job Search", "slug": "job-search", "endpoints": ["/jobs/search"], "price": "$0.02", "free": False, "region": "Global", "category": "jobs", "source": "Remote OK, Hacker News Algolia"},
+            {"name": "App Reviews", "slug": "app-reviews", "endpoints": ["/reviews/app/{country}/{app_id}"], "price": "$0.02", "free": False, "region": "Global", "category": "app-reviews", "source": "Apple App Store RSS"},
             {"name": "SG Stamp Duty (BSD+ABSD)", "slug": "stamp-duty", "endpoints": ["/bsd", "/absd", "/stamp-duty"], "price": "$0.00", "free": True, "region": "Singapore", "category": "property-tax", "source": "iras.gov.sg"},
             {"name": "Postal District Mapper", "slug": "postal-district", "endpoints": ["/postal/{code}", "/postal/districts"], "price": "$0.00", "free": True, "region": "Singapore", "category": "geography", "source": "Static reference"},
             {"name": "SG Address Intelligence", "slug": "address-intel", "endpoints": ["/address/{code}"], "price": "$0.00", "free": True, "region": "Singapore", "category": "geography", "source": "URA/LTA/SLA"},
@@ -670,6 +706,10 @@ async def pricing_json():
             {"path": "/ura/status", "description": "URA API connection status"}
         ],
         "paid_endpoints": [
+            {"path": "/company/{domain}", "price": "$0.05", "price_atomic": "50000", "description": "Company website intelligence: tech stack, contacts, social links, SSL, security headers"},
+            {"path": "/news/search", "price": "$0.01", "price_atomic": "10000", "description": "Current news search by keyword"},
+            {"path": "/jobs/search", "price": "$0.02", "price_atomic": "20000", "description": "Job postings and hiring signals"},
+            {"path": "/reviews/app/{country}/{app_id}", "price": "$0.02", "price_atomic": "20000", "description": "Recent App Store reviews with rating sample and topic flags"},
             {"path": "/rental-yield/calculate", "method": "POST", "price": "$0.005", "price_atomic": "5000", "description": "Rental yield investment analysis"},
             {"path": "/affordability", "price": "$0.01", "price_atomic": "10000", "description": "TDSR/MSR affordability check"},
             {"path": "/hdb/towns", "price": "$0.01", "price_atomic": "10000", "description": "HDB resale town-level data"},

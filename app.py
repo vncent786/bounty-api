@@ -1597,6 +1597,20 @@ try:
 except ImportError as e:
     print(f"Warning: property_decisions router not loaded: {e}")
 
+# Company Intelligence — tech stack, contacts, security (replaces BuiltWith)
+try:
+    from apis.company_intel import router as company_intel_router
+    app.include_router(company_intel_router)
+except ImportError as e:
+    print(f"Warning: company_intel router not loaded: {e}")
+
+# News Search — aggregated news from free RSS (replaces NewsAPI)
+try:
+    from apis.news_search import router as news_router
+    app.include_router(news_router)
+except ImportError as e:
+    print(f"Warning: news_search router not loaded: {e}")
+
 # Marketplace pages (pricing, providers, setup, manifest)
 try:
     from pages import router as pages_router

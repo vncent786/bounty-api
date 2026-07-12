@@ -7,15 +7,15 @@
   "name": "Bounty API",
   "url": "https://bountyapi.com",
   "category": "Specialist Data APIs",
-  "focus": "Singapore",
+  "focus": "Global company intelligence + Singapore property",
   "payment_protocol": "x402",
   "discovery_protocol": "MCP",
   "settlement_currency": "USDC",
-  "live_apis": 15,
-  "mcp_tools": 12,
+  "live_apis": 17,
+  "mcp_tools": 14,
   "free_endpoints": 8,
-  "paid_endpoints": 6,
-  "region_live": "Singapore",
+  "paid_endpoints": 8,
+  "region_live": "Global + Singapore",
   "region_roadmap": "HK, UAE, AU, JP",
   "provider_revenue_share": "97%"
 }
@@ -26,9 +26,23 @@
 - Specialist data APIs for AI agents. Bounty is a single provider today (a multi-provider marketplace is a roadmap item, not the current product).
 - Discovery via MCP (single endpoint exposes all APIs as tools)
 - Payment via x402 (USDC on Base, sub-second settlement)
-- Live now: Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
+- Live now: Global company intelligence and news search, plus Singapore property, tax, affordability, and location data. The API shape includes a region parameter for future market expansion (HK, UAE, AU, JP planned).
 
 ## Available APIs
+
+### Company Intelligence
+- Endpoint: GET /company/{domain}
+- Price: $0.05/call
+- Coverage: BuiltWith-style website intelligence for any company domain: detected tech stack, CMS, JS framework, analytics, CDN/hosting, payment processors, chat/support tools, auth providers, monitoring tools, contact emails, social links, SSL certificate status, and security headers.
+- Source: Live scrape of the target company's public website. Zero upstream subscription; pay-per-call.
+- Best for: B2B prospecting, competitor research, vendor due diligence, sales qualification, investor research.
+
+### News Search
+- Endpoint: GET /news/search?q={query}&limit={limit}
+- Price: $0.01/call
+- Coverage: Structured current news search with title, source, URL, publish date, description, and image when available.
+- Source: Google News RSS and selected free feeds. Zero upstream subscription; pay-per-call.
+- Best for: company monitoring, research agents, market events, lawsuits, funding, layoffs, product launches.
 
 ### SG Stamp Duty Calculator
 - Endpoints: POST /stamp-duty, GET /bsd, GET /absd

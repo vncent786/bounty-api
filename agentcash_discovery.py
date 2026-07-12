@@ -78,6 +78,14 @@ PAID_ROUTES: Dict[str, Dict[str, Any]] = {
         "price": "0.050000",
         "description": "URA private residential rental contract statistics",
     },
+    "GET /company/{domain}": {
+        "price": "0.050000",
+        "description": "Company website intelligence: tech stack, contacts, social links, SSL, security headers, metadata. Replaces BuiltWith-style lookups.",
+    },
+    "GET /news/search": {
+        "price": "0.010000",
+        "description": "Search current news by keyword. Structured articles from Google News RSS and other free feeds. Replaces NewsAPI-style lookups.",
+    },
 }
 
 # Agent guidance — injected as info.x-guidance
@@ -100,6 +108,8 @@ FREE endpoints (no payment needed):
 - /hdb/lease-decay — HDB lease decay analysis
 
 PAID endpoints (x402 micropayment, USDC on Base):
+- /company/{domain} — company website intelligence: tech stack, contacts, social links, SSL, security headers, metadata ($0.05/call)
+- /news/search?q=... — current news search with structured articles ($0.01/call)
 - /hdb/towns, /hdb/search — HDB resale transaction data ($0.01/call)
 - /rental-yield/calculate — rental yield investment metrics ($0.005/call)
 - /affordability/calculate — TDSR/MSR affordability ($0.01/call)
@@ -107,6 +117,11 @@ PAID endpoints (x402 micropayment, USDC on Base):
 - /property/pitch — investment thesis one-pager ($0.05/call)
 - /property/rank — rank properties by investment value ($0.10/call)
 - /ura/transactions, /ura/rental-median, /ura/developer-sales, /ura/pipeline, /ura/rental-contracts — URA private property data ($0.05/call)
+
+Company Research Workflow:
+1. Use /company/{domain} when you need BuiltWith-style company intelligence: tech stack, analytics, CDN, payments, chat, auth, social links, SSL/security headers.
+2. Use /news/search?q=<company or topic> when you need current news, launches, lawsuits, funding, layoffs, or market events.
+3. Combine both for B2B prospecting, investor research, competitor analysis, and due diligence.
 
 Property Investment Research Workflow:
 1. Identify the property (address, postal code, or listing URL)
@@ -229,7 +244,7 @@ def mount_agentcash_discovery(app):
     async def agentcash_well_known():
         return JSONResponse({
             "name": "Bounty API",
-            "description": "Specialist data APIs for Asian property and financial markets. Pay-per-call, agent-native.",
+            "description": "Pay-per-call APIs for AI agents: company intelligence, news search, and Asian property/financial data.",
             "url": "https://bountyapi.com",
             "openapi_url": "https://bountyapi.com/openapi.json",
             "llms_txt_url": "https://bountyapi.com/llms.txt",
@@ -240,8 +255,8 @@ def mount_agentcash_discovery(app):
                 "max": "$0.10",
                 "currency": "USDC on Base"
             },
-            "categories": ["property", "finance", "geography"],
-            "regions": ["Singapore"],
+            "categories": ["company-intelligence", "news", "b2b", "property", "finance", "geography"],
+            "regions": ["Global", "Singapore"],
             "contact": CONTACT_EMAIL,
         })
 

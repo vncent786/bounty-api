@@ -41,6 +41,8 @@ PRICE_AFFORDABILITY = "$0.01"  # TDSR/MSR — regulatory computation
 PRICE_RANK = "$0.10"       # Property ranking — highest-value workflow endpoint
 PRICE_PITCH = "$0.05"     # Property pitch — investment thesis one-pager
 PRICE_URA = "$0.05"       # URA private property data — exclusive government API data
+PRICE_COMPANY_INTEL = "$0.05"  # Company website intelligence — replaces BuiltWith ($295/mo)
+PRICE_NEWS = "$0.01"      # News search — replaces NewsAPI ($449/mo)
 
 
 def create_payment_middleware(app):
@@ -183,6 +185,16 @@ def create_payment_middleware(app):
             accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_URA, network=EVM_NETWORK)],
             mime_type="application/json",
             description="URA private residential rental contract statistics",
+        ),
+        "GET /company/:domain": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_COMPANY_INTEL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Company website intelligence — tech stack, contacts, security, metadata for any domain. Replaces BuiltWith.",
+        ),
+        "GET /news/search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_NEWS, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Search news articles by keyword — aggregated from Google News and other free sources. Replaces NewsAPI.",
         ),
     }
 

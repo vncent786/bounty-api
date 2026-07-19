@@ -11,3 +11,10 @@ mcp-server/dist/
 .pytest_cache/
 .DS_Store
 Thumbs.db
+
+# Dev artifacts — probes, screenshots, scratch JSON
+social_scraper/*.png
+social_scraper/probe_*_results.json
+social_scraper_audit_*.json
+tiktok_screenshots/
+account_factory/deep_probe_screenshots/

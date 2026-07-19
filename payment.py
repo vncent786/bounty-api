@@ -45,6 +45,7 @@ PRICE_COMPANY_INTEL = "$0.05"  # Company website intelligence — replaces Built
 PRICE_NEWS = "$0.01"      # News search — replaces NewsAPI ($449/mo)
 PRICE_JOBS = "$0.02"      # Job/hiring signal aggregation — replaces job-board scraping workflows
 PRICE_REVIEWS = "$0.02"   # App Store review intelligence — replaces manual competitor-review scraping
+PRICE_SOCIAL = "$0.05"   # Cross-platform social trend search (Reddit + YouTube + Instagram)
 
 
 def create_payment_middleware(app):
@@ -207,6 +208,11 @@ def create_payment_middleware(app):
             accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_REVIEWS, network=EVM_NETWORK)],
             mime_type="application/json",
             description="Fetch recent App Store reviews with rating distribution and deterministic complaint topic flags.",
+        ),
+        "GET /social/trend-search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Cross-platform social trend search across Reddit, YouTube, and Instagram with per-source health reporting.",
         ),
     }
 

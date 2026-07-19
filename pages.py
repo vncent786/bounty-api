@@ -172,6 +172,12 @@ __NAV__
     <span>Product research</span>
     <span style="color:var(--muted);font-size:14px">Recent App Store reviews, rating sample, deterministic complaint flags.</span>
   </div>
+  <div class="table-row">
+    <span><strong>Social Trend Search</strong><br><span class="tag">/social/trend-search</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Trend intel</span>
+    <span style="color:var(--muted);font-size:14px">Reddit + YouTube + Instagram in one call. Creators, captions, view counts, pain language. Per-source health reporting.</span>
+  </div>
 
   <div style="margin:24px 0 8px;font-size:13px;color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em">Free utility endpoints</div>
 

@@ -316,6 +316,7 @@ async def landing_page():
       <div class="api-row"><div><div class="api-name">News Search</div><div class="api-desc">Structured current news by keyword.</div></div><div class="api-src">news RSS</div><div class="api-price">$0.01</div><div class="api-use">monitoring, events</div></div>
       <div class="api-row"><div><div class="api-name">Job Search</div><div class="api-desc">Job postings and hiring signals.</div></div><div class="api-src">job feeds</div><div class="api-price">$0.02</div><div class="api-use">GTM, recruiting, market maps</div></div>
       <div class="api-row"><div><div class="api-name">App Reviews</div><div class="api-desc">Recent App Store reviews, rating sample, topic flags.</div></div><div class="api-src">Apple RSS</div><div class="api-price">$0.02</div><div class="api-use">product research</div></div>
+      <div class="api-row"><div><div class="api-name">Social Trend Search</div><div class="api-desc">Cross-platform social intel: Reddit + YouTube + Instagram in one call.</div></div><div class="api-src">PullPush, yt-dlp, IG tags</div><div class="api-price">$0.05</div><div class="api-use">trend discovery, creator maps, pain language</div></div>
       <div class="api-row"><div><div class="api-name">Singapore Property Analysis</div><div class="api-desc">Stamp duty, URA/HDB comps, yield, affordability, location.</div></div><div class="api-src">IRAS, URA, HDB</div><div class="api-price">FREE-$0.10</div><div class="api-use">property workflows</div></div>
     </div></section></div>
 
@@ -489,6 +490,7 @@ async def root():
             "/news/search": "Current news search",
             "/jobs/search": "Job postings and hiring signals",
             "/reviews/app/{country}/{app_id}": "App Store review intelligence",
+            "/social/trend-search": "Cross-platform social trend search (Reddit + YouTube + Instagram)",
             "/stamp-duty": "Full stamp duty calculation (BSD + ABSD)",
             "/bsd": "Buyer's Stamp Duty only",
             "/absd": "Additional Buyer's Stamp Duty only",
@@ -1366,6 +1368,13 @@ try:
     app.include_router(app_reviews_router)
 except ImportError as e:
     print(f"Warning: app_reviews router not loaded: {e}")
+
+# Social Trend Search — multi-platform social media intelligence (Reddit/YouTube/Instagram)
+try:
+    from apis.social_trends import router as social_trends_router
+    app.include_router(social_trends_router)
+except ImportError as e:
+    print(f"Warning: social_trends router not loaded: {e}")
 
 # Marketplace pages (pricing, providers, setup, manifest)
 try:

@@ -12,6 +12,7 @@ Design principle: each endpoint maps to a question a real user would ask.
 
 import time
 import asyncio
+import logging
 from datetime import datetime, timezone, timedelta
 from typing import Literal, Optional
 
@@ -20,11 +21,24 @@ from pydantic import BaseModel, Field
 
 from social_scraper.connectors.youtube import YouTubeConnector
 from social_scraper.broker import SourceBroker
-from social_scraper.connectors.tiktok_api import TikTokAPIDirectConnector
-from social_scraper.connectors.tiktok_playwright import TikTokPlaywrightConnector
-from social_scraper.connectors.reddit_mobile import RedditMobileConnector
-from social_scraper.connectors.reddit_rss import RedditRSSConnector
-from social_scraper.proxy_config import proxy_health_summary
+
+# Optional connectors — these may fail on Railway if dependencies are missing.
+# YouTube always works (yt-dlp). TikTok/Reddit are best-effort.
+logger = logging.getLogger(__name__)
+TikTokAPIDirectConnector = None
+RedditMobileConnector = None
+RedditRSSConnector = None
+proxy_health_summary = lambda: {"configured": False}
+
+try:
+    from social_scraper.connectors.tiktok_api import TikTokAPIDirectConnector
+except ImportError as e:
+    logger.warning(f"TikTok API connector not available: {e}")
+
+try:
+    from social_scraper.proxy_config import proxy_health_summary
+except ImportError:
+    pass
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +165,21 @@ def create_social_intel_router(
         Without proxy, TikTok will IP-block after first request.
         """
         keyword = req.keyword or "trending"
+
+        if TikTokAPIDirectConnector is None:
+            return {
+                "keyword": keyword,
+                "platform": "tiktok",
+                "region": req.region,
+                "count": 0,
+                "items": [],
+                "source_health": {
+                    "status": "error",
+                    "error": "TikTok connector not available (missing dependencies)",
+                },
+                "proxy_configured": proxy_health_summary().get("configured", False),
+            }
+
         tiktok = TikTokAPIDirectConnector()
 
         result = await tiktok.search(
@@ -209,11 +238,12 @@ def create_social_intel_router(
                     time_filter=req.time_filter,
                 )
             elif platform == "tiktok":
-                tiktok = TikTokAPIDirectConnector()
-                tasks[platform] = tiktok.search(
-                    req.topic, count=req.count_per_platform,
-                    time_filter=req.time_filter, region=req.region or "US",
-                )
+                if TikTokAPIDirectConnector is not None:
+                    tiktok = TikTokAPIDirectConnector()
+                    tasks[platform] = tiktok.search(
+                        req.topic, count=req.count_per_platform,
+                        time_filter=req.time_filter, region=req.region or "US",
+                    )
             elif platform == "reddit":
                 # Use the existing broker for reddit
                 tasks[platform] = search_broker.search(

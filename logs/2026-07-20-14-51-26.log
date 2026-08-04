@@ -1,0 +1,4 @@
+2026-07-20 14:51:35,247 - Douyin_TikTok_Download_API_Crawlers - ERROR - 请求Douyin msToken API时发生错误：[Errno 11001] getaddrinfo failed
+2026-07-20 14:51:35,258 - Douyin_TikTok_Download_API_Crawlers - INFO - 将使用本地生成的虚假msToken参数，以继续请求。
+2026-07-20 14:51:43,350 - Douyin_TikTok_Download_API_Crawlers - ERROR - 请求Douyin msToken API时发生错误：[Errno 11001] getaddrinfo failed
+2026-07-20 14:51:43,350 - Douyin_TikTok_Download_API_Crawlers - INFO - 将使用本地生成的虚假msToken参数，以继续请求。

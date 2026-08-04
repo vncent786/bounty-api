@@ -1,0 +1,37 @@
+[
+  {
+    "name": "investing-current",
+    "keyword": "earnings",
+    "subreddits": ["stocks", "investing", "options", "SecurityAnalysis", "ValueInvesting"],
+    "time_filter": "week",
+    "interval_minutes": 60
+  },
+  {
+    "name": "marketing-current",
+    "keyword": "campaign",
+    "subreddits": ["marketing", "advertising", "socialmedia"],
+    "time_filter": "month",
+    "interval_minutes": 120
+  },
+  {
+    "name": "creator-current",
+    "keyword": "video",
+    "subreddits": ["NewTubers", "PartneredYoutube", "ContentCreators"],
+    "time_filter": "week",
+    "interval_minutes": 120
+  },
+  {
+    "name": "consumer-current",
+    "keyword": "recommend",
+    "subreddits": ["BuyItForLife", "SkincareAddiction", "RunningShoeGeeks", "Coffee"],
+    "time_filter": "week",
+    "interval_minutes": 120
+  },
+  {
+    "name": "technical-baseline",
+    "keyword": "packaging",
+    "subreddits": ["Python"],
+    "time_filter": "month",
+    "interval_minutes": 180
+  }
+]

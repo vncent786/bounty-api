@@ -46,6 +46,7 @@ PRICE_NEWS = "$0.01"      # News search — replaces NewsAPI ($449/mo)
 PRICE_JOBS = "$0.02"      # Job/hiring signal aggregation — replaces job-board scraping workflows
 PRICE_REVIEWS = "$0.02"   # App Store review intelligence — replaces manual competitor-review scraping
 PRICE_SOCIAL = "$0.05"   # Cross-platform social trend search (Reddit + YouTube + Instagram)
+PRICE_TIKTOK = "$0.03"   # TikTok search — real video data with views/likes/comments
 
 
 def create_payment_middleware(app):
@@ -213,6 +214,56 @@ def create_payment_middleware(app):
             accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
             mime_type="application/json",
             description="Cross-platform social trend search across Reddit, YouTube, and Instagram with per-source health reporting.",
+        ),
+        "POST /social/search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Resilient cross-platform social search with connector failover, provenance, and per-route health.",
+        ),
+        "POST /social/search/cached": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Serve the newest fresh scheduled social snapshot without launching live browser collection.",
+        ),
+        "GET /social/reddit/feed": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Camoufox-backed Reddit subreddit feed with canonical post metadata.",
+        ),
+        "GET /social/reddit/post": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Camoufox hydration of a canonical Reddit post and its comments.",
+        ),
+        "POST /social/tiktok/search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_TIKTOK, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="TikTok video search with real engagement metrics (views, likes, comments). Authenticated residential proxy. Replaces TikHub/ScrapeCreators.",
+        ),
+        "GET /social/youtube/search": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="YouTube search with full engagement metrics: views, likes, channel subscriber counts, upload dates. Sort by views or recency. Time-window filtering.",
+        ),
+        "GET /social/youtube/video/{video_id}": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Deep video intelligence for a single YouTube video: description, tags, categories, likes, comments, channel subscribers, duration.",
+        ),
+        "GET /social/youtube/channel/{handle}": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="YouTube channel overview: subscriber count, recent top videos ranked by views. Creator analysis and competitive benchmarking.",
+        ),
+        "POST /social/tiktok/trending": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Trending TikTok content by region and category. Ranked by engagement velocity. Views, likes, comments, shares, hashtags.",
+        ),
+        "POST /social/trends": RouteConfig(
+            accepts=[PaymentOption(scheme="exact", pay_to=PAY_TO_ADDRESS, price=PRICE_SOCIAL, network=EVM_NETWORK)],
+            mime_type="application/json",
+            description="Cross-platform trend analysis: searches YouTube, TikTok, and Reddit in one call. Returns top content, creators, viral outliers, trending hashtags across platforms.",
         ),
     }
 

@@ -18,3 +18,10 @@ social_scraper/probe_*_results.json
 social_scraper_audit_*.json
 tiktok_screenshots/
 account_factory/deep_probe_screenshots/
+.browser_profiles/
+
+# Runtime social collection databases
+/data/*.db
+/data/*.db-shm
+/data/*.db-wal
+/data/reddit_mobile_device.json

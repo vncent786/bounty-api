@@ -6,3 +6,6 @@ mcp>=1.0.0
 x402[fastapi,evm]>=2.0.0
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
+python-dotenv>=1.0.0
+camoufox==0.4.11
+curl-cffi==0.16.0

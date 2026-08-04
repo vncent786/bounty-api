@@ -1,0 +1,4 @@
+2026-07-20 22:18:19,386 - Douyin_TikTok_Download_API_Crawlers - ERROR - 生成TikTok msToken API错误：[Errno 11001] getaddrinfo failed
+2026-07-20 22:18:19,406 - Douyin_TikTok_Download_API_Crawlers - INFO - 当前网络无法正常访问TikTok服务器，已经使用虚假msToken以继续运行。
+2026-07-20 22:18:19,410 - Douyin_TikTok_Download_API_Crawlers - INFO - 并且TikTok相关API大概率无法正常使用，请在(/tiktok/web/config.yaml)中更新代理。
+2026-07-20 22:18:19,414 - Douyin_TikTok_Download_API_Crawlers - INFO - 如果你不需要使用TikTok相关API，请忽略此消息。

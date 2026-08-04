@@ -98,7 +98,7 @@ NAV_HTML = """
       <a href="/setup">Setup</a>
       <a href="/docs">Docs</a>
     </div>
-    <div class="nav-live"><span class="live-dot"></span><span>31 APIs &middot; LIVE</span></div>
+    <div class="nav-live"><span class="live-dot"></span><span>36+ APIs &middot; LIVE</span></div>
   </div>
 </nav>
 """
@@ -107,13 +107,13 @@ FOOTER_HTML = """
 <footer class="footer">
   <div>
     <div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div>
-    <p class="footer-tag">Pay-per-call data APIs for AI agents. Global research endpoints plus Singapore property workflows.</p>
+    <p class="footer-tag">Social intelligence, research APIs, and Singapore property workflows. MCP-native, x402 payments.</p>
   </div>
   <div class="footer-col"><h4>Product</h4><a href="/#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div>
   <div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div>
   <div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a></div>
 </footer>
-<div class="footer-bottom"><span>Bounty API &middot; Singapore</span><span>v1.8.0 &middot; 31 APIs &middot; 27 MCP tools</span></div>
+<div class="footer-bottom"><span>Bounty API &middot; Global</span><span>36+ APIs &middot; 27 MCP tools</span></div>
 """
 
 
@@ -173,10 +173,34 @@ __NAV__
     <span style="color:var(--muted);font-size:14px">Recent App Store reviews, rating sample, deterministic complaint flags.</span>
   </div>
   <div class="table-row">
-    <span><strong>Social Trend Search</strong><br><span class="tag">/social/trend-search</span></span>
+    <span><strong>YouTube Search</strong><br><span class="tag">/social/youtube/search</span></span>
     <span class="price-paid">$0.05 / call</span>
-    <span>Trend intel</span>
-    <span style="color:var(--muted);font-size:14px">Reddit + YouTube + Instagram in one call. Creators, captions, view counts, pain language. Per-source health reporting.</span>
+    <span>Video intel</span>
+    <span style="color:var(--muted);font-size:14px">Full engagement metrics: views, likes, channel subscribers. Sort by views or recency.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>YouTube Video Intelligence</strong><br><span class="tag">/social/youtube/video/{id}</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Deep analytics</span>
+    <span style="color:var(--muted);font-size:14px">Tags, description, categories, likes, comments, channel subs for a single video.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>YouTube Channel Stats</strong><br><span class="tag">/social/youtube/channel/{handle}</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Creator analysis</span>
+    <span style="color:var(--muted);font-size:14px">Subscriber count, recent top videos ranked by views. Competitive benchmarking.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>TikTok Trending</strong><br><span class="tag">/social/tiktok/trending</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>Trend discovery</span>
+    <span style="color:var(--muted);font-size:14px">Trending content by region and category. Ranked by engagement velocity. Views, likes, hashtags.</span>
+  </div>
+  <div class="table-row">
+    <span><strong>Cross-Platform Trends</strong><br><span class="tag">/social/trends</span></span>
+    <span class="price-paid">$0.05 / call</span>
+    <span>360 analysis</span>
+    <span style="color:var(--muted);font-size:14px">One call searches YouTube, TikTok, and Reddit. Top content, creators, viral outliers, trending hashtags.</span>
   </div>
 
   <div style="margin:24px 0 8px;font-size:13px;color:var(--faint);font-weight:500;text-transform:uppercase;letter-spacing:.05em">Free utility endpoints</div>

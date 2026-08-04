@@ -236,14 +236,14 @@ async def landing_page():
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bounty API — Pay-per-call data APIs for AI agents</title>
-  <meta name="description" content="Agent-native data APIs for company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP discovery, x402 payments, no API keys or subscriptions." />
+  <meta name="description" content="Pay-per-call data APIs for AI agents. Social intelligence (YouTube, TikTok, cross-platform trends), company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP discovery, x402 payments, no API keys or subscriptions." />
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" href="/favicon-32x32.png" type="image/png" sizes="32x32" />
   <link rel="icon" href="/favicon-16x16.png" type="image/png" sizes="16x16" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
   <meta property="og:title" content="Bounty API — Pay-per-call data APIs for AI agents" />
-  <meta property="og:description" content="Company intelligence, news, jobs, app reviews, and Singapore property workflows. Agents discover via MCP and pay per call with x402." />
+  <meta property="og:description" content="Social intelligence, company intelligence, news, jobs, app reviews, and Singapore property workflows. Agents discover via MCP and pay per call with x402." />
   <meta property="og:image" content="/og-image.png" />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://bountyapi.com" />
@@ -261,7 +261,7 @@ async def landing_page():
     "applicationSubCategory": "Agent data API",
     "operatingSystem": "Web",
     "url": "https://bountyapi.com",
-    "description": "Pay-per-call data APIs for AI agents: company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP-native with x402 micropayments.",
+    "description": "Pay-per-call data APIs for AI agents: social intelligence (YouTube, TikTok, cross-platform trends), company intelligence, news, job postings, app reviews, and Singapore property analysis. MCP-native with x402 micropayments.",
     "offers": [
       {"@type": "Offer", "name": "Free utility endpoints", "price": "0", "priceCurrency": "USD"},
       {"@type": "Offer", "name": "Paid data endpoints", "price": "0.005", "priceCurrency": "USD", "description": "$0.005-$0.10 per call"}
@@ -299,30 +299,31 @@ async def landing_page():
     <div class="container"><section class="hero">
       <div class="hero-eyebrow">MCP discovery · x402 payments · no API keys</div>
       <h1>Data APIs agents can discover, price, and call by themselves.</h1>
-      <p class="hero-sub">Bounty gives AI agents pay-per-call access to company intelligence, news, job postings, app reviews, and Singapore property workflows. No accounts. No subscriptions. Every response keeps source provenance and leaves missing data as missing.</p>
+      <p class="hero-sub">Bounty gives AI agents pay-per-call access to social intelligence, company intelligence, news, job postings, app reviews, and Singapore property workflows. No accounts. No subscriptions. Every response keeps source provenance and leaves missing data as missing.</p>
       <div class="hero-actions"><a class="btn btn-primary" href="/setup">Connect an agent</a><a class="btn btn-ghost" href="/pricing">View pricing</a><div class="install"><span>$</span> npx agentcash@latest install</div></div>
       <div class="terminal"><div class="term-header"><div class="term-tab active">agent workflow</div><div class="term-tab">stdout</div></div><div class="term-body">
 <span class="term-comment"># Agent researches a prospect without creating 4 vendor accounts</span>
+<span class="term-prompt">&gt;</span> GET /social/youtube/search?q=Stripe <span class="term-paid">$0.05</span>
 <span class="term-prompt">&gt;</span> GET /company/stripe.com <span class="term-paid">$0.05</span>
 <span class="term-prompt">&gt;</span> GET /news/search?q=Stripe+AI <span class="term-paid">$0.01</span>
 <span class="term-prompt">&gt;</span> GET /jobs/search?q=Stripe+AI+engineer <span class="term-paid">$0.02</span>
 
 {
-  <span class="term-key">"workflow"</span>: <span class="term-str">"company due diligence"</span>,
-  <span class="term-key">"sources"</span>: [<span class="term-str">"company website"</span>, <span class="term-str">"Google News RSS"</span>, <span class="term-str">"job feeds"</span>],
+  <span class="term-key">"workflow"</span>: <span class="term-str">"company + social due diligence"</span>,
+  <span class="term-key">"sources"</span>: [<span class="term-str">"YouTube"</span>, <span class="term-str">"company website"</span>, <span class="term-str">"Google News RSS"</span>, <span class="term-str">"job feeds"</span>],
   <span class="term-key">"auth"</span>: <span class="term-str">"x402 payment, no API key"</span>
 }
       </div></div>
     </section></div>
 
-    <div class="container"><section class="section"><div class="section-label">// POSITIONING</div><h2>Not a Singapore property site. That was the first vertical.</h2><p class="section-desc">The product is an agent-native data layer: wrap useful data sources behind clean HTTP, MCP discovery, transparent per-call prices, and x402 payment. Singapore property remains live because it has verified source-backed workflows. The new global layer targets agent research tasks with broader demand.</p><div class="grid"><div class="card"><span class="tag">research</span><h3>Company intelligence</h3><p>Website tech stack, contacts, social links, SSL, and security headers for prospecting and due diligence.</p></div><div class="card"><span class="tag">monitoring</span><h3>News search</h3><p>Current articles by query for launches, lawsuits, funding, layoffs, and market events.</p></div><div class="card"><span class="tag">gtm</span><h3>Job signals</h3><p>Hiring demand and expansion vectors from job postings and hiring threads.</p></div><div class="card"><span class="tag">product</span><h3>App reviews</h3><p>Recent App Store review snapshots for competitor complaints, ratings, and feature gaps.</p></div></div></section></div>
+    <div class="container"><section class="section"><div class="section-label">// POSITIONING</div><h2>Not a Singapore property site. That was the first vertical.</h2><p class="section-desc">The product is an agent-native data layer: wrap useful data sources behind clean HTTP, MCP discovery, transparent per-call prices, and x402 payment. Singapore property remains live because it has verified source-backed workflows. The new global layer targets agent research tasks with broader demand.</p><div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))"><div class="card"><span class="tag">social</span><h3>Social intelligence</h3><p>YouTube search, video analytics, channel stats, TikTok trending by region, and cross-platform trend analysis with viral outlier detection.</p></div><div class="card"><span class="tag">research</span><h3>Company intelligence</h3><p>Website tech stack, contacts, social links, SSL, and security headers for prospecting and due diligence.</p></div><div class="card"><span class="tag">monitoring</span><h3>News search</h3><p>Current articles by query for launches, lawsuits, funding, layoffs, and market events.</p></div><div class="card"><span class="tag">gtm</span><h3>Job signals</h3><p>Hiring demand and expansion vectors from job postings and hiring threads.</p></div><div class="card"><span class="tag">product</span><h3>App reviews</h3><p>Recent App Store review snapshots for competitor complaints, ratings, and feature gaps.</p></div></div></section></div>
 
     <div class="container"><section class="section" id="apis"><div class="section-label">// LIVE API CATALOG</div><h2>Global research APIs plus Singapore property workflows.</h2><p class="section-desc">Agents should start with the global research endpoints for company, market, GTM, and product questions. Use the Singapore vertical when the task is explicitly property, tax, affordability, or local location analysis.</p><div class="api-table"><div class="api-table-head"><div>Endpoint</div><div>Source</div><div>Price</div><div>Best for</div></div>
       <div class="api-row"><div><div class="api-name">Company Intelligence</div><div class="api-desc">Tech stack, contacts, social links, SSL, security headers.</div></div><div class="api-src">company website</div><div class="api-price">$0.05</div><div class="api-use">B2B prospecting, DD</div></div>
       <div class="api-row"><div><div class="api-name">News Search</div><div class="api-desc">Structured current news by keyword.</div></div><div class="api-src">news RSS</div><div class="api-price">$0.01</div><div class="api-use">monitoring, events</div></div>
       <div class="api-row"><div><div class="api-name">Job Search</div><div class="api-desc">Job postings and hiring signals.</div></div><div class="api-src">job feeds</div><div class="api-price">$0.02</div><div class="api-use">GTM, recruiting, market maps</div></div>
       <div class="api-row"><div><div class="api-name">App Reviews</div><div class="api-desc">Recent App Store reviews, rating sample, topic flags.</div></div><div class="api-src">Apple RSS</div><div class="api-price">$0.02</div><div class="api-use">product research</div></div>
-      <div class="api-row"><div><div class="api-name">Social Trend Search</div><div class="api-desc">Cross-platform social intel: Reddit + YouTube + Instagram in one call.</div></div><div class="api-src">PullPush, yt-dlp, IG tags</div><div class="api-price">$0.05</div><div class="api-use">trend discovery, creator maps, pain language</div></div>
+      <div class="api-row"><div><div class="api-name">Social Intelligence</div><div class="api-desc">YouTube search, TikTok trending, cross-platform trends, video analytics.</div></div><div class="api-src">YouTube, TikTok, Reddit</div><div class="api-price">$0.05</div><div class="api-use">trend discovery, creator analysis</div></div>
       <div class="api-row"><div><div class="api-name">Singapore Property Analysis</div><div class="api-desc">Stamp duty, URA/HDB comps, yield, affordability, location.</div></div><div class="api-src">IRAS, URA, HDB</div><div class="api-price">FREE-$0.10</div><div class="api-use">property workflows</div></div>
     </div></section></div>
 
@@ -336,7 +337,7 @@ async def landing_page():
 <span class="term-comment"># HTTP 402 Payment Required + payment-required header</span></pre></div></div></section></div>
   </main>
 
-  <div class="container"><footer class="footer"><div class="footer-inner"><div><div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div><p class="footer-tag">Pay-per-call data APIs for AI agents. Global research endpoints plus Singapore property workflows. MCP-native, x402 payments.</p></div><div class="footer-col"><h4>Product</h4><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div><div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div><div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a><a href="https://agentcash.dev">AgentCash</a></div></div><div class="footer-bottom"><span>Bounty API · Global + Singapore</span><span>Agent data infrastructure</span></div></footer></div>
+  <div class="container"><footer class="footer"><div class="footer-inner"><div><div class="footer-brand"><img src="/logo-mark-dark.png" alt="Bounty" width="20" height="20"><span>Bounty</span></div><p class="footer-tag">Pay-per-call data APIs for AI agents. Social intelligence, research APIs, and Singapore property workflows. MCP-native, x402 payments.</p></div><div class="footer-col"><h4>Product</h4><a href="#apis">APIs</a><a href="/pricing">Pricing</a><a href="/docs">Docs</a><a href="/setup">Setup</a></div><div class="footer-col"><h4>Build</h4><a href="/providers">Publish API</a><a href="/llms.txt">llms.txt</a><a href="https://www.npmjs.com/package/bountyapi-mcp">npm</a><a href="https://github.com/vncent786/bounty-api">GitHub</a></div><div class="footer-col"><h4>Protocol</h4><a href="https://x402.org">x402</a><a href="https://modelcontextprotocol.io">MCP</a><a href="https://agentcash.dev">AgentCash</a></div></div><div class="footer-bottom"><span>Bounty API · Global + Singapore</span><span>Agent data infrastructure</span></div></footer></div>
 </body>
 </html>"""
 

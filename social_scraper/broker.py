@@ -64,6 +64,10 @@ class SourceBroker:
                 "x_credentials_missing",
                 "x_login_failed",
                 "x_health_error",
+                "ig_rate_limited",
+                "ig_blocked",
+                "ig_error",
+                "ig_empty_tag",
             }
             data["error"] = data["error"] if data["error"] in safe_errors else "connector_error"
         return data

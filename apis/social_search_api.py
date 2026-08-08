@@ -29,6 +29,12 @@ try:
     from social_scraper.connectors.x_graphql import XConnector
 except ImportError:
     XConnector = None
+
+# Optional import — Instagram connector requires curl_cffi
+try:
+    from social_scraper.connectors.instagram_graphql import InstagramConnector
+except ImportError:
+    InstagramConnector = None
 from social_scraper.proxy_config import proxy_health_summary
 from social_scraper.storage import ObservationStore
 
@@ -120,6 +126,8 @@ def build_default_broker(route_timeout_seconds=30.0):
     broker.register(XHSPlaywrightConnector())
     if XConnector is not None:
         broker.register(XConnector(), priority=10)
+    if InstagramConnector is not None:
+        broker.register(InstagramConnector(), priority=10)
     return broker
 
 

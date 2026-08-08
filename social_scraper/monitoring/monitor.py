@@ -82,6 +82,7 @@ class TrendReport:
     platform_summary: dict
     alerts: list[TrendAlert] = field(default_factory=list)
     top_clusters: list[dict] = field(default_factory=list)
+    enrichment: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -92,6 +93,7 @@ class TrendReport:
             "platform_summary": self.platform_summary,
             "alerts": [a.to_dict() for a in self.alerts],
             "top_clusters": self.top_clusters,
+            "enrichment": self.enrichment,
         }
 
 

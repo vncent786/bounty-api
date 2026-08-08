@@ -1410,6 +1410,35 @@ try:
 except ImportError as e:
     print(f"Warning: pages router not loaded: {e}")
 
+# ============================================================
+# Dashboard — SaaS monitoring product (zones, trends, alerts)
+# ============================================================
+try:
+    from apis.dashboard_api import router as dashboard_api_router
+    app.include_router(dashboard_api_router)
+except ImportError as e:
+    print(f"Warning: dashboard_api router not loaded: {e}")
+
+@app.get("/dashboard", response_class=HTMLResponse)
+async def dashboard_page():
+    """SaaS dashboard for zone monitoring and trend intelligence."""
+    try:
+        from apis.dashboard_page import get_dashboard_html
+        return get_dashboard_html()
+    except ImportError:
+        return HTMLResponse("<h1>Dashboard not available</h1>", status_code=503)
+
+# ============================================================
+# Scheduler — background zone collection
+# ============================================================
+@app.on_event("startup")
+async def _start_monitoring_scheduler():
+    try:
+        from apis.scheduler import start_scheduler
+        start_scheduler()
+    except Exception as e:
+        print(f"Warning: scheduler not started: {e}")
+
 # AgentCash discovery — enriches /openapi.json with x402 payment metadata
 # so agents running `npx agentcash install` can discover and pay for our API
 try:

@@ -92,7 +92,10 @@ class InstagramConnector(BaseConnector):
             raise RuntimeError("curl_cffi_not_installed")
 
         impersonate = "chrome124"
-        proxy = _proxy_url()
+        # Instagram sessions are IP-bound. Using a proxy that doesn't match
+        # the session's origin IP triggers checkpoint/challenge. Connect direct
+        # unless an IG-specific proxy is explicitly configured.
+        proxy = os.getenv("BOUNTY_IG_PROXY", "").strip()
         if proxy:
             self._session = curl_requests.Session(
                 impersonate=impersonate, proxies={"https": proxy, "http": proxy}
@@ -119,9 +122,36 @@ class InstagramConnector(BaseConnector):
                     stored = json.loads(cookie_file.read_text(encoding="utf-8"))
                     for name, value in stored.items():
                         session.cookies.set(name, value, domain=".instagram.com")
+
+                    # Warm up: hit homepage to collect csrftoken + other cookies
+                    # the server sets on the response. With a valid sessionid,
+                    # this gives us a fully authenticated cookie set without login.
+                    def _warmup():
+                        session.get(
+                            f"{_IG_BASE}/",
+                            timeout=15,
+                            headers={
+                                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                              "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                              "Chrome/127.0.0.0 Safari/537.36",
+                            },
+                        )
+                    await asyncio.to_thread(_warmup)
+
+                    # Verify session is valid (not redirect to login)
+                    csrf = None
+                    for c in session.cookies.jar:
+                        if c.name == "csrftoken":
+                            csrf = c.value
+                            break
+                    if not csrf:
+                        raise IGAuthError("ig_session_expired: no csrftoken after warmup")
+
                     self._authed = True
-                    logger.info("IG: loaded stored cookies")
+                    logger.info("IG: loaded stored cookies + warmed up session")
                     return
+                except IGAuthError:
+                    raise
                 except Exception as e:
                     logger.warning(f"IG: failed to load cookies: {e}")
 
@@ -231,7 +261,7 @@ class InstagramConnector(BaseConnector):
                     "X-ASBD-ID": "198387",
                     "Referer": f"{_IG_BASE}/explore/tags/{tag}/",
                 },
-                timeout=20,
+                timeout=45,
             )
             if resp.status_code != 200:
                 raise RuntimeError(f"ig_http_{resp.status_code}")

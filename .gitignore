@@ -25,3 +25,5 @@ account_factory/deep_probe_screenshots/
 /data/*.db-shm
 /data/*.db-wal
 /data/reddit_mobile_device.json
+/data/ig_cookies.json
+/data/*cookies*

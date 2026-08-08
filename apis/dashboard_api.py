@@ -228,12 +228,20 @@ async def get_zone_diff(zone_id: int):
 # ── Top-Down Discovery ─────────────────────────────────────
 
 @router.get("/discover")
-async def discover_keywords(geo: str = Query("US")):
-    """Run top-down keyword discovery."""
+async def discover_keywords(
+    geo: str = Query("US"),
+    trajectory: bool = Query(False, description="Run breakout detection on top candidates"),
+):
+    """Run top-down keyword discovery.
+
+    Sources: Exploding Topics (primary), Google Trends RSS (secondary),
+    YouTube + Reddit (tertiary). Optional trajectory analysis adds
+    breakout detection via Google Trends interest_over_time.
+    """
     _check_auth()
     from social_scraper.monitoring import TopDownDiscovery
     discovery = TopDownDiscovery(broker=_get_broker())
-    keywords = await discovery.scan_all(geo)
+    keywords = await discovery.scan_all(geo, with_trajectory=trajectory)
     return {
         "keywords": [k.to_dict() for k in keywords[:50]],
         "total": len(keywords),

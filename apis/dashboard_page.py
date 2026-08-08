@@ -724,7 +724,7 @@ async function loadAlerts(elementId, limit) {
 
 // ── Discovery ─────────────────────────────
 async function runDiscovery() {
-  document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Scanning Google Trends, Reddit, and YouTube...</div>';
+  document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Scanning Exploding Topics, Google Trends, YouTube, Reddit...</div>';
   try {
     const resp = await fetch(`${API}/discover?geo=US`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -746,8 +746,8 @@ async function runDiscovery() {
           <div>
             <div class="discovery-keyword">${k.keyword}</div>
             <div class="discovery-meta">
-              <span>${k.source}</span>
-              ${k.platform_count >= 2 ? `<span class="badge badge-active" style="margin-left:4px;">${k.platform_count}p</span>` : ''}
+              <span style="color:#6b9bdff">${({exploding_topics:'Exploding Topics',google_trends:'Google Trends',reddit_rising:'Reddit',youtube_trending:'YouTube',cross_platform:'Cross-Platform'})[k.source] || k.source}</span>
+              ${k.platform_count >= 2 ? `<span class="badge badge-active" style="margin-left:4px;">${k.platform_count} platforms</span>` : ''}
             </div>
           </div>
           <div style="display:flex;align-items:center;gap:12px;">

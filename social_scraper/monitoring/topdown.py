@@ -1,11 +1,17 @@
 """
 Top-down keyword discovery — catch emerging topics you didn't know to search for.
 
-Sources (all free, no API keys):
-1. Google Trends daily trending searches (unofficial endpoint)
-2. Reddit /r/all rising posts (via existing Reddit connectors)
-3. YouTube trending (via yt-dlp)
-4. Cross-platform: keywords appearing on multiple platforms simultaneously
+Source priority (buzzabout methodology: candidate generation → conversation gate):
+1. Exploding Topics (PRIMARY) — curated growth-stage trends, not news events
+2. Google Trends RSS (SECONDARY) — daily trending, geo-specific but news-heavy
+3. YouTube trending (TERTIARY) — keyword extraction from high-view videos
+4. Reddit rising (TERTIARY) — social discussion signal
+
+Each source has its own EmergingKeyword entries. The scan_all method merges
+and deduplicates, prioritizing keywords that appear across multiple sources.
+
+Optional trajectory enrichment (breakout detection) can be layered on top
+via trajectory.analyze_batch().
 
 Discovered keywords become candidates for new zones.
 """
@@ -45,6 +51,44 @@ class TopDownDiscovery:
 
     def __init__(self, broker=None):
         self.broker = broker
+
+    async def scan_exploding_topics(self) -> list[EmergingKeyword]:
+        """Fetch curated emerging trends from Exploding Topics.
+
+        This is the PRIMARY source — Exploding Topics curates for growth-stage
+        trends (not news events), with built-in growth percentages.
+
+        Returns EmergingKeyword objects with growth_value as engagement_signal.
+        """
+        keywords: list[EmergingKeyword] = []
+        try:
+            from social_scraper.connectors.exploding_topics import (
+                fetch_exploding_topics,
+            )
+
+            topics = await fetch_exploding_topics(timeout=30)
+
+            for topic in topics:
+                keywords.append(EmergingKeyword(
+                    keyword=topic.name,
+                    source="exploding_topics",
+                    engagement_signal=topic.growth_value,
+                    related_terms=[topic.slug],
+                    discovered_at=topic.discovered_at,
+                    sample_context=(
+                        f"Exploding Topics: {topic.name} "
+                        f"({topic.growth}, vol={topic.volume})"
+                    ),
+                ))
+
+            logger.info(
+                f"Exploding Topics: discovered {len(keywords)} trends "
+                f"(top: {topics[0].name if topics else 'none'})"
+            )
+        except Exception as e:
+            logger.warning(f"Exploding Topics scan failed: {e}")
+
+        return keywords
 
     async def scan_google_trends(self, geo: str = "US") -> list[EmergingKeyword]:
         """Fetch Google Trends daily trending searches.
@@ -187,22 +231,42 @@ class TopDownDiscovery:
         logger.info(f"YouTube discovery: found {len(keywords)} keywords from {len(all_texts)} videos")
         return keywords
 
-    async def scan_all(self, geo: str = "US") -> list[EmergingKeyword]:
+    async def scan_all(
+        self,
+        geo: str = "US",
+        with_trajectory: bool = False,
+        max_trajectory: int = 15,
+    ) -> list[EmergingKeyword]:
         """Run all discovery sources and merge results.
 
+        Source priority:
+        1. Exploding Topics (PRIMARY) — curated growth trends
+        2. Google Trends RSS (SECONDARY) — geo-specific daily trending
+        3. YouTube + Reddit (TERTIARY) — social signals, run in parallel
+
         Cross-platform keywords (appearing on 2+ sources) are prioritized.
+
+        Args:
+            geo: Country code for Google Trends (US, SG, GB, etc.)
+            with_trajectory: If True, run breakout detection on top
+                candidates via pytrends interest_over_time.
+            max_trajectory: Max keywords to analyze for trajectory
+                (each takes ~3s, so 15 = ~45s extra).
         """
-        # Phase 1: Google Trends (independent)
+        # Phase 1: Exploding Topics (PRIMARY — independent, highest quality)
+        et_keywords = await self.scan_exploding_topics()
+
+        # Phase 2: Google Trends RSS (SECONDARY — geo-specific)
         gt_keywords = await self.scan_google_trends(geo)
 
-        # Phase 2: Reddit + YouTube (can use GT keywords as seeds)
+        # Phase 3: Reddit + YouTube (TERTIARY — social signals)
         reddit_keywords, yt_keywords = await asyncio.gather(
             self.scan_reddit_rising(gt_keywords),
             self.scan_youtube_trending(),
         )
 
         # Merge and deduplicate
-        all_kw = gt_keywords + reddit_keywords + yt_keywords
+        all_kw = et_keywords + gt_keywords + reddit_keywords + yt_keywords
 
         # Group by keyword (case-insensitive)
         merged = {}
@@ -211,7 +275,9 @@ class TopDownDiscovery:
             if key in merged:
                 existing = merged[key]
                 existing.platform_count += 1
-                existing.engagement_signal = max(existing.engagement_signal, kw.engagement_signal)
+                existing.engagement_signal = max(
+                    existing.engagement_signal, kw.engagement_signal
+                )
                 existing.related_terms.extend(kw.related_terms)
             else:
                 merged[key] = kw
@@ -223,8 +289,34 @@ class TopDownDiscovery:
             reverse=True,
         )
 
-        logger.info(f"Top-down discovery complete: {len(result)} unique keywords, "
-                    f"{sum(1 for k in result if k.platform_count >= 2)} cross-platform")
+        # Optional trajectory enrichment
+        if with_trajectory and result:
+            try:
+                from social_scraper.monitoring.trajectory import analyze_batch
+
+                top_kw = [k.keyword for k in result[:max_trajectory]]
+                trajectories = await analyze_batch(top_kw, geo=geo)
+
+                # Build a lookup for trajectory results
+                traj_map = {t.keyword.lower(): t for t in trajectories}
+
+                for kw in result:
+                    traj = traj_map.get(kw.keyword.lower())
+                    if traj and traj.status != "UNKNOWN":
+                        kw.related_terms.append(
+                            f"trajectory:{traj.status}"
+                        )
+                        if traj.status in ("BREAKOUT", "RISING"):
+                            kw.engagement_signal += 5000
+            except Exception as e:
+                logger.warning(f"Trajectory enrichment failed: {e}")
+
+        logger.info(
+            f"Top-down discovery complete: {len(result)} unique keywords, "
+            f"{sum(1 for k in result if k.platform_count >= 2)} cross-platform, "
+            f"sources: ET={len(et_keywords)}, GT={len(gt_keywords)}, "
+            f"Reddit={len(reddit_keywords)}, YT={len(yt_keywords)}"
+        )
         return result
 
     @staticmethod

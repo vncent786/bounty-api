@@ -147,26 +147,44 @@ class TopDownDiscovery:
         return keywords
 
     async def scan_youtube_trending(self) -> list[EmergingKeyword]:
-        """Scan YouTube trending videos for emerging topics."""
+        """Scan YouTube for high-engagement recent videos as a trending proxy.
+
+        YouTube's trending page is fully JS-rendered and yt-dlp can't extract it.
+        Instead, we search for broad category terms, extract keywords from titles
+        of high-view-count videos. High view count = currently popular topic.
+        """
         if not self.broker:
             return []
 
         keywords = []
-        try:
-            # yt-dlp can get trending
-            result = await self.broker.search(
-                keyword="trending",
-                platforms=["youtube"],
-                count=15,
-            )
-            items = result.get("items", [])
-            texts = [item.get("text", "") for item in items]
+        # Category-based discovery queries (not literal "trending")
+        discovery_queries = [
+            "new 2026", "viral", "review",
+        ]
 
-            keywords = self._extract_significant_terms(texts, source="youtube_trending")
-            logger.info(f"YouTube trending: discovered {len(keywords)} keywords")
-        except Exception as e:
-            logger.warning(f"YouTube trending scan failed: {e}")
+        all_texts = []
+        all_views = []
 
+        for query in discovery_queries:
+            try:
+                result = await self.broker.search(
+                    keyword=query,
+                    platforms=["youtube"],
+                    count=10,
+                )
+                items = result.get("items", [])
+                for item in items:
+                    text = item.get("text") or item.get("title") or ""
+                    eng = item.get("engagement", {})
+                    views = eng.get("views") or 0
+                    all_texts.append(text)
+                    all_views.append(views)
+            except Exception as e:
+                logger.warning(f"YouTube scan for '{query}' failed: {e}")
+
+        # Weight keyword extraction by view count
+        keywords = self._extract_significant_terms_weighted(all_texts, all_views, source="youtube_trending")
+        logger.info(f"YouTube discovery: found {len(keywords)} keywords from {len(all_texts)} videos")
         return keywords
 
     async def scan_all(self, geo: str = "US") -> list[EmergingKeyword]:
@@ -226,6 +244,18 @@ class TopDownDiscovery:
     @staticmethod
     def _extract_significant_terms(texts: list[str], source: str) -> list[EmergingKeyword]:
         """Extract meaningful keywords from a corpus of social posts."""
+        return TopDownDiscovery._extract_significant_terms_weighted(
+            texts, [1] * len(texts), source
+        )
+
+    @staticmethod
+    def _extract_significant_terms_weighted(
+        texts: list[str], weights: list[int], source: str
+    ) -> list[EmergingKeyword]:
+        """Extract keywords weighted by engagement (views/likes).
+
+        Keywords from high-engagement posts get higher signal scores.
+        """
         stop_words = {
             "the", "a", "an", "to", "and", "or", "of", "in", "on", "for",
             "is", "are", "was", "were", "be", "been", "being", "have", "has",
@@ -240,45 +270,45 @@ class TopDownDiscovery:
             "check", "link", "bio", "new", "best", "top", "via",
         }
 
-        word_freq = Counter()
-        # Also track multi-word phrases (2-grams)
-        phrase_freq = Counter()
+        word_freq = {}
+        phrase_freq = {}
 
-        for text in texts:
-            # Clean
+        for text, weight in zip(texts, weights):
+            w = max(int(weight), 1)
             clean = re.sub(r"http\S+", "", text)
             clean = re.sub(r"#[\w]+", "", clean)
             words = re.findall(r"[a-zA-Z]{3,}", clean.lower())
-            significant = [w for w in words if w not in stop_words]
+            significant = [word for word in words if word not in stop_words]
 
-            for w in significant:
-                word_freq[w] += 1
+            for word in significant:
+                word_freq[word] = word_freq.get(word, 0) + w
 
-            # 2-grams
             for i in range(len(significant) - 1):
                 phrase = f"{significant[i]} {significant[i+1]}"
-                phrase_freq[phrase] += 1
+                phrase_freq[phrase] = phrase_freq.get(phrase, 0) + w
 
         # Top single words
         keywords = []
         seen = set()
-        for word, count in word_freq.most_common(20):
-            if count >= 2 and word not in seen:
+        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
+        for word, score in sorted_words[:20]:
+            if score >= 2 and word not in seen:
                 keywords.append(EmergingKeyword(
                     keyword=word,
                     source=source,
-                    engagement_signal=count * 100,  # frequency as proxy
+                    engagement_signal=score * 100,  # frequency as proxy
                     discovered_at=datetime.now(timezone.utc).isoformat(),
                 ))
                 seen.add(word)
 
         # Top phrases (higher value than single words)
-        for phrase, count in phrase_freq.most_common(15):
-            if count >= 2:
+        sorted_phrases = sorted(phrase_freq.items(), key=lambda x: x[1], reverse=True)
+        for phrase, score in sorted_phrases[:15]:
+            if score >= 2:
                 keywords.append(EmergingKeyword(
                     keyword=phrase,
                     source=source,
-                    engagement_signal=count * 200,  # phrases weighted higher
+                    engagement_signal=score * 200,  # phrases weighted higher
                     discovered_at=datetime.now(timezone.utc).isoformat(),
                 ))
 

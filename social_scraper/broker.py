@@ -57,6 +57,13 @@ class SourceBroker:
                 "reddit_mobile_auth_failed",
                 "reddit_mobile_unavailable",
                 "reddit_mobile_not_installed",
+                "x_rate_limited",
+                "x_auth_expired",
+                "x_forbidden",
+                "x_error",
+                "x_credentials_missing",
+                "x_login_failed",
+                "x_health_error",
             }
             data["error"] = data["error"] if data["error"] in safe_errors else "connector_error"
         return data

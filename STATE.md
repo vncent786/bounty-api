@@ -1,9 +1,17 @@
 # Bounty API — Active Work State
 
-**Last updated:** 2026-08-03 15:08 SGT
-**Status:** OWNED CURRENT REDDIT ROUTE LIVE; RAW + NORMALIZED RECORDING VERIFIED, SLA MEASUREMENT PENDING
+**Last updated:** 2026-08-06 20:55 SGT
+**Status:** SOCIAL DATA COLLECTOR CRON LIVE; 7 INVESTING QUERIES REGISTERED; OWNED REDDIT ROUTE VERIFIED WORKING AFTER 3-DAY GAP
 
-## Verified this session
+## Verified this session (Aug 6)
+
+- Owned mobile Reddit route still works after 3-day gap. Fresh collection returned 12 items with full engagement data (likes, comments).
+- Registered 6 new investing queries: catalyst, undervalued, short squeeze, insider buying, upgrade, guidance.
+- First batch run: 5 of 6 queries successful, 16 items collected. "upgrade" query hit rate limit (sequential request pacing).
+- Cron job `d02c13639e80` created: runs `collect_social_due.py` every 30 min, deliver local.
+- Data quality confirmed: reddit_mobile_owned connector returns full engagement metrics. reddit_atom_scoped (RSS fallback) returns posts with null engagement as expected.
+
+## Verified this session (Aug 3, prior session)
 
 - Multi-route source broker with ordered fallback, route timeouts, duplicate-platform suppression and sanitized per-attempt health.
 - Useful partial results are retained when later routes fail.

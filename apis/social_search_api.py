@@ -23,6 +23,12 @@ from social_scraper.connectors.tiktok_auth import TikTokAuthConnector
 from social_scraper.connectors.tiktok_playwright import TikTokPlaywrightConnector
 from social_scraper.connectors.xhs_playwright import XHSPlaywrightConnector
 from social_scraper.connectors.youtube import YouTubeConnector
+
+# Optional import — X connector requires twikit
+try:
+    from social_scraper.connectors.x_graphql import XConnector
+except ImportError:
+    XConnector = None
 from social_scraper.proxy_config import proxy_health_summary
 from social_scraper.storage import ObservationStore
 
@@ -112,6 +118,8 @@ def build_default_broker(route_timeout_seconds=30.0):
     broker.register(TikTokPlaywrightConnector(), priority=20)
     broker.register(DouyinPlaywrightConnector())
     broker.register(XHSPlaywrightConnector())
+    if XConnector is not None:
+        broker.register(XConnector(), priority=10)
     return broker
 
 

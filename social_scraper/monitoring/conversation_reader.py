@@ -16,7 +16,7 @@ Output per keyword:
 LLM provider is fully switchable via environment variables:
 - BOUNTY_LLM_BASE_URL: OpenAI-compatible endpoint (e.g. z.ai, openrouter, local)
 - BOUNTY_LLM_API_KEY: API key for the provider
-- BOUNTY_LLM_MODEL: model name (e.g. glm-4-flash, gpt-4o-mini)
+- BOUNTY_LLM_MODEL: model name (e.g. glm-4.7, gpt-4o-mini)
 
 If the primary provider fails (rate limit, timeout, etc.), the caller can
 switch providers by changing env vars — no code changes needed.
@@ -171,12 +171,12 @@ async def _call_llm(system_prompt: str, user_prompt: str) -> str:
     base_url = os.getenv("BOUNTY_LLM_BASE_URL", "").strip()
     api_key = os.getenv("BOUNTY_LLM_API_KEY") or os.getenv("ZAI_API_KEY", "")
     api_key = api_key.strip()
-    model = os.getenv("BOUNTY_LLM_MODEL", "glm-4.5-air").strip()
+    model = os.getenv("BOUNTY_LLM_MODEL", "glm-4.7").strip()
 
     if not base_url or not api_key:
         raise RuntimeError("llm_not_configured: set BOUNTY_LLM_BASE_URL and BOUNTY_LLM_API_KEY")
 
-    async with httpx.AsyncClient(timeout=60) as client:
+    async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(
             f"{base_url}/chat/completions",
             headers={"Authorization": f"Bearer {api_key}"},

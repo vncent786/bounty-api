@@ -167,7 +167,7 @@ async def run_conversation_gate(
     keywords: list[str],
     platforms: list[str] = None,
     max_keywords: int = 20,
-    concurrency: int = 3,
+    concurrency: int = 5,
 ) -> list[ConversationGateResult]:
     """Run the conversation gate on multiple candidate keywords.
 
@@ -179,11 +179,7 @@ async def run_conversation_gate(
         keywords: Candidate keywords from trending_now.
         platforms: Social platforms to check (default: youtube, reddit, tiktok).
         max_keywords: Maximum keywords to gate-check (bounds execution time).
-        concurrency: How many keywords to check simultaneously.
-
-    Returns:
-        List of ConversationGateResult sorted by gate_score descending.
-        Only includes keywords that passed the gate (have social discussion).
+        concurrency: How many keywords to check simultaneously (default: 5).
     """
     keywords = keywords[:max_keywords]
     if platforms is None:

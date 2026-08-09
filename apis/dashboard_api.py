@@ -230,20 +230,32 @@ async def get_zone_diff(zone_id: int):
 @router.get("/discover")
 async def discover_keywords(
     geo: str = Query("US"),
-    gate: bool = Query(True, description="Apply conversation gate (social verification)"),
+    gate: bool = Query(True, description="Apply conversation gate"),
+    min_volume: int = Query(0, description="Minimum search volume"),
+    min_growth: int = Query(0, description="Minimum growth %"),
+    max_age_hours: float = Query(0, description="Only trends started within N hours"),
+    exclude_sports: bool = Query(False, description="Exclude sports score patterns"),
+    gate_only: bool = Query(False, description="Only return gate-verified keywords"),
 ):
     """Run top-down keyword discovery.
 
     Pipeline:
     1. Candidate generation via Google Trends trending_now (trendspy)
-    2. Conversation gate: checks social platforms for real discussion
-
-    Returns keywords with gate verification results.
+    2. User filters (volume, growth, age, sports exclusion)
+    3. Conversation gate: checks social platforms for real discussion
     """
     _check_auth()
     from social_scraper.monitoring import TopDownDiscovery
     discovery = TopDownDiscovery(broker=_get_broker())
-    keywords = await discovery.scan_all(geo, apply_gate=gate)
+    keywords = await discovery.scan_all(
+        geo=geo,
+        apply_gate=gate,
+        min_volume=min_volume,
+        min_growth=min_growth,
+        max_age_hours=max_age_hours,
+        exclude_sports=exclude_sports,
+        gate_only=gate_only,
+    )
     return {
         "keywords": [k.to_dict() for k in keywords[:50]],
         "total": len(keywords),

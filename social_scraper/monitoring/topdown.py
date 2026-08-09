@@ -199,13 +199,31 @@ class TopDownDiscovery:
         apply_gate: bool = True,
         gate_max: int = 20,
         gate_platforms: list[str] = None,
+        min_volume: int = 0,
+        min_growth: int = 0,
+        max_age_hours: float = 0,
+        exclude_sports: bool = False,
+        gate_only: bool = False,
     ) -> list[EmergingKeyword]:
         """Run the full discovery pipeline.
 
         1. Candidate generation: Google Trends trending_now (trendspy)
-        2. Conversation gate: social platform verification (if broker available)
+        2. Optional user filters: volume, growth, age, sports exclusion
+        3. Conversation gate: social platform verification (if broker available)
 
-        Returns keywords sorted by: gate-passed first, then freshness, then growth.
+        User-facing filters are applied BEFORE the gate so we check the
+        most relevant candidates, not waste slots on noise the user doesn't want.
+
+        Args:
+            geo: Country code for Google Trends (US, SG, GB, etc.)
+            apply_gate: Whether to run the conversation gate.
+            gate_max: Max keywords to gate-check.
+            gate_platforms: Platforms to check in gate.
+            min_volume: Minimum search volume to include (0 = no filter).
+            min_growth: Minimum growth % to include (0 = no filter).
+            max_age_hours: Only trends started within this window (0 = no filter).
+            exclude_sports: Exclude "X vs Y" / "X - Y" score patterns.
+            gate_only: Only return keywords that passed the conversation gate.
         """
         # Step 1: Get candidates
         candidates = await self.fetch_candidates(geo=geo)
@@ -213,7 +231,31 @@ class TopDownDiscovery:
         if not candidates:
             return []
 
-        # Step 2: Conversation gate
+        # Step 2: Apply user filters (before gate so we check the right ones)
+        before = len(candidates)
+
+        if min_volume > 0:
+            candidates = [k for k in candidates if k.search_volume >= min_volume]
+
+        if min_growth > 0:
+            candidates = [k for k in candidates if k.growth_pct >= min_growth]
+
+        if max_age_hours > 0:
+            candidates = [
+                k for k in candidates
+                if k.started_hours_ago == 0 or k.started_hours_ago <= max_age_hours
+            ]
+
+        if exclude_sports:
+            candidates = [
+                k for k in candidates
+                if not self._is_sports_pattern(k.keyword)
+            ]
+
+        filtered = before - len(candidates)
+        logger.info(f"User filters removed {filtered} candidates, {len(candidates)} remain")
+
+        # Step 3: Conversation gate
         if apply_gate and self.broker:
             candidates = await self.apply_conversation_gate(
                 candidates,
@@ -221,12 +263,16 @@ class TopDownDiscovery:
                 platforms=gate_platforms,
             )
 
+        # Step 4: Filter to gate-only if requested
+        if gate_only and any(k.gate_passed for k in candidates):
+            candidates = [k for k in candidates if k.gate_passed]
+
         # Sort: gate-passed first, then freshest, then highest growth
         result = sorted(
             candidates,
             key=lambda k: (
                 k.gate_passed,
-                k.started_hours_ago > 0,  # has timestamp
+                k.started_hours_ago > 0,
                 -k.started_hours_ago if k.started_hours_ago > 0 else -999,
                 k.growth_pct,
             ),
@@ -241,6 +287,22 @@ class TopDownDiscovery:
         )
 
         return result
+
+    @staticmethod
+    def _is_sports_pattern(keyword: str) -> bool:
+        """Detect sports score/standings patterns.
+
+        Matches: "X vs Y", "X - Y" where both sides are short words.
+        Also: "X standings", "X vs Y score"
+        """
+        import re
+        # "team vs team" or "team - team" patterns
+        if re.search(r"\b\w+\s+(?:vs?\.?|–|-)\s+\w+", keyword, re.IGNORECASE):
+            return True
+        # "standings" keyword
+        if "standings" in keyword.lower():
+            return True
+        return False
 
     # ── Legacy fallback: Google Trends RSS ────────────────────
 

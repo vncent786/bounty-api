@@ -351,13 +351,46 @@ DASHBOARD_HTML = """<!doctype html>
     <!-- Discovery -->
     <div id="view-discovery" class="tab-content">
       <div class="header">
-        <h1>Top-Down Discovery</h1>
+        <h1>Discovery</h1>
         <button class="btn btn-primary" onclick="runDiscovery()">Scan Now</button>
       </div>
-      <p style="color:var(--text-dim);font-size:14px;margin-bottom:20px;">
-        Discovers emerging keywords from Google Trends, Reddit, and YouTube.
-        Keywords appearing on multiple platforms have higher signal confidence.
+      <p style="color:var(--text-dim);font-size:14px;margin-bottom:16px;">
+        Candidate keywords from Google Trends, verified against real social discussion.
       </p>
+      <div id="discovery-filters" style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;font-size:13px;align-items:center;">
+        <label style="display:flex;align-items:center;gap:4px;">Min vol:
+          <select id="df-minvol" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;">
+            <option value="0">Any</option>
+            <option value="1000">1K+</option>
+            <option value="10000">10K+</option>
+            <option value="50000">50K+</option>
+            <option value="100000">100K+</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;">Min growth:
+          <select id="df-mingrowth" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;">
+            <option value="0">Any</option>
+            <option value="100">+100%</option>
+            <option value="300">+300%</option>
+            <option value="500">+500%</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;">Freshness:
+          <select id="df-age" style="background:var(--surface);border:1px solid var(--border);color:var(--text);padding:3px 6px;border-radius:4px;">
+            <option value="0">Any time</option>
+            <option value="3">Last 3h</option>
+            <option value="6">Last 6h</option>
+            <option value="12">Last 12h</option>
+            <option value="24">Last 24h</option>
+          </select>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="df-nosports" style="accent-color:var(--accent);"> Hide sports
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;">
+          <input type="checkbox" id="df-gateonly" style="accent-color:var(--accent);"> Verified only
+        </label>
+      </div>
       <div id="discovery-list"><div class="loading">Click "Scan Now" to discover emerging keywords.</div></div>
     </div>
   </div>
@@ -724,9 +757,19 @@ async function loadAlerts(elementId, limit) {
 
 // ── Discovery ─────────────────────────────
 async function runDiscovery() {
+  const minVol = document.getElementById('df-minvol') ? document.getElementById('df-minvol').value : '0';
+  const minGrowth = document.getElementById('df-mingrowth') ? document.getElementById('df-mingrowth').value : '0';
+  const maxAge = document.getElementById('df-age') ? document.getElementById('df-age').value : '0';
+  const noSports = document.getElementById('df-nosports') ? document.getElementById('df-nosports').checked : false;
+  const gateOnly = document.getElementById('df-gateonly') ? document.getElementById('df-gateonly').checked : false;
+
+  let qs = `geo=US&min_volume=${minVol}&min_growth=${minGrowth}&max_age_hours=${maxAge}`;
+  if (noSports) qs += '&exclude_sports=true';
+  if (gateOnly) qs += '&gate_only=true';
+
   document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching Google Trends + running conversation gate...</div>';
   try {
-    const resp = await fetch(`${API}/discover?geo=US`);
+    const resp = await fetch(`${API}/discover?${qs}`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     const keywords = data.keywords || [];

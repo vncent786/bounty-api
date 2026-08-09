@@ -811,6 +811,15 @@ async function runDiscovery() {
         const growth = k.growth_pct ? '+' + k.growth_pct + '%' : '';
         const fresh = k.started_hours_ago ? k.started_hours_ago.toFixed(1) + 'h ago' : '';
         const catLabel = k.categories ? '<span style="color:#9ca3af">' + k.categories.split(',')[0] + '</span>' : '';
+        const trendType = k.conv_trend_type ? '<span style="color:#f59e0b;font-weight:600">' + k.conv_trend_type + '</span>' : '';
+        const convBlock = k.conv_summary ? '<div style="margin-top:4px;font-size:12px;color:var(--text-dim);line-height:1.5;">' +
+          (trendType ? trendType + ' &middot; ' : '') +
+          '<span style="color:' + (k.conv_sentiment === 'positive' ? '#4ade80' : k.conv_sentiment === 'negative' ? '#f87171' : 'var(--text-dim)') + '">' + (k.conv_sentiment || '') + '</span>' +
+          (k.conv_brands ? ' &middot; brands: ' + k.conv_brands : '') +
+          '<br><span>' + k.conv_summary + '</span>' +
+          (k.conv_type_reason ? '<br><span style="font-style:italic;color:#6b7280">Why: ' + k.conv_type_reason + '</span>' : '') +
+          (k.conv_key_quote ? '<br><span style="font-style:italic;color:#9ca3af">&ldquo;' + k.conv_key_quote.substring(0,120) + '&rdquo;</span>' : '') +
+          '</div>' : '';
         const gateBadge = k.gate_passed
           ? '<span class="badge badge-active" style="margin-left:4px;background:#1a5f3f;">VERIFIED ' + k.gate_platforms + '</span>'
           : (k.gate_passed === false ? '<span style="color:var(--text-dim);margin-left:4px;">no social</span>' : '');
@@ -828,6 +837,7 @@ async function runDiscovery() {
               ${gateBadge}
             </div>
             ${gateSample}
+            ${convBlock}
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
             <button class="btn btn-sm" onclick="createZoneFromKeyword('${escaped}')">+ Zone</button>

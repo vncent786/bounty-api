@@ -32,8 +32,8 @@ logger = logging.getLogger(__name__)
 # browser sessions (slower). We check all of them but stagger.
 GATE_PLATFORMS = ["youtube", "reddit", "tiktok"]
 
-# How many items to fetch per platform per keyword (keep light)
-GATE_ITEM_COUNT = 5
+# How many items to fetch per platform per keyword
+GATE_ITEM_COUNT = 10
 
 # Minimum total engagement to pass the gate
 MIN_ENGAGEMENT_THRESHOLD = 100
@@ -50,10 +50,14 @@ class ConversationGateResult:
     platform_breakdown: dict    # {platform: {items, engagement, top_text}}
     sample_content: list        # up to 3 sample texts from social posts
     gate_score: int             # composite score for ranking
+    raw_posts: list = None      # full post data for LLM reader (added in Phase 1)
     error: str = ""
 
     def to_dict(self) -> dict:
-        return asdict(self)
+        d = asdict(self)
+        # Don't serialize raw_posts in normal dict output
+        d.pop("raw_posts", None)
+        return d
 
 
 async def _check_platform(
@@ -61,8 +65,8 @@ async def _check_platform(
     keyword: str,
     platform: str,
     count: int = GATE_ITEM_COUNT,
-) -> dict:
-    """Check a single platform for a keyword. Returns breakdown dict."""
+) -> tuple[dict, list[dict]]:
+    """Check a single platform for a keyword. Returns (breakdown_dict, raw_items)."""
     try:
         result = await broker.search(
             keyword=keyword,
@@ -85,11 +89,12 @@ async def _check_platform(
             if text:
                 sample_texts.append(text[:120])
 
-        return {
+        breakdown = {
             "items": len(platform_items),
             "engagement": engagement,
             "top_text": sample_texts[0] if sample_texts else "",
         }
+        return breakdown, platform_items
     except Exception as e:
         logger.debug(f"Gate check failed for '{keyword}' on {platform}: {e}")
         return {
@@ -97,7 +102,7 @@ async def _check_platform(
             "engagement": 0,
             "top_text": "",
             "error": str(e)[:100],
-        }
+        }, []
 
 
 async def gate_check_keyword(
@@ -125,17 +130,19 @@ async def gate_check_keyword(
     total_engagement = 0
     platforms_with_hits = 0
     sample_content = []
+    all_raw_posts = []
 
-    for platform, result in zip(platforms, results):
-        items = result.get("items", 0)
-        engagement = result.get("engagement", 0)
-        platform_breakdown[platform] = result
+    for platform, (breakdown, raw_items) in zip(platforms, results):
+        items = breakdown.get("items", 0)
+        engagement = breakdown.get("engagement", 0)
+        platform_breakdown[platform] = breakdown
 
         total_items += items
         total_engagement += engagement
+        all_raw_posts.extend(raw_items)
         if items > 0:
             platforms_with_hits += 1
-            top_text = result.get("top_text", "")
+            top_text = breakdown.get("top_text", "")
             if top_text and len(sample_content) < 3:
                 sample_content.append(f"[{platform}] {top_text}")
 
@@ -159,6 +166,7 @@ async def gate_check_keyword(
         platform_breakdown=platform_breakdown,
         sample_content=sample_content,
         gate_score=gate_score,
+        raw_posts=all_raw_posts,
     )
 
 

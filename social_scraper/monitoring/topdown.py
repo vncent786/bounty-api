@@ -80,6 +80,13 @@ class EmergingKeyword:
     gate_sample: str = ""  # sample social post text
     topic_ids: list[int] = field(default_factory=list)
     categories: str = ""  # comma-separated human-readable category names
+    # Phase 1: LLM conversation reader fields
+    conv_summary: str = ""
+    conv_sentiment: str = ""
+    conv_brands: str = ""  # comma-separated
+    conv_trend_type: str = ""  # Product/Consumer | Event | Cultural/Behavioral | Personality
+    conv_type_reason: str = ""
+    conv_key_quote: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -227,6 +234,42 @@ class TopDownDiscovery:
         logger.info(
             f"Conversation gate: {passed} keywords verified with social discussion"
         )
+
+        # ── Phase 1: LLM conversation reader for verified keywords ──
+        verified = [
+            (kw, gate_map[kw.keyword.lower()])
+            for kw in candidates
+            if gate_map.get(kw.keyword.lower())
+            and gate_map[kw.keyword.lower()].passed
+            and gate_map[kw.keyword.lower()].raw_posts
+        ]
+
+        if verified:
+            from .conversation_reader import read_conversation
+            logger.info(f"Reading conversations for {len(verified)} verified keywords...")
+
+            for kw, gate_result in verified:
+                metadata = {
+                    "category": kw.categories,
+                    "volume": kw.search_volume,
+                    "growth": kw.growth_pct,
+                    "platforms": kw.gate_platforms,
+                }
+                summary = await read_conversation(
+                    keyword=kw.keyword,
+                    metadata=metadata,
+                    posts=gate_result.raw_posts,
+                )
+                kw.conv_summary = summary.summary
+                kw.conv_sentiment = summary.sentiment
+                kw.conv_brands = ", ".join(summary.brands)
+                kw.conv_trend_type = summary.trend_type
+                kw.conv_type_reason = summary.type_reason
+                kw.conv_key_quote = summary.key_quotes[0] if summary.key_quotes else ""
+
+            logger.info(
+                f"Conversation reader: {len(verified)} keywords enriched with LLM summary"
+            )
 
         return candidates
 

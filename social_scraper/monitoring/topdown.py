@@ -24,6 +24,40 @@ from .zones import ZoneRegistry, Zone
 
 logger = logging.getLogger(__name__)
 
+# Google Trends trending_now topic ID → human-readable category name.
+# Derived empirically from trending_now data (Google does not publish this mapping).
+# IDs with unknown values fall back to "Other".
+TOPIC_CATEGORIES = {
+    1: "Autos",
+    2: "Beauty & Fashion",
+    3: "Business & Finance",
+    4: "Entertainment",
+    5: "Food & Drink",
+    6: "Gaming & Tech",
+    7: "Health",
+    8: "Hobbies & Pets",
+    9: "Education",
+    10: "Society & Culture",
+    11: "News & Current Events",
+    13: "Pets & Animals",
+    14: "Politics & Government",
+    15: "Science",
+    16: "Travel",
+    17: "Sports",
+    18: "Consumer Products",
+    20: "Weather & Nature",
+}
+
+
+def _topic_ids_to_categories(topic_ids: list[int]) -> str:
+    """Convert raw topic IDs to comma-separated category names."""
+    names = []
+    for tid in topic_ids:
+        name = TOPIC_CATEGORIES.get(tid)
+        if name and name not in names:
+            names.append(name)
+    return ", ".join(names) if names else "Other"
+
 
 @dataclass
 class EmergingKeyword:
@@ -44,6 +78,8 @@ class EmergingKeyword:
     gate_total_engagement: int = 0
     gate_total_items: int = 0
     gate_sample: str = ""  # sample social post text
+    topic_ids: list[int] = field(default_factory=list)
+    categories: str = ""  # comma-separated human-readable category names
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -91,6 +127,7 @@ class TopDownDiscovery:
                         hours_ago = max(0, (now_ts - ts) / 3600)
 
                 related = getattr(t, "trend_keywords", []) or []
+                topic_ids = getattr(t, "topics", []) or []
 
                 keywords.append(EmergingKeyword(
                     keyword=t.keyword,
@@ -102,6 +139,8 @@ class TopDownDiscovery:
                     search_volume=volume,
                     growth_pct=growth,
                     started_hours_ago=round(hours_ago, 1),
+                    topic_ids=topic_ids,
+                    categories=_topic_ids_to_categories(topic_ids),
                 ))
 
             logger.info(
@@ -202,13 +241,13 @@ class TopDownDiscovery:
         min_volume: int = 0,
         min_growth: int = 0,
         max_age_hours: float = 0,
-        exclude_sports: bool = False,
+        categories: list[str] = None,
         gate_only: bool = False,
     ) -> list[EmergingKeyword]:
         """Run the full discovery pipeline.
 
         1. Candidate generation: Google Trends trending_now (trendspy)
-        2. Optional user filters: volume, growth, age, sports exclusion
+        2. Optional user filters: volume, growth, age, categories
         3. Conversation gate: social platform verification (if broker available)
 
         User-facing filters are applied BEFORE the gate so we check the
@@ -222,7 +261,8 @@ class TopDownDiscovery:
             min_volume: Minimum search volume to include (0 = no filter).
             min_growth: Minimum growth % to include (0 = no filter).
             max_age_hours: Only trends started within this window (0 = no filter).
-            exclude_sports: Exclude "X vs Y" / "X - Y" score patterns.
+            categories: Only include keywords matching these categories
+                        (None = all categories, e.g. ["Health", "Consumer Products"]).
             gate_only: Only return keywords that passed the conversation gate.
         """
         # Step 1: Get candidates
@@ -246,10 +286,11 @@ class TopDownDiscovery:
                 if k.started_hours_ago == 0 or k.started_hours_ago <= max_age_hours
             ]
 
-        if exclude_sports:
+        if categories:
+            cat_set = {c.lower() for c in categories}
             candidates = [
                 k for k in candidates
-                if not self._is_sports_pattern(k.keyword)
+                if any(c.lower() in cat_set for c in k.categories.split(", "))
             ]
 
         filtered = before - len(candidates)
@@ -287,22 +328,6 @@ class TopDownDiscovery:
         )
 
         return result
-
-    @staticmethod
-    def _is_sports_pattern(keyword: str) -> bool:
-        """Detect sports score/standings patterns.
-
-        Matches: "X vs Y", "X - Y" where both sides are short words.
-        Also: "X standings", "X vs Y score"
-        """
-        import re
-        # "team vs team" or "team - team" patterns
-        if re.search(r"\b\w+\s+(?:vs?\.?|–|-)\s+\w+", keyword, re.IGNORECASE):
-            return True
-        # "standings" keyword
-        if "standings" in keyword.lower():
-            return True
-        return False
 
     # ── Legacy fallback: Google Trends RSS ────────────────────
 

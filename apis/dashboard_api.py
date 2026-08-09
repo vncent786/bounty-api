@@ -234,26 +234,29 @@ async def discover_keywords(
     min_volume: int = Query(0, description="Minimum search volume"),
     min_growth: int = Query(0, description="Minimum growth %"),
     max_age_hours: float = Query(0, description="Only trends started within N hours"),
-    exclude_sports: bool = Query(False, description="Exclude sports score patterns"),
+    categories: str = Query("", description="Comma-separated category names to include"),
     gate_only: bool = Query(False, description="Only return gate-verified keywords"),
 ):
     """Run top-down keyword discovery.
 
     Pipeline:
     1. Candidate generation via Google Trends trending_now (trendspy)
-    2. User filters (volume, growth, age, sports exclusion)
+    2. User filters (volume, growth, age, categories)
     3. Conversation gate: checks social platforms for real discussion
     """
     _check_auth()
     from social_scraper.monitoring import TopDownDiscovery
     discovery = TopDownDiscovery(broker=_get_broker())
+
+    cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
+
     keywords = await discovery.scan_all(
         geo=geo,
         apply_gate=gate,
         min_volume=min_volume,
         min_growth=min_growth,
         max_age_hours=max_age_hours,
-        exclude_sports=exclude_sports,
+        categories=cat_list,
         gate_only=gate_only,
     )
     return {

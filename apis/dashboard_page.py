@@ -385,11 +385,29 @@ DASHBOARD_HTML = """<!doctype html>
           </select>
         </label>
         <label style="display:flex;align-items:center;gap:4px;">
-          <input type="checkbox" id="df-nosports" style="accent-color:var(--accent);"> Hide sports
-        </label>
-        <label style="display:flex;align-items:center;gap:4px;">
           <input type="checkbox" id="df-gateonly" style="accent-color:var(--accent);"> Verified only
         </label>
+      </div>
+      <div id="discovery-cats" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;">
+        <span style="color:var(--text-dim);margin-right:4px;">Categories:</span>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Business & Finance" style="accent-color:var(--accent);"> Business & Finance</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Consumer Products" style="accent-color:var(--accent);"> Consumer Products</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Entertainment" style="accent-color:var(--accent);"> Entertainment</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Food & Drink" style="accent-color:var(--accent);"> Food & Drink</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Gaming & Tech" style="accent-color:var(--accent);"> Gaming & Tech</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Health" style="accent-color:var(--accent);"> Health</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Hobbies & Pets" style="accent-color:var(--accent);"> Hobbies & Pets</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="News & Current Events" style="accent-color:var(--accent);"> News</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Politics & Government" style="accent-color:var(--accent);"> Politics</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Science" style="accent-color:var(--accent);"> Science</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Society & Culture" style="accent-color:var(--accent);"> Society</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Sports" style="accent-color:var(--accent);"> Sports</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Weather & Nature" style="accent-color:var(--accent);"> Weather</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Autos" style="accent-color:var(--accent);"> Autos</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Beauty & Fashion" style="accent-color:var(--accent);"> Beauty & Fashion</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Education" style="accent-color:var(--accent);"> Education</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Pets & Animals" style="accent-color:var(--accent);"> Pets</label>
+        <label style="display:flex;align-items:center;gap:2px;cursor:pointer;"><input type="checkbox" class="df-cat" value="Travel" style="accent-color:var(--accent);"> Travel</label>
       </div>
       <div id="discovery-list"><div class="loading">Click "Scan Now" to discover emerging keywords.</div></div>
     </div>
@@ -760,11 +778,12 @@ async function runDiscovery() {
   const minVol = document.getElementById('df-minvol') ? document.getElementById('df-minvol').value : '0';
   const minGrowth = document.getElementById('df-mingrowth') ? document.getElementById('df-mingrowth').value : '0';
   const maxAge = document.getElementById('df-age') ? document.getElementById('df-age').value : '0';
-  const noSports = document.getElementById('df-nosports') ? document.getElementById('df-nosports').checked : false;
   const gateOnly = document.getElementById('df-gateonly') ? document.getElementById('df-gateonly').checked : false;
 
-  let qs = `geo=US&min_volume=${minVol}&min_growth=${minGrowth}&max_age_hours=${maxAge}`;
-  if (noSports) qs += '&exclude_sports=true';
+  const selectedCats = Array.from(document.querySelectorAll('.df-cat:checked')).map(c => c.value);
+  const catParam = selectedCats.length > 0 ? '&categories=' + encodeURIComponent(selectedCats.join(',')) : '';
+
+  let qs = `geo=US&min_volume=${minVol}&min_growth=${minGrowth}&max_age_hours=${maxAge}${catParam}`;
   if (gateOnly) qs += '&gate_only=true';
 
   document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching Google Trends + running conversation gate...</div>';
@@ -791,6 +810,7 @@ async function runDiscovery() {
         const vol = k.search_volume ? (k.search_volume >= 1000 ? (k.search_volume/1000).toFixed(0)+'K' : k.search_volume) : '';
         const growth = k.growth_pct ? '+' + k.growth_pct + '%' : '';
         const fresh = k.started_hours_ago ? k.started_hours_ago.toFixed(1) + 'h ago' : '';
+        const catLabel = k.categories ? '<span style="color:#9ca3af">' + k.categories.split(',')[0] + '</span>' : '';
         const gateBadge = k.gate_passed
           ? '<span class="badge badge-active" style="margin-left:4px;background:#1a5f3f;">VERIFIED ' + k.gate_platforms + '</span>'
           : (k.gate_passed === false ? '<span style="color:var(--text-dim);margin-left:4px;">no social</span>' : '');
@@ -804,6 +824,7 @@ async function runDiscovery() {
               <span>vol ${vol}</span>
               ${growth ? '<span style="color:#4ade80">' + growth + '</span>' : ''}
               ${fresh ? '<span>' + fresh + '</span>' : ''}
+              ${catLabel}
               ${gateBadge}
             </div>
             ${gateSample}

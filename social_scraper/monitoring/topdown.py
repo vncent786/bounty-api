@@ -1,30 +1,24 @@
 """
-Top-down keyword discovery — catch emerging topics you didn't know to search for.
+Top-down keyword discovery — buzzabout methodology.
 
-Source priority (buzzabout methodology: candidate generation → conversation gate):
-1. Exploding Topics (PRIMARY) — curated growth-stage trends, not news events
-2. Google Trends RSS (SECONDARY) — daily trending, geo-specific but news-heavy
-3. YouTube trending (TERTIARY) — keyword extraction from high-view videos
-4. Reddit rising (TERTIARY) — social discussion signal
+Two-step pipeline:
+1. Candidate generation: Google Trends trending_now via trendspy
+   (388 keywords, volume estimates, growth %, start timestamps, no rate limiting)
+2. Conversation gate: cross-reference candidates against social platforms
+   (Reddit, YouTube, TikTok). Discard keywords with no social discussion.
 
-Each source has its own EmergingKeyword entries. The scan_all method merges
-and deduplicates, prioritizing keywords that appear across multiple sources.
-
-Optional trajectory enrichment (breakout detection) can be layered on top
-via trajectory.analyze_batch().
+This replaces the old multi-source approach (Exploding Topics, Google Trends
+RSS, pytrends trajectory). trendspy's trending_now is faster, more reliable,
+and provides richer metadata than any of those.
 
 Discovered keywords become candidates for new zones.
 """
 
 import asyncio
-import json
 import logging
 import re
-from collections import Counter, defaultdict
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from typing import Optional
-from urllib.parse import quote
 
 from .zones import ZoneRegistry, Zone
 
@@ -35,289 +29,259 @@ logger = logging.getLogger(__name__)
 class EmergingKeyword:
     """A keyword discovered via top-down scanning."""
     keyword: str
-    source: str  # google_trends | reddit_rising | youtube_trending | cross_platform
-    platform_count: int = 1  # how many platforms it appeared on
-    engagement_signal: int = 0  # proxy for velocity
+    source: str  # google_trends | conversation_verified
+    platform_count: int = 1
+    engagement_signal: int = 0
     related_terms: list[str] = field(default_factory=list)
     discovered_at: str = ""
-    sample_context: str = ""  # where we found it
+    sample_context: str = ""
+    # New fields for trendspy metadata
+    search_volume: int = 0
+    growth_pct: int = 0
+    started_hours_ago: float = 0  # how recently the trend started
+    gate_passed: bool = False
+    gate_platforms: str = ""  # comma-separated platforms with hits
+    gate_total_engagement: int = 0
+    gate_total_items: int = 0
+    gate_sample: str = ""  # sample social post text
 
     def to_dict(self) -> dict:
         return asdict(self)
 
 
 class TopDownDiscovery:
-    """Scans external sources to discover emerging keywords."""
+    """Discovers emerging keywords via candidate generation + conversation gate."""
 
     def __init__(self, broker=None):
         self.broker = broker
 
-    async def scan_exploding_topics(self) -> list[EmergingKeyword]:
-        """Fetch curated emerging trends from Exploding Topics.
+    # ── Step 1: Candidate Generation ──────────────────────────
 
-        This is the PRIMARY source — Exploding Topics curates for growth-stage
-        trends (not news events), with built-in growth percentages.
+    async def fetch_candidates(self, geo: str = "US") -> list[EmergingKeyword]:
+        """Fetch trending keywords from Google Trends via trendspy.
 
-        Returns EmergingKeyword objects with growth_value as engagement_signal.
+        Uses trending_now() which returns 100-400+ keywords with:
+        - volume: estimated search count
+        - volume_growth_pct: growth percentage
+        - started_timestamp: when the trend began
+        - trend_keywords: related keyword cluster
+
+        This endpoint is NOT rate-limited (unlike interest_over_time).
         """
         keywords: list[EmergingKeyword] = []
+
         try:
-            from social_scraper.connectors.exploding_topics import (
-                fetch_exploding_topics,
-            )
+            from trendspy import Trends
+            tr = Trends()
+            trends = tr.trending_now(geo=geo)
 
-            topics = await fetch_exploding_topics(timeout=30)
+            now_ts = datetime.now(timezone.utc).timestamp()
 
-            for topic in topics:
+            for t in trends:
+                # Extract metadata
+                volume = getattr(t, "volume", 0) or 0
+                growth = getattr(t, "volume_growth_pct", 0) or 0
+                started = getattr(t, "started_timestamp", None)
+
+                # Calculate hours ago
+                hours_ago = 0.0
+                if started:
+                    ts = max(started) if isinstance(started, list) else started
+                    if ts:
+                        hours_ago = max(0, (now_ts - ts) / 3600)
+
+                related = getattr(t, "trend_keywords", []) or []
+
                 keywords.append(EmergingKeyword(
-                    keyword=topic.name,
-                    source="exploding_topics",
-                    engagement_signal=topic.growth_value,
-                    related_terms=[topic.slug],
-                    discovered_at=topic.discovered_at,
-                    sample_context=(
-                        f"Exploding Topics: {topic.name} "
-                        f"({topic.growth}, vol={topic.volume})"
-                    ),
+                    keyword=t.keyword,
+                    source="google_trends",
+                    engagement_signal=growth,
+                    related_terms=related[:5],
+                    discovered_at=datetime.now(timezone.utc).isoformat(),
+                    sample_context=f"Google Trends {geo}: vol={volume:,}, growth=+{growth}%",
+                    search_volume=volume,
+                    growth_pct=growth,
+                    started_hours_ago=round(hours_ago, 1),
                 ))
 
             logger.info(
-                f"Exploding Topics: discovered {len(keywords)} trends "
-                f"(top: {topics[0].name if topics else 'none'})"
+                f"Candidate generation: {len(keywords)} keywords from "
+                f"Google Trends trending_now ({geo})"
             )
+
+        except ImportError:
+            logger.error("trendspy not installed — cannot fetch candidates")
         except Exception as e:
-            logger.warning(f"Exploding Topics scan failed: {e}")
+            logger.warning(f"Candidate generation failed: {e}")
 
         return keywords
 
-    async def scan_google_trends(self, geo: str = "US") -> list[EmergingKeyword]:
-        """Fetch Google Trends daily trending searches.
+    # ── Step 2: Conversation Gate ─────────────────────────────
 
-        Uses the unofficial RSS endpoint (free, no key).
-        Returns trending search terms with their related queries.
+    async def apply_conversation_gate(
+        self,
+        candidates: list[EmergingKeyword],
+        max_keywords: int = 20,
+        platforms: list[str] = None,
+    ) -> list[EmergingKeyword]:
+        """Run candidates through the conversation gate.
+
+        Checks whether real people are discussing each keyword on social
+        platforms. Keywords with no social discussion are marked as
+        gate_passed=False but kept in the list (for transparency).
+
+        Only the top `max_keywords` candidates are checked (by freshness
+        + growth) to bound execution time.
+
+        Returns ALL candidates, with gate results filled in for those checked.
+        """
+        if not self.broker:
+            logger.warning("No broker — skipping conversation gate")
+            return candidates
+
+        from .conversation_gate import run_conversation_gate
+
+        # Select top candidates for gate check: prioritize freshest + highest growth
+        gate_candidates = sorted(
+            candidates,
+            key=lambda k: (
+                k.started_hours_ago > 0,  # has timestamp first
+                k.growth_pct,
+            ),
+            reverse=True,
+        )[:max_keywords]
+
+        gate_keywords = [k.keyword for k in gate_candidates]
+
+        logger.info(
+            f"Conversation gate: checking {len(gate_keywords)} of "
+            f"{len(candidates)} candidates"
+        )
+
+        results = await run_conversation_gate(
+            broker=self.broker,
+            keywords=gate_keywords,
+            platforms=platforms,
+            max_keywords=max_keywords,
+        )
+
+        # Build lookup
+        gate_map = {r.keyword.lower(): r for r in results}
+
+        for kw in candidates:
+            gate_result = gate_map.get(kw.keyword.lower())
+            if gate_result:
+                kw.gate_passed = gate_result.passed
+                kw.gate_platforms = ",".join(
+                    p for p, v in gate_result.platform_breakdown.items()
+                    if v.get("items", 0) > 0
+                )
+                kw.gate_total_engagement = gate_result.total_engagement
+                kw.gate_total_items = gate_result.total_items
+                if gate_result.sample_content:
+                    kw.gate_sample = gate_result.sample_content[0][:200]
+                if gate_result.passed:
+                    kw.source = "conversation_verified"
+                    kw.platform_count = gate_result.platforms_with_hits + 1
+
+        passed = sum(1 for k in candidates if k.gate_passed)
+        logger.info(
+            f"Conversation gate: {passed} keywords verified with social discussion"
+        )
+
+        return candidates
+
+    # ── Full Pipeline ─────────────────────────────────────────
+
+    async def scan_all(
+        self,
+        geo: str = "US",
+        apply_gate: bool = True,
+        gate_max: int = 20,
+        gate_platforms: list[str] = None,
+    ) -> list[EmergingKeyword]:
+        """Run the full discovery pipeline.
+
+        1. Candidate generation: Google Trends trending_now (trendspy)
+        2. Conversation gate: social platform verification (if broker available)
+
+        Returns keywords sorted by: gate-passed first, then freshness, then growth.
+        """
+        # Step 1: Get candidates
+        candidates = await self.fetch_candidates(geo=geo)
+
+        if not candidates:
+            return []
+
+        # Step 2: Conversation gate
+        if apply_gate and self.broker:
+            candidates = await self.apply_conversation_gate(
+                candidates,
+                max_keywords=gate_max,
+                platforms=gate_platforms,
+            )
+
+        # Sort: gate-passed first, then freshest, then highest growth
+        result = sorted(
+            candidates,
+            key=lambda k: (
+                k.gate_passed,
+                k.started_hours_ago > 0,  # has timestamp
+                -k.started_hours_ago if k.started_hours_ago > 0 else -999,
+                k.growth_pct,
+            ),
+            reverse=True,
+        )
+
+        gate_count = sum(1 for k in result if k.gate_passed)
+        total = len(result)
+        logger.info(
+            f"Discovery complete: {total} keywords, "
+            f"{gate_count} conversation-verified"
+        )
+
+        return result
+
+    # ── Legacy fallback: Google Trends RSS ────────────────────
+
+    async def scan_google_trends_rss(self, geo: str = "US") -> list[EmergingKeyword]:
+        """Fallback: Google Trends RSS endpoint (10 keywords, no rate limit).
+
+        Only used if trendspy fails. Returns minimal metadata.
         """
         keywords = []
         try:
             from curl_cffi import requests as curl_requests
             session = curl_requests.Session(impersonate="chrome124")
-
-            # Google Trends daily trending searches RSS
             url = f"https://trends.google.com/trending/rss?geo={geo}"
-            resp = await asyncio.to_thread(
-                session.get, url, timeout=20
-            )
+            resp = await asyncio.to_thread(session.get, url, timeout=20)
 
             if resp.status_code != 200:
-                logger.warning(f"Google Trends RSS returned {resp.status_code}")
                 return keywords
 
-            # Parse XML
             import xml.etree.ElementTree as ET
             root = ET.fromstring(resp.text)
-
-            # Namespace handling
             ns = {"ht": "https://trends.google.com/trending/rss"}
 
             for item in root.findall(".//item")[:20]:
                 title = item.findtext("title") or ""
-                # Get traffic/engagement if available
                 traffic = item.findtext("ht:approx_traffic", namespaces=ns) or ""
                 traffic_num = self._parse_traffic(traffic)
-
-                # Get related news if available
-                news_title = item.findtext("ht:news_item_title", namespaces=ns) or ""
 
                 if title:
                     keywords.append(EmergingKeyword(
                         keyword=title.strip(),
-                        source="google_trends",
+                        source="google_trends_rss",
                         engagement_signal=traffic_num,
-                        related_terms=[],
                         discovered_at=datetime.now(timezone.utc).isoformat(),
-                        sample_context=f"Google Trends {geo} trending: {traffic}",
+                        sample_context=f"Google Trends RSS {geo}: {traffic}",
                     ))
 
-            logger.info(f"Google Trends: discovered {len(keywords)} trending keywords for {geo}")
+            logger.info(f"RSS fallback: {len(keywords)} keywords")
         except Exception as e:
-            logger.warning(f"Google Trends scan failed: {e}")
+            logger.warning(f"Google Trends RSS fallback failed: {e}")
 
         return keywords
-
-    async def scan_reddit_rising(self, keywords_from_gt: list[EmergingKeyword]) -> list[EmergingKeyword]:
-        """Scan Reddit for rising posts to find emerging discussion topics.
-
-        Uses the broker's Reddit connectors to search /r/all or broad terms.
-        Cross-references with Google Trends keywords to boost multi-platform signals.
-        """
-        if not self.broker:
-            return []
-
-        keywords = []
-
-        # Collect from Reddit with broad discovery queries
-        # Use the Google Trends terms as seeds to find Reddit discussion
-        gt_terms = [k.keyword for k in keywords_from_gt[:10]]
-        # Also add some generic discovery terms
-        discovery_queries = gt_terms[:5] if gt_terms else ["viral", "trending", "new"]
-
-        reddit_texts = []
-        for query in discovery_queries:
-            try:
-                result = await self.broker.search(
-                    keyword=query,
-                    platforms=["reddit"],
-                    count=10,
-                )
-                items = result.get("items", [])
-                for item in items:
-                    text = item.get("text") or ""
-                    reddit_texts.append(text)
-            except Exception as e:
-                logger.warning(f"Reddit scan for '{query}' failed: {e}")
-
-        # Extract significant keywords from Reddit posts
-        reddit_keywords = self._extract_significant_terms(reddit_texts, source="reddit_rising")
-
-        # Cross-reference: boost keywords that appear in both GT and Reddit
-        gt_set = {k.keyword.lower() for k in keywords_from_gt}
-        for rk in reddit_keywords:
-            if rk.keyword.lower() in gt_set:
-                rk.platform_count += 1
-                rk.source = "cross_platform"
-            keywords.append(rk)
-
-        logger.info(f"Reddit rising: discovered {len(keywords)} keywords, "
-                    f"{sum(1 for k in keywords if k.source == 'cross_platform')} cross-platform")
-        return keywords
-
-    async def scan_youtube_trending(self) -> list[EmergingKeyword]:
-        """Scan YouTube for high-engagement recent videos as a trending proxy.
-
-        YouTube's trending page is fully JS-rendered and yt-dlp can't extract it.
-        Instead, we search for broad category terms, extract keywords from titles
-        of high-view-count videos. High view count = currently popular topic.
-        """
-        if not self.broker:
-            return []
-
-        keywords = []
-        # Category-based discovery queries (not literal "trending")
-        discovery_queries = [
-            "new 2026", "viral", "review",
-        ]
-
-        all_texts = []
-        all_views = []
-
-        for query in discovery_queries:
-            try:
-                result = await self.broker.search(
-                    keyword=query,
-                    platforms=["youtube"],
-                    count=10,
-                )
-                items = result.get("items", [])
-                for item in items:
-                    text = item.get("text") or item.get("title") or ""
-                    eng = item.get("engagement", {})
-                    views = eng.get("views") or 0
-                    all_texts.append(text)
-                    all_views.append(views)
-            except Exception as e:
-                logger.warning(f"YouTube scan for '{query}' failed: {e}")
-
-        # Weight keyword extraction by view count
-        keywords = self._extract_significant_terms_weighted(all_texts, all_views, source="youtube_trending")
-        logger.info(f"YouTube discovery: found {len(keywords)} keywords from {len(all_texts)} videos")
-        return keywords
-
-    async def scan_all(
-        self,
-        geo: str = "US",
-        with_trajectory: bool = False,
-        max_trajectory: int = 15,
-    ) -> list[EmergingKeyword]:
-        """Run all discovery sources and merge results.
-
-        Source priority:
-        1. Exploding Topics (PRIMARY) — curated growth trends
-        2. Google Trends RSS (SECONDARY) — geo-specific daily trending
-        3. YouTube + Reddit (TERTIARY) — social signals, run in parallel
-
-        Cross-platform keywords (appearing on 2+ sources) are prioritized.
-
-        Args:
-            geo: Country code for Google Trends (US, SG, GB, etc.)
-            with_trajectory: If True, run breakout detection on top
-                candidates via pytrends interest_over_time.
-            max_trajectory: Max keywords to analyze for trajectory
-                (each takes ~3s, so 15 = ~45s extra).
-        """
-        # Phase 1: Exploding Topics (PRIMARY — independent, highest quality)
-        et_keywords = await self.scan_exploding_topics()
-
-        # Phase 2: Google Trends RSS (SECONDARY — geo-specific)
-        gt_keywords = await self.scan_google_trends(geo)
-
-        # Phase 3: Reddit + YouTube (TERTIARY — social signals)
-        reddit_keywords, yt_keywords = await asyncio.gather(
-            self.scan_reddit_rising(gt_keywords),
-            self.scan_youtube_trending(),
-        )
-
-        # Merge and deduplicate
-        all_kw = et_keywords + gt_keywords + reddit_keywords + yt_keywords
-
-        # Group by keyword (case-insensitive)
-        merged = {}
-        for kw in all_kw:
-            key = kw.keyword.lower().strip()
-            if key in merged:
-                existing = merged[key]
-                existing.platform_count += 1
-                existing.engagement_signal = max(
-                    existing.engagement_signal, kw.engagement_signal
-                )
-                existing.related_terms.extend(kw.related_terms)
-            else:
-                merged[key] = kw
-
-        # Sort by platform count (cross-platform first), then engagement
-        result = sorted(
-            merged.values(),
-            key=lambda k: (k.platform_count, k.engagement_signal),
-            reverse=True,
-        )
-
-        # Optional trajectory enrichment
-        if with_trajectory and result:
-            try:
-                from social_scraper.monitoring.trajectory import analyze_batch
-
-                top_kw = [k.keyword for k in result[:max_trajectory]]
-                trajectories = await analyze_batch(top_kw, geo=geo)
-
-                # Build a lookup for trajectory results
-                traj_map = {t.keyword.lower(): t for t in trajectories}
-
-                for kw in result:
-                    traj = traj_map.get(kw.keyword.lower())
-                    if traj and traj.status != "UNKNOWN":
-                        kw.related_terms.append(
-                            f"trajectory:{traj.status}"
-                        )
-                        if traj.status in ("BREAKOUT", "RISING"):
-                            kw.engagement_signal += 5000
-            except Exception as e:
-                logger.warning(f"Trajectory enrichment failed: {e}")
-
-        logger.info(
-            f"Top-down discovery complete: {len(result)} unique keywords, "
-            f"{sum(1 for k in result if k.platform_count >= 2)} cross-platform, "
-            f"sources: ET={len(et_keywords)}, GT={len(gt_keywords)}, "
-            f"Reddit={len(reddit_keywords)}, YT={len(yt_keywords)}"
-        )
-        return result
 
     @staticmethod
     def _parse_traffic(traffic_str: str) -> int:
@@ -332,76 +296,3 @@ class TopDownDiscovery:
             return int(float(traffic_str))
         except (ValueError, IndexError):
             return 0
-
-    @staticmethod
-    def _extract_significant_terms(texts: list[str], source: str) -> list[EmergingKeyword]:
-        """Extract meaningful keywords from a corpus of social posts."""
-        return TopDownDiscovery._extract_significant_terms_weighted(
-            texts, [1] * len(texts), source
-        )
-
-    @staticmethod
-    def _extract_significant_terms_weighted(
-        texts: list[str], weights: list[int], source: str
-    ) -> list[EmergingKeyword]:
-        """Extract keywords weighted by engagement (views/likes).
-
-        Keywords from high-engagement posts get higher signal scores.
-        """
-        stop_words = {
-            "the", "a", "an", "to", "and", "or", "of", "in", "on", "for",
-            "is", "are", "was", "were", "be", "been", "being", "have", "has",
-            "had", "do", "does", "did", "will", "would", "could", "should",
-            "this", "that", "these", "those", "i", "you", "he", "she", "it",
-            "we", "they", "my", "your", "his", "her", "its", "our", "their",
-            "with", "at", "from", "by", "about", "as", "into", "through",
-            "but", "not", "no", "so", "than", "too", "very", "just", "also",
-            "if", "then", "when", "where", "why", "how", "all", "each",
-            "https", "http", "www", "com", "org", "net", "watch", "video",
-            "subscribe", "channel", "like", "comment", "share", "follow",
-            "check", "link", "bio", "new", "best", "top", "via",
-        }
-
-        word_freq = {}
-        phrase_freq = {}
-
-        for text, weight in zip(texts, weights):
-            w = max(int(weight), 1)
-            clean = re.sub(r"http\S+", "", text)
-            clean = re.sub(r"#[\w]+", "", clean)
-            words = re.findall(r"[a-zA-Z]{3,}", clean.lower())
-            significant = [word for word in words if word not in stop_words]
-
-            for word in significant:
-                word_freq[word] = word_freq.get(word, 0) + w
-
-            for i in range(len(significant) - 1):
-                phrase = f"{significant[i]} {significant[i+1]}"
-                phrase_freq[phrase] = phrase_freq.get(phrase, 0) + w
-
-        # Top single words
-        keywords = []
-        seen = set()
-        sorted_words = sorted(word_freq.items(), key=lambda x: x[1], reverse=True)
-        for word, score in sorted_words[:20]:
-            if score >= 2 and word not in seen:
-                keywords.append(EmergingKeyword(
-                    keyword=word,
-                    source=source,
-                    engagement_signal=score * 100,  # frequency as proxy
-                    discovered_at=datetime.now(timezone.utc).isoformat(),
-                ))
-                seen.add(word)
-
-        # Top phrases (higher value than single words)
-        sorted_phrases = sorted(phrase_freq.items(), key=lambda x: x[1], reverse=True)
-        for phrase, score in sorted_phrases[:15]:
-            if score >= 2:
-                keywords.append(EmergingKeyword(
-                    keyword=phrase,
-                    source=source,
-                    engagement_signal=score * 200,  # phrases weighted higher
-                    discovered_at=datetime.now(timezone.utc).isoformat(),
-                ))
-
-        return keywords

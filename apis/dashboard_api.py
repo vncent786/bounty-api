@@ -230,18 +230,20 @@ async def get_zone_diff(zone_id: int):
 @router.get("/discover")
 async def discover_keywords(
     geo: str = Query("US"),
-    trajectory: bool = Query(False, description="Run breakout detection on top candidates"),
+    gate: bool = Query(True, description="Apply conversation gate (social verification)"),
 ):
     """Run top-down keyword discovery.
 
-    Sources: Exploding Topics (primary), Google Trends RSS (secondary),
-    YouTube + Reddit (tertiary). Optional trajectory analysis adds
-    breakout detection via Google Trends interest_over_time.
+    Pipeline:
+    1. Candidate generation via Google Trends trending_now (trendspy)
+    2. Conversation gate: checks social platforms for real discussion
+
+    Returns keywords with gate verification results.
     """
     _check_auth()
     from social_scraper.monitoring import TopDownDiscovery
     discovery = TopDownDiscovery(broker=_get_broker())
-    keywords = await discovery.scan_all(geo, with_trajectory=trajectory)
+    keywords = await discovery.scan_all(geo, apply_gate=gate)
     return {
         "keywords": [k.to_dict() for k in keywords[:50]],
         "total": len(keywords),

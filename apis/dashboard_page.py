@@ -724,7 +724,7 @@ async function loadAlerts(elementId, limit) {
 
 // ── Discovery ─────────────────────────────
 async function runDiscovery() {
-  document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Scanning Exploding Topics, Google Trends, YouTube, Reddit...</div>';
+  document.getElementById('discovery-list').innerHTML = '<div class="loading"><div class="spinner"></div>Fetching Google Trends + running conversation gate...</div>';
   try {
     const resp = await fetch(`${API}/discover?geo=US`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -736,29 +736,43 @@ async function runDiscovery() {
       return;
     }
 
+    const verified = keywords.filter(k => k.gate_passed).length;
+    const checked = keywords.filter(k => k.gate_passed !== undefined && k.gate_passed !== null || k.gate_total_items !== undefined).length;
+
     document.getElementById('discovery-list').innerHTML = `
       <div style="margin-bottom:16px;font-size:13px;color:var(--text-dim);">
-        ${data.total} keywords discovered.
-        ${keywords.filter(k=>k.platform_count>=2).length} cross-platform (high signal).
+        ${data.total} keywords from Google Trends.
+        ${verified} verified by conversation gate (real social discussion).
       </div>
-      ${keywords.map(k => `
+      ${keywords.map((k, idx) => {
+        const vol = k.search_volume ? (k.search_volume >= 1000 ? (k.search_volume/1000).toFixed(0)+'K' : k.search_volume) : '';
+        const growth = k.growth_pct ? '+' + k.growth_pct + '%' : '';
+        const fresh = k.started_hours_ago ? k.started_hours_ago.toFixed(1) + 'h ago' : '';
+        const gateBadge = k.gate_passed
+          ? '<span class="badge badge-active" style="margin-left:4px;background:#1a5f3f;">VERIFIED ' + k.gate_platforms + '</span>'
+          : (k.gate_passed === false ? '<span style="color:var(--text-dim);margin-left:4px;">no social</span>' : '');
+        const gateSample = k.gate_sample ? '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;font-style:italic;">' + k.gate_sample.substring(0,100) + '</div>' : '';
+        const escaped = k.keyword.replace(/'/g, "\\'");
+        return `
         <div class="discovery-item">
           <div>
             <div class="discovery-keyword">${k.keyword}</div>
             <div class="discovery-meta">
-              <span style="color:#6b9bdff">${({exploding_topics:'Exploding Topics',google_trends:'Google Trends',reddit_rising:'Reddit',youtube_trending:'YouTube',cross_platform:'Cross-Platform'})[k.source] || k.source}</span>
-              ${k.platform_count >= 2 ? `<span class="badge badge-active" style="margin-left:4px;">${k.platform_count} platforms</span>` : ''}
+              <span>vol ${vol}</span>
+              ${growth ? '<span style="color:#4ade80">' + growth + '</span>' : ''}
+              ${fresh ? '<span>' + fresh + '</span>' : ''}
+              ${gateBadge}
             </div>
+            ${gateSample}
           </div>
           <div style="display:flex;align-items:center;gap:12px;">
-            <div class="discovery-meta">signal: ${(k.engagement_signal || 0).toLocaleString()}</div>
-            <button class="btn btn-sm" onclick="createZoneFromKeyword('${k.keyword.replace(/'/g, "\\'")}')">+ Zone</button>
+            <button class="btn btn-sm" onclick="createZoneFromKeyword('${escaped}')">+ Zone</button>
           </div>
-        </div>
-      `).join('')}
+        </div>`;
+      }).join('')}
     `;
   } catch(e) {
-    document.getElementById('discovery-list').innerHTML = `<div class="loading">Error: ${e}</div>`;
+    document.getElementById('discovery-list').innerHTML = '<div class="loading">Error: ' + e + '</div>';
   }
 }
 

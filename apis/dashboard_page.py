@@ -507,24 +507,25 @@ async function loadZones() {
     }
 
     list.innerHTML = data.zones.map(z => `
-      <div class="zone-card">
+      <div class="zone-card" id="zone-card-${z.id}">
         <div class="zone-header">
           <div>
-            <div class="zone-name">${z.name}</div>
-            ${z.description ? `<div class="zone-desc">${z.description}</div>` : ''}
-            <div class="zone-keywords">
-              ${z.keywords.map(k => `<div class="keyword-tag">${k}</div>`).join('')}
+            <div style="font-size:1.1rem;font-weight:600;color:var(--text-primary);">${z.name}</div>
+            <div style="color:var(--text-muted);font-size:0.85rem;margin-top:2px;">${z.description || ''}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;">
+              ${(z.keywords||[]).map(k => `<span class="tag">${k}</span>`).join('')}
             </div>
-            <div class="zone-meta">
-              <span>${z.platforms.join(', ')}</span>
+            <div style="display:flex;gap:16px;margin-top:8px;color:var(--text-muted);font-size:0.8rem;">
+              <span>${(z.platforms||[]).join(', ')}</span>
               <span>Every ${z.interval_hours}h</span>
               ${z.last_collected_at ? `<span>Last: ${formatDate(z.last_collected_at)}</span>` : '<span style="color:var(--yellow)">Never collected</span>'}
+              <span style="color:var(--text-dim);">Auto-runs every ${z.interval_hours}h</span>
             </div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
             <span class="badge badge-${z.status}">${z.status}</span>
             <div class="zone-actions">
-              <button class="btn btn-sm btn-primary" onclick="runZone(${z.id})">Run Now</button>
+              <button class="btn btn-sm btn-primary" id="run-btn-${z.id}" onclick="runZone(${z.id})">Run Now</button>
               <button class="btn btn-sm" onclick="viewZone(${z.id})">Details</button>
               ${z.status === 'active'
                 ? `<button class="btn btn-sm" onclick="pauseZone(${z.id})">Pause</button>`
@@ -533,25 +534,117 @@ async function loadZones() {
             </div>
           </div>
         </div>
+        <div id="zone-progress-${z.id}" style="display:none;"></div>
       </div>
     `).join('');
+
+    // Check if any zones are currently running and resume polling
+    data.zones.forEach(z => checkZoneStatus(z.id));
   } catch(e) {
     document.getElementById('zones-list').innerHTML = `<div class="loading">Error loading zones: ${e}</div>`;
   }
 }
 
 // ── Zone Actions ──────────────────────────
+
+const _zonePollers = {};  // zone_id -> interval id
+
 async function runZone(id) {
-  showToast('Running zone collection... This takes 2-5 minutes.');
+  const btn = document.getElementById(`run-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Starting...'; }
+
   try {
     const resp = await fetch(`${API}/zones/${id}/run`, { method: 'POST' });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-    const report = await resp.json();
-    showToast(`Done: ${report.total_items} items, ${report.cluster_count} clusters, ${report.alerts?.length || 0} alerts`);
-    viewZoneReport(id, report);
+    const job = await resp.json();
+
+    if (job.status === 'running') {
+      showZoneProgress(id, job);
+      startZonePolling(id);
+    } else if (job.status === 'done' && job.result) {
+      viewZoneReport(id, job.result);
+    }
   } catch(e) {
     showToast(`Error: ${e}`);
+    if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; }
   }
+}
+
+function showZoneProgress(id, job) {
+  const el = document.getElementById(`zone-progress-${id}`);
+  if (!el) return;
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div style="margin-top:16px;padding:16px;background:var(--bg-darker);border-radius:8px;border:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div class="spinner" style="width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+        <span style="color:var(--text-primary);font-weight:500;">${job.step || 'Running...'}</span>
+      </div>
+      <div style="width:100%;height:6px;background:var(--bg-darkest);border-radius:3px;overflow:hidden;">
+        <div id="zone-bar-${id}" style="width:${job.progress||5}%;height:100%;background:var(--accent);border-radius:3px;transition:width 0.5s ease;"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--text-muted);">
+        <span>${job.progress||5}%</span>
+        <span>You can navigate away - this runs in the background</span>
+      </div>
+    </div>
+  `;
+  const btn = document.getElementById(`run-btn-${id}`);
+  if (btn) { btn.disabled = true; btn.textContent = 'Running...'; btn.style.opacity = '0.5'; }
+}
+
+function startZonePolling(id) {
+  if (_zonePollers[id]) clearInterval(_zonePollers[id]);
+  _zonePollers[id] = setInterval(async () => {
+    try {
+      const resp = await fetch(`${API}/zones/${id}/status`);
+      const job = await resp.json();
+
+      if (job.status === 'running') {
+        // Update progress UI
+        const bar = document.getElementById(`zone-bar-${id}`);
+        if (bar) bar.style.width = `${job.progress||5}%`;
+        const progEl = document.getElementById(`zone-progress-${id}`);
+        if (progEl) {
+          const stepSpan = progEl.querySelector('span');
+          if (stepSpan && job.step) stepSpan.textContent = job.step;
+        }
+      } else if (job.status === 'done') {
+        clearInterval(_zonePollers[id]);
+        delete _zonePollers[id];
+        hideZoneProgress(id);
+        showToast(job.step || 'Zone collection complete');
+        if (job.result) {
+          viewZoneReport(id, job.result);
+        }
+        loadZones(); // refresh last-collected time
+      } else if (job.status === 'error') {
+        clearInterval(_zonePollers[id]);
+        delete _zonePollers[id];
+        hideZoneProgress(id);
+        showToast(`Error: ${job.error || 'Zone run failed'}`);
+      }
+    } catch(e) { /* ignore poll errors */ }
+  }, 2000);
+}
+
+function hideZoneProgress(id) {
+  const el = document.getElementById(`zone-progress-${id}`);
+  if (el) el.style.display = 'none';
+  const btn = document.getElementById(`run-btn-${id}`);
+  if (btn) { btn.disabled = false; btn.textContent = 'Run Now'; btn.style.opacity = '1'; }
+}
+
+async function checkZoneStatus(id) {
+  // Called on page load to check if a zone was already running
+  try {
+    const resp = await fetch(`${API}/zones/${id}/status`);
+    const job = await resp.json();
+    if (job.status === 'running') {
+      showZoneProgress(id, job);
+      startZonePolling(id);
+    }
+  } catch(e) { /* ignore */ }
 }
 
 async function viewZone(id) {

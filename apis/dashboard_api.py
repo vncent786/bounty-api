@@ -65,14 +65,13 @@ def _get_engine():
 
 
 async def _llm_call(system_prompt: str, user_prompt: str) -> str:
-    """Call z.ai GLM for enrichment."""
+    """Call LLM for enrichment. Uses BOUNTY_LLM_* env vars (switchable provider)."""
     import httpx
-    api_key = os.getenv("ZAI_API_KEY", "")
+    base_url = os.getenv("BOUNTY_LLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4").strip()
+    api_key = (os.getenv("BOUNTY_LLM_API_KEY") or os.getenv("ZAI_API_KEY", "")).strip()
+    model = os.getenv("BOUNTY_LLM_MODEL", "glm-4.7").strip()
     if not api_key:
-        raise RuntimeError("ZAI_API_KEY not set")
-
-    base_url = "https://api.z.ai/api/paas/v4"
-    model = "glm-4-flash"
+        raise RuntimeError("LLM API key not set (BOUNTY_LLM_API_KEY or ZAI_API_KEY)")
 
     async with httpx.AsyncClient(timeout=90) as client:
         resp = await client.post(
@@ -170,36 +169,109 @@ async def resume_zone(zone_id: int):
     return {"status": "active"}
 
 
-# ── Monitoring ─────────────────────────────────────────────
+# ── Zone job tracking (background tasks with progress) ────
+
+import time as _time
+
+_zone_jobs: dict[int, dict] = {}  # zone_id -> job status
+
+
+def _set_job(zone_id: int, **kwargs):
+    """Update zone job status."""
+    job = _zone_jobs.setdefault(zone_id, {
+        "status": "idle", "step": "", "progress": 0,
+        "started_at": None, "finished_at": None,
+        "result": None, "error": None,
+    })
+    job.update(kwargs)
+
 
 @router.post("/zones/{zone_id}/run")
 async def run_zone(zone_id: int):
-    """Manually trigger zone collection + clustering + enrichment."""
+    """Start zone collection as a background task. Returns immediately."""
     _check_auth()
     registry = _get_registry()
     zone = registry.get(zone_id)
     if not zone:
         raise HTTPException(status_code=404, detail="Zone not found")
 
-    monitor = _get_monitor()
-    report = await monitor.run_zone(zone.name)
+    # If already running, return current status
+    existing = _zone_jobs.get(zone_id, {})
+    if existing.get("status") == "running":
+        return existing
 
-    # Enrich the top clusters' sample posts
-    engine = _get_engine()
-    if engine and report.top_clusters:
-        all_sample_posts = []
-        for cluster in report.top_clusters:
-            for post in cluster.get("sample_posts", []):
-                all_sample_posts.append(post)
-        if all_sample_posts:
-            try:
-                enriched = await engine.enrich_posts(all_sample_posts)
-                report.enrichment = enriched.to_dict()
-            except Exception as e:
-                logger.warning(f"Enrichment failed: {e}")
-                report.enrichment = {"error": str(e)}
+    # Start background task
+    _set_job(
+        zone_id,
+        status="running",
+        step="Collecting posts from YouTube, Reddit, TikTok, X, Instagram...",
+        progress=5,
+        started_at=_time.time(),
+        finished_at=None,
+        result=None,
+        error=None,
+    )
+    asyncio.create_task(_run_zone_background(zone_id, zone.name))
 
-    return report.to_dict()
+    return _zone_jobs[zone_id]
+
+
+async def _run_zone_background(zone_id: int, zone_name: str):
+    """Background task: collect -> cluster -> diff -> enrich with progress updates."""
+    try:
+        monitor = _get_monitor()
+
+        # Step 1: Collect + cluster + diff (the run_zone does all three)
+        _set_job(zone_id, step="Collecting posts from YouTube, Reddit, TikTok, X, Instagram...", progress=10)
+        report = await monitor.run_zone(zone_name)
+
+        # Step 2: Enrich
+        _set_job(zone_id, step=f"Analyzing {report.total_items} posts with AI...", progress=70)
+        engine = _get_engine()
+        if engine and report.top_clusters:
+            all_sample_posts = []
+            for cluster in report.top_clusters:
+                for post in cluster.get("sample_posts", []):
+                    all_sample_posts.append(post)
+            if all_sample_posts:
+                try:
+                    enriched = await engine.enrich_posts(all_sample_posts)
+                    report.enrichment = enriched.to_dict()
+                except Exception as e:
+                    logger.warning(f"Enrichment failed: {e}")
+                    report.enrichment = {"error": str(e)}
+
+        # Done
+        _set_job(
+            zone_id,
+            status="done",
+            step=f"Complete: {report.total_items} items, {report.cluster_count} clusters, {len(report.alerts)} alerts",
+            progress=100,
+            finished_at=_time.time(),
+            result=report.to_dict(),
+        )
+
+    except Exception as e:
+        logger.error(f"Zone run failed for '{zone_name}': {e}", exc_info=True)
+        _set_job(
+            zone_id,
+            status="error",
+            step=f"Error: {str(e)[:150]}",
+            progress=0,
+            finished_at=_time.time(),
+            error=str(e),
+        )
+
+
+@router.get("/zones/{zone_id}/status")
+async def zone_status(zone_id: int):
+    """Get current/last run status for a zone."""
+    _check_auth()
+    return _zone_jobs.get(zone_id, {
+        "status": "idle", "step": "", "progress": 0,
+        "started_at": None, "finished_at": None,
+        "result": None, "error": None,
+    })
 
 
 @router.get("/zones/{zone_id}/report")

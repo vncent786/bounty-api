@@ -68,32 +68,10 @@ async def _scheduler_loop():
 
 
 async def _llm_call(system_prompt: str, user_prompt: str) -> str:
-    """Call z.ai for enrichment."""
-    import httpx
-    api_key = os.getenv("ZAI_API_KEY", "")
-    if not api_key:
-        raise RuntimeError("ZAI_API_KEY not set")
+    """Call the shared, provider-switchable Bounty LLM client."""
+    from social_scraper.llm_client import call_llm
 
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(
-            "https://api.z.ai/api/paas/v4/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "glm-4-flash",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.1,
-                "max_tokens": 4000,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    return await call_llm(system_prompt, user_prompt, max_tokens=4000)
 
 
 def start_scheduler():

@@ -157,42 +157,10 @@ def _extract_text(post: dict) -> str:
 
 
 async def _call_llm(system_prompt: str, user_prompt: str) -> str:
-    """Call LLM via OpenAI-compatible endpoint. Reads config from env vars.
+    """Call the shared, provider-switchable Bounty LLM client."""
+    from social_scraper.llm_client import call_llm
 
-    Provider is fully switchable:
-    - BOUNTY_LLM_BASE_URL (required)
-    - BOUNTY_LLM_API_KEY (required)
-    - BOUNTY_LLM_MODEL (default: glm-4-flash)
-
-    Raises RuntimeError if not configured or call fails.
-    """
-    import httpx
-
-    base_url = os.getenv("BOUNTY_LLM_BASE_URL", "").strip()
-    api_key = os.getenv("BOUNTY_LLM_API_KEY") or os.getenv("ZAI_API_KEY", "")
-    api_key = api_key.strip()
-    model = os.getenv("BOUNTY_LLM_MODEL", "glm-4.7").strip()
-
-    if not base_url or not api_key:
-        raise RuntimeError("llm_not_configured: set BOUNTY_LLM_BASE_URL and BOUNTY_LLM_API_KEY")
-
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(
-            f"{base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.1,
-                "max_tokens": 1000,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    return await call_llm(system_prompt, user_prompt, max_tokens=1000)
 
 
 def _parse_response(raw: str, keyword: str) -> ConversationSummary:

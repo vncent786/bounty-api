@@ -149,38 +149,9 @@ class EnrichmentEngine:
         Uses openai-compatible call to the configured provider.
         Override this or pass llm_call_fn to use a different model.
         """
-        try:
-            import httpx
-        except ImportError:
-            raise RuntimeError("httpx not available for LLM call")
+        from social_scraper.llm_client import call_llm
 
-        # Read LLM config from environment
-        base_url = os.getenv("BOUNTY_LLM_BASE_URL", "").strip()
-        api_key = os.getenv("BOUNTY_LLM_API_KEY", "").strip()
-        model = os.getenv("BOUNTY_LLM_MODEL", "gpt-4o-mini").strip()
-
-        if not base_url or not api_key:
-            # Fallback to heuristic enrichment
-            logger.warning("No LLM configured, using heuristic enrichment")
-            raise RuntimeError("llm_not_configured")
-
-        async with httpx.AsyncClient(timeout=60) as client:
-            resp = await client.post(
-                f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "temperature": 0.1,
-                    "max_tokens": 4000,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            return data["choices"][0]["message"]["content"]
+        return await call_llm(system_prompt, user_prompt, max_tokens=4000)
 
     @staticmethod
     def _parse_llm_response(raw: str, expected_count: int) -> list[dict]:

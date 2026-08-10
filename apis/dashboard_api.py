@@ -65,34 +65,10 @@ def _get_engine():
 
 
 async def _llm_call(system_prompt: str, user_prompt: str) -> str:
-    """Call LLM for enrichment. Uses BOUNTY_LLM_* env vars (switchable provider)."""
-    import httpx
-    base_url = os.getenv("BOUNTY_LLM_BASE_URL", "https://api.z.ai/api/coding/paas/v4").strip()
-    api_key = (os.getenv("BOUNTY_LLM_API_KEY") or os.getenv("ZAI_API_KEY", "")).strip()
-    model = os.getenv("BOUNTY_LLM_MODEL", "glm-4.7").strip()
-    if not api_key:
-        raise RuntimeError("LLM API key not set (BOUNTY_LLM_API_KEY or ZAI_API_KEY)")
+    """Call the shared, provider-switchable Bounty LLM client."""
+    from social_scraper.llm_client import call_llm
 
-    async with httpx.AsyncClient(timeout=90) as client:
-        resp = await client.post(
-            f"{base_url}/chat/completions",
-            headers={
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "temperature": 0.1,
-                "max_tokens": 4000,
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return data["choices"][0]["message"]["content"]
+    return await call_llm(system_prompt, user_prompt, max_tokens=4000)
 
 
 def _check_auth(authorization: Optional[str] = Header(None)):

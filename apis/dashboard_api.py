@@ -30,6 +30,8 @@ _monitor = None
 _discovery = None
 _discovery_store = None
 _lens_store = None
+_workspace_store = None
+_workspace_service = None
 _engine = None
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
@@ -103,6 +105,60 @@ class ResearchRunCreateRequest(BaseModel):
         )
 
 
+class SubjectCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    geo: str = ""
+    platforms: list[str] = Field(default_factory=list)
+    cadence_minutes: int = 10080
+    active: bool = True
+    lens_id: Optional[str] = None
+    lens_version: Optional[int] = None
+    budget: dict[str, Any] = Field(default_factory=dict)
+
+
+class SubjectUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    geo: Optional[str] = None
+    platforms: Optional[list[str]] = None
+    cadence_minutes: Optional[int] = None
+    active: Optional[bool] = None
+    lens_id: Optional[str] = None
+    lens_version: Optional[int] = None
+    budget: Optional[dict[str, Any]] = None
+
+
+class ProjectCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    default_geo: str = ""
+    first_subject: Optional[SubjectCreateRequest] = None
+
+
+class ProjectUpdateRequest(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    default_geo: Optional[str] = None
+    status: Optional[str] = None
+
+
+class AliasCreateRequest(BaseModel):
+    alias: str
+    kind: str = "include"
+
+
+class ActionCreateRequest(BaseModel):
+    action_type: str
+    subject_id: Optional[str] = None
+    actor_id: Optional[str] = None
+    target_type: str = "project"
+    target_id: Optional[str] = None
+    idempotency_key: Optional[str] = None
+    requested_budget: dict[str, Any] = Field(default_factory=dict)
+    payload: dict[str, Any] = Field(default_factory=dict)
+
+
 def _get_registry():
     global _registry
     if _registry is None:
@@ -147,6 +203,48 @@ def _get_lens_store():
         from social_scraper.lenses.storage import LensStore
         _lens_store = LensStore(_discovery_db_path())
     return _lens_store
+
+
+def _get_workspace_store():
+    global _workspace_store
+    if _workspace_store is None:
+        from social_scraper.workspaces import WorkspaceStore
+        _workspace_store = WorkspaceStore(_discovery_db_path())
+    return _workspace_store
+
+
+def _get_workspace_service():
+    global _workspace_service
+    if _workspace_service is None:
+        from social_scraper.workspaces import WorkspaceService
+        _workspace_service = WorkspaceService(
+            _get_workspace_store(), _get_lens_store(), _get_discovery_store()
+        )
+    return _workspace_service
+
+
+def _workspace_call(method: str, *args, **kwargs):
+    from social_scraper.workspaces import ConflictError, NotFoundError, ValidationError
+    try:
+        return getattr(_get_workspace_store(), method)(*args, **kwargs)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+def _workspace_service_call(method: str, *args, **kwargs):
+    from social_scraper.workspaces import ConflictError, NotFoundError, ValidationError
+    try:
+        return getattr(_get_workspace_service(), method)(*args, **kwargs)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (ValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def _lens_store_call(method: str, *args, **kwargs):
@@ -548,6 +646,172 @@ async def discovery_lens_presets():
         "default_preset_id": "horizontal-explorer",
         "presets": list_lens_presets(),
     }
+
+
+# Workspace project and durable-action APIs are path-scoped by workspace at every level.
+@router.get("/workspaces/{workspace_id}/projects")
+async def list_workspace_projects(workspace_id: str, include_archived: bool = False):
+    _check_auth()
+    return {"projects": _workspace_call(
+        "list_projects", workspace_id, include_archived=include_archived
+    )}
+
+
+@router.post("/workspaces/{workspace_id}/projects", status_code=201)
+async def create_workspace_project(workspace_id: str, body: ProjectCreateRequest):
+    _check_auth()
+    first = body.first_subject.model_dump() if body.first_subject is not None else None
+    return _workspace_service_call(
+        "create_project", workspace_id, name=body.name, description=body.description,
+        default_geo=body.default_geo, first_subject=first,
+    )
+
+
+@router.get("/workspaces/{workspace_id}/projects/{project_id}")
+async def get_workspace_project(workspace_id: str, project_id: str):
+    _check_auth()
+    return _workspace_call("get_project", workspace_id, project_id)
+
+
+@router.patch("/workspaces/{workspace_id}/projects/{project_id}")
+@router.put("/workspaces/{workspace_id}/projects/{project_id}")
+async def update_workspace_project(
+    workspace_id: str, project_id: str, body: ProjectUpdateRequest
+):
+    _check_auth()
+    return _workspace_call(
+        "update_project", workspace_id, project_id, **body.model_dump(exclude_unset=True)
+    )
+
+
+@router.delete("/workspaces/{workspace_id}/projects/{project_id}")
+async def archive_workspace_project(workspace_id: str, project_id: str):
+    _check_auth()
+    return _workspace_call("archive_project", workspace_id, project_id)
+
+
+@router.get("/workspaces/{workspace_id}/projects/{project_id}/subjects")
+async def list_project_subjects(
+    workspace_id: str, project_id: str, include_inactive: bool = True
+):
+    _check_auth()
+    return {"subjects": _workspace_call(
+        "list_subjects", workspace_id, project_id, include_inactive=include_inactive
+    )}
+
+
+@router.post("/workspaces/{workspace_id}/projects/{project_id}/subjects", status_code=201)
+async def create_project_subject(
+    workspace_id: str, project_id: str, body: SubjectCreateRequest
+):
+    _check_auth()
+    return _workspace_service_call(
+        "create_subject", workspace_id, project_id, **body.model_dump()
+    )
+
+
+@router.get("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
+async def get_project_subject(workspace_id: str, project_id: str, subject_id: str):
+    _check_auth()
+    return _workspace_call("get_subject", workspace_id, project_id, subject_id)
+
+
+@router.patch("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
+@router.put("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
+async def update_project_subject(
+    workspace_id: str, project_id: str, subject_id: str, body: SubjectUpdateRequest
+):
+    _check_auth()
+    return _workspace_service_call(
+        "update_subject", workspace_id, project_id, subject_id,
+        **body.model_dump(exclude_unset=True),
+    )
+
+
+@router.delete("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
+async def archive_project_subject(workspace_id: str, project_id: str, subject_id: str):
+    _check_auth()
+    return _workspace_call("archive_subject", workspace_id, project_id, subject_id)
+
+
+_ALIAS_PATH = "/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}/aliases"
+
+
+@router.get(_ALIAS_PATH)
+async def list_subject_aliases(workspace_id: str, project_id: str, subject_id: str):
+    _check_auth()
+    return {"aliases": _workspace_call(
+        "list_aliases", workspace_id, project_id, subject_id
+    )}
+
+
+@router.post(_ALIAS_PATH, status_code=201)
+async def create_subject_alias(
+    workspace_id: str, project_id: str, subject_id: str, body: AliasCreateRequest
+):
+    _check_auth()
+    return _workspace_call(
+        "create_alias", workspace_id, project_id, subject_id, body.alias, body.kind
+    )
+
+
+@router.get(_ALIAS_PATH + "/{alias_id}")
+async def get_subject_alias(
+    workspace_id: str, project_id: str, subject_id: str, alias_id: str
+):
+    _check_auth()
+    return _workspace_call(
+        "get_alias", workspace_id, project_id, subject_id, alias_id
+    )
+
+
+@router.delete(_ALIAS_PATH + "/{alias_id}", status_code=204)
+async def delete_subject_alias(
+    workspace_id: str, project_id: str, subject_id: str, alias_id: str
+):
+    _check_auth()
+    _workspace_call("delete_alias", workspace_id, project_id, subject_id, alias_id)
+    return None
+
+
+_ACTION_PATH = "/workspaces/{workspace_id}/projects/{project_id}/actions"
+
+
+@router.get(_ACTION_PATH)
+async def list_project_actions(
+    workspace_id: str, project_id: str, status: Optional[str] = None,
+    subject_id: Optional[str] = None,
+):
+    _check_auth()
+    return {"actions": _workspace_call(
+        "list_actions", workspace_id, project_id, status=status, subject_id=subject_id
+    )}
+
+
+@router.post(_ACTION_PATH, status_code=201)
+async def create_project_action(
+    workspace_id: str, project_id: str, body: ActionCreateRequest
+):
+    _check_auth()
+    values = body.model_dump()
+    action_type = values.pop("action_type")
+    action, created = _workspace_service_call(
+        "create_action", workspace_id, project_id, action_type, **values
+    )
+    return {"action": action, "created": created}
+
+
+@router.get(_ACTION_PATH + "/{action_id}")
+async def get_project_action(workspace_id: str, project_id: str, action_id: str):
+    _check_auth()
+    return _workspace_call("get_action", workspace_id, project_id, action_id)
+
+
+@router.post(_ACTION_PATH + "/{action_id}/cancel")
+@router.delete(_ACTION_PATH + "/{action_id}")
+async def cancel_project_action(workspace_id: str, project_id: str, action_id: str):
+    _check_auth()
+    return _workspace_call("cancel_action", workspace_id, project_id, action_id)
 
 
 # Definition CRUD is deliberately configuration-only: no broker, LLM, or usage receipt.

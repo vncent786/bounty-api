@@ -1,8 +1,9 @@
 """
 Conversation gate — buzzabout methodology step 2.
 
-"Put every candidate through a conversation gate. If nobody is discussing it
-anywhere, it is a search artifact. This stage kills most of the list."
+Conversation checks attach evidence and source health to candidates. They do
+not decide universal relevance: different user lenses can value the same event
+very differently.
 
 Takes candidate keywords from Google Trends (trending_now) and checks whether
 real people are discussing them across social platforms (Reddit, YouTube,
@@ -43,7 +44,7 @@ MIN_ENGAGEMENT_THRESHOLD = 100
 class ConversationGateResult:
     """Result of running one keyword through the conversation gate."""
     keyword: str
-    passed: bool                # True = has social discussion
+    passed: Optional[bool]      # None = unchecked/partial/source failure
     platforms_with_hits: int    # how many platforms returned results
     total_items: int            # total posts/videos found
     total_engagement: int       # sum of likes + comments + views
@@ -51,6 +52,8 @@ class ConversationGateResult:
     sample_content: list        # up to 3 sample texts from social posts
     gate_score: int             # composite score for ranking
     raw_posts: list = None      # full post data for LLM reader (added in Phase 1)
+    status: str = "not_checked" # complete | empty | partial | failed
+    source_health: list = None
     error: str = ""
 
     def to_dict(self) -> dict:
@@ -65,6 +68,9 @@ async def _check_platform(
     keyword: str,
     platform: str,
     count: int = GATE_ITEM_COUNT,
+    max_threads: int = 2,
+    max_comments: int = 20,
+    max_depth: int = 2,
 ) -> tuple[dict, list[dict]]:
     """Check a single platform for a keyword. Returns (breakdown_dict, raw_items)."""
     try:
@@ -75,6 +81,8 @@ async def _check_platform(
         )
         items = result.get("items", [])
         platform_items = [i for i in items if i.get("platform") == platform]
+        source_health = result.get("source_health", [])
+        platform_result = (result.get("platform_results") or {}).get(platform, {})
 
         engagement = 0
         sample_texts = []
@@ -89,18 +97,81 @@ async def _check_platform(
             if text:
                 sample_texts.append(text[:120])
 
+        thread_records = []
+        thread_reads = []
+        if hasattr(broker, "fetch_thread") and max_threads > 0:
+            ranked = sorted(
+                platform_items,
+                key=lambda value: (
+                    (value.get("engagement") or {}).get("comments") or 0,
+                    (value.get("engagement") or {}).get("likes") or 0,
+                ),
+                reverse=True,
+            )[:max_threads]
+            hydrated = await asyncio.gather(*[
+                broker.fetch_thread(
+                    item, max_comments=max_comments, max_depth=max_depth
+                )
+                for item in ranked
+            ]) if ranked else []
+            for result in hydrated:
+                thread_reads.append({
+                    "platform": platform,
+                    "status": result.status,
+                    "root_post_external_id": result.root_post_external_id,
+                    "returned_count": result.returned_count,
+                    "truncated": result.truncated,
+                    "attempted_route": result.attempted_route,
+                    "error_category": result.error_category,
+                    "platform_reported_total": result.platform_reported_total,
+                    "limitations": list(result.limitations),
+                })
+                for record in result.records:
+                    thread_records.append({
+                        "platform": record.platform,
+                        "post_id": record.external_id,
+                        "external_id": record.external_id,
+                        "record_type": record.record_type,
+                        "object_type": "comment",
+                        "parent_external_id": record.parent_external_id,
+                        "root_post_external_id": record.root_post_external_id,
+                        "depth": record.depth,
+                        "url": record.url,
+                        "author": {
+                            "id": record.author_external_id,
+                            "username": record.author_username,
+                        },
+                        "text": record.text,
+                        "created_at": record.published_at,
+                        "engagement": {"likes": record.likes},
+                        "provenance": {
+                            "connector": result.attempted_route,
+                            "query": keyword,
+                        },
+                    })
+
         breakdown = {
             "items": len(platform_items),
             "engagement": engagement,
             "top_text": sample_texts[0] if sample_texts else "",
+            "status": platform_result.get("status", "complete"),
+            "source_health": source_health,
+            "thread_reads": thread_reads,
+            "thread_records": len(thread_records),
         }
-        return breakdown, platform_items
+        return breakdown, platform_items + thread_records
     except Exception as e:
         logger.debug(f"Gate check failed for '{keyword}' on {platform}: {e}")
         return {
             "items": 0,
             "engagement": 0,
             "top_text": "",
+            "status": "error",
+            "source_health": [{
+                "platform": platform,
+                "status": "error",
+                "error_category": "broker_exception",
+            }],
             "error": str(e)[:100],
         }, []
 
@@ -110,6 +181,9 @@ async def gate_check_keyword(
     keyword: str,
     platforms: list[str] = None,
     count: int = GATE_ITEM_COUNT,
+    max_threads_per_platform: int = 2,
+    max_comments_per_thread: int = 20,
+    max_thread_depth: int = 2,
 ) -> ConversationGateResult:
     """Run a single keyword through the conversation gate.
 
@@ -120,7 +194,10 @@ async def gate_check_keyword(
 
     # Run all platform checks concurrently
     tasks = [
-        _check_platform(broker, keyword, platform, count)
+        _check_platform(
+            broker, keyword, platform, count,
+            max_threads_per_platform, max_comments_per_thread, max_thread_depth,
+        )
         for platform in platforms
     ]
     results = await asyncio.gather(*tasks)
@@ -131,11 +208,26 @@ async def gate_check_keyword(
     platforms_with_hits = 0
     sample_content = []
     all_raw_posts = []
+    all_source_health = []
 
     for platform, (breakdown, raw_items) in zip(platforms, results):
         items = breakdown.get("items", 0)
         engagement = breakdown.get("engagement", 0)
         platform_breakdown[platform] = breakdown
+        all_source_health.extend(breakdown.get("source_health", []))
+        for thread_read in breakdown.get("thread_reads", []):
+            all_source_health.append({
+                "platform": platform,
+                "connector": thread_read.get("attempted_route"),
+                "status": thread_read.get("status"),
+                "items_returned": thread_read.get("returned_count", 0),
+                "error": thread_read.get("error_category"),
+                "coverage": {
+                    "root_post_external_id": thread_read.get("root_post_external_id"),
+                    "platform_reported_total": thread_read.get("platform_reported_total"),
+                    "truncated": thread_read.get("truncated", False),
+                },
+            })
 
         total_items += items
         total_engagement += engagement
@@ -154,8 +246,23 @@ async def gate_check_keyword(
         + total_items * 10
     )
 
-    # Pass gate: at least 1 platform has discussion with meaningful engagement
-    passed = platforms_with_hits >= 1 and total_engagement >= MIN_ENGAGEMENT_THRESHOLD
+    platform_statuses = {
+        str(value.get("status") or "").lower()
+        for value in platform_breakdown.values()
+    }
+    failed_statuses = {"error", "failed", "blocked", "skipped"}
+    if platform_statuses and platform_statuses.issubset(failed_statuses):
+        status = "failed"
+        passed = None
+    elif platform_statuses & failed_statuses:
+        status = "partial"
+        passed = None
+    elif total_items == 0:
+        status = "empty"
+        passed = False
+    else:
+        status = "complete"
+        passed = platforms_with_hits >= 1 and total_engagement >= MIN_ENGAGEMENT_THRESHOLD
 
     return ConversationGateResult(
         keyword=keyword,
@@ -167,6 +274,8 @@ async def gate_check_keyword(
         sample_content=sample_content,
         gate_score=gate_score,
         raw_posts=all_raw_posts,
+        status=status,
+        source_health=all_source_health,
     )
 
 
@@ -208,18 +317,18 @@ async def run_conversation_gate(
         logger.info(
             f"Conversation gate batch {i // concurrency + 1}: "
             f"checked {len(batch)} keywords, "
-            f"{sum(1 for r in batch_results if r.passed)} passed"
+            f"{sum(1 for r in batch_results if r.passed is True)} passed"
         )
 
     # Sort by gate score descending
     results.sort(key=lambda r: r.gate_score, reverse=True)
 
-    passed = [r for r in results if r.passed]
-    failed = [r for r in results if not r.passed]
+    passed = [r for r in results if r.passed is True]
+    failed = [r for r in results if r.passed is False]
 
     logger.info(
         f"Conversation gate complete: {len(passed)}/{len(results)} keywords passed "
-        f"({len(failed)} discarded as search artifacts)"
+        f"({len(failed)} below the configured evidence threshold)"
     )
 
     return results

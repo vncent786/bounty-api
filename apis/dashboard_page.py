@@ -867,6 +867,19 @@ async function loadAlerts(elementId, limit) {
 }
 
 // ── Discovery ─────────────────────────────
+function escapeDiscovery(value) {
+  return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[ch]);
+}
+
+function safeEvidenceUrl(value) {
+  try {
+    const url = new URL(value);
+    return ['http:', 'https:'].includes(url.protocol) ? url.href : '';
+  } catch (_) { return ''; }
+}
+
 async function runDiscovery() {
   const minVol = document.getElementById('df-minvol') ? document.getElementById('df-minvol').value : '0';
   const minGrowth = document.getElementById('df-mingrowth') ? document.getElementById('df-mingrowth').value : '0';
@@ -891,37 +904,57 @@ async function runDiscovery() {
       return;
     }
 
-    const verified = keywords.filter(k => k.gate_passed).length;
-    const checked = keywords.filter(k => k.gate_passed !== undefined && k.gate_passed !== null || k.gate_total_items !== undefined).length;
+    const supported = keywords.filter(k => k.conversation_analysis?.status === 'supported').length;
+    const checked = keywords.filter(k => k.gate_status && k.gate_status !== 'not_checked').length;
+    const unavailable = keywords.filter(k => ['partial', 'failed'].includes(k.gate_status)).length;
 
     document.getElementById('discovery-list').innerHTML = `
       <div style="margin-bottom:16px;font-size:13px;color:var(--text-dim);">
-        ${data.total} keywords from Google Trends.
-        ${verified} verified by conversation gate (real social discussion).
+        ${data.total} Google Trends candidates &middot; ${checked} conversation checks &middot;
+        ${supported} with citation-backed signals${unavailable ? ` &middot; ${unavailable} with incomplete sources` : ''}.
       </div>
       ${keywords.map((k, idx) => {
-        const vol = k.search_volume ? (k.search_volume >= 1000 ? (k.search_volume/1000).toFixed(0)+'K' : k.search_volume) : '';
-        const growth = k.growth_pct ? '+' + k.growth_pct + '%' : '';
-        const fresh = k.started_hours_ago ? k.started_hours_ago.toFixed(1) + 'h ago' : '';
-        const catLabel = k.categories ? '<span style="color:#9ca3af">' + k.categories.split(',')[0] + '</span>' : '';
-        const trendType = k.conv_trend_type ? '<span style="color:#f59e0b;font-weight:600">' + k.conv_trend_type + '</span>' : '';
-        const convBlock = k.conv_summary ? '<div style="margin-top:4px;font-size:12px;color:var(--text-dim);line-height:1.5;">' +
-          (trendType ? trendType + ' &middot; ' : '') +
-          '<span style="color:' + (k.conv_sentiment === 'positive' ? '#4ade80' : k.conv_sentiment === 'negative' ? '#f87171' : 'var(--text-dim)') + '">' + (k.conv_sentiment || '') + '</span>' +
-          (k.conv_brands ? ' &middot; brands: ' + k.conv_brands : '') +
-          '<br><span>' + k.conv_summary + '</span>' +
-          (k.conv_type_reason ? '<br><span style="font-style:italic;color:#6b7280">Why: ' + k.conv_type_reason + '</span>' : '') +
-          (k.conv_key_quote ? '<br><span style="font-style:italic;color:#9ca3af">&ldquo;' + k.conv_key_quote.substring(0,120) + '&rdquo;</span>' : '') +
-          '</div>' : '';
-        const gateBadge = k.gate_passed
-          ? '<span class="badge badge-active" style="margin-left:4px;background:#1a5f3f;">VERIFIED ' + k.gate_platforms + '</span>'
-          : (k.gate_passed === false ? '<span style="color:var(--text-dim);margin-left:4px;">no social</span>' : '');
-        const gateSample = k.gate_sample ? '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;font-style:italic;">' + k.gate_sample.substring(0,100) + '</div>' : '';
+        const vol = k.search_volume != null ? (k.search_volume >= 1000 ? (k.search_volume/1000).toFixed(0)+'K' : k.search_volume) : 'unknown';
+        const growth = k.growth_pct != null ? '+' + k.growth_pct + '%' : '';
+        const fresh = k.started_hours_ago != null ? k.started_hours_ago.toFixed(1) + 'h ago' : '';
+        const catLabel = k.categories ? '<span style="color:#9ca3af">' + escapeDiscovery(k.categories.split(',')[0]) + '</span>' : '';
+        const analysis = k.conversation_analysis || {};
+        const evidence = Object.fromEntries((analysis.evidence || []).map(item => [item.id, item]));
+        const signalRows = (analysis.signals || []).slice(0, 3).map(signal => {
+          const links = (signal.evidence_ids || []).map(id => {
+            const item = evidence[id] || {};
+            const url = safeEvidenceUrl(item.url);
+            const label = escapeDiscovery((item.platform || id.split(':')[0]) + ' source');
+            return url ? `<a href="${escapeDiscovery(url)}" target="_blank" rel="noopener">${label}</a>` : label;
+          }).join(', ');
+          return `<div style="margin-top:7px;padding-left:10px;border-left:2px solid #374151;">
+            <span style="color:#93c5fd;font-family:'JetBrains Mono',monospace;font-size:10px;text-transform:uppercase;">${escapeDiscovery(signal.kind)}</span>
+            <span style="color:var(--text);">${escapeDiscovery(signal.claim)}</span>
+            <div style="font-size:10px;color:#6b7280;">${signal.independent_voices || 0} voices &middot; ${signal.thread_count || 0} threads &middot; ${links}</div>
+          </div>`;
+        }).join('');
+        const coverage = analysis.coverage || {};
+        const limitations = (analysis.limitations || []).slice(0, 2).map(item => escapeDiscovery(item)).join(' &middot; ');
+        const convBlock = (analysis.summary || signalRows || limitations) ? `<div style="margin-top:7px;font-size:12px;color:var(--text-dim);line-height:1.5;">
+          ${analysis.summary ? `<div style="color:var(--text);">${escapeDiscovery(analysis.summary)}</div>` : ''}
+          ${signalRows}
+          ${coverage.deduplicated_records != null ? `<div style="margin-top:7px;font-size:10px;color:#6b7280;">Coverage: ${coverage.deduplicated_records} records &middot; ${coverage.independent_voices || 0} voices &middot; ${coverage.platform_count || 0} platforms</div>` : ''}
+          ${limitations ? `<div style="margin-top:4px;color:#f59e0b;font-size:10px;">Limits: ${limitations}</div>` : ''}
+        </div>` : '';
+        const gateLabels = {
+          complete: '<span class="badge badge-active" style="margin-left:4px;background:#1a5f3f;">CHECK COMPLETE</span>',
+          empty: '<span style="color:var(--text-dim);margin-left:4px;">checked: no records</span>',
+          partial: '<span style="color:#f59e0b;margin-left:4px;">partial coverage</span>',
+          failed: '<span style="color:#f87171;margin-left:4px;">sources unavailable</span>',
+          not_checked: '<span style="color:#6b7280;margin-left:4px;">not checked</span>'
+        };
+        const gateBadge = gateLabels[k.gate_status] || gateLabels.not_checked;
+        const gateSample = !convBlock && k.gate_sample ? '<div style="font-size:11px;color:var(--text-dim);margin-top:2px;font-style:italic;">' + escapeDiscovery(k.gate_sample.substring(0,100)) + '</div>' : '';
         const escaped = k.keyword.replace(/'/g, "\\'");
         return `
         <div class="discovery-item">
           <div>
-            <div class="discovery-keyword">${k.keyword}</div>
+            <div class="discovery-keyword">${escapeDiscovery(k.keyword)}</div>
             <div class="discovery-meta">
               <span>vol ${vol}</span>
               ${growth ? '<span style="color:#4ade80">' + growth + '</span>' : ''}

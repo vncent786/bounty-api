@@ -312,6 +312,10 @@ def hydrate_reddit_post(url: str, comment_limit: int = 20):
             "div[data-slot='text-body'], [slot='text-body'] .md"
         ).first
         body = body_locator.text_content() if body_locator.count() else ""
+        platform_total_text = post_root.get_attribute("comment-count") or ""
+        platform_reported_total = (
+            int(platform_total_text) if platform_total_text.isdigit() else None
+        )
         comments = page.eval_on_selector_all(
             "shreddit-comment, [data-testid='comment']",
             """(els, limit) => els.slice(0, limit).map(e => {
@@ -319,14 +323,27 @@ def hydrate_reddit_post(url: str, comment_limit: int = 20):
                 clone.querySelectorAll('shreddit-comment, [data-testid="comment"]').forEach(n => n.remove());
                 const body = clone.querySelector('[slot="comment"], .md');
                 const scoreText = e.getAttribute('score') || '';
+                const depthText = e.getAttribute('depth') || '0';
+                const permalink = e.getAttribute('permalink') || '';
                 return {
-                    id: e.getAttribute('thingid') || e.id || '',
+                    id: e.getAttribute('thingid') || e.getAttribute('comment-id') || e.id || '',
+                    parent_id: e.getAttribute('parentid') || e.getAttribute('parent-id') || '',
+                    depth: /^\\d+$/.test(depthText) ? Number(depthText) + 1 : 1,
                     author: e.getAttribute('author') || '',
                     score: /^\\d+$/.test(scoreText) ? Number(scoreText) : null,
+                    url: permalink ? (permalink.startsWith('http') ? permalink : `https://www.reddit.com${permalink}`) : '',
                     text: ((body?.innerText || '')).trim().slice(0, 4000)
                 };
             }).filter(c => c.text)""",
             comment_limit,
+        )
+        more_comments_present = bool(page.locator(
+            "shreddit-load-more-comments, [data-testid*='load-more-comment']"
+        ).count())
+        comments_complete = (
+            platform_reported_total is not None
+            and len(comments) >= platform_reported_total
+            and not more_comments_present
         )
         return {
             "url": canonical,
@@ -335,8 +352,9 @@ def hydrate_reddit_post(url: str, comment_limit: int = 20):
             "comments": comments,
             "comments_requested": comment_limit,
             "comments_returned": len(comments),
-            "comments_complete": False,
-            "truncation_reason": "initial_render_only",
+            "platform_reported_total": platform_reported_total,
+            "comments_complete": comments_complete,
+            "truncation_reason": None if comments_complete else "initial_render_only",
         }
 
 

@@ -4,7 +4,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 
-from social_scraper.base import BaseConnector, ConnectorResult, SourceHealth
+from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
 
 
 @dataclass(order=True)
@@ -37,6 +37,51 @@ class SourceBroker:
             ]
             for platform, routes in self._routes.items()
         }
+
+    @staticmethod
+    def _thread_post(item: dict) -> SocialItem:
+        author = item.get("author") if isinstance(item.get("author"), dict) else {}
+        engagement = item.get("engagement") if isinstance(item.get("engagement"), dict) else {}
+        return SocialItem(
+            platform=str(item.get("platform") or ""),
+            post_id=str(item.get("post_id") or item.get("external_id") or ""),
+            url=str(item.get("url") or ""),
+            author_username=str(author.get("username") or ""),
+            author_display_name=str(author.get("display_name") or ""),
+            text=str(item.get("text") or ""),
+            created_at=item.get("created_at"),
+            comments=engagement.get("comments") if isinstance(engagement.get("comments"), int) else None,
+            raw={"provenance": item.get("provenance") or {}},
+        )
+
+    async def fetch_thread(
+        self, item: dict, max_comments: int = 20, max_depth: int = 2
+    ):
+        """Hydrate one broker post using its selected route, then bounded failover."""
+        post = self._thread_post(item)
+        selected = (item.get("provenance") or {}).get("connector")
+        routes = list(self._routes.get(post.platform, []))
+        routes.sort(key=lambda route: (route.connector.connector_name != selected, route.priority))
+        last_result = None
+        for route in routes:
+            try:
+                result = await asyncio.wait_for(
+                    route.connector.fetch_thread(post, max_comments, max_depth),
+                    timeout=max(self.route_timeout_seconds, 90),
+                )
+            except asyncio.TimeoutError:
+                continue
+            except Exception:
+                continue
+            last_result = result
+            if result.status in {"complete", "partial", "empty", "disabled"}:
+                return result
+        if last_result is not None:
+            return last_result
+        from social_scraper.conversations.thread_reader import unsupported_thread_result
+        return unsupported_thread_result(
+            post.platform, post.post_id, max_comments, max_depth
+        )
 
     @staticmethod
     def _public_health(health: SourceHealth) -> dict:

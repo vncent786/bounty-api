@@ -9,6 +9,7 @@ from .models import (
 )
 from .normalize import NormalizationError, normalize_broker_item
 from .storage import ConversationStore
+from .thread_reader import ThreadFetchResult, ThreadRecord
 
 __all__ = [
     "CanonicalBundle",
@@ -16,6 +17,8 @@ __all__ = [
     "CanonicalObservation",
     "ConversationStore",
     "NormalizationError",
+    "ThreadFetchResult",
+    "ThreadRecord",
     "conversation_identity",
     "normalize_broker_item",
     "payload_hash",

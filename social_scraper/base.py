@@ -126,3 +126,16 @@ class BaseConnector(ABC):
     async def health_check(self) -> SourceHealth:
         """Quick health probe."""
         pass
+
+    async def fetch_thread(
+        self,
+        post: SocialItem,
+        max_comments: int,
+        max_depth: int,
+    ):
+        """Optional bounded thread reader; search-only connectors remain valid."""
+        from social_scraper.conversations.thread_reader import unsupported_thread_result
+
+        return unsupported_thread_result(
+            self.platform, post.post_id, max_comments, max_depth
+        )

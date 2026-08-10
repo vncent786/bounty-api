@@ -11,6 +11,7 @@ import asyncio
 import json
 import os
 import logging
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -27,9 +28,32 @@ _registry = None
 _broker = None
 _monitor = None
 _discovery = None
+_discovery_store = None
 _engine = None
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
+
+
+class DiscoveryLensCriterionRequest(BaseModel):
+    criterion_id: str
+    label: str
+    feature_key: str
+    mode: str = "score"
+    weight: float = 0.0
+    minimum: Optional[float] = None
+    maximum: Optional[float] = None
+    missing_policy: str = "keep_unknown"
+    description: str = ""
+
+
+class DiscoveryLensEvaluationRequest(BaseModel):
+    geo: str = "US"
+    keyword: str
+    lens_id: str
+    name: str
+    version: str = "1"
+    objective: str = ""
+    criteria: list[DiscoveryLensCriterionRequest]
 
 
 def _get_registry():
@@ -54,6 +78,25 @@ def _get_monitor():
         from social_scraper.monitoring import TrendMonitor
         _monitor = TrendMonitor(_get_registry(), _get_broker(), llm_cluster_fn=None)
     return _monitor
+
+
+def _get_discovery_store():
+    global _discovery_store
+    if _discovery_store is None:
+        from social_scraper.discovery import DiscoveryStore
+        _discovery_store = DiscoveryStore(_DB_PATH)
+    return _discovery_store
+
+
+def _get_discovery():
+    global _discovery
+    if _discovery is None:
+        from social_scraper.monitoring import TopDownDiscovery
+        _discovery = TopDownDiscovery(
+            broker=_get_broker(),
+            discovery_store=_get_discovery_store(),
+        )
+    return _discovery
 
 
 def _get_engine():
@@ -283,18 +326,17 @@ async def discover_keywords(
     min_growth: int = Query(0, description="Minimum growth %"),
     max_age_hours: float = Query(0, description="Only trends started within N hours"),
     categories: str = Query("", description="Comma-separated category names to include"),
-    gate_only: bool = Query(False, description="Only return gate-verified keywords"),
+    gate_only: bool = Query(False, description="Only return candidates whose configured social check threshold passed"),
 ):
     """Run top-down keyword discovery.
 
     Pipeline:
     1. Candidate generation via Google Trends trending_now (trendspy)
     2. User filters (volume, growth, age, categories)
-    3. Conversation gate: checks social platforms for real discussion
+    3. Bounded social-source check and horizontal conversation analysis
     """
     _check_auth()
-    from social_scraper.monitoring import TopDownDiscovery
-    discovery = TopDownDiscovery(broker=_get_broker())
+    discovery = _get_discovery()
 
     cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
 
@@ -310,6 +352,84 @@ async def discover_keywords(
     return {
         "keywords": [k.to_dict() for k in keywords[:50]],
         "total": len(keywords),
+        "run_id": discovery.last_run_id,
+    }
+
+
+@router.get("/discovery/candidates/{geo}/{keyword:path}/history")
+async def get_discovery_candidate_history(geo: str, keyword: str):
+    """Return persisted observations and explicit gaps for one candidate."""
+    _check_auth()
+    history = _get_discovery_store().get_candidate_history(geo, keyword)
+    if history["series"] is None:
+        raise HTTPException(status_code=404, detail="Discovery candidate not found")
+    return history
+
+
+@router.get("/discovery/lenses/presets")
+async def discovery_lens_presets():
+    """Return neutral and use-case views without assigning universal scores."""
+    _check_auth()
+    from social_scraper.lenses import list_lens_presets
+    return {
+        "default_preset_id": "horizontal-explorer",
+        "presets": list_lens_presets(),
+    }
+
+
+@router.post("/discovery/lenses/evaluate")
+async def evaluate_discovery_candidate_lens(body: DiscoveryLensEvaluationRequest):
+    """Evaluate one persisted candidate under a versioned, user-defined lens."""
+    _check_auth()
+    from social_scraper.discovery.ranking import features_from_analysis
+    from social_scraper.lenses import LensCriterion, ResearchLensSpec, evaluate_lens
+
+    store = _get_discovery_store()
+    context = store.get_latest_candidate_context(body.geo, body.keyword)
+    if context is None:
+        raise HTTPException(status_code=404, detail="Discovery candidate not found")
+    criteria = tuple(LensCriterion(
+        criterion_id=item.criterion_id,
+        label=item.label,
+        feature_key=item.feature_key,
+        mode=item.mode,
+        weight=item.weight,
+        minimum=item.minimum,
+        maximum=item.maximum,
+        missing_policy=item.missing_policy,
+        description=item.description,
+    ) for item in body.criteria)
+    spec = ResearchLensSpec(
+        lens_id=body.lens_id,
+        name=body.name,
+        version=body.version,
+        objective=body.objective,
+        criteria=criteria,
+    )
+    analysis = ((context.get("gate_check") or {}).get("analysis") or {})
+    features = features_from_analysis(analysis)
+    candidate_id = f"{body.geo.upper()}:{context['series']['normalized_keyword']}"
+    try:
+        evaluation = evaluate_lens(
+            {"candidate_id": candidate_id, "features": features}, spec
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    result = asdict(evaluation)
+    evaluation_id = store.record_lens_evaluation(
+        context["observation"]["observation_id"],
+        lens_id=spec.lens_id,
+        lens_version=spec.version,
+        spec=asdict(spec),
+        features=features,
+        result=result,
+    )
+    return {
+        "evaluation_id": evaluation_id,
+        "candidate_id": candidate_id,
+        "features": features,
+        "evaluation": result,
+        "evidence_status": analysis.get("status", "not_checked"),
     }
 
 

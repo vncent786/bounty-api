@@ -20,6 +20,93 @@ from typing import Optional
 from social_scraper.base import (
     BaseConnector, ConnectorResult, SocialItem, SourceHealth,
 )
+from social_scraper.conversations.thread_reader import ThreadFetchResult, ThreadRecord
+
+
+def parse_youtube_thread(
+    *,
+    video_id: str,
+    comments: list[dict],
+    max_comments: int,
+    max_depth: int,
+    platform_reported_total: int | None,
+) -> ThreadFetchResult:
+    by_id = {str(item.get("id")): item for item in comments if item.get("id")}
+    depth_cache: dict[str, int] = {}
+
+    def depth_for(comment_id: str, stack: set[str] | None = None) -> int:
+        if comment_id in depth_cache:
+            return depth_cache[comment_id]
+        stack = set(stack or ())
+        if comment_id in stack:
+            return max_depth + 1
+        stack.add(comment_id)
+        parent = str((by_id.get(comment_id) or {}).get("parent") or "root")
+        depth = 1 if parent in {"root", "none", "None", ""} else depth_for(parent, stack) + 1
+        depth_cache[comment_id] = depth
+        return depth
+
+    records = []
+    excluded_by_depth = False
+    for raw in comments:
+        external_id = str(raw.get("id") or "")
+        if not external_id:
+            continue
+        depth = depth_for(external_id)
+        if depth > max_depth:
+            excluded_by_depth = True
+            continue
+        if len(records) >= max_comments:
+            break
+        parent = str(raw.get("parent") or "root")
+        if parent in {"root", "none", "None", ""}:
+            parent = video_id
+        timestamp = raw.get("timestamp")
+        published_at = None
+        if isinstance(timestamp, (int, float)):
+            published_at = datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
+        records.append(ThreadRecord(
+            platform="youtube",
+            external_id=external_id,
+            record_type="comment" if depth == 1 else "reply",
+            parent_external_id=parent,
+            root_post_external_id=video_id,
+            depth=depth,
+            text=raw.get("text") if isinstance(raw.get("text"), str) else None,
+            author_external_id=(
+                str(raw.get("author_id")) if raw.get("author_id") else None
+            ),
+            author_username=(
+                str(raw.get("author")) if raw.get("author") else None
+            ),
+            url=f"https://www.youtube.com/watch?v={video_id}&lc={external_id}",
+            published_at=published_at,
+            likes=raw.get("like_count") if isinstance(raw.get("like_count"), int) else None,
+            raw=raw,
+        ))
+    truncated = (
+        excluded_by_depth
+        or len(records) < len([item for item in comments if item.get("id")])
+        or (
+            isinstance(platform_reported_total, int)
+            and platform_reported_total > len(records)
+        )
+    )
+    status = "empty" if not records and not comments else "partial" if truncated else "complete"
+    return ThreadFetchResult(
+        platform="youtube",
+        root_post_external_id=video_id,
+        status=status,
+        records=tuple(records),
+        truncated=truncated,
+        attempted_route="ytdlp_comments",
+        platform_reported_total=platform_reported_total,
+        max_comments=max_comments,
+        max_depth=max_depth,
+        limitations=(
+            ("Comments were bounded by count or depth.",) if truncated else ()
+        ),
+    )
 
 
 class YouTubeConnector(BaseConnector):
@@ -131,6 +218,95 @@ class YouTubeConnector(BaseConnector):
                 latency_ms=latency, error=error,
             ),
         )
+
+    async def fetch_thread(
+        self, post: SocialItem, max_comments: int, max_depth: int
+    ) -> ThreadFetchResult:
+        if post.platform != "youtube" or not post.post_id:
+            return ThreadFetchResult(
+                platform="youtube", root_post_external_id=post.post_id or "unknown",
+                status="error", attempted_route="ytdlp_comments",
+                error_category="invalid_youtube_post", max_comments=max_comments,
+                max_depth=max_depth,
+            )
+        if max_comments <= 0 or max_depth <= 0:
+            return ThreadFetchResult(
+                platform="youtube", root_post_external_id=post.post_id,
+                status="empty", attempted_route="ytdlp_comments",
+                max_comments=max_comments, max_depth=max_depth,
+            )
+        command = [
+            "yt-dlp", "--dump-single-json", "--skip-download", "--write-comments",
+            "--no-warnings", "--extractor-args",
+            f"youtube:comment_sort=top;max_comments={max_comments}",
+            f"https://www.youtube.com/watch?v={post.post_id}",
+        ]
+        loop = asyncio.get_event_loop()
+        return_code, stdout, stderr = await loop.run_in_executor(
+            None,
+            lambda: self._run_ytdlp_result(
+                command, timeout=max(60, min(max_comments, 100) * 3)
+            ),
+        )
+        error_text = stderr.lower()
+        if "comments are turned off" in error_text or "comments are disabled" in error_text:
+            return ThreadFetchResult(
+                platform="youtube", root_post_external_id=post.post_id,
+                status="disabled", attempted_route="ytdlp_comments",
+                error_category="comments_disabled", max_comments=max_comments,
+                max_depth=max_depth,
+            )
+        data = None
+        for line in reversed(stdout.splitlines()):
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                data = parsed
+                break
+        if data is None:
+            return ThreadFetchResult(
+                platform="youtube", root_post_external_id=post.post_id,
+                status="unavailable", attempted_route="ytdlp_comments",
+                error_category=(
+                    "ytdlp_comments_failed" if return_code else "comments_not_returned"
+                ),
+                max_comments=max_comments, max_depth=max_depth,
+                limitations=(stderr.strip()[:300],) if stderr.strip() else (),
+            )
+        comments = data.get("comments")
+        reported_total = data.get("comment_count")
+        if not isinstance(reported_total, int):
+            reported_total = post.comments if isinstance(post.comments, int) else None
+        if comments is None:
+            status = "empty" if reported_total == 0 else "unavailable"
+            return ThreadFetchResult(
+                platform="youtube", root_post_external_id=post.post_id,
+                status=status, attempted_route="ytdlp_comments",
+                error_category=(None if status == "empty" else "comments_not_returned"),
+                platform_reported_total=reported_total,
+                max_comments=max_comments, max_depth=max_depth,
+            )
+        return parse_youtube_thread(
+            video_id=post.post_id,
+            comments=comments if isinstance(comments, list) else [],
+            max_comments=max_comments,
+            max_depth=max_depth,
+            platform_reported_total=reported_total,
+        )
+
+    def _run_ytdlp_result(self, cmd, timeout=30):
+        try:
+            completed = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=timeout,
+                encoding="utf-8", errors="replace",
+            )
+            return completed.returncode, completed.stdout, completed.stderr
+        except subprocess.TimeoutExpired:
+            return 124, "", "yt-dlp comment retrieval timed out"
+        except Exception as exc:
+            return 1, "", str(exc)
 
     async def get_channel(self, handle: str, video_count: int = 10) -> dict:
         """Channel overview: subscriber count, total videos, recent top videos."""

@@ -366,6 +366,38 @@ async def get_discovery_candidate_history(geo: str, keyword: str):
     return history
 
 
+@router.get("/discovery/runs/{run_id}/usage")
+async def get_discovery_run_usage(run_id: str):
+    """Return persisted cost receipts and additive totals for one Discovery run."""
+    _check_auth()
+    store = _get_discovery_store()
+    if not store.discovery_run_exists(run_id):
+        raise HTTPException(status_code=404, detail="Discovery run not found")
+    rows = store.list_stage_usage(run_id)
+
+    def _token_total(name: str):
+        relevant = [
+            row for row in rows if row["llm_calls"] > 0 or row[name] is not None
+        ]
+        if not relevant or any(row[name] is None for row in relevant):
+            return None
+        return sum(row[name] for row in relevant)
+
+    totals = {
+        "source_calls": sum(row["external_calls"] for row in rows),
+        "llm_calls": sum(row["llm_calls"] for row in rows),
+        "cache_hits": sum(row["cache_hits"] for row in rows),
+        "candidates_considered": sum(row["candidates_considered"] for row in rows),
+        "candidates_processed": sum(row["candidates_processed"] for row in rows),
+        "records_returned": sum(row["records_returned"] for row in rows),
+        "duration_seconds": round(sum(row["duration_seconds"] for row in rows), 9),
+        "input_tokens": _token_total("input_tokens"),
+        "output_tokens": _token_total("output_tokens"),
+        "tokens_estimated": any(row["tokens_estimated"] for row in rows),
+    }
+    return {"run_id": run_id, "totals": totals, "rows": rows}
+
+
 @router.get("/discovery/lenses/presets")
 async def discovery_lens_presets():
     """Return neutral and use-case views without assigning universal scores."""

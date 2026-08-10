@@ -9,7 +9,9 @@ import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
+
+from .budgets import StageUsage
 
 
 _ALLOWED_RUN_STATUS = {"complete", "partial", "error"}
@@ -155,6 +157,34 @@ class DiscoveryStore:
                     ON discovery_candidate_observations(candidate_series_id, observed_at, id);
                 CREATE INDEX IF NOT EXISTS idx_discovery_runs_geo_time
                     ON discovery_runs(geo, observed_at, id);
+                CREATE TABLE IF NOT EXISTS discovery_stage_usage (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discovery_run_id TEXT NOT NULL REFERENCES discovery_runs(id),
+                    stage TEXT NOT NULL CHECK(stage IN (
+                        'observed','screening','root_probe','deep_read',
+                        'horizontal_extraction','lens_evaluation','optional_enrichment'
+                    )),
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT NOT NULL,
+                    duration_seconds REAL NOT NULL CHECK(duration_seconds >= 0),
+                    candidates_considered INTEGER NOT NULL CHECK(candidates_considered >= 0),
+                    candidates_processed INTEGER NOT NULL CHECK(candidates_processed >= 0),
+                    records_returned INTEGER NOT NULL CHECK(records_returned >= 0),
+                    external_calls INTEGER NOT NULL CHECK(external_calls >= 0),
+                    llm_calls INTEGER NOT NULL CHECK(llm_calls >= 0),
+                    cache_hits INTEGER NOT NULL CHECK(cache_hits >= 0),
+                    status TEXT NOT NULL CHECK(status IN (
+                        'not_checked','complete','empty','partial','unavailable',
+                        'failed','skipped'
+                    )),
+                    error_category TEXT,
+                    input_tokens INTEGER CHECK(input_tokens IS NULL OR input_tokens >= 0),
+                    output_tokens INTEGER CHECK(output_tokens IS NULL OR output_tokens >= 0),
+                    tokens_estimated INTEGER NOT NULL DEFAULT 0
+                        CHECK(tokens_estimated IN (0,1))
+                );
+                CREATE INDEX IF NOT EXISTS idx_discovery_stage_usage_run
+                    ON discovery_stage_usage(discovery_run_id, id);
                 CREATE TABLE IF NOT EXISTS discovery_gate_checks (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     candidate_observation_id INTEGER NOT NULL
@@ -204,6 +234,10 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_phase1b_discovery_history", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_10_discovery_stage_usage", datetime.now(timezone.utc).isoformat()),
             )
 
     def record_feed(
@@ -332,6 +366,70 @@ class DiscoveryStore:
                         (series_id,),
                     )
         return run_id
+
+    def discovery_run_exists(self, run_id: str) -> bool:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT 1 FROM discovery_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+        return row is not None
+
+    def record_stage_usage(
+        self,
+        usage: StageUsage | Mapping[str, Any] | str | None = None,
+        **fields: Any,
+    ) -> int:
+        """Persist one validated usage receipt and return its row ID.
+
+        A receipt model/mapping is preferred; accepting a run ID plus keyword fields
+        keeps the method consistent with the store's other ``record_*`` helpers.
+        """
+        if isinstance(usage, str):
+            fields["discovery_run_id"] = usage
+            usage = fields
+        elif usage is None:
+            usage = fields
+        elif fields:
+            raise TypeError("stage usage fields cannot accompany a receipt object")
+        if not isinstance(usage, StageUsage):
+            usage = StageUsage.from_dict(usage)
+        if not self.discovery_run_exists(usage.discovery_run_id):
+            raise ValueError(f"unknown discovery run: {usage.discovery_run_id}")
+        row = usage.to_dict()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO discovery_stage_usage
+                   (discovery_run_id, stage, started_at, completed_at, duration_seconds,
+                    candidates_considered, candidates_processed, records_returned,
+                    external_calls, llm_calls, cache_hits, status, error_category,
+                    input_tokens, output_tokens, tokens_estimated)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    row["discovery_run_id"], row["stage"], row["started_at"],
+                    row["completed_at"], row["duration_seconds"],
+                    row["candidates_considered"], row["candidates_processed"],
+                    row["records_returned"], row["external_calls"], row["llm_calls"],
+                    row["cache_hits"], row["status"], row["error_category"],
+                    row["input_tokens"], row["output_tokens"],
+                    int(row["tokens_estimated"]),
+                ),
+            )
+            return int(cursor.lastrowid)
+
+    def list_stage_usage(self, run_id: str) -> list[dict]:
+        """Return a run's receipts in insertion order without inventing missing usage."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM discovery_stage_usage
+                   WHERE discovery_run_id = ? ORDER BY id""",
+                (run_id,),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["tokens_estimated"] = bool(item["tokens_estimated"])
+            result.append(item)
+        return result
 
     def list_run_candidates(self, run_id: str) -> list[dict]:
         with self._connect() as connection:

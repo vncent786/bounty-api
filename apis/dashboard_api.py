@@ -14,10 +14,10 @@ import logging
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import APIRouter, Header, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,7 @@ _broker = None
 _monitor = None
 _discovery = None
 _discovery_store = None
+_lens_store = None
 _engine = None
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
@@ -56,6 +57,32 @@ class DiscoveryLensEvaluationRequest(BaseModel):
     criteria: list[DiscoveryLensCriterionRequest]
 
 
+class ResearchLensCreateRequest(BaseModel):
+    name: str
+    description: str = ""
+    spec: dict[str, Any]
+
+
+class ResearchLensVersionRequest(BaseModel):
+    spec: dict[str, Any]
+    name: Optional[str] = None
+    description: Optional[str] = None
+
+
+class DuplicateLensRequest(BaseModel):
+    name: Optional[str] = None
+
+
+class CustomFieldCreateRequest(BaseModel):
+    key: str
+    label: str
+    description: str = ""
+    data_type: str
+    source_stage: str
+    extraction_mode: str
+    definition: dict[str, Any] = Field(default_factory=dict)
+
+
 def _get_registry():
     global _registry
     if _registry is None:
@@ -80,12 +107,39 @@ def _get_monitor():
     return _monitor
 
 
+def _discovery_db_path() -> Path:
+    """One configurable SQLite database for Discovery data and definitions."""
+    configured = os.getenv("BOUNTY_DISCOVERY_DB_PATH") or os.getenv("DISCOVERY_DB_PATH")
+    return Path(configured) if configured else _DB_PATH
+
+
 def _get_discovery_store():
     global _discovery_store
     if _discovery_store is None:
         from social_scraper.discovery import DiscoveryStore
-        _discovery_store = DiscoveryStore(_DB_PATH)
+        _discovery_store = DiscoveryStore(_discovery_db_path())
     return _discovery_store
+
+
+def _get_lens_store():
+    global _lens_store
+    if _lens_store is None:
+        from social_scraper.lenses.storage import LensStore
+        _lens_store = LensStore(_discovery_db_path())
+    return _lens_store
+
+
+def _lens_store_call(method: str, *args, **kwargs):
+    """Translate domain errors consistently without coupling storage to FastAPI."""
+    from social_scraper.lenses.storage import ConflictError, NotFoundError, ValidationError
+    try:
+        return getattr(_get_lens_store(), method)(*args, **kwargs)
+    except NotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValidationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 def _get_discovery():
@@ -407,6 +461,106 @@ async def discovery_lens_presets():
         "default_preset_id": "horizontal-explorer",
         "presets": list_lens_presets(),
     }
+
+
+# Definition CRUD is deliberately configuration-only: no broker, LLM, or usage receipt.
+@router.get("/workspaces/{workspace_id}/lenses")
+async def list_workspace_lenses(workspace_id: str, include_archived: bool = False):
+    _check_auth()
+    return _lens_store_call("list_lenses", workspace_id, include_archived=include_archived)
+
+
+@router.post("/workspaces/{workspace_id}/lenses", status_code=201)
+async def create_workspace_lens(workspace_id: str, body: ResearchLensCreateRequest):
+    _check_auth()
+    return _lens_store_call("create_lens", workspace_id, body.name, body.description, body.spec)
+
+
+@router.get("/workspaces/{workspace_id}/lenses/{lens_id}")
+async def get_workspace_lens(workspace_id: str, lens_id: str, include_archived: bool = False):
+    _check_auth()
+    return _lens_store_call(
+        "get_lens", workspace_id, lens_id, include_archived=include_archived
+    )
+
+
+@router.get("/workspaces/{workspace_id}/lenses/{lens_id}/versions")
+async def list_workspace_lens_versions(workspace_id: str, lens_id: str):
+    _check_auth()
+    return _lens_store_call("list_lens_versions", workspace_id, lens_id)
+
+
+@router.post("/workspaces/{workspace_id}/lenses/{lens_id}/versions", status_code=201)
+@router.put("/workspaces/{workspace_id}/lenses/{lens_id}", status_code=201)
+@router.patch("/workspaces/{workspace_id}/lenses/{lens_id}", status_code=201)
+async def create_workspace_lens_version(
+    workspace_id: str, lens_id: str, body: ResearchLensVersionRequest
+):
+    _check_auth()
+    return _lens_store_call(
+        "create_lens_version", workspace_id, lens_id, body.spec,
+        name=body.name, description=body.description,
+    )
+
+
+@router.get("/workspaces/{workspace_id}/lenses/{lens_id}/versions/{version}")
+async def get_workspace_lens_version(workspace_id: str, lens_id: str, version: int):
+    _check_auth()
+    return _lens_store_call("get_lens_version", workspace_id, lens_id, version)
+
+
+@router.post("/workspaces/{workspace_id}/lenses/{lens_id}/duplicate", status_code=201)
+async def duplicate_workspace_lens(
+    workspace_id: str, lens_id: str, body: Optional[DuplicateLensRequest] = None
+):
+    _check_auth()
+    return _lens_store_call(
+        "duplicate_lens", workspace_id, lens_id,
+        name=body.name if body is not None else None,
+    )
+
+
+@router.post("/workspaces/{workspace_id}/lenses/{lens_id}/archive")
+@router.delete("/workspaces/{workspace_id}/lenses/{lens_id}")
+async def archive_workspace_lens(workspace_id: str, lens_id: str):
+    _check_auth()
+    return _lens_store_call("archive_lens", workspace_id, lens_id)
+
+
+@router.get("/workspaces/{workspace_id}/fields")
+async def list_workspace_fields(workspace_id: str, include_archived: bool = False):
+    _check_auth()
+    return _lens_store_call(
+        "list_custom_fields", workspace_id, include_archived=include_archived
+    )
+
+
+@router.post("/workspaces/{workspace_id}/fields", status_code=201)
+async def create_workspace_field(workspace_id: str, body: CustomFieldCreateRequest):
+    _check_auth()
+    return _lens_store_call(
+        "create_custom_field", workspace_id, key=body.key, label=body.label,
+        description=body.description, data_type=body.data_type,
+        source_stage=body.source_stage, extraction_mode=body.extraction_mode,
+        definition=body.definition,
+    )
+
+
+@router.get("/workspaces/{workspace_id}/fields/{field_id}")
+async def get_workspace_field(
+    workspace_id: str, field_id: str, include_archived: bool = False
+):
+    _check_auth()
+    return _lens_store_call(
+        "get_custom_field", workspace_id, field_id, include_archived=include_archived
+    )
+
+
+@router.post("/workspaces/{workspace_id}/fields/{field_id}/archive")
+@router.delete("/workspaces/{workspace_id}/fields/{field_id}")
+async def archive_workspace_field(workspace_id: str, field_id: str):
+    _check_auth()
+    return _lens_store_call("archive_custom_field", workspace_id, field_id)
 
 
 @router.post("/discovery/lenses/evaluate")

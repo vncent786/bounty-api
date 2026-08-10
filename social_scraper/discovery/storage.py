@@ -260,6 +260,58 @@ class DiscoveryStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_candidate_stage_history_lookup
                     ON candidate_stage_history(research_run_id, candidate_id, id);
+                CREATE TABLE IF NOT EXISTS evidence_bundles (
+                    id TEXT PRIMARY KEY,
+                    subject_key TEXT,
+                    evidence_hash TEXT NOT NULL,
+                    normalizer_version TEXT NOT NULL,
+                    coverage_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    UNIQUE(evidence_hash, normalizer_version, coverage_hash)
+                );
+                CREATE TABLE IF NOT EXISTS evidence_bundle_members (
+                    bundle_id TEXT NOT NULL REFERENCES evidence_bundles(id) ON DELETE CASCADE,
+                    member_key TEXT NOT NULL,
+                    ordinal INTEGER NOT NULL CHECK(ordinal >= 0),
+                    content_hash TEXT NOT NULL,
+                    PRIMARY KEY(bundle_id, ordinal)
+                );
+                CREATE INDEX IF NOT EXISTS idx_evidence_bundle_members_key
+                    ON evidence_bundle_members(member_key, content_hash);
+                CREATE TABLE IF NOT EXISTS horizontal_extractions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    evidence_bundle_id TEXT NOT NULL REFERENCES evidence_bundles(id),
+                    extraction_schema_version TEXT NOT NULL,
+                    prompt_version TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    cache_key TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    result_json TEXT NOT NULL,
+                    input_records INTEGER NOT NULL CHECK(input_records >= 0),
+                    input_tokens INTEGER CHECK(input_tokens IS NULL OR input_tokens >= 0),
+                    output_tokens INTEGER CHECK(output_tokens IS NULL OR output_tokens >= 0),
+                    tokens_estimated INTEGER NOT NULL DEFAULT 0 CHECK(tokens_estimated IN (0,1)),
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS optional_interpretations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    horizontal_extraction_id INTEGER NOT NULL
+                        REFERENCES horizontal_extractions(id) ON DELETE CASCADE,
+                    interpretation_type TEXT NOT NULL,
+                    interpretation_version TEXT NOT NULL,
+                    config_hash TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT NOT NULL,
+                    cache_key TEXT NOT NULL UNIQUE,
+                    status TEXT NOT NULL,
+                    result_json TEXT NOT NULL,
+                    input_records INTEGER NOT NULL CHECK(input_records >= 0),
+                    input_tokens INTEGER CHECK(input_tokens IS NULL OR input_tokens >= 0),
+                    output_tokens INTEGER CHECK(output_tokens IS NULL OR output_tokens >= 0),
+                    tokens_estimated INTEGER NOT NULL DEFAULT 0 CHECK(tokens_estimated IN (0,1)),
+                    created_at TEXT NOT NULL
+                );
                 """
             )
             gate_columns = {
@@ -284,6 +336,160 @@ class DiscoveryStore:
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_phase2_staged_research", datetime.now(timezone.utc).isoformat()),
             )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_10_shared_evidence_cache", datetime.now(timezone.utc).isoformat()),
+            )
+
+    @staticmethod
+    def _cached_row(row: sqlite3.Row | None) -> dict | None:
+        if row is None:
+            return None
+        item = dict(row)
+        item["result"] = json.loads(item.pop("result_json"))
+        item["tokens_estimated"] = bool(item["tokens_estimated"])
+        return item
+
+    def create_evidence_bundle(self, bundle: Any, *, subject_key: str | None = None) -> dict:
+        """Persist or return one immutable evidence/coverage bundle."""
+        bundle_id = str(uuid.uuid4())
+        created_at = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT OR IGNORE INTO evidence_bundles
+                   (id, subject_key, evidence_hash, normalizer_version,
+                    coverage_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)""",
+                (bundle_id, subject_key, bundle.evidence_hash,
+                 bundle.normalizer_version, bundle.coverage_hash, created_at),
+            )
+            row = connection.execute(
+                """SELECT * FROM evidence_bundles
+                   WHERE evidence_hash = ? AND normalizer_version = ?
+                     AND coverage_hash = ?""",
+                (bundle.evidence_hash, bundle.normalizer_version, bundle.coverage_hash),
+            ).fetchone()
+            if row is None:  # pragma: no cover - defensive against SQLite failure
+                raise RuntimeError("failed to persist evidence bundle")
+            for member in bundle.members:
+                connection.execute(
+                    """INSERT OR IGNORE INTO evidence_bundle_members
+                       (bundle_id, member_key, ordinal, content_hash)
+                       VALUES (?, ?, ?, ?)""",
+                    (row["id"], member.member_key, member.ordinal, member.content_hash),
+                )
+            item = dict(row)
+            item["members"] = [
+                dict(member) for member in connection.execute(
+                    """SELECT member_key, ordinal, content_hash
+                       FROM evidence_bundle_members WHERE bundle_id = ? ORDER BY ordinal""",
+                    (row["id"],),
+                ).fetchall()
+            ]
+            return item
+
+    def get_evidence_bundle(
+        self, identifier: str, *, normalizer_version: str | None = None,
+        coverage_hash: str | None = None,
+    ) -> dict | None:
+        with self._connect() as connection:
+            if normalizer_version is None and coverage_hash is None:
+                row = connection.execute(
+                    "SELECT * FROM evidence_bundles WHERE id = ?", (identifier,),
+                ).fetchone()
+            elif normalizer_version is not None and coverage_hash is not None:
+                row = connection.execute(
+                    """SELECT * FROM evidence_bundles WHERE evidence_hash = ?
+                       AND normalizer_version = ? AND coverage_hash = ?""",
+                    (identifier, normalizer_version, coverage_hash),
+                ).fetchone()
+            else:
+                raise TypeError("normalizer_version and coverage_hash must be supplied together")
+            if row is None:
+                return None
+            item = dict(row)
+            item["members"] = [dict(member) for member in connection.execute(
+                """SELECT member_key, ordinal, content_hash FROM evidence_bundle_members
+                   WHERE bundle_id = ? ORDER BY ordinal""", (row["id"],),
+            ).fetchall()]
+            return item
+
+    def get_horizontal_extraction(self, cache_key: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM horizontal_extractions WHERE cache_key = ?", (cache_key,),
+            ).fetchone()
+        return self._cached_row(row)
+
+    def put_horizontal_extraction(
+        self, *, evidence_bundle_id: str, extraction_schema_version: str,
+        prompt_version: str, provider: str, model: str, cache_key: str,
+        status: str, result: Any, input_records: int,
+        input_tokens: int | None = None, output_tokens: int | None = None,
+        tokens_estimated: bool = False,
+    ) -> dict:
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT OR IGNORE INTO horizontal_extractions
+                   (evidence_bundle_id, extraction_schema_version, prompt_version,
+                    provider, model, cache_key, status, result_json, input_records,
+                    input_tokens, output_tokens, tokens_estimated, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (evidence_bundle_id, extraction_schema_version, prompt_version,
+                 provider, model, cache_key, status, _json(result), input_records,
+                 input_tokens, output_tokens, int(tokens_estimated),
+                 datetime.now(timezone.utc).isoformat()),
+            )
+            row = connection.execute(
+                "SELECT * FROM horizontal_extractions WHERE cache_key = ?", (cache_key,),
+            ).fetchone()
+        result_row = self._cached_row(row)
+        if result_row is None:  # pragma: no cover
+            raise RuntimeError("failed to persist horizontal extraction")
+        return result_row
+
+    def get_optional_interpretation(self, cache_key: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM optional_interpretations WHERE cache_key = ?", (cache_key,),
+            ).fetchone()
+        return self._cached_row(row)
+
+    def put_optional_interpretation(
+        self, *, horizontal_extraction_id: int, interpretation_type: str,
+        interpretation_version: str, config: Mapping[str, Any], provider: str,
+        model: str, status: str, result: Any, input_records: int,
+        input_tokens: int | None = None, output_tokens: int | None = None,
+        tokens_estimated: bool = False, cache_key: str | None = None,
+    ) -> dict:
+        config_json = _json(config)
+        config_hash = hashlib.sha256(config_json.encode("utf-8")).hexdigest()
+        if cache_key is None:
+            material = _json([
+                "optional_interpretation", horizontal_extraction_id,
+                interpretation_type, interpretation_version, config_hash,
+                provider.casefold(), model,
+            ])
+            cache_key = hashlib.sha256(material.encode("utf-8")).hexdigest()
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT OR IGNORE INTO optional_interpretations
+                   (horizontal_extraction_id, interpretation_type,
+                    interpretation_version, config_hash, provider, model, cache_key,
+                    status, result_json, input_records, input_tokens, output_tokens,
+                    tokens_estimated, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (horizontal_extraction_id, interpretation_type, interpretation_version,
+                 config_hash, provider, model, cache_key, status, _json(result),
+                 input_records, input_tokens, output_tokens, int(tokens_estimated),
+                 datetime.now(timezone.utc).isoformat()),
+            )
+            row = connection.execute(
+                "SELECT * FROM optional_interpretations WHERE cache_key = ?", (cache_key,),
+            ).fetchone()
+        result_row = self._cached_row(row)
+        if result_row is None:  # pragma: no cover
+            raise RuntimeError("failed to persist optional interpretation")
+        return result_row
 
     def record_feed(
         self,

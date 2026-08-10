@@ -8,6 +8,10 @@ from dataclasses import asdict, dataclass, field
 from typing import Awaitable, Callable
 
 
+EXTRACTION_SCHEMA_VERSION = "conversation-analysis/1"
+PROMPT_VERSION = "conversation-analysis-prompt/1"
+
+
 _SIGNAL_KINDS = {
     "pain_point", "unmet_need", "question", "desire", "desired_outcome",
     "workaround", "objection", "request", "purchase_trigger", "adoption",
@@ -40,7 +44,7 @@ class ConversationAnalysis:
     coverage: dict = field(default_factory=dict)
     limitations: list[str] = field(default_factory=list)
     llm_error: str = ""
-    schema_version: str = "conversation-analysis/1"
+    schema_version: str = EXTRACTION_SCHEMA_VERSION
 
     def to_dict(self) -> dict:
         return asdict(self)

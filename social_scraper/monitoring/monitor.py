@@ -18,6 +18,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
 from typing import Optional
 
+from social_scraper.conversations import ConversationStore
+from social_scraper.storage import ObservationStore
+
 from .zones import ZoneRegistry, Zone
 
 logger = logging.getLogger(__name__)
@@ -102,7 +105,13 @@ class TrendReport:
 class TrendMonitor:
     """Orchestrates zone collection, clustering, and trend detection."""
 
-    def __init__(self, registry: ZoneRegistry, broker, llm_cluster_fn=None):
+    def __init__(
+        self,
+        registry: ZoneRegistry,
+        broker,
+        llm_cluster_fn=None,
+        observation_store: ObservationStore | None = None,
+    ):
         """
         Args:
             registry: ZoneRegistry for zone CRUD + snapshot storage
@@ -114,6 +123,8 @@ class TrendMonitor:
         self.registry = registry
         self.broker = broker
         self._llm_cluster = llm_cluster_fn
+        self.observation_store = observation_store or ObservationStore(registry.db_path)
+        self.conversation_store = ConversationStore(self.observation_store.path)
 
     async def collect_zone(self, zone: Zone) -> tuple[list[dict], dict]:
         """Collect a zone while preserving the historical two-value API."""
@@ -137,6 +148,35 @@ class TrendMonitor:
                     platforms=zone.platforms,
                     count=10,  # 10 per keyword per platform
                 )
+                try:
+                    run_id = self.observation_store.record_collection(
+                        result,
+                        zone.platforms,
+                        zone.region,
+                        datetime.now(timezone.utc),
+                    )
+                    if zone.id is not None:
+                        self.conversation_store.add_run_zone_memberships(
+                            zone.id,
+                            run_id,
+                            keyword,
+                        )
+                except Exception:
+                    logger.exception(
+                        "Zone '%s' keyword '%s': corpus persistence failed",
+                        zone.name,
+                        keyword,
+                    )
+                    source_health.append(
+                        {
+                            "keyword": keyword,
+                            "platform": "internal",
+                            "connector": "conversation_store",
+                            "status": "error",
+                            "error": "corpus_persistence_failed",
+                            "scope": "persistence",
+                        }
+                    )
                 health_entries = result.get("source_health", [])
                 if health_entries:
                     source_health.extend(

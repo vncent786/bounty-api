@@ -117,6 +117,9 @@ Local development currently uses GPT-5.4 through a temporary Hermes Codex OAuth 
 - Five-platform normalized collection infrastructure
 - Connector fallback and provenance infrastructure
 - SQLite observation and monitoring storage
+- Canonical immutable post/comment/reply corpus with object-type-safe identities
+- Explicit observation history, collection-route attempts, normalization diagnostics, and zone/keyword provenance
+- Five-platform canonical normalization with unsupported metrics preserved as null
 - Zone creation and scheduling
 - Automatic and manual zone runs
 - Staged run progress that survives dashboard navigation
@@ -132,7 +135,7 @@ Local development currently uses GPT-5.4 through a temporary Hermes Codex OAuth 
 
 ### 1. Replies and comment threads
 
-The active SaaS pipeline still analyzes primarily top-level posts. Some older collector code can retrieve comments, but there is no canonical nested thread model integrated across collection, persistence, clustering, analysis, and dashboard output.
+The canonical nested conversation model, immutable observation storage, thread reconstruction, and zone provenance are integrated. The active connectors still collect primarily top-level posts, however. Phase 2 must retrieve real YouTube and Reddit comments/replies, preserve route completeness and truncation, and feed those records through the canonical corpus.
 
 ### 2. Bounded historical read
 
@@ -169,24 +172,24 @@ Customer accounts, tenant isolation, billing, durable workers, production connec
 
 ## Current priority order
 
-1. Establish monitoring tests and define a canonical post/comment/reply schema with provenance.
-2. Upgrade Google Trends Discovery into an investing-first social-arbitrage funnel while keeping its underlying fields horizontal.
-3. Integrate nested reply collection for YouTube and Reddit and use replies to judge candidate durability.
-4. Build a real bounded historical zone read with transparent source progress.
-5. Build semantic clustering, stable cluster identity, and cluster-level narratives with evidence and dissent.
-6. Build the weekly standing read and four change-event detectors.
-7. Add repost/reshare and propagation analysis.
-8. Add citation-grounded Q&A over the zone corpus.
-9. Validate the first workflow on investing/consumer-behavior zones, then verify the same engine on two non-investing zones.
-10. Only then add authentication, billing, production workers, and API distribution.
+1. Upgrade Google Trends Discovery into an investing-first social-arbitrage funnel while keeping its underlying fields horizontal.
+2. Integrate nested reply collection for YouTube and Reddit and use replies to judge candidate durability.
+3. Build a real bounded historical zone read with transparent source progress.
+4. Build semantic clustering, stable cluster identity, and cluster-level narratives with evidence and dissent.
+5. Build the weekly standing read and four change-event detectors.
+6. Add repost/reshare and propagation analysis.
+7. Add citation-grounded Q&A over the zone corpus.
+8. Validate the first workflow on investing/consumer-behavior zones, then verify the same engine on two non-investing zones.
+9. Only then add authentication, billing, production workers, and API distribution.
 
 Generic Discovery-page cosmetics, more legacy API endpoints, x402, and Railway migration are not current priorities. Discovery intelligence and ranking are priorities.
 
 ## Active execution phases
 
-- **Phase 2:** Comment thread and reply analysis
-- **Phase 3:** Semantic cluster-level analysis
-- **Phase 4:** Repost and reshare analysis
+- **Completed:** Phase 0 monitoring/source-health baseline and Phase 1 canonical conversation corpus
+- **Next:** Phase 1B investing-first Google Trends Discovery
+- **Then:** Phase 2 comment thread and reply analysis
+- **Later:** Bounded reads, semantic clusters, standing reads, propagation, and grounded Q&A
 - **After validation:** Production SaaS infrastructure
 
 ## Current implementation plan

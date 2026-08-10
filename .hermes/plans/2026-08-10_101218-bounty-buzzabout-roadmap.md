@@ -89,6 +89,8 @@ The investment lens must:
 
 ## Phase 1: Canonical conversation corpus
 
+**Status:** Completed 2026-08-10. The canonical layer is additive to the existing public broker/API contract. `ObservationStore` writes normalized records and route attempts in the same transaction as legacy observations; zone runs then link those records to the exact zone and seed keyword before monitor-only tags are added.
+
 ### Task 1.1: Define canonical post, comment, and reply records
 
 **Objective:** Create one schema capable of representing complete conversation trees across platforms.

@@ -169,6 +169,10 @@ class ObservationStore:
                     "ALTER TABLE source_records ADD COLUMN payload_format TEXT NOT NULL DEFAULT 'json'"
                 )
 
+            from social_scraper.conversations.storage import ConversationStore
+
+            ConversationStore.ensure_schema(connection)
+
     @staticmethod
     def _iso(value=None):
         value = value or datetime.now(timezone.utc)
@@ -290,6 +294,15 @@ class ObservationStore:
                     payload_json,
                 ),
             )
+
+        from social_scraper.conversations.storage import ConversationStore
+
+        ConversationStore.persist_response(
+            connection,
+            run_id,
+            raw_response,
+            timestamp,
+        )
         return run_id
 
     def record_collection(

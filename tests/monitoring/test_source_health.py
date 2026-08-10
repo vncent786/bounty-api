@@ -6,6 +6,7 @@ import pytest
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
 from social_scraper.broker import SourceBroker
+from social_scraper.conversations import ConversationStore
 from social_scraper.monitoring.monitor import TrendMonitor
 
 
@@ -73,6 +74,27 @@ async def test_real_broker_health_is_propagated_and_persisted(registry, sample_z
     }
     assert all("keyword" in entry for entry in report.source_health)
     assert registry.get_snapshots(zone_id)[0]["source_health"] == report.source_health
+
+    corpus = ConversationStore(registry.db_path)
+    records = corpus.list_zone_records(zone_id)
+    assert len(records) == len(sample_zone.keywords)
+    assert {record["keyword"] for record in records} == set(sample_zone.keywords)
+    assert all(record["source_route"] == "yt-dlp" for record in records)
+    for run_id in {record["collection_run_id"] for record in records}:
+        attempts = corpus.get_run_sources(run_id)
+        assert {(attempt["platform"], attempt["status"]) for attempt in attempts} == {
+            ("youtube", "ok"),
+            ("reddit", "error"),
+        }
+
+    with corpus._connect() as connection:
+        raw_payloads = [
+            row[0]
+            for row in connection.execute(
+                "SELECT raw_payload_json FROM conversation_records"
+            ).fetchall()
+        ]
+    assert all('"_zone_keyword"' not in payload for payload in raw_payloads)
 
 
 @pytest.mark.anyio

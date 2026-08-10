@@ -99,9 +99,19 @@ class ZoneRegistry:
                     collected_at TEXT NOT NULL,
                     clusters_json TEXT NOT NULL,
                     item_count INTEGER NOT NULL DEFAULT 0,
-                    platform_summary_json TEXT NOT NULL DEFAULT '{}'
+                    platform_summary_json TEXT NOT NULL DEFAULT '{}',
+                    source_health_json TEXT NOT NULL DEFAULT '[]'
                 )
             """)
+            snapshot_columns = {
+                row[1]
+                for row in conn.execute("PRAGMA table_info(cluster_snapshots)").fetchall()
+            }
+            if "source_health_json" not in snapshot_columns:
+                conn.execute(
+                    "ALTER TABLE cluster_snapshots "
+                    "ADD COLUMN source_health_json TEXT NOT NULL DEFAULT '[]'"
+                )
             conn.execute("""
                 CREATE INDEX IF NOT EXISTS idx_snapshots_zone_time
                     ON cluster_snapshots(zone_id, collected_at)
@@ -191,15 +201,16 @@ class ZoneRegistry:
             conn.execute("DELETE FROM zones WHERE id = ?", (zone_id,))
 
     def save_snapshot(self, zone_id: int, clusters: list[dict], item_count: int,
-                       platform_summary: dict):
+                       platform_summary: dict, source_health: list[dict] = None):
         now = datetime.now(timezone.utc).isoformat()
         with self._connect() as conn:
             conn.execute(
                 """INSERT INTO cluster_snapshots
-                   (zone_id, collected_at, clusters_json, item_count, platform_summary_json)
-                   VALUES (?, ?, ?, ?, ?)""",
+                   (zone_id, collected_at, clusters_json, item_count,
+                    platform_summary_json, source_health_json)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
                 (zone_id, now, json.dumps(clusters), item_count,
-                 json.dumps(platform_summary)),
+                 json.dumps(platform_summary), json.dumps(source_health or [])),
             )
 
     def get_snapshots(self, zone_id: int, limit: int = 4) -> list[dict]:
@@ -217,4 +228,5 @@ class ZoneRegistry:
                 "clusters": json.loads(r["clusters_json"]),
                 "item_count": r["item_count"],
                 "platform_summary": json.loads(r["platform_summary_json"]),
+                "source_health": json.loads(r["source_health_json"]),
             } for r in rows]

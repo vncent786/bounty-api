@@ -83,6 +83,7 @@ class TrendReport:
     alerts: list[TrendAlert] = field(default_factory=list)
     top_clusters: list[dict] = field(default_factory=list)
     enrichment: dict = field(default_factory=dict)
+    source_health: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -94,6 +95,7 @@ class TrendReport:
             "alerts": [a.to_dict() for a in self.alerts],
             "top_clusters": self.top_clusters,
             "enrichment": self.enrichment,
+            "source_health": self.source_health,
         }
 
 
@@ -114,13 +116,18 @@ class TrendMonitor:
         self._llm_cluster = llm_cluster_fn
 
     async def collect_zone(self, zone: Zone) -> tuple[list[dict], dict]:
-        """Collect all keywords in a zone across all platforms.
+        """Collect a zone while preserving the historical two-value API."""
+        items, platform_summary, _ = await self._collect_zone_with_health(zone)
+        return items, platform_summary
 
-        Returns: (items, platform_summary)
-        """
+    async def _collect_zone_with_health(
+        self, zone: Zone
+    ) -> tuple[list[dict], dict, list[dict]]:
+        """Collect a zone plus sanitized connector and request health."""
         all_items = []
         platform_counts = defaultdict(int)
         platform_engagement = defaultdict(lambda: {"likes": 0, "views": 0})
+        source_health = []
 
         for keyword in zone.keywords:
             logger.info(f"Zone '{zone.name}': collecting '{keyword}' across {zone.platforms}")
@@ -130,6 +137,22 @@ class TrendMonitor:
                     platforms=zone.platforms,
                     count=10,  # 10 per keyword per platform
                 )
+                health_entries = result.get("source_health", [])
+                if health_entries:
+                    source_health.extend(
+                        {"keyword": keyword, **entry} for entry in health_entries
+                    )
+                else:
+                    source_health.extend(
+                        {
+                            "keyword": keyword,
+                            "platform": platform,
+                            "status": details.get("status", "unknown"),
+                            "connector": details.get("selected_connector"),
+                            "attempted_connectors": details.get("attempted_connectors", []),
+                        }
+                        for platform, details in result.get("platform_results", {}).items()
+                    )
                 items = result.get("items", [])
                 for item in items:
                     # Tag with source keyword
@@ -142,6 +165,17 @@ class TrendMonitor:
                     platform_engagement[p]["views"] += eng.get("views") or 0
             except Exception as e:
                 logger.warning(f"Zone '{zone.name}' keyword '{keyword}' failed: {e}")
+                source_health.extend(
+                    {
+                        "keyword": keyword,
+                        "platform": platform,
+                        "connector": None,
+                        "status": "error",
+                        "error": "keyword_collection_exception",
+                        "scope": "keyword_request",
+                    }
+                    for platform in zone.platforms
+                )
 
         platform_summary = {
             p: {"items": platform_counts[p], **platform_engagement[p]}
@@ -149,7 +183,7 @@ class TrendMonitor:
         }
 
         logger.info(f"Zone '{zone.name}': collected {len(all_items)} items from {len(platform_summary)} platforms")
-        return all_items, platform_summary
+        return all_items, platform_summary, source_health
 
     def cluster_posts(self, items: list[dict]) -> list[Cluster]:
         """Group posts into semantic clusters.
@@ -381,7 +415,7 @@ class TrendMonitor:
             raise ValueError(f"Zone not found: {zone_name}")
 
         # 1. Collect
-        items, platform_summary = await self.collect_zone(zone)
+        items, platform_summary, source_health = await self._collect_zone_with_health(zone)
 
         # 2. Cluster
         clusters = self.cluster_posts(items)
@@ -401,6 +435,7 @@ class TrendMonitor:
             [c.to_dict() for c in clusters],
             len(items),
             platform_summary,
+            source_health,
         )
 
         # 6. Update zone timing
@@ -415,6 +450,7 @@ class TrendMonitor:
             platform_summary=platform_summary,
             alerts=alerts,
             top_clusters=[c.to_dict() for c in clusters[:10]],
+            source_health=source_health,
         )
 
         logger.info(

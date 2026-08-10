@@ -41,9 +41,10 @@ FEATURE_SOURCE_MAP: dict[str, str] = {
 _STAGE_DEPTH = {
     "candidate": 0,
     "root_probe": 1,
-    "horizontal_analysis": 2,
-    "custom_extraction": 3,
-    "optional_enrichment": 3,
+    "deep_read": 2,
+    "horizontal_analysis": 3,
+    "custom_extraction": 4,
+    "optional_enrichment": 4,
 }
 
 
@@ -89,8 +90,10 @@ def compile_lens(
     required_depth = max(
         used.values(), key=lambda stage: (_STAGE_DEPTH[stage], stage == "custom_extraction")
     )
+    # Deep reading is an explicit prerequisite, not an implementation detail of
+    # horizontal/custom/enrichment work. This keeps plans auditable and budgetable.
     required_stages = [
-        stage for stage in ("candidate", "root_probe", "horizontal_analysis")
+        stage for stage in ("candidate", "root_probe", "deep_read", "horizontal_analysis")
         if _STAGE_DEPTH[stage] <= _STAGE_DEPTH[required_depth]
     ]
     # The two deepest stages are sibling branches; include each branch actually used.

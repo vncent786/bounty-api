@@ -219,6 +219,47 @@ class DiscoveryStore:
                     ON discovery_lens_evaluations(
                         candidate_observation_id, lens_id, lens_version, evaluated_at
                     );
+                CREATE TABLE IF NOT EXISTS research_runs (
+                    id TEXT PRIMARY KEY,
+                    workspace_id TEXT NOT NULL,
+                    source_discovery_run_id TEXT REFERENCES discovery_runs(id),
+                    status TEXT NOT NULL CHECK(status IN
+                        ('planned','running','complete','partial','error','cancelled')),
+                    requested_budget_json TEXT NOT NULL,
+                    effective_budget_json TEXT NOT NULL,
+                    plan_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    started_at TEXT,
+                    completed_at TEXT,
+                    error_category TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_research_runs_workspace_created
+                    ON research_runs(workspace_id, created_at, id);
+                CREATE TABLE IF NOT EXISTS research_run_candidates (
+                    research_run_id TEXT NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+                    candidate_id TEXT NOT NULL,
+                    candidate_json TEXT NOT NULL,
+                    priority_components_json TEXT NOT NULL,
+                    stages_json TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    manual_promoted INTEGER NOT NULL DEFAULT 0 CHECK(manual_promoted IN (0,1)),
+                    PRIMARY KEY(research_run_id, candidate_id)
+                );
+                CREATE TABLE IF NOT EXISTS candidate_stage_history (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    research_run_id TEXT NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+                    candidate_id TEXT NOT NULL,
+                    workspace_id TEXT NOT NULL,
+                    stage TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    transitioned_at TEXT NOT NULL,
+                    details_json TEXT NOT NULL DEFAULT '{}',
+                    FOREIGN KEY(research_run_id, candidate_id)
+                        REFERENCES research_run_candidates(research_run_id, candidate_id)
+                        ON DELETE CASCADE
+                );
+                CREATE INDEX IF NOT EXISTS idx_candidate_stage_history_lookup
+                    ON candidate_stage_history(research_run_id, candidate_id, id);
                 """
             )
             gate_columns = {
@@ -238,6 +279,10 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_discovery_stage_usage", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_10_phase2_staged_research", datetime.now(timezone.utc).isoformat()),
             )
 
     def record_feed(
@@ -568,6 +613,179 @@ class DiscoveryStore:
                 ),
             )
             return int(cursor.lastrowid)
+
+    def create_research_run(
+        self, *, workspace_id: str, requested_budget: Mapping[str, Any],
+        effective_budget: Mapping[str, Any], plan: Mapping[str, Any],
+        source_discovery_run_id: str | None = None, status: str = "planned",
+        run_id: str | None = None,
+    ) -> dict:
+        allowed = {"planned", "running", "complete", "partial", "error", "cancelled"}
+        if status not in allowed:
+            raise ValueError(f"invalid research run status: {status}")
+        workspace_id = str(workspace_id).strip()
+        if not workspace_id:
+            raise ValueError("workspace_id must not be empty")
+        run_id, now = run_id or str(uuid.uuid4()), datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT INTO research_runs
+                   (id, workspace_id, source_discovery_run_id, status,
+                    requested_budget_json, effective_budget_json, plan_json,
+                    created_at, started_at, completed_at, error_category)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)""",
+                (run_id, workspace_id, source_discovery_run_id, status,
+                 _json(requested_budget), _json(effective_budget), _json(plan), now,
+                 now if status == "running" else None,
+                 now if status in {"complete", "partial", "error", "cancelled"} else None),
+            )
+            for row in plan.get("candidates", []):
+                candidate_id = str(row["candidate_id"])
+                priority = row.get("priority_components", {})
+                connection.execute(
+                    """INSERT INTO research_run_candidates
+                       (research_run_id, candidate_id, candidate_json,
+                        priority_components_json, stages_json, outcome, manual_promoted)
+                       VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                    (run_id, candidate_id, _json(row.get("candidate", {})), _json(priority),
+                     _json(row.get("stages", {})), str(row.get("outcome", "complete")),
+                     int(bool(priority.get("manual_promoted", False)))),
+                )
+                for stage, outcome in row.get("stages", {}).items():
+                    connection.execute(
+                        """INSERT INTO candidate_stage_history
+                           (research_run_id, candidate_id, workspace_id, stage, outcome,
+                            transitioned_at, details_json) VALUES (?, ?, ?, ?, ?, ?, '{}')""",
+                        (run_id, candidate_id, workspace_id, stage, outcome, now),
+                    )
+        return self.get_research_run(run_id)  # type: ignore[return-value]
+
+    @staticmethod
+    def _research_run(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["requested_budget"] = json.loads(item.pop("requested_budget_json"))
+        item["effective_budget"] = json.loads(item.pop("effective_budget_json"))
+        item["plan"] = json.loads(item.pop("plan_json"))
+        return item
+
+    def get_research_run(self, run_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute("SELECT * FROM research_runs WHERE id = ?", (run_id,)).fetchone()
+        return self._research_run(row) if row else None
+
+    def list_research_runs(self, workspace_id: str | None = None) -> list[dict]:
+        with self._connect() as connection:
+            if workspace_id is None:
+                rows = connection.execute(
+                    "SELECT * FROM research_runs ORDER BY created_at DESC, id DESC"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT * FROM research_runs WHERE workspace_id = ?
+                       ORDER BY created_at DESC, id DESC""", (workspace_id,),
+                ).fetchall()
+        return [self._research_run(row) for row in rows]
+
+    def update_research_run(
+        self, run_id: str, *, status: str, error_category: str | None = None,
+    ) -> dict:
+        allowed = {"planned", "running", "complete", "partial", "error", "cancelled"}
+        if status not in allowed:
+            raise ValueError(f"invalid research run status: {status}")
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE research_runs SET status = ?, error_category = ?,
+                   started_at = CASE WHEN ? = 'running' AND started_at IS NULL THEN ? ELSE started_at END,
+                   completed_at = CASE WHEN ? IN ('complete','partial','error','cancelled')
+                                       THEN ? ELSE completed_at END WHERE id = ?""",
+                (status, error_category, status, now, status, now, run_id),
+            )
+            if cursor.rowcount == 0:
+                raise ValueError(f"unknown research run: {run_id}")
+        return self.get_research_run(run_id)  # type: ignore[return-value]
+
+    def list_research_run_candidates(self, run_id: str) -> list[dict]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM research_run_candidates
+                   WHERE research_run_id = ? ORDER BY rowid""", (run_id,),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["candidate"] = json.loads(item.pop("candidate_json"))
+            item["priority_components"] = json.loads(item.pop("priority_components_json"))
+            item["stages"] = json.loads(item.pop("stages_json"))
+            item["manual_promoted"] = bool(item["manual_promoted"])
+            result.append(item)
+        return result
+
+    def record_stage_transition(
+        self, run_id: str, candidate_id: str, *, stage: str, outcome: str,
+        details: Mapping[str, Any] | None = None, transitioned_at: datetime | str | None = None,
+    ) -> int:
+        with self._connect() as connection:
+            run = connection.execute(
+                "SELECT workspace_id FROM research_runs WHERE id = ?", (run_id,),
+            ).fetchone()
+            candidate = connection.execute(
+                """SELECT 1 FROM research_run_candidates
+                   WHERE research_run_id = ? AND candidate_id = ?""", (run_id, candidate_id),
+            ).fetchone()
+            if run is None or candidate is None:
+                raise ValueError("unknown research run candidate")
+            cursor = connection.execute(
+                """INSERT INTO candidate_stage_history
+                   (research_run_id, candidate_id, workspace_id, stage, outcome,
+                    transitioned_at, details_json) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (run_id, candidate_id, run["workspace_id"], stage, outcome,
+                 _iso(transitioned_at or datetime.now(timezone.utc)), _json(details or {})),
+            )
+            return int(cursor.lastrowid)
+
+    def list_stage_transitions(self, run_id: str, candidate_id: str | None = None) -> list[dict]:
+        with self._connect() as connection:
+            if candidate_id is None:
+                rows = connection.execute(
+                    """SELECT * FROM candidate_stage_history
+                       WHERE research_run_id = ? ORDER BY id""", (run_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT * FROM candidate_stage_history
+                       WHERE research_run_id = ? AND candidate_id = ? ORDER BY id""",
+                    (run_id, candidate_id),
+                ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["details"] = json.loads(item.pop("details_json"))
+            result.append(item)
+        return result
+
+    def promote_research_candidate(self, run_id: str, candidate_id: str) -> dict:
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT priority_components_json FROM research_run_candidates
+                   WHERE research_run_id = ? AND candidate_id = ?""", (run_id, candidate_id),
+            ).fetchone()
+            if row is None:
+                raise ValueError("unknown research run candidate")
+            components = json.loads(row["priority_components_json"])
+            components["manual_promoted"] = True
+            connection.execute(
+                """UPDATE research_run_candidates
+                   SET manual_promoted = 1, priority_components_json = ?
+                   WHERE research_run_id = ? AND candidate_id = ?""",
+                (_json(components), run_id, candidate_id),
+            )
+        self.record_stage_transition(
+            run_id, candidate_id, stage="screening", outcome="manual_promoted",
+            details={"manual_promoted": True},
+        )
+        return next(row for row in self.list_research_run_candidates(run_id)
+                    if row["candidate_id"] == candidate_id)
 
     @staticmethod
     def _observation(row: sqlite3.Row) -> dict:

@@ -83,6 +83,26 @@ class CustomFieldCreateRequest(BaseModel):
     definition: dict[str, Any] = Field(default_factory=dict)
 
 
+class ResearchRunCreateRequest(BaseModel):
+    workspace_id: str
+    source_discovery_run_id: Optional[str] = None
+    candidates: list[dict[str, Any]]
+    budget: dict[str, Any] = Field(default_factory=dict)
+    required_depth: str = "candidate"
+    lens_required_depth: Optional[str] = None
+    lens: Optional[dict[str, Any]] = None
+    priority_metrics: list[str] = Field(default_factory=lambda: [
+        "recency", "volume", "growth", "category_match", "already_processed"
+    ])
+
+    def resolved_depth(self) -> str:
+        return str(
+            self.lens_required_depth
+            or (self.lens or {}).get("required_depth")
+            or self.required_depth
+        )
+
+
 def _get_registry():
     global _registry
     if _registry is None:
@@ -408,6 +428,73 @@ async def discover_keywords(
         "total": len(keywords),
         "run_id": discovery.last_run_id,
     }
+
+
+@router.post("/discovery/research-runs", status_code=201)
+async def create_discovery_research_run(body: ResearchRunCreateRequest):
+    """Persist a deterministic plan; live collection intentionally happens elsewhere."""
+    _check_auth()
+    from social_scraper.discovery import ScanBudget
+    from social_scraper.discovery.scheduler import DiscoveryScheduler
+    try:
+        requested = ScanBudget.from_dict(body.budget)
+        plan = DiscoveryScheduler().plan(
+            body.candidates, requested, body.resolved_depth(),
+            workspace_id=body.workspace_id, metric_order=body.priority_metrics,
+        )
+        return _get_discovery_store().create_research_run(
+            workspace_id=body.workspace_id,
+            source_discovery_run_id=body.source_discovery_run_id,
+            requested_budget=requested.to_dict(),
+            effective_budget=plan["effective_budget"],
+            plan=plan,
+        )
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/discovery/research-runs")
+async def list_discovery_research_runs(workspace_id: Optional[str] = None):
+    _check_auth()
+    return {"runs": _get_discovery_store().list_research_runs(workspace_id)}
+
+
+@router.get("/discovery/research-runs/{run_id}")
+async def get_discovery_research_run(run_id: str):
+    _check_auth()
+    run = _get_discovery_store().get_research_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    return run
+
+
+@router.get("/discovery/research-runs/{run_id}/candidates")
+async def get_discovery_research_run_candidates(run_id: str):
+    _check_auth()
+    store = _get_discovery_store()
+    if store.get_research_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    return {"run_id": run_id, "candidates": store.list_research_run_candidates(run_id)}
+
+
+@router.get("/discovery/research-runs/{run_id}/candidates/{candidate_id}/history")
+async def get_discovery_research_candidate_stage_history(run_id: str, candidate_id: str):
+    _check_auth()
+    store = _get_discovery_store()
+    candidates = store.list_research_run_candidates(run_id)
+    if not any(row["candidate_id"] == candidate_id for row in candidates):
+        raise HTTPException(status_code=404, detail="Research run candidate not found")
+    return {"run_id": run_id, "candidate_id": candidate_id,
+            "history": store.list_stage_transitions(run_id, candidate_id)}
+
+
+@router.post("/discovery/research-runs/{run_id}/candidates/{candidate_id}/promote")
+async def promote_discovery_research_candidate(run_id: str, candidate_id: str):
+    _check_auth()
+    try:
+        return _get_discovery_store().promote_research_candidate(run_id, candidate_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/discovery/candidates/{geo}/{keyword:path}/history")

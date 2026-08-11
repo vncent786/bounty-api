@@ -312,6 +312,17 @@ class DiscoveryStore:
                     tokens_estimated INTEGER NOT NULL DEFAULT 0 CHECK(tokens_estimated IN (0,1)),
                     created_at TEXT NOT NULL
                 );
+                CREATE TABLE IF NOT EXISTS research_findings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    research_run_id TEXT NOT NULL REFERENCES research_runs(id) ON DELETE CASCADE,
+                    candidate_id TEXT NOT NULL,
+                    topic TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    analysis_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_research_findings_run
+                    ON research_findings(research_run_id, candidate_id);
                 """
             )
             gate_columns = {
@@ -339,6 +350,10 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_shared_evidence_cache", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_11_research_findings", datetime.now(timezone.utc).isoformat()),
             )
 
     @staticmethod
@@ -923,6 +938,38 @@ class DiscoveryStore:
             if cursor.rowcount == 0:
                 raise ValueError(f"unknown research run: {run_id}")
         return self.get_research_run(run_id)  # type: ignore[return-value]
+
+    def save_findings(
+        self, run_id: str, candidate_id: str, topic: str,
+        status: str, analysis: Mapping[str, Any],
+    ) -> dict:
+        """Persist one candidate's analysis result as a research finding."""
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO research_findings
+                   (research_run_id, candidate_id, topic, status, analysis_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (run_id, candidate_id, topic, status, _json(analysis), now),
+            )
+            finding_id = int(cursor.lastrowid)
+        return {"id": finding_id, "research_run_id": run_id,
+                "candidate_id": candidate_id, "topic": topic,
+                "status": status, "analysis": dict(analysis), "created_at": now}
+
+    def list_findings(self, run_id: str) -> list[dict]:
+        """Return all persisted findings for one research run."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM research_findings
+                   WHERE research_run_id = ? ORDER BY id""", (run_id,),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["analysis"] = json.loads(item.pop("analysis_json"))
+            result.append(item)
+        return result
 
     def list_research_run_candidates(self, run_id: str) -> list[dict]:
         with self._connect() as connection:

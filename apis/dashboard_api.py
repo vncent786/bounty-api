@@ -627,6 +627,90 @@ async def promote_discovery_research_candidate(run_id: str, candidate_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
+@router.post("/discovery/research-runs/{run_id}/execute")
+async def execute_research_run(run_id: str):
+    """Execute a planned research run: collect conversations, analyze, persist findings.
+
+    Loads the persisted plan, builds real handlers with the source broker,
+    runs the StagedRunner, persists any findings, and updates run status.
+    Only runs with status 'planned' can be executed.
+    """
+    store = _get_discovery_store()
+    run = store.get_research_run(run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    if run["status"] not in ("planned",):
+        raise HTTPException(
+            status_code=409,
+            detail=f"Research run status is '{run['status']}', expected 'planned'",
+        )
+
+    from social_scraper.discovery.handlers import build_handlers
+    from social_scraper.discovery.staged_runner import StagedRunner
+
+    plan = run["plan"]
+    broker = _get_broker()
+
+    handlers, collected = build_handlers(
+        broker, plan, llm_call_fn=_llm_call,
+    )
+
+    runner = StagedRunner(handlers)
+
+    store.update_research_run(run_id, status="running")
+    try:
+        result = await runner.run(run_id, plan)
+    except Exception as exc:
+        store.update_research_run(run_id, status="error", error_category=str(exc)[:200])
+        raise HTTPException(status_code=502, detail=f"Execution failed: {exc}") from exc
+
+    # Persist findings from the shared collected dict
+    findings_saved = []
+    for candidate in plan.get("candidates", []):
+        cid = candidate.get("candidate_id", "")
+        findings_key = cid + ":findings"
+        if findings_key in collected:
+            analysis = collected[findings_key]
+            topic = str(candidate.get("candidate", {}).get("keyword") or cid)
+            finding = store.save_findings(
+                run_id, cid, topic,
+                analysis.get("status", "unknown"), analysis,
+            )
+            findings_saved.append(finding)
+
+    # Determine final run status from stage results
+    stage_statuses = []
+    for stage_name, stage_results in result.handler_results.items():
+        for cid, sr in stage_results.items():
+            stage_statuses.append(sr.status)
+    if any(s == "failed" for s in stage_statuses):
+        final_status = "partial"
+    elif any(s == "empty" for s in stage_statuses) and not findings_saved:
+        final_status = "complete"
+    else:
+        final_status = "complete"
+
+    store.update_research_run(run_id, status=final_status)
+
+    return {
+        "run_id": run_id,
+        "status": final_status,
+        "stages_executed": list(result.handler_results.keys()),
+        "findings_count": len(findings_saved),
+        "usage": [u.to_dict() for u in result.usages],
+    }
+
+
+@router.get("/discovery/research-runs/{run_id}/findings")
+async def get_research_run_findings(run_id: str):
+    """Return persisted findings for a completed research run."""
+    store = _get_discovery_store()
+    if store.get_research_run(run_id) is None:
+        raise HTTPException(status_code=404, detail="Research run not found")
+    findings = store.list_findings(run_id)
+    return {"run_id": run_id, "findings": findings}
+
+
 @router.get("/discovery/candidates/{geo}/{keyword:path}/history")
 async def get_discovery_candidate_history(geo: str, keyword: str):
     """Return persisted observations and explicit gaps for one candidate."""

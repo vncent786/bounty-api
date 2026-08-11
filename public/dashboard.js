@@ -343,6 +343,10 @@
       });
       state.researchRunId = run.id || run.run_id; toast(`Research plan created: ${state.researchRunId || 'saved'}`); renderFindings();
       if (state.selectedCandidate) renderCandidateDetail(state.selectedCandidate, state.candidates.indexOf(state.selectedCandidate));
+      const execBar = $('#explore-preview'); const execBtn = el('button', 'primary', 'Execute research run'); execBtn.style.marginLeft = '12px';
+      execBtn.addEventListener('click', executeResearchRun); execBar.append(execBtn);
+      const findBtn = el('button', 'quiet', 'Load findings'); findBtn.style.marginLeft = '8px';
+      findBtn.addEventListener('click', () => { showView('findings'); loadFindings(); }); execBar.append(findBtn);
     } catch (error) { showError(error.message); }
   }
 
@@ -354,8 +358,73 @@
     } catch (error) { showError(error.message); }
   }
 
+  async function executeResearchRun() {
+    if (!state.researchRunId) return;
+    const preview = $('#explore-preview');
+    const btn = $('[class*=primary]', preview);
+    if (btn) { btn.disabled = true; btn.textContent = 'Executing…'; }
+    preview.append(el('span', '', ' Live collection and analysis are running. This may take 30-90 seconds.'));
+    try {
+      const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
+      toast(`Run complete: ${result.status}, ${result.findings_count} findings`);
+      await loadFindings();
+      if (btn) { btn.textContent = 'Done'; }
+      preview.append(el('div', 'notice', `Status: ${result.status}. Stages: ${(result.stages_executed || []).join(', ')}. Findings: ${result.findings_count}.`));
+    } catch (error) {
+      showError(error.message);
+      if (btn) { btn.disabled = false; btn.textContent = 'Execute research run'; }
+    }
+  }
+
+  let persistedFindings = [];
+  async function loadFindings() {
+    if (!state.researchRunId) return;
+    const content = $('#findings-content');
+    loading(content, 'Loading persisted findings');
+    try {
+      const data = await api(`/discovery/research-runs/${enc(state.researchRunId)}/findings`);
+      persistedFindings = data.findings || [];
+      renderFindings();
+    } catch (error) {
+      content.replaceChildren(emptyState('Unavailable', 'Findings could not be loaded', error.message));
+    }
+  }
+
   function renderFindings() {
     const content = $('#findings-content'); content.replaceChildren();
+    if (persistedFindings.length) {
+      const heading = el('p', 'eyebrow', `Persisted findings from ${state.researchRunId || 'latest run'}`);
+      content.append(heading);
+      persistedFindings.forEach(finding => {
+        const analysis = finding.analysis || {};
+        const block = el('article', 'subject-block');
+        const title = el('h3', '', finding.topic || finding.candidate_id);
+        const badge = statusBadge(analysis.status || finding.status);
+        const dl = el('dl', 'definition-list');
+        append(dl,
+          el('dt', '', 'Behavior type'), el('dd', '', value(analysis.behavior_type)),
+          el('dt', '', 'Direction'), el('dd', '', value(analysis.direction)),
+          el('dt', '', 'Independent voices'), el('dd', '', count(analysis.independent_voice_count)),
+        );
+        append(block, title, badge);
+        if (analysis.summary) block.append(el('p', '', analysis.summary));
+        block.append(dl);
+        if (analysis.signals && analysis.signals.length) {
+          const sig = el('section', 'evidence-section'); sig.append(el('h3', '', 'Signals'));
+          analysis.signals.forEach(s => {
+            const rec = el('article', 'evidence-record');
+            rec.append(el('strong', '', `${s.kind} (${s.polarity})`), el('p', '', s.claim));
+            rec.append(el('span', 'mono', `${s.independent_voices} voices · ${s.thread_count} threads · confidence ${s.confidence}`));
+            sig.append(rec);
+          });
+          block.append(sig);
+        }
+        if (analysis.evidence && analysis.evidence.length) addDataSection(block, 'Evidence records', analysis.evidence, 'No evidence records returned.');
+        if (analysis.limitations && analysis.limitations.length) addDataSection(block, 'Limitations', analysis.limitations, 'No limitations reported.');
+        content.append(block);
+      });
+      return;
+    }
     if (!state.candidates.length) {
       const box = emptyState('Unavailable after reload', 'No current-session findings', 'The API does not expose a complete saved-findings collection. Run Explore to inspect actual results returned in this session.'); box.classList.add('bordered'); content.append(box); return;
     }

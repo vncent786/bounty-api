@@ -16,7 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -297,6 +297,11 @@ def _check_auth(authorization: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
+# Register authentication as a FastAPI dependency before routes are added. This
+# preserves open development mode while resolving Authorization from requests.
+router.dependencies.append(Depends(_check_auth))
+
+
 # ── Zone CRUD ──────────────────────────────────────────────
 
 class ZoneCreate(BaseModel):
@@ -310,7 +315,6 @@ class ZoneCreate(BaseModel):
 
 @router.get("/zones")
 async def list_zones():
-    _check_auth()
     registry = _get_registry()
     zones = registry.list_zones()
     return {"zones": [z.to_dict() for z in zones]}
@@ -318,7 +322,6 @@ async def list_zones():
 
 @router.post("/zones")
 async def create_zone(zone: ZoneCreate):
-    _check_auth()
     registry = _get_registry()
     from social_scraper.monitoring import Zone
     existing = registry.get_by_name(zone.name)
@@ -338,7 +341,6 @@ async def create_zone(zone: ZoneCreate):
 
 @router.delete("/zones/{zone_id}")
 async def delete_zone(zone_id: int):
-    _check_auth()
     registry = _get_registry()
     registry.delete(zone_id)
     return {"status": "deleted"}
@@ -346,7 +348,6 @@ async def delete_zone(zone_id: int):
 
 @router.post("/zones/{zone_id}/pause")
 async def pause_zone(zone_id: int):
-    _check_auth()
     registry = _get_registry()
     registry.update(zone_id, status="paused")
     return {"status": "paused"}
@@ -354,7 +355,6 @@ async def pause_zone(zone_id: int):
 
 @router.post("/zones/{zone_id}/resume")
 async def resume_zone(zone_id: int):
-    _check_auth()
     registry = _get_registry()
     registry.update(zone_id, status="active")
     return {"status": "active"}
@@ -380,7 +380,6 @@ def _set_job(zone_id: int, **kwargs):
 @router.post("/zones/{zone_id}/run")
 async def run_zone(zone_id: int):
     """Start zone collection as a background task. Returns immediately."""
-    _check_auth()
     registry = _get_registry()
     zone = registry.get(zone_id)
     if not zone:
@@ -457,7 +456,6 @@ async def _run_zone_background(zone_id: int, zone_name: str):
 @router.get("/zones/{zone_id}/status")
 async def zone_status(zone_id: int):
     """Get current/last run status for a zone."""
-    _check_auth()
     return _zone_jobs.get(zone_id, {
         "status": "idle", "step": "", "progress": 0,
         "started_at": None, "finished_at": None,
@@ -468,7 +466,6 @@ async def zone_status(zone_id: int):
 @router.get("/zones/{zone_id}/report")
 async def get_zone_report(zone_id: int, limit: int = Query(1)):
     """Get latest monitoring reports for a zone."""
-    _check_auth()
     registry = _get_registry()
     snapshots = registry.get_snapshots(zone_id, limit=limit)
     return {"snapshots": snapshots}
@@ -477,7 +474,6 @@ async def get_zone_report(zone_id: int, limit: int = Query(1)):
 @router.get("/zones/{zone_id}/diff")
 async def get_zone_diff(zone_id: int):
     """Get week-over-week diff for a zone."""
-    _check_auth()
     registry = _get_registry()
     snapshots = registry.get_snapshots(zone_id, limit=2)
     if len(snapshots) < 2:
@@ -507,7 +503,6 @@ async def discover_keywords(
     2. User filters (volume, growth, age, categories)
     3. Bounded social-source check and horizontal conversation analysis
     """
-    _check_auth()
     discovery = _get_discovery()
 
     cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
@@ -531,7 +526,6 @@ async def discover_keywords(
 @router.post("/discovery/research-runs", status_code=201)
 async def create_discovery_research_run(body: ResearchRunCreateRequest):
     """Persist a deterministic plan; live collection intentionally happens elsewhere."""
-    _check_auth()
     from social_scraper.discovery import ScanBudget
     from social_scraper.discovery.scheduler import DiscoveryScheduler
     try:
@@ -553,13 +547,11 @@ async def create_discovery_research_run(body: ResearchRunCreateRequest):
 
 @router.get("/discovery/research-runs")
 async def list_discovery_research_runs(workspace_id: Optional[str] = None):
-    _check_auth()
     return {"runs": _get_discovery_store().list_research_runs(workspace_id)}
 
 
 @router.get("/discovery/research-runs/{run_id}")
 async def get_discovery_research_run(run_id: str):
-    _check_auth()
     run = _get_discovery_store().get_research_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -568,7 +560,6 @@ async def get_discovery_research_run(run_id: str):
 
 @router.get("/discovery/research-runs/{run_id}/candidates")
 async def get_discovery_research_run_candidates(run_id: str):
-    _check_auth()
     store = _get_discovery_store()
     if store.get_research_run(run_id) is None:
         raise HTTPException(status_code=404, detail="Research run not found")
@@ -577,7 +568,6 @@ async def get_discovery_research_run_candidates(run_id: str):
 
 @router.get("/discovery/research-runs/{run_id}/candidates/{candidate_id}/history")
 async def get_discovery_research_candidate_stage_history(run_id: str, candidate_id: str):
-    _check_auth()
     store = _get_discovery_store()
     candidates = store.list_research_run_candidates(run_id)
     if not any(row["candidate_id"] == candidate_id for row in candidates):
@@ -588,7 +578,6 @@ async def get_discovery_research_candidate_stage_history(run_id: str, candidate_
 
 @router.post("/discovery/research-runs/{run_id}/candidates/{candidate_id}/promote")
 async def promote_discovery_research_candidate(run_id: str, candidate_id: str):
-    _check_auth()
     try:
         return _get_discovery_store().promote_research_candidate(run_id, candidate_id)
     except ValueError as exc:
@@ -598,7 +587,6 @@ async def promote_discovery_research_candidate(run_id: str, candidate_id: str):
 @router.get("/discovery/candidates/{geo}/{keyword:path}/history")
 async def get_discovery_candidate_history(geo: str, keyword: str):
     """Return persisted observations and explicit gaps for one candidate."""
-    _check_auth()
     history = _get_discovery_store().get_candidate_history(geo, keyword)
     if history["series"] is None:
         raise HTTPException(status_code=404, detail="Discovery candidate not found")
@@ -608,7 +596,6 @@ async def get_discovery_candidate_history(geo: str, keyword: str):
 @router.get("/discovery/runs/{run_id}/usage")
 async def get_discovery_run_usage(run_id: str):
     """Return persisted cost receipts and additive totals for one Discovery run."""
-    _check_auth()
     store = _get_discovery_store()
     if not store.discovery_run_exists(run_id):
         raise HTTPException(status_code=404, detail="Discovery run not found")
@@ -640,7 +627,6 @@ async def get_discovery_run_usage(run_id: str):
 @router.get("/discovery/lenses/presets")
 async def discovery_lens_presets():
     """Return neutral and use-case views without assigning universal scores."""
-    _check_auth()
     from social_scraper.lenses import list_lens_presets
     return {
         "default_preset_id": "horizontal-explorer",
@@ -651,7 +637,6 @@ async def discovery_lens_presets():
 # Workspace project and durable-action APIs are path-scoped by workspace at every level.
 @router.get("/workspaces/{workspace_id}/projects")
 async def list_workspace_projects(workspace_id: str, include_archived: bool = False):
-    _check_auth()
     return {"projects": _workspace_call(
         "list_projects", workspace_id, include_archived=include_archived
     )}
@@ -659,7 +644,6 @@ async def list_workspace_projects(workspace_id: str, include_archived: bool = Fa
 
 @router.post("/workspaces/{workspace_id}/projects", status_code=201)
 async def create_workspace_project(workspace_id: str, body: ProjectCreateRequest):
-    _check_auth()
     first = body.first_subject.model_dump() if body.first_subject is not None else None
     return _workspace_service_call(
         "create_project", workspace_id, name=body.name, description=body.description,
@@ -669,7 +653,6 @@ async def create_workspace_project(workspace_id: str, body: ProjectCreateRequest
 
 @router.get("/workspaces/{workspace_id}/projects/{project_id}")
 async def get_workspace_project(workspace_id: str, project_id: str):
-    _check_auth()
     return _workspace_call("get_project", workspace_id, project_id)
 
 
@@ -678,7 +661,6 @@ async def get_workspace_project(workspace_id: str, project_id: str):
 async def update_workspace_project(
     workspace_id: str, project_id: str, body: ProjectUpdateRequest
 ):
-    _check_auth()
     return _workspace_call(
         "update_project", workspace_id, project_id, **body.model_dump(exclude_unset=True)
     )
@@ -686,7 +668,6 @@ async def update_workspace_project(
 
 @router.delete("/workspaces/{workspace_id}/projects/{project_id}")
 async def archive_workspace_project(workspace_id: str, project_id: str):
-    _check_auth()
     return _workspace_call("archive_project", workspace_id, project_id)
 
 
@@ -694,7 +675,6 @@ async def archive_workspace_project(workspace_id: str, project_id: str):
 async def list_project_subjects(
     workspace_id: str, project_id: str, include_inactive: bool = True
 ):
-    _check_auth()
     return {"subjects": _workspace_call(
         "list_subjects", workspace_id, project_id, include_inactive=include_inactive
     )}
@@ -704,7 +684,6 @@ async def list_project_subjects(
 async def create_project_subject(
     workspace_id: str, project_id: str, body: SubjectCreateRequest
 ):
-    _check_auth()
     return _workspace_service_call(
         "create_subject", workspace_id, project_id, **body.model_dump()
     )
@@ -712,7 +691,6 @@ async def create_project_subject(
 
 @router.get("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
 async def get_project_subject(workspace_id: str, project_id: str, subject_id: str):
-    _check_auth()
     return _workspace_call("get_subject", workspace_id, project_id, subject_id)
 
 
@@ -721,7 +699,6 @@ async def get_project_subject(workspace_id: str, project_id: str, subject_id: st
 async def update_project_subject(
     workspace_id: str, project_id: str, subject_id: str, body: SubjectUpdateRequest
 ):
-    _check_auth()
     return _workspace_service_call(
         "update_subject", workspace_id, project_id, subject_id,
         **body.model_dump(exclude_unset=True),
@@ -730,7 +707,6 @@ async def update_project_subject(
 
 @router.delete("/workspaces/{workspace_id}/projects/{project_id}/subjects/{subject_id}")
 async def archive_project_subject(workspace_id: str, project_id: str, subject_id: str):
-    _check_auth()
     return _workspace_call("archive_subject", workspace_id, project_id, subject_id)
 
 
@@ -739,7 +715,6 @@ _ALIAS_PATH = "/workspaces/{workspace_id}/projects/{project_id}/subjects/{subjec
 
 @router.get(_ALIAS_PATH)
 async def list_subject_aliases(workspace_id: str, project_id: str, subject_id: str):
-    _check_auth()
     return {"aliases": _workspace_call(
         "list_aliases", workspace_id, project_id, subject_id
     )}
@@ -749,7 +724,6 @@ async def list_subject_aliases(workspace_id: str, project_id: str, subject_id: s
 async def create_subject_alias(
     workspace_id: str, project_id: str, subject_id: str, body: AliasCreateRequest
 ):
-    _check_auth()
     return _workspace_call(
         "create_alias", workspace_id, project_id, subject_id, body.alias, body.kind
     )
@@ -759,7 +733,6 @@ async def create_subject_alias(
 async def get_subject_alias(
     workspace_id: str, project_id: str, subject_id: str, alias_id: str
 ):
-    _check_auth()
     return _workspace_call(
         "get_alias", workspace_id, project_id, subject_id, alias_id
     )
@@ -769,7 +742,6 @@ async def get_subject_alias(
 async def delete_subject_alias(
     workspace_id: str, project_id: str, subject_id: str, alias_id: str
 ):
-    _check_auth()
     _workspace_call("delete_alias", workspace_id, project_id, subject_id, alias_id)
     return None
 
@@ -782,7 +754,6 @@ async def list_project_actions(
     workspace_id: str, project_id: str, status: Optional[str] = None,
     subject_id: Optional[str] = None,
 ):
-    _check_auth()
     return {"actions": _workspace_call(
         "list_actions", workspace_id, project_id, status=status, subject_id=subject_id
     )}
@@ -792,7 +763,6 @@ async def list_project_actions(
 async def create_project_action(
     workspace_id: str, project_id: str, body: ActionCreateRequest
 ):
-    _check_auth()
     values = body.model_dump()
     action_type = values.pop("action_type")
     action, created = _workspace_service_call(
@@ -803,33 +773,28 @@ async def create_project_action(
 
 @router.get(_ACTION_PATH + "/{action_id}")
 async def get_project_action(workspace_id: str, project_id: str, action_id: str):
-    _check_auth()
     return _workspace_call("get_action", workspace_id, project_id, action_id)
 
 
 @router.post(_ACTION_PATH + "/{action_id}/cancel")
 @router.delete(_ACTION_PATH + "/{action_id}")
 async def cancel_project_action(workspace_id: str, project_id: str, action_id: str):
-    _check_auth()
     return _workspace_call("cancel_action", workspace_id, project_id, action_id)
 
 
 # Definition CRUD is deliberately configuration-only: no broker, LLM, or usage receipt.
 @router.get("/workspaces/{workspace_id}/lenses")
 async def list_workspace_lenses(workspace_id: str, include_archived: bool = False):
-    _check_auth()
     return _lens_store_call("list_lenses", workspace_id, include_archived=include_archived)
 
 
 @router.post("/workspaces/{workspace_id}/lenses", status_code=201)
 async def create_workspace_lens(workspace_id: str, body: ResearchLensCreateRequest):
-    _check_auth()
     return _lens_store_call("create_lens", workspace_id, body.name, body.description, body.spec)
 
 
 @router.get("/workspaces/{workspace_id}/lenses/{lens_id}")
 async def get_workspace_lens(workspace_id: str, lens_id: str, include_archived: bool = False):
-    _check_auth()
     return _lens_store_call(
         "get_lens", workspace_id, lens_id, include_archived=include_archived
     )
@@ -837,7 +802,6 @@ async def get_workspace_lens(workspace_id: str, lens_id: str, include_archived: 
 
 @router.get("/workspaces/{workspace_id}/lenses/{lens_id}/versions")
 async def list_workspace_lens_versions(workspace_id: str, lens_id: str):
-    _check_auth()
     return _lens_store_call("list_lens_versions", workspace_id, lens_id)
 
 
@@ -847,7 +811,6 @@ async def list_workspace_lens_versions(workspace_id: str, lens_id: str):
 async def create_workspace_lens_version(
     workspace_id: str, lens_id: str, body: ResearchLensVersionRequest
 ):
-    _check_auth()
     return _lens_store_call(
         "create_lens_version", workspace_id, lens_id, body.spec,
         name=body.name, description=body.description,
@@ -856,7 +819,6 @@ async def create_workspace_lens_version(
 
 @router.get("/workspaces/{workspace_id}/lenses/{lens_id}/versions/{version}")
 async def get_workspace_lens_version(workspace_id: str, lens_id: str, version: int):
-    _check_auth()
     return _lens_store_call("get_lens_version", workspace_id, lens_id, version)
 
 
@@ -864,7 +826,6 @@ async def get_workspace_lens_version(workspace_id: str, lens_id: str, version: i
 async def duplicate_workspace_lens(
     workspace_id: str, lens_id: str, body: Optional[DuplicateLensRequest] = None
 ):
-    _check_auth()
     return _lens_store_call(
         "duplicate_lens", workspace_id, lens_id,
         name=body.name if body is not None else None,
@@ -874,13 +835,11 @@ async def duplicate_workspace_lens(
 @router.post("/workspaces/{workspace_id}/lenses/{lens_id}/archive")
 @router.delete("/workspaces/{workspace_id}/lenses/{lens_id}")
 async def archive_workspace_lens(workspace_id: str, lens_id: str):
-    _check_auth()
     return _lens_store_call("archive_lens", workspace_id, lens_id)
 
 
 @router.get("/workspaces/{workspace_id}/fields")
 async def list_workspace_fields(workspace_id: str, include_archived: bool = False):
-    _check_auth()
     return _lens_store_call(
         "list_custom_fields", workspace_id, include_archived=include_archived
     )
@@ -888,7 +847,6 @@ async def list_workspace_fields(workspace_id: str, include_archived: bool = Fals
 
 @router.post("/workspaces/{workspace_id}/fields", status_code=201)
 async def create_workspace_field(workspace_id: str, body: CustomFieldCreateRequest):
-    _check_auth()
     return _lens_store_call(
         "create_custom_field", workspace_id, key=body.key, label=body.label,
         description=body.description, data_type=body.data_type,
@@ -901,7 +859,6 @@ async def create_workspace_field(workspace_id: str, body: CustomFieldCreateReque
 async def get_workspace_field(
     workspace_id: str, field_id: str, include_archived: bool = False
 ):
-    _check_auth()
     return _lens_store_call(
         "get_custom_field", workspace_id, field_id, include_archived=include_archived
     )
@@ -910,14 +867,12 @@ async def get_workspace_field(
 @router.post("/workspaces/{workspace_id}/fields/{field_id}/archive")
 @router.delete("/workspaces/{workspace_id}/fields/{field_id}")
 async def archive_workspace_field(workspace_id: str, field_id: str):
-    _check_auth()
     return _lens_store_call("archive_custom_field", workspace_id, field_id)
 
 
 @router.post("/discovery/lenses/evaluate")
 async def evaluate_discovery_candidate_lens(body: DiscoveryLensEvaluationRequest):
     """Evaluate one persisted candidate under a versioned, user-defined lens."""
-    _check_auth()
     from social_scraper.discovery.ranking import features_from_analysis
     from social_scraper.lenses import LensCriterion, ResearchLensSpec, evaluate_lens
 
@@ -975,7 +930,6 @@ async def evaluate_discovery_candidate_lens(body: DiscoveryLensEvaluationRequest
 @router.get("/alerts")
 async def get_recent_alerts():
     """Get recent alerts across all zones."""
-    _check_auth()
     registry = _get_registry()
     zones = registry.list_zones()
     monitor = _get_monitor()
@@ -999,7 +953,6 @@ async def get_recent_alerts():
 @router.get("/stats")
 async def get_stats():
     """Dashboard overview stats."""
-    _check_auth()
     registry = _get_registry()
     zones = registry.list_zones()
     active = [z for z in zones if z.status == "active"]

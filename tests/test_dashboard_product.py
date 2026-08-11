@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -23,6 +25,9 @@ def _isolated_client(tmp_path, monkeypatch, token=None):
         monkeypatch.delenv("BOUNTY_DASHBOARD_TOKEN", raising=False)
     else:
         monkeypatch.setenv("BOUNTY_DASHBOARD_TOKEN", token)
+    monkeypatch.setenv("BOUNTY_ENV", "development")
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
     app = FastAPI()
     app.include_router(dashboard_api.router)
     return TestClient(app)
@@ -39,11 +44,21 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
         "Projects", "Explore", "Findings", "Lenses", "Monitors", "Usage"
     ))
     assert "Searches never run on page load" in html
+    assert "Candidate checks" in html
+    assert "Deep reads" not in html
     assert "sample" not in html.casefold()
     for forbidden in ("horizontal", "ontology", "candidate intelligence"):
         assert forbidden not in html.casefold()
     assert "BOUNTY_DASHBOARD_TOKEN" not in html
     assert DASHBOARD_HTML == html
+
+
+def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    assert "scrollIntoView" not in script
+    assert "required_depth: 'horizontal_analysis'" in script
 
 
 def test_dashboard_bearer_dependency_and_open_development_mode(tmp_path, monkeypatch):
@@ -57,6 +72,36 @@ def test_dashboard_bearer_dependency_and_open_development_mode(tmp_path, monkeyp
 
     open_client = _isolated_client(tmp_path, monkeypatch)
     assert open_client.get(path).status_code == 200
+
+
+def test_dashboard_fails_closed_when_mode_and_token_are_unset(tmp_path, monkeypatch):
+    client = _isolated_client(tmp_path, monkeypatch)
+    monkeypatch.delenv("BOUNTY_ENV", raising=False)
+    response = client.get("/dashboard/api/workspaces/default/projects")
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Dashboard authentication is not configured"
+
+
+def test_discover_surfaces_persisted_collection_failure(tmp_path, monkeypatch):
+    client = _isolated_client(tmp_path, monkeypatch)
+    run_id = dashboard_api._discovery_store.record_feed(
+        geo="US", observed_at=datetime.now(timezone.utc), candidates=[], status="error", comparable=False,
+        error_category="collection:TimeoutError",
+    )
+
+    class FailedDiscovery:
+        last_run_id = run_id
+
+        async def scan_all(self, **_kwargs):
+            return []
+
+    monkeypatch.setattr(dashboard_api, "_discovery", FailedDiscovery())
+    response = client.get("/dashboard/api/discover?geo=US")
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail["run_id"] == run_id
+    assert detail["status"] == "error"
+    assert detail["error_category"] == "collection:TimeoutError"
 
 
 def test_core_project_subject_and_monitor_action_contract(tmp_path, monkeypatch):

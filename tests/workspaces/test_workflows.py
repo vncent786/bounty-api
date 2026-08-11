@@ -130,6 +130,7 @@ def test_workspace_api_exact_scope_and_crud(tmp_path, monkeypatch):
     monkeypatch.setattr(dashboard_api, "_lens_store", lenses)
     monkeypatch.setattr(dashboard_api, "_discovery_store", discovery)
     monkeypatch.delenv("BOUNTY_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.setenv("BOUNTY_ENV", "test")
     app = FastAPI()
     app.include_router(dashboard_api.router)
     client = TestClient(app)

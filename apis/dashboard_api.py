@@ -287,10 +287,16 @@ async def _llm_call(system_prompt: str, user_prompt: str) -> str:
 
 
 def _check_auth(authorization: Optional[str] = Header(None)):
-    """Simple bearer token auth."""
+    """Fail closed unless a token or explicit local development mode is configured."""
     token = os.getenv("BOUNTY_DASHBOARD_TOKEN", "")
     if not token:
-        return  # No token configured = open access (dev mode)
+        environment = os.getenv("BOUNTY_ENV", os.getenv("ENVIRONMENT", "")).casefold()
+        if environment in {"development", "dev", "local", "test"}:
+            return
+        raise HTTPException(
+            status_code=503,
+            detail="Dashboard authentication is not configured",
+        )
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Unauthorized")
     if authorization[7:] != token:
@@ -516,10 +522,26 @@ async def discover_keywords(
         categories=cat_list,
         gate_only=gate_only,
     )
+    run = (
+        _get_discovery_store().get_discovery_run(discovery.last_run_id)
+        if discovery.last_run_id else None
+    )
+    if run and run["status"] == "error":
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "message": "Discovery source collection failed",
+                "run_id": run["id"],
+                "status": run["status"],
+                "error_category": run["error_category"],
+                "source_health": run["source_health"],
+            },
+        )
     return {
         "keywords": [k.to_dict() for k in keywords[:50]],
         "total": len(keywords),
         "run_id": discovery.last_run_id,
+        "run": run,
     }
 
 
@@ -528,12 +550,33 @@ async def create_discovery_research_run(body: ResearchRunCreateRequest):
     """Persist a deterministic plan; live collection intentionally happens elsewhere."""
     from social_scraper.discovery import ScanBudget
     from social_scraper.discovery.scheduler import DiscoveryScheduler
+    from social_scraper.lenses.storage import LensStoreError
     try:
         requested = ScanBudget.from_dict(body.budget)
+        resolved_depth = body.resolved_depth()
+        lens_reference = None
+        if body.lens is not None:
+            lens_id = str(body.lens.get("id") or "").strip()
+            try:
+                lens_version = int(body.lens.get("version"))
+            except (TypeError, ValueError) as exc:
+                raise ValueError("lens version is required") from exc
+            if not lens_id:
+                raise ValueError("lens id is required")
+            version = _get_lens_store().get_lens_version(
+                body.workspace_id, lens_id, lens_version
+            )
+            resolved_depth = version["compiled_requirements"]["required_depth"]
+            lens_reference = {
+                "id": lens_id,
+                "version": lens_version,
+                "required_depth": resolved_depth,
+            }
         plan = DiscoveryScheduler().plan(
-            body.candidates, requested, body.resolved_depth(),
+            body.candidates, requested, resolved_depth,
             workspace_id=body.workspace_id, metric_order=body.priority_metrics,
         )
+        plan["lens"] = lens_reference
         return _get_discovery_store().create_research_run(
             workspace_id=body.workspace_id,
             source_discovery_run_id=body.source_discovery_run_id,
@@ -541,7 +584,7 @@ async def create_discovery_research_run(body: ResearchRunCreateRequest):
             effective_budget=plan["effective_budget"],
             plan=plan,
         )
-    except (TypeError, ValueError) as exc:
+    except (TypeError, ValueError, LensStoreError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 

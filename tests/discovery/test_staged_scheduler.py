@@ -67,6 +67,7 @@ def test_store_history_and_api_plan_promote(tmp_path, monkeypatch):
     store = DiscoveryStore(tmp_path / "research.db")
     monkeypatch.setattr(dashboard_api, "_discovery_store", store)
     monkeypatch.delenv("BOUNTY_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.setenv("BOUNTY_ENV", "test")
     app = FastAPI()
     app.include_router(dashboard_api.router)
     client = TestClient(app)

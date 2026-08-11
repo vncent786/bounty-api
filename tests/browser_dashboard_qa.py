@@ -24,6 +24,36 @@ def check_page(page, mobile=False):
     assert page.locator("img[alt='Bounty']:visible").count() >= 1
     assert page.get_by_text("Searches never run on page load.").count() == 1
 
+    if not mobile:
+        page.get_by_role("button", name="Lenses", exact=True).click()
+        page.get_by_role("button", name="New lens").click()
+        lens_dialog = page.get_by_role("dialog")
+        lens_dialog.get_by_label("Name").fill("Opportunity signals")
+        lens_dialog.get_by_label("Description").fill("Evidence of unmet needs")
+        lens_dialog.get_by_role("button", name="Save lens").click()
+        page.get_by_text("Opportunity signals", exact=True).wait_for()
+
+        page.get_by_role("button", name="Projects", exact=True).click()
+        page.get_by_role("button", name="New project").click()
+        dialog = page.get_by_role("dialog")
+        dialog.get_by_label("Name").fill("QA research project")
+        dialog.get_by_label("Description").fill("Browser contract check")
+        dialog.get_by_label("Default region").fill("US")
+        dialog.get_by_role("button", name="Create project").click()
+        page.get_by_role("heading", name="QA research project", exact=True).wait_for()
+        page.get_by_role("button", name="Add subject").click()
+        subject_dialog = page.get_by_role("dialog")
+        subject_dialog.get_by_label("Name").fill("Transit conversations")
+        subject_dialog.get_by_label("Lens").select_option(label="Opportunity signals · v1")
+        subject_dialog.get_by_role("button", name="Add subject").click()
+        page.get_by_text("Transit conversations", exact=True).wait_for()
+        page.get_by_role("button", name="Monitors", exact=True).click()
+        page.get_by_role("cell", name="Transit conversations", exact=True).wait_for()
+        monitor_row = page.get_by_role("row").filter(has_text="Transit conversations")
+        monitor_row.get_by_role("button", name="Pause", exact=True).click()
+        monitor_row = page.get_by_role("row").filter(has_text="Transit conversations")
+        monitor_row.get_by_text("paused", exact=True).wait_for()
+
     if mobile:
         menu = page.get_by_role("button", name="Menu")
         assert menu.is_visible()
@@ -44,6 +74,7 @@ def check_page(page, mobile=False):
     page.get_by_role("button", name="Cancel").click()
 
     page.screenshot(path=str(ARTIFACTS / ("dashboard-mobile.png" if mobile else "dashboard-desktop.png")), full_page=True)
+    assert page.evaluate("document.documentElement.scrollWidth <= window.innerWidth"), "horizontal overflow"
     assert not console_errors, f"browser console errors: {console_errors}"
 
 

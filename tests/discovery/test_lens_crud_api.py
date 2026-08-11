@@ -13,6 +13,7 @@ def _client(tmp_path, monkeypatch):
     DiscoveryStore(db_path)
     monkeypatch.setattr(dashboard_api, "_lens_store", LensStore(db_path))
     monkeypatch.delenv("BOUNTY_DASHBOARD_TOKEN", raising=False)
+    monkeypatch.setenv("BOUNTY_ENV", "test")
     monkeypatch.setattr(
         dashboard_api, "_get_broker",
         lambda: (_ for _ in ()).throw(AssertionError("source invoked")),

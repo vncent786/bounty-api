@@ -625,6 +625,19 @@ class DiscoveryStore:
             ).fetchone()
         return row is not None
 
+    def get_discovery_run(self, run_id: str) -> dict | None:
+        """Return persisted run truth, including explicit failure/comparability state."""
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM discovery_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+        if row is None:
+            return None
+        item = dict(row)
+        item["comparable"] = bool(item["comparable"])
+        item["source_health"] = json.loads(item.pop("source_health_json") or "[]")
+        return item
+
     def record_stage_usage(
         self,
         usage: StageUsage | Mapping[str, Any] | str | None = None,

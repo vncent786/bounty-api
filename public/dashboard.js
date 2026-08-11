@@ -6,7 +6,7 @@
     workspace: localStorage.getItem('bounty.workspace') || 'default',
     projects: [], subjects: new Map(), project: null, lenses: [],
     candidates: [], selectedCandidate: null, selectedForPlan: new Set(),
-    discoveryRunId: null, researchRunId: null,
+    discoveryRunId: null, discoveryRunStatus: null, researchRunId: null, workspaceEpoch: 0,
   };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -39,7 +39,6 @@
     const node = $('#global-error');
     node.textContent = message;
     node.classList.remove('hidden');
-    node.scrollIntoView({ block: 'nearest' });
   }
 
   async function api(path, options = {}, retried = false) {
@@ -62,7 +61,12 @@
     }
     if (!response.ok) {
       let detail = `Request failed (${response.status})`;
-      try { const body = await response.json(); detail = body.detail || detail; } catch (_) { /* no JSON body */ }
+      try {
+        const body = await response.json();
+        detail = typeof body.detail === 'object'
+          ? [body.detail.message, body.detail.error_category].filter(Boolean).join(': ')
+          : body.detail || detail;
+      } catch (_) { /* no JSON body */ }
       throw new Error(detail);
     }
     if (response.status === 204) return null;
@@ -81,11 +85,19 @@
 
   function showView(name) {
     $$('.view').forEach(view => view.classList.toggle('active', view.id === `view-${name}`));
-    $$('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === name));
+    $$('.nav-item').forEach(item => {
+      const active = item.dataset.view === name;
+      item.classList.toggle('active', active);
+      active ? item.setAttribute('aria-current', 'page') : item.removeAttribute('aria-current');
+    });
     $('#sidebar').classList.remove('open');
     $('#menu-toggle').setAttribute('aria-expanded', 'false');
     if (name === 'projects') loadProjects();
     if (name === 'lenses') loadLenses();
+    if (name === 'explore') {
+      const epoch = state.workspaceEpoch;
+      ensureLenses().catch(error => { if (epoch === state.workspaceEpoch) showError(error.message); });
+    }
     if (name === 'monitors') renderMonitors();
     if (name === 'findings') renderFindings();
     history.replaceState(null, '', `#${name}`);
@@ -98,9 +110,11 @@
 
   async function loadProjects(selectId) {
     const list = $('#project-list');
+    const epoch = state.workspaceEpoch;
     loading(list, 'Loading projects');
     try {
       const data = await api(`${workspacePath()}/projects`);
+      if (epoch !== state.workspaceEpoch) return;
       state.projects = data.projects || [];
       $('#project-count').textContent = `${state.projects.length} ${state.projects.length === 1 ? 'project' : 'projects'}`;
       renderProjects();
@@ -111,7 +125,7 @@
         $('#project-detail').replaceChildren(emptyState('No selection', 'Select a project', 'Subjects, status, and research actions appear here.'));
       }
     } catch (error) {
-      list.replaceChildren(emptyState('Unavailable', 'Projects could not be loaded', error.message, true));
+      if (epoch === state.workspaceEpoch) list.replaceChildren(emptyState('Unavailable', 'Projects could not be loaded', error.message, true));
     }
   }
 
@@ -135,13 +149,15 @@
     state.project = state.projects.find(project => project.id === id) || null;
     renderProjects();
     const detail = $('#project-detail');
+    const epoch = state.workspaceEpoch;
     loading(detail, 'Loading project subjects');
     try {
       const data = await api(`${projectPath(id)}/subjects`);
+      if (epoch !== state.workspaceEpoch || state.project?.id !== id) return;
       state.subjects.set(id, data.subjects || []);
       renderProjectDetail();
     } catch (error) {
-      detail.replaceChildren(emptyState('Unavailable', 'Subjects could not be loaded', error.message));
+      if (epoch === state.workspaceEpoch && state.project?.id === id) detail.replaceChildren(emptyState('Unavailable', 'Subjects could not be loaded', error.message));
     }
   }
 
@@ -155,7 +171,7 @@
     append(intro, el('p', 'eyebrow', `Project · ${value(project.status)}`), el('h2', '', project.name), el('p', '', project.description || 'No description provided.'));
     const actions = el('div', 'actions');
     const add = el('button', 'primary', 'Add subject');
-    add.addEventListener('click', () => $('#subject-dialog').showModal());
+    add.addEventListener('click', async () => { try { await ensureLenses(); $('#subject-dialog').showModal(); } catch (error) { showError(error.message); } });
     const archive = el('button', 'quiet danger', 'Archive');
     archive.addEventListener('click', archiveProject);
     append(actions, add, archive); append(head, intro, actions); detail.append(head);
@@ -196,7 +212,9 @@
     event.preventDefault();
     if (!state.project) return;
     const form = event.currentTarget; const fields = new FormData(form);
-    const payload = { name: fields.get('name').trim(), description: fields.get('description').trim(), geo: fields.get('geo').trim(), cadence_minutes: Number(fields.get('cadence_minutes')) };
+    const lensId = fields.get('lens_id');
+    const lens = state.lenses.find(item => item.id === lensId);
+    const payload = { name: fields.get('name').trim(), description: fields.get('description').trim(), geo: fields.get('geo').trim(), cadence_minutes: Number(fields.get('cadence_minutes')), lens_id: lensId || null, lens_version: lens ? Number(lens.latest_version?.version || lens.latest_version_number) : null };
     try {
       await api(`${projectPath()}/subjects`, { method: 'POST', body: JSON.stringify(payload) });
       $('#subject-dialog').close(); form.reset(); form.elements.cadence_minutes.value = 10080; toast('Subject added'); await selectProject(state.project.id);
@@ -223,9 +241,12 @@
       const data = await api(`/discover?${query}`);
       state.candidates = data.keywords || [];
       state.discoveryRunId = data.run_id || null;
+      state.discoveryRunStatus = data.run?.status || null;
       state.selectedCandidate = null; state.selectedForPlan.clear();
       $('#usage-run').value = state.discoveryRunId || '';
-      $('#explore-preview').textContent = state.discoveryRunId ? `Completed discovery run ${state.discoveryRunId}. Results are held in this browser session.` : 'Search completed, but no run ID was returned. Usage is unavailable.';
+      $('#explore-preview').textContent = state.discoveryRunStatus === 'complete'
+        ? `Completed discovery run ${state.discoveryRunId}. Results are held in this browser session.`
+        : `Search returned ${state.candidates.length} results, but persisted completion status was not available.`;
       renderExploreResults(); renderFindings();
     } catch (error) {
       results.replaceChildren(emptyState('Failed', 'Search did not complete', error.message, true));
@@ -234,7 +255,7 @@
   }
 
   function candidateName(candidate) { return candidate.keyword || candidate.name || candidate.query || candidate.id || 'Unnamed result'; }
-  function candidateId(candidate, index) { return String(candidate.candidate_id || candidate.id || candidate.keyword || candidate.name || index).trim().toLowerCase(); }
+  function candidateId(candidate, index) { return String(candidate._plannedId || candidate.candidate_id || candidate.id || candidate.keyword || candidate.name || index).trim().toLowerCase().split(/\s+/).join(' '); }
 
   function renderExploreResults() {
     const list = $('#explore-results'); list.replaceChildren();
@@ -311,9 +332,15 @@
     const chosen = state.candidates.filter((candidate, index) => state.selectedForPlan.has(candidateId(candidate, index)));
     const budget = { root_probe_candidates: 20, deep_read_candidates: 5, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
     budget[['horiz', 'ontal_llm_candidates'].join('')] = 5;
-    const payload = { workspace_id: state.workspace, source_discovery_run_id: state.discoveryRunId, candidates: chosen, required_depth: 'candidate', budget };
+    const selectedLens = state.lenses.find(lens => lens.id === $('#explore-lens').value);
+    const lensDepth = selectedLens?.latest_version?.compiled_requirements?.required_depth || null;
+    const payload = { workspace_id: state.workspace, source_discovery_run_id: state.discoveryRunId, candidates: chosen, required_depth: 'horizontal_analysis', lens_required_depth: lensDepth, lens: selectedLens ? { id: selectedLens.id, version: selectedLens.latest_version?.version || selectedLens.latest_version_number, required_depth: lensDepth } : null, budget };
     try {
       const run = await api('/discovery/research-runs', { method: 'POST', body: JSON.stringify(payload) });
+      (run.plan?.candidates || []).forEach(planned => {
+        const original = chosen.find(candidate => candidateId(candidate, 0) === planned.candidate_id);
+        if (original) original._plannedId = planned.candidate_id;
+      });
       state.researchRunId = run.id || run.run_id; toast(`Research plan created: ${state.researchRunId || 'saved'}`); renderFindings();
       if (state.selectedCandidate) renderCandidateDetail(state.selectedCandidate, state.candidates.indexOf(state.selectedCandidate));
     } catch (error) { showError(error.message); }
@@ -347,9 +374,26 @@
   }
 
   async function loadLenses() {
-    const target = $('#lens-list'); loading(target, 'Loading lenses');
-    try { state.lenses = await api(`${workspacePath()}/lenses`); renderLenses(); }
-    catch (error) { target.replaceChildren(emptyState('Unavailable', 'Lenses could not be loaded', error.message, true)); }
+    const target = $('#lens-list'); const epoch = state.workspaceEpoch; loading(target, 'Loading lenses');
+    try { await ensureLenses(true); if (epoch === state.workspaceEpoch) renderLenses(); }
+    catch (error) { if (epoch === state.workspaceEpoch) target.replaceChildren(emptyState('Unavailable', 'Lenses could not be loaded', error.message, true)); }
+  }
+
+  async function ensureLenses(refresh = false) {
+    if (refresh || !state.lenses.length) {
+      const epoch = state.workspaceEpoch;
+      const lenses = await api(`${workspacePath()}/lenses`);
+      if (epoch !== state.workspaceEpoch) return state.lenses;
+      state.lenses = lenses;
+    }
+    const options = state.lenses.map(lens => ({ value: lens.id, label: `${lens.name} · v${value(lens.latest_version?.version || lens.latest_version_number)}` }));
+    [$('#explore-lens'), $('#subject-form select[name=lens_id]')].filter(Boolean).forEach(select => {
+      const current = select.value; select.replaceChildren();
+      const none = el('option', '', 'No lens'); none.value = ''; select.append(none);
+      options.forEach(item => { const option = el('option', '', item.label); option.value = item.value; select.append(option); });
+      if ([...select.options].some(option => option.value === current)) select.value = current;
+    });
+    return state.lenses;
   }
 
   function renderLenses() {
@@ -384,15 +428,16 @@
     } catch (error) { showError(error.message); }
   }
 
-  function resetLensForm() { const form = $('#lens-form'); form.reset(); form.elements.lens_id.value = ''; form.elements.spec.value = '{"objective":"","criteria":[]}'; $('#lens-dialog-title').textContent = 'Create lens'; }
+  function resetLensForm() { const form = $('#lens-form'); form.reset(); form.elements.lens_id.value = ''; form.elements.spec.value = '{"objective":"Find unmet needs","criteria":[{"criterion_id":"unmet_need","label":"Unmet need","feature_key":"unmet_need","mode":"display","weight":0,"missing_policy":"keep_unknown"}]}'; $('#lens-dialog-title').textContent = 'Create lens'; }
   async function duplicateLens(lens) { const name = prompt('Name for the duplicate', `${lens.name} copy`); if (!name) return; try { await api(`${workspacePath()}/lenses/${enc(lens.id)}/duplicate`, { method: 'POST', body: JSON.stringify({ name }) }); toast('Lens duplicated'); await loadLenses(); } catch (error) { showError(error.message); } }
   async function archiveLens(lens) { if (!confirm(`Archive “${lens.name}”?`)) return; try { await api(`${workspacePath()}/lenses/${enc(lens.id)}/archive`, { method: 'POST' }); toast('Lens archived'); await loadLenses(); } catch (error) { showError(error.message); } }
 
   async function renderMonitors() {
-    const target = $('#monitor-list'); loading(target, 'Loading monitors');
+    const target = $('#monitor-list'); const epoch = state.workspaceEpoch; loading(target, 'Loading monitors');
     try {
-      if (!state.projects.length) { const data = await api(`${workspacePath()}/projects`); state.projects = data.projects || []; }
+      if (!state.projects.length) { const data = await api(`${workspacePath()}/projects`); if (epoch !== state.workspaceEpoch) return; state.projects = data.projects || []; }
       const entries = await Promise.all(state.projects.map(async project => ({ project, subjects: (await api(`${projectPath(project.id)}/subjects`)).subjects || [] })));
+      if (epoch !== state.workspaceEpoch) return;
       target.replaceChildren(); const all = entries.flatMap(entry => entry.subjects.map(subject => ({ project: entry.project, subject })));
       if (!all.length) { target.append(emptyState('Empty workspace', 'No subjects to monitor', 'Add a subject inside a project first.', true)); return; }
       const table = el('table', 'data-table'); const hrow = el('tr'); ['Subject', 'Project', 'Cadence', 'State', 'Action'].forEach(name => hrow.append(el('th', '', name))); const thead = el('thead'); thead.append(hrow); const body = el('tbody');
@@ -400,7 +445,7 @@
         const row = el('tr'); append(row, el('td', '', subject.name), el('td', '', project.name), el('td', 'mono', subject.cadence_minutes == null ? 'Not available' : `${subject.cadence_minutes} min`)); const stat = el('td'); stat.append(statusBadge(subject.active ? 'active' : 'paused')); row.append(stat);
         const cell = el('td'); const button = el('button', 'quiet', subject.active ? 'Pause' : 'Start'); button.addEventListener('click', () => setMonitor(project, subject, !subject.active)); cell.append(button); row.append(cell); body.append(row);
       }); table.append(thead, body); target.append(table);
-    } catch (error) { target.replaceChildren(emptyState('Unavailable', 'Monitors could not be loaded', error.message, true)); }
+    } catch (error) { if (epoch === state.workspaceEpoch) target.replaceChildren(emptyState('Unavailable', 'Monitors could not be loaded', error.message, true)); }
   }
 
   async function setMonitor(project, subject, active) {
@@ -429,10 +474,10 @@
     $('#workspace-key').value = state.workspace;
     $$('.nav-item').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
     $$('[data-view-link]').forEach(button => button.addEventListener('click', () => showView(button.dataset.viewLink)));
-    $$('[data-open]').forEach(button => button.addEventListener('click', () => { if (button.dataset.open === 'lens-dialog') resetLensForm(); $(`#${button.dataset.open}`).showModal(); }));
+    $$('[data-open]').forEach(button => button.addEventListener('click', async () => { if (button.dataset.open === 'lens-dialog') resetLensForm(); if (button.dataset.open === 'subject-dialog') { try { await ensureLenses(); } catch (error) { showError(error.message); return; } } $(`#${button.dataset.open}`).showModal(); }));
     $$('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
     $('#menu-toggle').addEventListener('click', event => { const open = $('#sidebar').classList.toggle('open'); event.currentTarget.setAttribute('aria-expanded', String(open)); });
-    $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
+    $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspaceEpoch += 1; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.lenses = []; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
   }

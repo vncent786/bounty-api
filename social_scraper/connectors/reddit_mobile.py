@@ -477,16 +477,97 @@ class RedditMobileConnector(BaseConnector):
         )
 
     async def search(self, keyword, count=20, time_filter="", sort="", region=""):
-        return ConnectorResult(
-            items=[],
-            health=SourceHealth(
-                platform=self.platform,
-                connector=self.connector_name,
-                status="skipped",
-                items_requested=count,
-                error="missing_subreddit_scope",
-            ),
+        """Auto-discover relevant subreddits from the keyword, then search within them.
+
+        This makes the connector work for ANY keyword without manual subreddit
+        configuration. Uses the same OAuth token to call /subreddits/search.
+        """
+        if not CURL_CFFI_AVAILABLE and self.request_fn is None:
+            return ConnectorResult(
+                items=[],
+                health=SourceHealth(
+                    platform=self.platform, connector=self.connector_name,
+                    status="error", items_requested=count,
+                    error="reddit_mobile_not_installed",
+                ),
+            )
+        if not keyword.strip():
+            return ConnectorResult(
+                items=[],
+                health=SourceHealth(
+                    platform=self.platform, connector=self.connector_name,
+                    status="skipped", items_requested=count,
+                    error="empty_keyword",
+                ),
+            )
+
+        started = time.monotonic()
+        try:
+            async with _gate_for_current_loop():
+                subreddits = await asyncio.to_thread(self._discover_subreddits, keyword)
+        except Exception:
+            subreddits = []
+
+        if not subreddits:
+            return ConnectorResult(
+                items=[],
+                health=SourceHealth(
+                    platform=self.platform, connector=self.connector_name,
+                    status="partial", items_requested=count,
+                    error="no_subreddits_found",
+                    coverage={"global_coverage": False, "auto_discovery": True},
+                ),
+            )
+
+        # Now search within the discovered subreddits
+        return await self.search_with_options(
+            keyword, count=count, time_filter=time_filter, sort=sort,
+            region=region, options={"subreddits": subreddits[:self.max_subreddits]},
         )
+
+    def _discover_subreddits(self, keyword):
+        """Search for subreddits matching the keyword using the mobile OAuth token."""
+        if self.request_fn:
+            session = object()
+        else:
+            session = curl_requests.Session(impersonate="chrome")
+        proxy = _proxy_url()
+        proxies = {"http": proxy, "https": proxy} if proxy else None
+        headers = self._device_headers()
+        try:
+            self._ensure_token(session, headers, proxies)
+            oauth_headers = dict(headers)
+            oauth_headers.update(self._oauth_headers)
+            oauth_headers["Authorization"] = f"Bearer {self._token}"
+            response = self._request(
+                session, "GET",
+                f"{OAUTH_ORIGIN}/subreddits/search",
+                params={"q": keyword, "limit": 10, "sort": "relevance", "raw_json": 1},
+                headers=oauth_headers, proxies=proxies, timeout=25,
+            )
+            if response.status_code != 200:
+                return []
+            payload = self._json_response(response)
+            children = payload.get("data", {}).get("children", [])
+            if not isinstance(children, list):
+                return []
+            subreddits = []
+            for child in children:
+                if not isinstance(child, dict):
+                    continue
+                data = child.get("data") or {}
+                display_name = str(data.get("display_name") or "").strip()
+                if display_name and SUBREDDIT_RE.fullmatch(display_name):
+                    subscribers = data.get("subscribers") or 0
+                    subreddits.append((display_name, subscribers))
+            # Sort by subscriber count descending — bigger communities = more content
+            subreddits.sort(key=lambda pair: pair[1], reverse=True)
+            return [name for name, _ in subreddits[:self.max_subreddits]]
+        except Exception:
+            return []
+        finally:
+            if not self.request_fn:
+                session.close()
 
     async def health_check(self):
         return SourceHealth(

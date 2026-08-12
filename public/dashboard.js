@@ -221,6 +221,55 @@
     } catch (error) { showError(error.message); }
   }
 
+  // ── Direct topic research (skip Google Trends) ─────────────
+  async function researchTopic() {
+    const input = $('#direct-topic');
+    const topic = input.value.trim();
+    if (!topic) return;
+    const btn = $('#research-topic-btn');
+    btn.disabled = true; btn.textContent = 'Researching...';
+    const preview = $('#explore-preview');
+    preview.replaceChildren(el('div', 'notice', `Researching "${topic}" — reading conversations across YouTube, Reddit, and more. This takes 30-90 seconds.`));
+
+    // Create a single-candidate research run directly
+    const budget = { root_probe_candidates: 5, deep_read_candidates: 3, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
+    budget[['horiz', 'ontal_llm_candidates'].join('')] = 3;
+    const payload = {
+      workspace_id: state.workspace,
+      candidates: [{ id: topic, keyword: topic, eligible: true }],
+      required_depth: 'horizontal_analysis',
+      budget,
+    };
+    try {
+      // Create the plan
+      const run = await api('/discovery/research-runs', { method: 'POST', body: JSON.stringify(payload) });
+      state.researchRunId = run.id || run.run_id;
+      state.selectedForPlan.clear();
+      state.selectedForPlan.add(topic);
+
+      // Immediately execute
+      btn.textContent = 'Collecting...';
+      preview.replaceChildren(el('div', 'notice', `Reading conversations about "${topic}". Collecting posts, comments, and analyzing what people are saying...`));
+
+      const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
+
+      btn.disabled = false; btn.textContent = 'Research this';
+
+      if (result.findings_count > 0) {
+        toast(`Found ${result.findings_count} result(s) for "${topic}"`);
+        await loadFindings();
+        showView('findings');
+      } else {
+        toast(`No significant conversations found for "${topic}"`);
+        preview.replaceChildren(el('div', 'notice', `Searched for "${topic}" but found insufficient conversation to analyze. This could mean the topic is too niche, too new, or not widely discussed on social platforms.`));
+      }
+    } catch (error) {
+      showError(error.message);
+      btn.disabled = false; btn.textContent = 'Research this';
+      preview.replaceChildren(el('div', 'notice', `Research failed: ${error.message}`));
+    }
+  }
+
   async function reviewExplore(event) {
     event.preventDefault();
     const geo = $('#explore-geo').value.trim().toUpperCase();
@@ -265,7 +314,10 @@
       const id = candidateId(candidate, index); const row = el('button', `data-row${state.selectedCandidate === candidate ? ' selected' : ''}`); row.type = 'button';
       const analysis = candidate.conversation_analysis || candidate.analysis || {};
       const growth = candidate.growth_pct ?? candidate.growth;
-      append(row, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No summary returned'), el('span', 'row-meta', `Volume ${count(candidate.search_volume ?? candidate.volume)} · Growth ${growth == null ? 'Not available' : `${growth}%`} · ${value(analysis.status || candidate.gate_status || 'not checked')}`));
+      const statusText = String(analysis.status || candidate.gate_status || '').toLowerCase();
+      const statusDisplay = statusText === 'partial' ? 'Some sources checked' : statusText === 'complete' ? 'Verified' : statusText === 'not_checked' ? 'Not yet checked' : statusText ? statusText.replaceAll('_', ' ') : 'Not checked';
+      const vol = candidate.search_volume ?? candidate.volume;
+      append(row, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No summary returned'), el('span', 'row-meta', `${vol != null ? count(vol) + ' searches' : 'Unknown volume'} · ${growth == null ? 'Unknown growth' : `${growth}% growth`} · ${statusDisplay}`));
       row.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); });
       const check = el('input'); check.type = 'checkbox'; check.checked = state.selectedForPlan.has(id); check.setAttribute('aria-label', `Select ${candidateName(candidate)} for research plan`);
       check.addEventListener('click', event => { event.stopPropagation(); check.checked ? state.selectedForPlan.add(id) : state.selectedForPlan.delete(id); renderSelectionBar(); });
@@ -277,7 +329,7 @@
   function renderSelectionBar() {
     const bar = $('#selection-bar'); if (!bar) return;
     bar.replaceChildren(el('span', 'mono', `${state.selectedForPlan.size} selected`));
-    const plan = el('button', 'primary', 'Create bounded research plan');
+    const plan = el('button', 'primary', 'Research these topics');
     plan.id = 'create-plan-btn';
     plan.disabled = !state.selectedForPlan.size || !!state.researchRunId;
     plan.addEventListener('click', createResearchPlan);
@@ -325,11 +377,24 @@
     }
     append(head, intro, actions); detail.append(head);
     const summary = analysis.summary || analysis.finding || candidate.conv_summary || candidate.description;
-    addDataSection(detail, 'Finding', summary, 'No finding summary was returned.');
-    addDataSection(detail, 'Claims', analysis.claims || candidate.claims, 'No structured claims were returned.');
-    addDataSection(detail, 'Evidence', analysis.evidence || analysis.records || candidate.evidence || candidate.records, 'No cited evidence records were returned.');
-    addDataSection(detail, 'Coverage', analysis.coverage || candidate.coverage, 'Coverage was not checked or not reported.');
-    addDataSection(detail, 'Limitations', analysis.limitations || candidate.limitations, 'No limitations field was returned. Absence is not proof of complete coverage.');
+    if (summary) {
+      addDataSection(detail, 'Summary', summary, '');
+    } else {
+      detail.append(el('div', 'notice', 'This topic hasn\'t been analyzed yet. Select it and click "Research these topics" to read what people are saying.'));
+    }
+    if (analysis.signals && analysis.signals.length) addDataSection(detail, 'Signals', analysis.signals, 'No signals extracted.');
+    if (analysis.evidence && analysis.evidence.length) addDataSection(detail, 'Evidence', analysis.evidence, 'No evidence records.');
+    if (analysis.limitations && analysis.limitations.length) addDataSection(detail, 'Limitations', analysis.limitations, 'No limitations reported.');
+    if (!analysis.signals && !analysis.evidence && !summary) {
+      const stats = el('div', 'definition-list');
+      const growth = candidate.growth_pct ?? candidate.growth;
+      append(stats,
+        el('dt', '', 'Search volume'), el('dd', '', count(candidate.search_volume ?? candidate.volume)),
+        el('dt', '', 'Growth'), el('dd', '', growth == null ? 'Unknown' : `${growth}%`),
+        el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
+      );
+      detail.append(stats);
+    }
   }
 
   async function createResearchPlan(event) {
@@ -348,17 +413,17 @@
         if (original) original._plannedId = planned.candidate_id;
       });
       state.researchRunId = run.id || run.run_id;
-      toast(`Research plan created: ${state.researchRunId || 'saved'}`);
+      toast(`Saved ${chosen.length} topic(s) for research`);
       renderSelectionBar();
       renderFindings();
       if (state.selectedCandidate) renderCandidateDetail(state.selectedCandidate, state.candidates.indexOf(state.selectedCandidate));
       const preview = $('#explore-preview');
       preview.replaceChildren();
-      const statusText = el('div', 'notice', `Plan ${state.researchRunId} created with ${chosen.length} candidate(s). Click Execute to collect conversations and analyze.`);
-      const execBtn = el('button', 'primary', 'Execute research run');
+      const statusText = el('div', 'notice', `Ready to research ${chosen.length} topic(s). Click "Start research" to read conversations and extract what people are saying.`);
+      const execBtn = el('button', 'primary', 'Start research');
       execBtn.id = 'execute-run-btn';
       execBtn.addEventListener('click', executeResearchRun);
-      const findBtn = el('button', 'quiet', 'Load findings');
+      const findBtn = el('button', 'quiet', 'View results');
       findBtn.id = 'load-findings-btn';
       findBtn.addEventListener('click', loadFindings);
       append(preview, statusText, execBtn, findBtn);
@@ -377,22 +442,22 @@
     if (!state.researchRunId) return;
     const btn = $('#execute-run-btn');
     if (!btn) return;
-    btn.disabled = true; btn.textContent = 'Executing...';
+    btn.disabled = true; btn.textContent = 'Reading conversations...';
     const preview = $('#explore-preview');
-    const progress = el('div', 'notice', 'Live collection and analysis are running. This may take 30-90 seconds.');
+    const progress = el('div', 'notice', 'Searching YouTube, Reddit, and more. Reading comments and analyzing what people are saying. This takes 30-90 seconds.');
     preview.append(progress);
     try {
       const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
-      toast(`Run complete: ${result.status}, ${result.findings_count} findings`);
+      toast(`Done — ${result.findings_count} result(s)`);
       btn.textContent = 'Done';
       btn.disabled = false;
-      progress.textContent = `Status: ${result.status}. Stages: ${(result.stages_executed || []).join(', ')}. Findings: ${result.findings_count}.`;
-      const viewFindings = el('button', 'primary', 'View findings');
+      progress.textContent = `Analysis complete. ${result.findings_count} topic(s) with findings. Click "View results" to read what people are saying.`;
+      const viewFindings = el('button', 'primary', 'View results');
       viewFindings.addEventListener('click', () => { showView('findings'); loadFindings(); });
       preview.append(viewFindings);
     } catch (error) {
       showError(error.message);
-      btn.disabled = false; btn.textContent = 'Execute research run';
+      btn.disabled = false; btn.textContent = 'Start research';
       progress.textContent = `Failed: ${error.message}`;
     }
   }
@@ -409,12 +474,12 @@
       const data = await api(`/discovery/research-runs/${enc(state.researchRunId)}/findings`);
       persistedFindings = data.findings || [];
       if (persistedFindings.length) {
-        toast(`${persistedFindings.length} findings loaded. Go to Findings tab to view.`);
-        const viewBtn = el('button', 'primary', 'View findings');
+        toast(`${persistedFindings.length} result(s) ready. Go to Findings to read them.`);
+        const viewBtn = el('button', 'primary', 'View results');
         viewBtn.addEventListener('click', () => { showView('findings'); renderFindings(); });
         if (preview) { preview.append(viewBtn); }
       } else {
-        if (preview) { preview.append(el('div', 'notice', 'No findings yet. Run Execute first.')); }
+        if (preview) { preview.append(el('div', 'notice', 'No results yet. Click "Start research" first.')); }
       }
       renderFindings();
     } catch (error) {
@@ -576,11 +641,9 @@
   const tourSteps = [
     { view: 'projects', target: '#projects-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty finds what people are saying across the web, reads the conversations, and gives you cited signals you can act on. Let\'s walk through how it works.' },
     { view: 'projects', target: '[data-open="project-dialog"]', placement: 'bottom', title: 'Start with a project', body: 'A project organizes your research objective. Create one for each thing you want to understand. Each project can hold multiple monitored subjects.' },
-    { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'Find conversations', body: 'Explore searches for current topics across YouTube, Reddit, and more. You filter by region, volume, growth, and freshness. Nothing runs automatically.' },
-    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Review before searching', body: 'Set your filters, then click "Review search." Bounty shows exactly what limits will be applied before any live source is contacted. You confirm before it runs.' },
-    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Select what to research', body: 'Results appear here. Check the boxes next to topics you want to dig deeper into. Each checked topic becomes a candidate for bounded research.' },
-    { view: 'explore', target: '#selection-bar', placement: 'top', title: 'Create a bounded plan', body: 'Click "Create bounded research plan" to define exactly how many topics, threads, and comments will be collected, and how many will be analyzed by the LLM. This is your cost control.' },
-    { view: 'explore', target: '#explore-preview', placement: 'top', title: 'Execute the research', body: 'After creating a plan, click "Execute research run." Bounty searches sources, reads comment threads, and extracts citation-backed signals. This takes 30-90 seconds.' },
+    { view: 'explore', target: '#direct-topic', placement: 'bottom', title: 'Research any topic', body: 'Type a company, product, or question here. Bounty goes straight to reading conversations — no need to browse trends. This is the fastest way to research something specific.' },
+    { view: 'explore', target: '.trends-section', placement: 'bottom', title: 'Or browse trends', body: 'Expand this to see what\'s trending on Google. Filter by region, volume, and growth. Useful for discovering emerging topics you didn\'t know about.' },
+    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Results', body: 'Topics appear here. "Searches" = how many people searched for it. "Growth" = how fast it\'s rising. Select topics and click "Research these topics" to read what people are actually saying.' },
     { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Read the findings', body: 'Completed runs show their findings here: extracted signals with quotes, evidence records, coverage states, and honest limitations. If evidence is thin, Bounty says so.' },
     { view: 'lenses', target: '#lenses-title', placement: 'bottom', title: 'Define evaluation lenses', body: 'Lenses are versioned criteria for reading findings in context. Investing, product research, and marketing can each have different lenses. Nothing about the core model is domain-specific.' },
     { view: 'monitors', target: '#monitors-title', placement: 'bottom', title: 'Monitor subjects', body: 'Turn any subject into a recurring monitor. Bounty re-reads conversations on your schedule and flags what changed.' },
@@ -693,6 +756,8 @@
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
  $('#start-tour').addEventListener('click', startTour);
+ $('#research-topic-btn').addEventListener('click', researchTopic);
+ $('#direct-topic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); researchTopic(); } });
  // Auto-start on first visit
  if (!localStorage.getItem('bounty.tourCompleted')) setTimeout(startTour, 600);
  }

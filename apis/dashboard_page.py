@@ -52,26 +52,37 @@ DASHBOARD_HTML = """<!doctype html>
     </section>
 
     <section class="view" id="view-explore" aria-labelledby="explore-title">
-      <header class="page-head"><div><p class="eyebrow">Explicit live action</p><h1 id="explore-title">Explore conversations</h1><p>Find current topics, then inspect the evidence behind each result.</p></div></header>
+      <header class="page-head"><div><p class="eyebrow">Research</p><h1 id="explore-title">Explore</h1><p>Type a topic to research, or browse what's trending.</p></div></header>
+
+      <div class="direct-research-bar">
+        <input id="direct-topic" type="text" placeholder="Type any topic, company, or question — e.g. 'Circle Internet Group', 'GLP-1 side effects', 'why people quit budgeting apps'" autocomplete="off">
+        <button class="primary" id="research-topic-btn">Research this</button>
+      </div>
+      <p class="form-help" style="margin: -4px 0 12px 8px">This skips trend browsing and goes straight to reading conversations across YouTube, Reddit, and more.</p>
+
+      <details class="trends-section">
+      <summary>Browse trending topics (Google Trends)</summary>
       <form id="explore-form" class="filter-bar">
         <label>Region<input id="explore-geo" value="US" maxlength="2" required></label>
         <label>Lens<select id="explore-lens"><option value="">No lens</option></select></label>
-        <label>Minimum volume<input id="explore-volume" type="number" min="0" value="0"></label>
-        <label>Minimum growth (%)<input id="explore-growth" type="number" min="0" value="0"></label>
-        <label>Freshness (hours)<input id="explore-age" type="number" min="0" step="1" value="0"></label>
-        <label class="check"><input id="explore-verified" type="checkbox">Confirmed checks only</label>
-        <button class="primary" type="submit">Review search</button>
+        <label>Min searches<input id="explore-volume" type="number" min="0" value="0"></label>
+        <label>Min growth (%)<input id="explore-growth" type="number" min="0" value="0"></label>
+        <label>Recent (hours)<input id="explore-age" type="number" min="0" step="1" value="0"></label>
+        <label class="check"><input id="explore-verified" type="checkbox">Only show topics with social discussion</label>
+        <button class="primary" type="submit">Search trends</button>
       </form>
-      <div id="explore-preview" class="notice"><strong>Not run.</strong> A search only begins after you review its limits. It may contact live sources and analysis services.</div>
+      </details>
+
+      <div id="explore-preview" class="notice">Type a topic above to start researching, or browse trending topics to discover what's rising.</div>
       <div class="split findings-split">
-        <section class="index-pane"><div class="section-head"><h2>Results</h2><span id="explore-count" class="mono muted">Not run</span></div><div id="explore-results" class="row-list"><div class="empty compact"><h3>No current-session results</h3><p>Review and run a search to begin. Searches never run on page load.</p></div></div></section>
-        <section class="detail-pane" id="explore-detail"><div class="empty"><p class="eyebrow">Evidence desk</p><h2>Select a result</h2><p>Claims, cited records, and source coverage appear here exactly as returned.</p></div></section>
+        <section class="index-pane"><div class="section-head"><h2>Results</h2><span id="explore-count" class="mono muted">No search yet</span></div><div id="explore-results" class="row-list"><div class="empty compact"><h3>No results yet</h3><p>Type a topic above or search trending topics to begin.</p></div></div></section>
+        <section class="detail-pane" id="explore-detail"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a result</h2><p>Click any result to see what people are saying, with cited evidence.</p></div></section>
       </div>
     </section>
 
     <section class="view" id="view-findings" aria-labelledby="findings-title">
-      <header class="page-head"><div><p class="eyebrow">Current session</p><h1 id="findings-title">Findings</h1><p>Evidence from searches run in this browser session.</p></div><button class="quiet" data-view-link="explore">Explore</button></header>
-      <div id="findings-content"><div class="empty bordered"><p class="eyebrow">Unavailable after reload</p><h2>No persisted findings reader</h2><p>The API does not expose a complete saved-findings collection. Run Explore to inspect truthful current-session results; research plans remain available separately.</p></div></div>
+      <header class="page-head"><div><p class="eyebrow">Results</p><h1 id="findings-title">Findings</h1><p>What people are saying, with cited evidence.</p></div><button class="quiet" data-view-link="explore">Explore</button></header>
+      <div id="findings-content"><div class="empty bordered"><p class="eyebrow">No results yet</p><h2>Nothing analyzed yet</h2><p>Research a topic in Explore to see what people are saying. Findings will appear here with signals, evidence, and limitations.</p></div></div>
     </section>
 
     <section class="view" id="view-lenses" aria-labelledby="lenses-title">

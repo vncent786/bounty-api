@@ -43,7 +43,7 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
     assert all(label in html for label in (
         "Projects", "Explore", "Findings", "Lenses", "Monitors", "Usage"
     ))
-    assert "Searches never run on page load" in html
+    assert "Type a topic above" in html
     assert "Candidate checks" in html
     assert "Deep reads" not in html
     assert "sample" not in html.casefold()

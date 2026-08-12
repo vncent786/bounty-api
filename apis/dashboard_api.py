@@ -545,6 +545,71 @@ async def discover_keywords(
     }
 
 
+@router.get("/discover/trend-detail")
+async def get_trend_detail(
+    keyword: str = Query(..., description="Trend keyword to enrich"),
+    geo: str = Query("US", description="Region code"),
+):
+    """Enrich a single trend with interest-over-time timeline and related queries.
+
+    Returns weekly sparkline data and rising/top related search queries from
+    Google Trends, so users can triage trends without running a full research plan.
+    """
+    result = {
+        "keyword": keyword,
+        "timeline": [],
+        "related_rising": [],
+        "related_top": [],
+        "error": None,
+    }
+
+    try:
+        from trendspy import Trends
+        tr = Trends(request_delay=2.0)
+
+        # Interest over time (7-day window for recent trend shape)
+        try:
+            df = tr.interest_over_time([keyword], timeframe="now 7-d", geo=geo)
+            if len(df) > 0:
+                vals = df[keyword].tolist()
+                idx = df.index.tolist()
+                result["timeline"] = [
+                    {"date": str(d), "value": int(v)}
+                    for d, v in zip(idx, vals)
+                ]
+        except Exception as e:
+            logger.warning(f"interest_over_time failed for '{keyword}': {e}")
+            result["error"] = f"timeline: {type(e).__name__}"
+
+        # Related queries (rising + top)
+        try:
+            rq = tr.related_queries(keyword, geo=geo)
+            if isinstance(rq, dict):
+                for key, dest in [("rising", "related_rising"), ("top", "related_top")]:
+                    df = rq.get(key)
+                    if df is not None and len(df) > 0:
+                        records = df.head(8).to_dict("records")
+                        # Serialize numpy types
+                        cleaned = []
+                        for r in records:
+                            cleaned.append({
+                                str(k): (int(v) if hasattr(v, 'item') else str(v) if not isinstance(v, (int, float, str)) else v)
+                                for k, v in r.items()
+                            })
+                        result[dest] = cleaned
+        except Exception as e:
+            logger.warning(f"related_queries failed for '{keyword}': {e}")
+            if not result["error"]:
+                result["error"] = f"related: {type(e).__name__}"
+
+    except ImportError:
+        result["error"] = "trendspy not installed"
+    except Exception as e:
+        result["error"] = str(e)
+
+    return result
+
+
 @router.post("/discovery/research-runs", status_code=201)
 async def create_discovery_research_run(body: ResearchRunCreateRequest):
     """Persist a deterministic plan; live collection intentionally happens elsewhere."""

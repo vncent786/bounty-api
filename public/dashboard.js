@@ -308,9 +308,12 @@
 
   function renderExploreResults() {
     const list = $('#explore-results'); list.replaceChildren();
-    $('#explore-count').textContent = `${state.candidates.length} returned`;
-    if (!state.candidates.length) { list.append(emptyState('Empty result', 'No topics matched', 'The live search completed but returned no results within the selected filters.', true)); return; }
-    state.candidates.forEach((candidate, index) => {
+    // Apply category filter
+    const catFilter = $('#explore-cat-filter')?.value || '';
+    const filtered = catFilter ? state.candidates.filter(c => (c.categories || c.category || '').includes(catFilter)) : state.candidates;
+    $('#explore-count').textContent = catFilter ? `${filtered.length} of ${state.candidates.length}` : `${state.candidates.length} returned`;
+    if (!filtered.length) { list.append(emptyState('Empty result', catFilter ? `No topics in "${catFilter}"` : 'No topics matched', catFilter ? 'Try a different category filter or clear it to see all results.' : 'The live search completed but returned no results within the selected filters.', true)); return; }
+    filtered.forEach((candidate, index) => {
       const id = candidateId(candidate, index); const row = el('button', `data-row${state.selectedCandidate === candidate ? ' selected' : ''}`); row.type = 'button';
       const analysis = candidate.conversation_analysis || candidate.analysis || {};
       const growth = candidate.growth_pct ?? candidate.growth;
@@ -363,28 +366,88 @@
     }); parent.append(section);
   }
 
-  function renderCandidateDetail(candidate, index = 0) {
+
+  // ── Sparkline ──────────────────────────────────────────────
+  function sparkline(values, width = 280, height = 48) {
+    if (!values || values.length < 2) return null;
+    const max = Math.max(...values), min = Math.min(...values);
+    const range = max - min || 1;
+    const step = width / (values.length - 1);
+    const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - ((v - min) / range) * height).toFixed(1)}`);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('width', width); svg.setAttribute('height', height);
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.classList.add('sparkline');
+    const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', '#7dd3a0');
+    poly.setAttribute('stroke-width', '2'); poly.setAttribute('points', pts.join(' '));
+    svg.appendChild(poly);
+    if (values.length > 2) {
+      const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      area.setAttribute('fill', 'rgba(125,211,160,0.12)');
+      area.setAttribute('points', `0,${height} ${pts.join(' ')} ${width},${height}`);
+      svg.insertBefore(area, poly);
+    }
+    return svg;
+  }
+
+  function renderRelatedTags(label, items) {
+    if (!items || !items.length) return null;
+    const wrap = el('div', 'related-tag-group');
+    wrap.append(el('p', 'tag-label', label));
+    const tagRow = el('div', 'tag-row');
+    items.slice(0, 8).forEach(item => {
+      const text = item.query || item.keyword || item.term || (typeof item === 'string' ? item : Object.values(item)[0]);
+      tagRow.append(el('span', 'tag', String(text)));
+    });
+    wrap.append(tagRow);
+    return wrap;
+  }
+
+  // ── Detail panel (async enrichment) ────────────────────────
+  let _detailEpoch = 0;
+
+  async function renderCandidateDetail(candidate, index = 0) {
     const detail = $('#explore-detail'); detail.replaceChildren();
+    const myEpoch = ++_detailEpoch;
     const analysis = candidate.conversation_analysis || candidate.analysis || {};
+
+    // Header
     const head = el('div', 'detail-head'); const intro = el('div');
-    append(intro, el('p', 'eyebrow', candidate.categories || candidate.category || 'Finding'), el('h2', '', candidateName(candidate)), statusBadge(analysis.status || candidate.gate_status || 'not_checked'));
+    append(intro, el('p', 'eyebrow', candidate.categories || candidate.category || 'Trending topic'), el('h2', '', candidateName(candidate)), statusBadge(analysis.status || candidate.gate_status || 'not_checked'));
     const actions = el('div', 'actions');
     const id = candidateId(candidate, index);
+
+    // Quick research button — reads conversations immediately
+    const quickBtn = el('button', 'primary', 'Research conversations');
+    quickBtn.addEventListener('click', () => {
+      const topic = candidateName(candidate);
+      $('#direct-topic').value = topic;
+      $('#research-topic-btn').click();
+    });
+    actions.append(quickBtn);
+
     if (state.researchRunId && state.selectedForPlan.has(id)) {
       const promote = el('button', 'quiet', 'Promote in plan');
       promote.addEventListener('click', () => promoteCandidate(id));
       actions.append(promote);
     }
     append(head, intro, actions); detail.append(head);
-    const summary = analysis.summary || analysis.finding || candidate.conv_summary || candidate.description;
-    if (summary) {
-      addDataSection(detail, 'Summary', summary, '');
-    } else {
-      detail.append(el('div', 'notice', 'This topic hasn\'t been analyzed yet. Select it and click "Research these topics" to read what people are saying.'));
+
+    // Related terms from the trend object (always available)
+    if (candidate.related_terms && candidate.related_terms.length) {
+      const tags = renderRelatedTags('Related searches', candidate.related_terms);
+      if (tags) detail.append(tags);
     }
+
+    // If already analyzed, show findings
+    const summary = analysis.summary || analysis.finding || candidate.conv_summary || candidate.description;
+    if (summary) addDataSection(detail, 'Summary', summary, '');
     if (analysis.signals && analysis.signals.length) addDataSection(detail, 'Signals', analysis.signals, 'No signals extracted.');
     if (analysis.evidence && analysis.evidence.length) addDataSection(detail, 'Evidence', analysis.evidence, 'No evidence records.');
     if (analysis.limitations && analysis.limitations.length) addDataSection(detail, 'Limitations', analysis.limitations, 'No limitations reported.');
+
+    // Stats
     if (!analysis.signals && !analysis.evidence && !summary) {
       const stats = el('div', 'definition-list');
       const growth = candidate.growth_pct ?? candidate.growth;
@@ -394,6 +457,56 @@
         el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
       );
       detail.append(stats);
+    }
+
+    // Live enrichment: sparkline + related queries from Google Trends
+    const enrichDiv = el('div', 'trend-enrichment');
+    enrichDiv.append(el('p', 'muted loading-text', 'Loading trend chart and related searches...'));
+    detail.append(enrichDiv);
+
+    try {
+      const geo = ($('#explore-geo')?.value || 'US').trim().toUpperCase();
+      const kw = candidateName(candidate);
+      const enriched = await api(`/discover/trend-detail?keyword=${enc(kw)}&geo=${enc(geo)}`);
+      if (myEpoch !== _detailEpoch) return; // user clicked another trend
+
+      enrichDiv.replaceChildren();
+
+      // Sparkline chart
+      if (enriched.timeline && enriched.timeline.length > 1) {
+        const chartBox = el('div', 'chart-box');
+        chartBox.append(el('p', 'section-label', 'Search interest — last 7 days'));
+        const values = enriched.timeline.map(t => t.value);
+        const spark = sparkline(values);
+        if (spark) chartBox.append(spark);
+        const lo = Math.min(...values), hi = Math.max(...values);
+        const recent = values.slice(-4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
+        const early = values.slice(0, 4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
+        const velocity = early > 0 ? Math.round(((recent - early) / early) * 100) : 0;
+        const velText = velocity > 0 ? `↑ ${velocity}% accelerating` : velocity < 0 ? `↓ ${Math.abs(velocity)}% cooling` : 'Steady';
+        chartBox.append(el('p', 'muted small', `Range ${lo}\u2013${hi} (0\u2013100 scale) · ${velText}`));
+        enrichDiv.append(chartBox);
+      }
+
+      // Related queries from Google Trends
+      const rising = enriched.related_rising || [];
+      const top = enriched.related_top || [];
+      if (rising.length || top.length) {
+        const rqBox = el('div', 'related-queries-box');
+        rqBox.append(el('p', 'section-label', 'What people also search for'));
+        if (rising.length) { const t = renderRelatedTags('Rising fast', rising); if (t) rqBox.append(t); }
+        if (top.length) { const t = renderRelatedTags('Most searched', top); if (t) rqBox.append(t); }
+        enrichDiv.append(rqBox);
+      }
+
+      if (!enriched.timeline?.length && !rising.length && !top.length) {
+        enrichDiv.append(el('p', 'muted small', enriched.error
+          ? `Trend chart unavailable (${enriched.error}). Click "Research conversations" to read what people are saying.`
+          : 'No additional trend data available. Click "Research conversations" to read social discussions.'));
+      }
+    } catch (error) {
+      if (myEpoch !== _detailEpoch) return;
+      enrichDiv.replaceChildren(el('p', 'muted small', `Could not load trend details: ${error.message}`));
     }
   }
 
@@ -758,6 +871,7 @@
  $('#start-tour').addEventListener('click', startTour);
  $('#research-topic-btn').addEventListener('click', researchTopic);
  $('#direct-topic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); researchTopic(); } });
+ $('#explore-cat-filter')?.addEventListener('change', renderExploreResults);
  // Auto-start on first visit
  if (!localStorage.getItem('bounty.tourCompleted')) setTimeout(startTour, 600);
  }

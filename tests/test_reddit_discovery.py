@@ -114,6 +114,8 @@ def test_default_broker_registers_search_fallback_only_when_configured(monkeypat
     monkeypatch.delenv("BOUNTY_BRAVE_SEARCH_API_KEY", raising=False)
     without_key = build_default_broker().list_routes()["reddit"]
     assert without_key == [
+        {"connector": "reddit_mobile_owned", "priority": 1},
+        {"connector": "reddit_atom_scoped", "priority": 3},
         {"connector": "pullpush_free", "priority": 10},
         {"connector": "arctic_shift_scoped", "priority": 20},
     ]
@@ -121,6 +123,8 @@ def test_default_broker_registers_search_fallback_only_when_configured(monkeypat
     monkeypatch.setenv("BOUNTY_BRAVE_SEARCH_API_KEY", "configured-secret")
     with_key = build_default_broker().list_routes()["reddit"]
     assert with_key == [
+        {"connector": "reddit_mobile_owned", "priority": 1},
+        {"connector": "reddit_atom_scoped", "priority": 3},
         {"connector": "pullpush_free", "priority": 10},
         {"connector": "arctic_shift_scoped", "priority": 20},
         {"connector": "brave_reddit_discovery", "priority": 30},

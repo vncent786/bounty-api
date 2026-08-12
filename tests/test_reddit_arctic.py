@@ -275,6 +275,8 @@ def test_default_broker_orders_arctic_before_brave_when_scope_is_configured(monk
     routes = build_default_broker().list_routes()["reddit"]
 
     assert routes == [
+        {"connector": "reddit_mobile_owned", "priority": 1},
+        {"connector": "reddit_atom_scoped", "priority": 3},
         {"connector": "pullpush_free", "priority": 10},
         {"connector": "arctic_shift_scoped", "priority": 20},
         {"connector": "brave_reddit_discovery", "priority": 30},
@@ -287,10 +289,12 @@ def test_default_broker_keeps_dynamic_arctic_route_but_rejects_invalid_default_s
 
     broker = build_default_broker()
     assert broker.list_routes()["reddit"] == [
+        {"connector": "reddit_mobile_owned", "priority": 1},
+        {"connector": "reddit_atom_scoped", "priority": 3},
         {"connector": "pullpush_free", "priority": 10},
         {"connector": "arctic_shift_scoped", "priority": 20},
     ]
-    connector = broker._routes["reddit"][1].connector
+    connector = broker._routes["reddit"][3].connector
     arctic = asyncio.run(connector.health_check()).to_dict()
     assert arctic["status"] == "skipped"
 
@@ -302,7 +306,7 @@ def test_collection_broker_adds_camoufox_without_changing_live_route_order(monke
     live_routes = build_default_broker().list_routes()["reddit"]
     collection_routes = build_collection_broker().list_routes()["reddit"]
 
-    assert live_routes[0] == {"connector": "pullpush_free", "priority": 10}
+    assert live_routes[0] == {"connector": "reddit_mobile_owned", "priority": 1}
     assert collection_routes[:3] == [
         {"connector": "reddit_mobile_owned", "priority": 1},
         {"connector": "reddit_atom_scoped", "priority": 3},

@@ -2,3 +2,27 @@
 @media(max-width:900px){.app-shell{display:block}.mobile-head{height:60px;position:sticky;top:0;z-index:12;display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#111315;border-bottom:1px solid #2a2e31}.sidebar{display:none;position:fixed;z-index:11;top:60px;width:100%;height:calc(100vh - 60px)}.sidebar.open{display:flex}.sidebar .brand{display:none}main{padding:28px 16px 64px}.page-head{align-items:flex-start}.split{grid-template-columns:1fr}.index-pane{border-right:0;border-bottom:1px solid #2a2e31}.detail-pane{min-height:420px}.filter-bar{grid-template-columns:repeat(2,1fr)}.filter-bar button{grid-column:span 2}.findings-split{display:block}.usage-query{align-items:stretch;flex-direction:column}}
 @media(max-width:560px){button,input,textarea,select{min-height:44px}.page-head{display:grid}.page-head h1{font-size:36px}.filter-bar{grid-template-columns:1fr}.filter-bar button{grid-column:auto}.detail-pane{padding:20px}.limit-grid{grid-template-columns:repeat(2,1fr)}.limit-grid div:nth-child(3n){border-right:1px solid #2a2e31}.limit-grid div:nth-child(2n){border-right:0}.limit-grid div:nth-last-child(-n+3){border-bottom:1px solid #2a2e31}.limit-grid div:nth-last-child(-n+2){border-bottom:0}.selection-bar{align-items:stretch;flex-direction:column}.metric-strip{grid-template-columns:1fr 1fr}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important;animation-iteration-count:1!important}}
+
+/* ── Guided tour ── */
+.tour-overlay{position:fixed;inset:0;z-index:100;pointer-events:none}
+.tour-spotlight{position:absolute;border-radius:6px;box-shadow:0 0 0 9999px rgba(8,9,10,.82);transition:all 300ms cubic-bezier(.25,.46,.45,.94);pointer-events:none}
+.tour-card{position:absolute;z-index:101;max-width:380px;background:#171a1d;border:1px solid #2a2e31;border-radius:8px;padding:0;pointer-events:auto;box-shadow:0 16px 48px rgba(0,0,0,.6);transition:all 300ms cubic-bezier(.25,.46,.45,.94)}
+.tour-card.tour-bottom{transform:translateY(12px)}
+.tour-card.tour-top{transform:translateY(-12px)}
+.tour-card-inner{padding:24px}
+.tour-card .tour-step-num{color:#77a7c7;font:500 10px/1.4 "IBM Plex Mono",monospace;letter-spacing:.12em;text-transform:uppercase;margin-bottom:8px}
+.tour-card h3{margin:0 0 8px;font-size:18px;font-weight:600;color:#ece9e2}
+.tour-card p{margin:0 0 20px;font-size:14px;line-height:1.55;color:#9b9d9d}
+.tour-card .tour-nav{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tour-card .tour-nav-left{display:flex;gap:8px}
+.tour-card .tour-nav-right{display:flex;gap:8px;align-items:center}
+.tour-card .tour-dots{display:flex;gap:4px}
+.tour-card .tour-dot{width:6px;height:6px;border-radius:50%;background:#2a2e31;cursor:pointer;border:0;padding:0}
+.tour-card .tour-dot.active{background:#77a7c7}
+.tour-card button{cursor:pointer;border-radius:4px;font-size:13px;padding:8px 16px;border:1px solid #2a2e31;background:transparent;color:#9b9d9d}
+.tour-card button:hover{color:#ece9e2;background:#1e2225}
+.tour-card button.primary{background:#77a7c7;color:#0b0c0d;border-color:#77a7c7;font-weight:500}
+.tour-card button.primary:hover{background:#8db9d6}
+.tour-card button.skip{font-size:12px;padding:8px 0;color:#6f7374}
+.tour-btn{margin-top:12px!important;width:100%;text-align:center;border:1px solid #2a2e31;border-radius:4px;background:transparent;color:#9b9d9d;padding:8px 12px;cursor:pointer;font-size:12px}
+.tour-btn:hover{color:#ece9e2;background:#171a1d}

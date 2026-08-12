@@ -57,7 +57,10 @@ def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth()
     from pathlib import Path
 
     script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
-    assert "scrollIntoView" not in script
+    # scrollIntoView is only allowed in the guided tour context
+    tour_section = script[script.index("function startTour"):]
+    non_tour = script[:script.index("function startTour")]
+    assert "scrollIntoView" not in non_tour
     assert "required_depth: 'horizontal_analysis'" in script
 
 

@@ -571,6 +571,117 @@
     } catch (error) { target.replaceChildren(emptyState('Unavailable', 'Receipt could not be loaded', error.message)); }
   }
 
+  // ── Guided tour ────────────────────────────────────────────
+  // Data-driven steps. Update this array as the product evolves.
+  const tourSteps = [
+    { view: 'projects', target: '#projects-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty finds what people are saying across the web, reads the conversations, and gives you cited signals you can act on. Let\'s walk through how it works.' },
+    { view: 'projects', target: '[data-open="project-dialog"]', placement: 'bottom', title: 'Start with a project', body: 'A project organizes your research objective. Create one for each thing you want to understand. Each project can hold multiple monitored subjects.' },
+    { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'Find conversations', body: 'Explore searches for current topics across YouTube, Reddit, and more. You filter by region, volume, growth, and freshness. Nothing runs automatically.' },
+    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Review before searching', body: 'Set your filters, then click "Review search." Bounty shows exactly what limits will be applied before any live source is contacted. You confirm before it runs.' },
+    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Select what to research', body: 'Results appear here. Check the boxes next to topics you want to dig deeper into. Each checked topic becomes a candidate for bounded research.' },
+    { view: 'explore', target: '#selection-bar', placement: 'top', title: 'Create a bounded plan', body: 'Click "Create bounded research plan" to define exactly how many topics, threads, and comments will be collected, and how many will be analyzed by the LLM. This is your cost control.' },
+    { view: 'explore', target: '#explore-preview', placement: 'top', title: 'Execute the research', body: 'After creating a plan, click "Execute research run." Bounty searches sources, reads comment threads, and extracts citation-backed signals. This takes 30-90 seconds.' },
+    { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Read the findings', body: 'Completed runs show their findings here: extracted signals with quotes, evidence records, coverage states, and honest limitations. If evidence is thin, Bounty says so.' },
+    { view: 'lenses', target: '#lenses-title', placement: 'bottom', title: 'Define evaluation lenses', body: 'Lenses are versioned criteria for reading findings in context. Investing, product research, and marketing can each have different lenses. Nothing about the core model is domain-specific.' },
+    { view: 'monitors', target: '#monitors-title', placement: 'bottom', title: 'Monitor subjects', body: 'Turn any subject into a recurring monitor. Bounty re-reads conversations on your schedule and flags what changed.' },
+    { view: 'usage', target: '#usage-title', placement: 'bottom', title: 'Track every call', body: 'Usage shows exact receipts: source calls, LLM calls, cache hits, tokens consumed. No estimates, no hidden costs. This is your audit trail.' },
+  ];
+
+  function startTour() {
+    let stepIndex = 0;
+    const overlay = el('div', 'tour-overlay'); overlay.id = 'tour-overlay';
+    const spotlight = el('div', 'tour-spotlight'); spotlight.id = 'tour-spotlight';
+    const card = el('div', 'tour-card'); card.id = 'tour-card';
+    overlay.append(spotlight, card);
+    document.body.append(overlay);
+
+    function showStep(i) {
+      stepIndex = Math.max(0, Math.min(i, tourSteps.length - 1));
+      const step = tourSteps[stepIndex];
+      if (step.view) showView(step.view);
+
+      // Wait for view switch to render before measuring
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const target = $(step.target);
+          if (!target) { // Skip if element missing
+            if (stepIndex < tourSteps.length - 1) return showStep(stepIndex + 1);
+            return endTour();
+          }
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          requestAnimationFrame(() => {
+            const rect = target.getBoundingClientRect();
+            const pad = 8;
+            spotlight.style.top = `${rect.top - pad}px`;
+            spotlight.style.left = `${rect.left - pad}px`;
+            spotlight.style.width = `${rect.width + pad * 2}px`;
+            spotlight.style.height = `${rect.height + pad * 2}px`;
+
+            // Position card
+            const cardW = 380;
+            const cardH = 220;
+            let cardTop, cardLeft;
+            if (step.placement === 'bottom') { cardTop = rect.bottom + 16; cardLeft = rect.left; card.className = 'tour-card tour-bottom'; }
+            else if (step.placement === 'top') { cardTop = rect.top - cardH - 16; cardLeft = rect.left; card.className = 'tour-card tour-top'; }
+            else { cardTop = rect.top; cardLeft = rect.right + 16; card.className = 'tour-card'; }
+            // Keep on screen
+            cardLeft = Math.max(16, Math.min(cardLeft, window.innerWidth - cardW - 16));
+            cardTop = Math.max(16, Math.min(cardTop, window.innerHeight - cardH - 16));
+            card.style.top = `${cardTop}px`;
+            card.style.left = `${cardLeft}px`;
+
+            // Build card content
+            const inner = el('div', 'tour-card-inner');
+            inner.replaceChildren();
+            inner.append(el('div', 'tour-step-num', `Step ${stepIndex + 1} of ${tourSteps.length}`));
+            inner.append(el('h3', '', step.title));
+            inner.append(el('p', '', step.body));
+            const nav = el('div', 'tour-nav');
+            const navLeft = el('div', 'tour-nav-left');
+            const skip = el('button', 'skip', 'Skip');
+            skip.addEventListener('click', endTour);
+            navLeft.append(skip);
+            const navRight = el('div', 'tour-nav-right');
+            // Dots
+            const dots = el('div', 'tour-dots');
+            tourSteps.forEach((_, di) => {
+              const dot = el('button', `tour-dot${di === stepIndex ? ' active' : ''}`);
+              dot.addEventListener('click', () => showStep(di));
+              dots.append(dot);
+            });
+            navRight.append(dots);
+            if (stepIndex > 0) {
+              const prev = el('button', '', 'Back');
+              prev.addEventListener('click', () => showStep(stepIndex - 1));
+              navRight.append(prev);
+            }
+            if (stepIndex < tourSteps.length - 1) {
+              const next = el('button', 'primary', 'Next');
+              next.addEventListener('click', () => showStep(stepIndex + 1));
+              navRight.append(next);
+            } else {
+              const done = el('button', 'primary', 'Get started');
+              done.addEventListener('click', endTour);
+              navRight.append(done);
+            }
+            nav.append(navLeft, navRight);
+            inner.append(nav);
+            card.replaceChildren(inner);
+          });
+        });
+      });
+    }
+
+    function endTour() {
+      const ov = $('#tour-overlay');
+      if (ov) ov.remove();
+      localStorage.setItem('bounty.tourCompleted', '1');
+    }
+
+    showStep(0);
+  }
+
   function bind() {
     $('#workspace-key').value = state.workspace;
     $$('.nav-item').forEach(button => button.addEventListener('click', () => showView(button.dataset.view)));
@@ -581,7 +692,10 @@
     $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspaceEpoch += 1; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.lenses = []; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
-  }
+ $('#start-tour').addEventListener('click', startTour);
+ // Auto-start on first visit
+ if (!localStorage.getItem('bounty.tourCompleted')) setTimeout(startTour, 600);
+ }
 
   bind();
   const initial = location.hash.slice(1); showView(['projects','explore','findings','lenses','monitors','usage'].includes(initial) ? initial : 'projects');

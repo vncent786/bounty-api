@@ -37,6 +37,7 @@ DASHBOARD_HTML = """<!doctype html>
       <p>Local browser setting. This does not provide user isolation.</p>
       <button id="set-token" class="text-button">Set API token</button>
     </div>
+    <button class="tour-btn" id="start-tour">Take the tour</button>
   </aside>
 
   <main id="desk" tabindex="-1">

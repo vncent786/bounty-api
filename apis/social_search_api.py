@@ -112,10 +112,14 @@ def _configured_reddit_subreddits():
 
 def build_default_broker(route_timeout_seconds=30.0):
     broker = SourceBroker(route_timeout_seconds=route_timeout_seconds)
-    broker.register(RedditConnector(), priority=10)
+    # Reddit: mobile owned (best, requires subreddit scope), arctic (fallback, scoped),
+    # pullpush (global but often down), brave (paid tertiary)
+    broker.register(RedditMobileConnector(), priority=1)
     reddit_subreddits = _configured_reddit_subreddits()
+    broker.register(RedditRSSConnector(), priority=3)
     arctic = RedditArcticConnector(subreddits=reddit_subreddits)
     broker.register(arctic, priority=20)
+    broker.register(RedditConnector(), priority=10)
     reddit_search_key = os.getenv("BOUNTY_BRAVE_SEARCH_API_KEY", "").strip()
     if reddit_search_key:
         broker.register(RedditSearchConnector(api_key=reddit_search_key), priority=30)

@@ -8,8 +8,7 @@ Each handler conforms to the StageHandlerResult contract so the StagedRunner
 can record usage, enforce caps, and prevent budget overruns.
 """
 
-from __future__ import annotations
-
+import asyncio
 import logging
 from typing import Any, Awaitable, Callable, Mapping
 
@@ -50,6 +49,32 @@ def _platforms_from_candidate(candidate: Mapping[str, Any]) -> list[str]:
     return DEFAULT_PLATFORMS
 
 
+async def _ensure_reddit_subreddits(keyword: str) -> list[str]:
+    """Auto-discover relevant subreddits for a keyword.
+
+    Tries Reddit's mobile OAuth subreddit search first, then falls back
+    to Arctic Shift's archive search. Returns subreddit names that can
+    be passed as scope to the mobile and arctic connectors.
+    """
+    from social_scraper.connectors.reddit_discover import discover_subreddits
+
+    loop = asyncio.get_event_loop()
+    try:
+        subs = await loop.run_in_executor(None, discover_subreddits, keyword)
+        if subs:
+            return subs[:5]
+    except Exception as exc:
+        logger.debug("Subreddit discovery failed for %r: %s", keyword, exc)
+
+    # Fallback: use BOUNTY_REDDIT_SUBREDDITS from env if discovery failed
+    import os
+    configured = [
+        s.strip() for s in os.getenv("BOUNTY_REDDIT_SUBREDDITS", "").split(",")
+        if s.strip()
+    ]
+    return configured[:5] if configured else []
+
+
 async def make_root_probe_handler(
     broker,
     plan: Mapping[str, Any] | None = None,
@@ -60,17 +85,26 @@ async def make_root_probe_handler(
     No thread reading or LLM calls — that's deep_read and horizontal_extraction.
     """
 
-    async def handler(candidate: dict, context: dict | None = None) -> StageHandlerResult:
+    async def root_probe(candidate: dict, context: dict | None = None) -> StageHandlerResult:
         keyword = _keyword_from_candidate(candidate)
         if not keyword:
             return StageHandlerResult(status="skipped", error_category="missing_keyword")
         platforms = _platforms_from_candidate(candidate)
         caps = _budget_from_context(context, plan)
+
+        # Auto-discover subreddits for Reddit if none specified
+        reddit_options = {}
+        if "reddit" in platforms:
+            subs = await _ensure_reddit_subreddits(keyword)
+            if subs:
+                reddit_options = {"subreddits": subs}
+
         try:
             result = await broker.search(
                 keyword=keyword,
                 platforms=platforms,
                 count=caps.get("root_count", 10),
+                platform_options={"reddit": reddit_options} if reddit_options else None,
             )
         except Exception as exc:
             logger.warning("root_probe failed for %r: %s", keyword, exc)
@@ -95,7 +129,7 @@ async def make_root_probe_handler(
             candidates=[{**candidate, "_root_items": items, "_source_health": source_health}],
         )
 
-    return handler
+    return root_probe
 
 
 async def make_deep_read_handler(

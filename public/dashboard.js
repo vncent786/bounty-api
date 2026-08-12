@@ -277,7 +277,11 @@
   function renderSelectionBar() {
     const bar = $('#selection-bar'); if (!bar) return;
     bar.replaceChildren(el('span', 'mono', `${state.selectedForPlan.size} selected`));
-    const plan = el('button', 'primary', 'Create bounded research plan'); plan.disabled = !state.selectedForPlan.size; plan.addEventListener('click', createResearchPlan); bar.append(plan);
+    const plan = el('button', 'primary', 'Create bounded research plan');
+    plan.id = 'create-plan-btn';
+    plan.disabled = !state.selectedForPlan.size || !!state.researchRunId;
+    plan.addEventListener('click', createResearchPlan);
+    bar.append(plan);
   }
 
   function safeUrl(input) {
@@ -328,7 +332,9 @@
     addDataSection(detail, 'Limitations', analysis.limitations || candidate.limitations, 'No limitations field was returned. Absence is not proof of complete coverage.');
   }
 
-  async function createResearchPlan() {
+  async function createResearchPlan(event) {
+    if (event?.currentTarget) event.currentTarget.disabled = true;
+    if (!state.selectedForPlan.size || state.researchRunId) return;
     const chosen = state.candidates.filter((candidate, index) => state.selectedForPlan.has(candidateId(candidate, index)));
     const budget = { root_probe_candidates: 20, deep_read_candidates: 5, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
     budget[['horiz', 'ontal_llm_candidates'].join('')] = 5;
@@ -341,13 +347,22 @@
         const original = chosen.find(candidate => candidateId(candidate, 0) === planned.candidate_id);
         if (original) original._plannedId = planned.candidate_id;
       });
-      state.researchRunId = run.id || run.run_id; toast(`Research plan created: ${state.researchRunId || 'saved'}`); renderFindings();
+      state.researchRunId = run.id || run.run_id;
+      toast(`Research plan created: ${state.researchRunId || 'saved'}`);
+      renderSelectionBar();
+      renderFindings();
       if (state.selectedCandidate) renderCandidateDetail(state.selectedCandidate, state.candidates.indexOf(state.selectedCandidate));
-      const execBar = $('#explore-preview'); const execBtn = el('button', 'primary', 'Execute research run'); execBtn.style.marginLeft = '12px';
-      execBtn.addEventListener('click', executeResearchRun); execBar.append(execBtn);
-      const findBtn = el('button', 'quiet', 'Load findings'); findBtn.style.marginLeft = '8px';
-      findBtn.addEventListener('click', () => { showView('findings'); loadFindings(); }); execBar.append(findBtn);
-    } catch (error) { showError(error.message); }
+      const preview = $('#explore-preview');
+      preview.replaceChildren();
+      const statusText = el('div', 'notice', `Plan ${state.researchRunId} created with ${chosen.length} candidate(s). Click Execute to collect conversations and analyze.`);
+      const execBtn = el('button', 'primary', 'Execute research run');
+      execBtn.id = 'execute-run-btn';
+      execBtn.addEventListener('click', executeResearchRun);
+      const findBtn = el('button', 'quiet', 'Load findings');
+      findBtn.id = 'load-findings-btn';
+      findBtn.addEventListener('click', loadFindings);
+      append(preview, statusText, execBtn, findBtn);
+    } catch (error) { showError(error.message); if (event?.currentTarget) event.currentTarget.disabled = false; }
   }
 
   async function promoteCandidate(candidateIdValue) {
@@ -360,33 +375,50 @@
 
   async function executeResearchRun() {
     if (!state.researchRunId) return;
+    const btn = $('#execute-run-btn');
+    if (!btn) return;
+    btn.disabled = true; btn.textContent = 'Executing...';
     const preview = $('#explore-preview');
-    const btn = $('[class*=primary]', preview);
-    if (btn) { btn.disabled = true; btn.textContent = 'Executing…'; }
-    preview.append(el('span', '', ' Live collection and analysis are running. This may take 30-90 seconds.'));
+    const progress = el('div', 'notice', 'Live collection and analysis are running. This may take 30-90 seconds.');
+    preview.append(progress);
     try {
       const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
       toast(`Run complete: ${result.status}, ${result.findings_count} findings`);
-      await loadFindings();
-      if (btn) { btn.textContent = 'Done'; }
-      preview.append(el('div', 'notice', `Status: ${result.status}. Stages: ${(result.stages_executed || []).join(', ')}. Findings: ${result.findings_count}.`));
+      btn.textContent = 'Done';
+      btn.disabled = false;
+      progress.textContent = `Status: ${result.status}. Stages: ${(result.stages_executed || []).join(', ')}. Findings: ${result.findings_count}.`;
+      const viewFindings = el('button', 'primary', 'View findings');
+      viewFindings.addEventListener('click', () => { showView('findings'); loadFindings(); });
+      preview.append(viewFindings);
     } catch (error) {
       showError(error.message);
-      if (btn) { btn.disabled = false; btn.textContent = 'Execute research run'; }
+      btn.disabled = false; btn.textContent = 'Execute research run';
+      progress.textContent = `Failed: ${error.message}`;
     }
   }
 
   let persistedFindings = [];
   async function loadFindings() {
     if (!state.researchRunId) return;
-    const content = $('#findings-content');
-    loading(content, 'Loading persisted findings');
+    const preview = $('#explore-preview');
+    if (preview) {
+      const loadingNotice = el('div', 'notice', 'Loading persisted findings...');
+      preview.append(loadingNotice);
+    }
     try {
       const data = await api(`/discovery/research-runs/${enc(state.researchRunId)}/findings`);
       persistedFindings = data.findings || [];
+      if (persistedFindings.length) {
+        toast(`${persistedFindings.length} findings loaded. Go to Findings tab to view.`);
+        const viewBtn = el('button', 'primary', 'View findings');
+        viewBtn.addEventListener('click', () => { showView('findings'); renderFindings(); });
+        if (preview) { preview.append(viewBtn); }
+      } else {
+        if (preview) { preview.append(el('div', 'notice', 'No findings yet. Run Execute first.')); }
+      }
       renderFindings();
     } catch (error) {
-      content.replaceChildren(emptyState('Unavailable', 'Findings could not be loaded', error.message));
+      showError(error.message);
     }
   }
 

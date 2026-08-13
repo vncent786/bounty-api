@@ -375,8 +375,9 @@
     const step = width / (values.length - 1);
     const pts = values.map((v, i) => `${(i * step).toFixed(1)},${(height - ((v - min) / range) * height).toFixed(1)}`);
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', width); svg.setAttribute('height', height);
+    svg.setAttribute('width', '100%'); svg.setAttribute('height', height);
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('preserveAspectRatio', 'none');
     svg.classList.add('sparkline');
     const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
     poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', '#7dd3a0');

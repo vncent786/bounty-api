@@ -2,6 +2,44 @@
 
 Read this before touching anything. `STATE.md` has product philosophy and roadmap; this file has operational reality. When they conflict on operations, this file wins.
 
+## Identity guard (read before anything else)
+
+This repository is **Bounty**: a research system that turns online conversations into cited findings. Dashboard at `/dashboard`, deployed at bountyapi.com.
+
+It is **NOT**:
+- the x402/USDC agent-payments data API marketplace (code exists, deferred)
+- Singapore property/real-estate tooling (legacy, deferred)
+- an MCP directory product (legacy, deferred)
+
+Every marketing/strategy doc in `docs/legacy/` describes that older direction and is kept for history only. If a document tells you to build payment flows, Singapore data endpoints, or MCP submissions — it is wrong about current priorities. When unsure what to build, `STATE.md` "Current priority order" is the only source of truth.
+
+## Credentials & auth — do not ask the owner for these until you've checked here
+
+Nothing below requires you to request OAuth from anyone. Auth state already exists; know where it lives before assuming something is broken:
+
+| Connector | Auth mechanism | Where it lives |
+|---|---|---|
+| Reddit (mobile OAuth) | Device-ID token mimicking Reddit's Android app. **No user OAuth, no developer API keys.** | Self-acquired at runtime; optional `BOUNTY_REDDIT_DEVICE_STATE` for persistence. Works without proxy; `BOUNTY_PROXY_USERNAME/PASSWORD/SERVER` if needed |
+| YouTube | Free (yt-dlp based). No auth. | — |
+| TikTok | Authenticated session | Session state maintained by `scripts/tiktok_login_session.py`; env `TIKTOK_*` if set |
+| Instagram | Web-auth session | `BOUNTY_IG_USERNAME/PASSWORD/COOKIE_PATH`, `BOUNTY_IG_PROXY` |
+| X / Twitter | scweet state | `scweet_state.db` in repo root; `BOUNTY_X_AUTH_TOKEN`. Connector currently returns 0 results (known broken) |
+| LLM | OpenAI-compatible endpoint | `BOUNTY_LLM_PROVIDER/BASE_URL/API_KEY/MODEL` (falls back to `ZAI_API_KEY`); local dev can route through a Hermes adapter via `BOUNTY_HERMES_AGENT_PATH` |
+| Brave (optional fallback) | API key | `BOUNTY_BRAVE_SEARCH_API_KEY` — optional, unset is fine |
+
+Secrets live in `.env` locally (gitignored — **never commit, never paste contents anywhere**) and in the Railway project's env settings. If an auth flow breaks, first check `.env` exists and Railway vars are set, then check the connector's health endpoint — do not default to "ask owner for OAuth keys." The Reddit developer API specifically **does not work** and is not needed; the mobile OAuth connector replaced it.
+
+## Filesystem map
+
+- Canonical repo: `D:\vncen\saas\bounty-api-fresh` (Windows). All paths in scripts/docs use this.
+- `monitoring.db`, `data/monitoring.db` — zone/monitor state (SQLite)
+- `data/social_observations.db` — canonical observation store (`BOUNTY_SOCIAL_DB` overrides)
+- `scweet_state.db` — X connector session state
+- `tmp/` — throwaway scripts and one-off artifacts. Safe to ignore; never import from here
+- `artifacts/` — QA screenshots and audit outputs
+- `logs/` — run logs
+- `.hermes/plans/` — in-repo planning docs (tracked in git, visible to all agents)
+
 ## What this is
 
 Bounty is a research system that turns online conversations into cited findings. Five-platform collection (YouTube, Reddit, TikTok, Instagram, X), Google Trends discovery for unknown-unknowns, LLM extraction of signals with citations. Users: investors, marketers, product teams. First workflow is investing; horizontality is architecture, not branding — never hardcode an investability filter.

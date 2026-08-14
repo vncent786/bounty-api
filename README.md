@@ -1,141 +1,40 @@
-# Bounty API
+# Bounty
 
-**Agent-native data APIs where AI agents pay per request in USDC on Base. Global research endpoints plus Singapore property workflows, live now.**
+**A research system that turns online conversations into cited findings.** Bounty collects posts, comments, and replies from YouTube, Reddit, TikTok, Instagram, and X; discovers rising topics via Google Trends; and uses LLM analysis to extract signals — pain points, adoption patterns, objections, belief shifts — each backed by quotes and source links. If evidence is thin, it says so.
 
-Live at [bountyapi.com](https://bountyapi.com)
+Users: investors (unknown-unknown discovery, pain-point research around companies), marketers (creative angles, competitor mentions), product teams (feature gaps, user complaints). The engine is horizontal; investing is the first lens, not a hardwired filter.
 
-## What it does
+Live at [bountyapi.com/dashboard](https://bountyapi.com/dashboard) (token-gated).
 
-AI agents discover data APIs via MCP, call them, and pay automatically using x402 micropayments. No API keys. No subscriptions. One price per call, known upfront, settled on-chain.
+## Read this first
 
-```
-Agent calls GET /company/stripe.com
-  → Server returns 402 Payment Required ($0.05 USDC)
-  → Agent signs payment on Base
-  → Server returns data + settlement receipt
-  → Transaction verifiable on Basescan
-```
+1. **`AGENTS.md`** — operating manual: architecture, the two-pipeline warning, commands, deploy flow, credentials map, hard rules, known-broken list. **Any agent (or human) working in this repo must read this before making changes.**
+2. **`STATE.md`** — product philosophy, what's built, gaps, priority order.
 
-## Verified working
-
-Real on-chain transaction — an AI agent autonomously paid for data on Base mainnet:
-- Tx: [0xc42354ea...](https://basescan.org/tx/0xc42354ea66478958099236920b293629eb1711d235b5bacad6f90d9b82beb6c5)
-- Amount: $0.01 USDC
-- Network: Base (eip155:8453)
-- Facilitator: PayAI
-
-## Architecture
-
-```
-Layer 1: Raw API endpoints (FastAPI)
-  → bountyapi.com/bsd, /hdb/towns, /postal/{code}, etc.
-
-Layer 2: x402 payment middleware
-  → Paid endpoints return 402 + payment instructions
-  → Agent pays USDC on Base → facilitator verifies → data returned
-
-Layer 3: MCP discovery (npm: bountyapi-mcp)
-  → Agents discover APIs as tools via Model Context Protocol
-  → Supports both stdio (npx) and HTTP transport (/mcp endpoint)
-  → Wallet-aware: auto-pays for paid endpoints when configured
-```
-
-## Live APIs
-
-| API | Type | Price | Description |
-|-----|------|-------|-------------|
-| Company Intelligence | PAID | $0.05/call | Tech stack, contacts, social links, SSL/security headers from company websites |
-| News Search | PAID | $0.01/call | Structured current news by keyword |
-| Job Search | PAID | $0.02/call | Job postings and hiring signals for GTM/recruiting research |
-| App Reviews | PAID | $0.02/call | Recent App Store reviews with rating sample and topic flags |
-| Stamp Duty (BSD + ABSD) | FREE | $0 | Singapore property stamp duty, verified against IRAS |
-| Postal District Lookup | FREE | $0 | Singapore postal district mapping |
-| Mortgage Calculator | FREE | $0 | Standard amortization |
-| Currency Converter | FREE | $0 | ECB rates |
-| HDB Resale Data | PAID | $0.01/call | Government transaction data from data.gov.sg |
-| Rental Yield Calculator | PAID | $0.005/call | Investment metrics (gross yield, cap rate, cashflow) |
-
-Every response carries source provenance. No interpolated or fabricated values.
-
-## Quick start
-
-### Install the MCP server
+## Quickstart
 
 ```bash
-npx bountyapi-mcp
+python -m pytest tests/ -x -q          # 189+ tests, must be green before every push
+python -m uvicorn app:app --port 8000  # local dev; BOUNTY_ENV=development bypasses token gate
+# open http://localhost:8000/dashboard
 ```
 
-### With payment support (for paid endpoints)
+Deploy: push to `main` → Railway auto-builds → bountyapi.com. Nothing else.
 
-```bash
-EVM_PRIVATE_KEY=0x... MAX_SPEND_USD=1.00 npx bountyapi-mcp
-```
+## What this repo is NOT
 
-### Claude Desktop config
+- **Not the x402/USDC data-API marketplace** — that code exists but is deferred (see `docs/legacy/`)
+- **Not Singapore property/real-estate tooling** — legacy, deferred
+- **Not an MCP directory play** — legacy, deferred
 
-```json
-{
-  "mcpServers": {
-    "bounty": {
-      "command": "npx",
-      "args": ["bountyapi-mcp"],
-      "env": {
-        "EVM_PRIVATE_KEY": "0x...",
-        "MAX_SPEND_USD": "1.00"
-      }
-    }
-  }
-}
-```
+Old strategy and marketing documents live in [`docs/legacy/`](docs/legacy/) and describe that earlier direction. They are kept for history only.
 
-Then ask Claude: *"What's the stamp duty on a $1.5M Singapore property for a first-time buyer?"*
+## Layout
 
-## Direct API calls (no MCP needed)
-
-```bash
-# Free endpoint
-curl https://bountyapi.com/bsd?price=1500000
-# → {"bsd": 44600, "source": "iras.gov.sg"}
-
-# Paid endpoint (returns 402 without payment)
-curl https://bountyapi.com/hdb/towns
-# → 402 Payment Required + x402 challenge
-```
-
-## Tech stack
-
-- **Backend:** FastAPI (Python), deployed on Railway
-- **Payments:** x402 protocol, USDC on Base, PayAI facilitator
-- **MCP:** TypeScript, @modelcontextprotocol/sdk, @x402/evm
-- **Data sources:** IRAS, URA, data.gov.sg, ECB
-- **Domain:** bountyapi.com (SSL via Railway/Let's Encrypt)
-
-## Project structure
-
-```
-├── app.py              # Main FastAPI app, landing page, routes
-├── pages.py            # Site pages (pricing, setup, API detail pages)
-├── payment.py          # x402 payment middleware config
-├── apis/               # API modules (postal, rental, hdb, mortgage, etc.)
-├── mcp-server/         # TypeScript MCP server (published to npm)
-├── public/             # Favicons, OG images, webmanifest
-└── Dockerfile          # Railway deployment
-```
-
-## Development
-
-```bash
-# Backend
-pip install -r requirements.txt
-uvicorn app:app --reload
-
-# MCP server
-cd mcp-server
-npm install
-npm run build
-node dist/index.js
-```
-
-## License
-
-MIT
+| Path | What |
+|---|---|
+| `apis/` | FastAPI routers (dashboard API, dashboard page, social search) |
+| `public/` | Dashboard frontend (vanilla JS/CSS) |
+| `social_scraper/` | Connectors, broker, discovery pipeline, monitoring, storage, LLM client |
+| `tests/` | Full suite |
+| `docs/legacy/` | Superseded strategy docs — do not implement from these |

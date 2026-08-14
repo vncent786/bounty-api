@@ -1,8 +1,8 @@
 # Bounty Current State
 
-**Last updated:** 2026-08-10
+**Last updated:** 2026-08-11
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
-**Current product phase:** Local SaaS engine validation
+**Current product phase:** Live dashboard validation (deployed at bountyapi.com)
 
 ## What Bounty is
 
@@ -52,10 +52,12 @@ For Bounty's investing-first workflow, Google Trends Discovery and bounded zone 
 
 ### User surfaces
 
-- FastAPI dashboard at `/dashboard`
+- FastAPI dashboard at `/dashboard` (deployed at `bountyapi.com/dashboard`, token-gated)
 - Dashboard API at `/dashboard/api/*`
-- Views for Overview, Zones, Discovery, and Alerts
-- Zone CRUD, pause/resume, manual runs, reports, diffs, and alert listing
+- Views: Projects, Explore, Findings, Lenses, Monitors, Usage
+- Explore: direct topic research bar (skip trends entirely) + trending-topic browsing with per-trend enrichment (7-day sparkline, rising/top related queries, category filter)
+- Guided product tour (11 steps, auto-starts once, replayable)
+- Research-runs: create plan → execute (30-90s live collection) → persisted findings with citations
 
 ### Collection
 
@@ -123,13 +125,20 @@ Local development currently uses GPT-5.4 through a temporary Hermes Codex OAuth 
 - Zone creation and scheduling
 - Automatic and manual zone runs
 - Staged run progress that survives dashboard navigation
-- Google Trends candidate generation
+- Google Trends candidate generation (trendspy trending_now)
+- Trend enrichment on demand: interest-over-time sparkline + rising/top related queries (`/discover/trend-detail`)
 - Social conversation gate
-- GPT-5.4 conversation summary, sentiment, entities, type, rationale, and quotes
+- LLM conversation summary, sentiment, entities, type, rationale, and quotes
+- Research-run execution path: staged budgets, subreddit auto-discovery, deep thread reads, horizontal LLM extraction, persisted findings with citations
+- Reddit mobile OAuth connector (mimics Android client) + keyword→subreddit auto-discovery — works without developer API
+- Editorial research desk dashboard (Projects/Explore/Findings/Lenses/Monitors/Usage), responsive, guided tour
 - Basic lexical clustering
 - Snapshot diffing and alerts
-- Dashboard report and alert surfaces
-- Legacy x402/API/MCP infrastructure
+- Legacy x402/API/MCP infrastructure (deferred)
+
+## Known pipeline divergence (2026-08-11)
+
+The zone path (TrendMonitor) and research-runs path (StagedRunner + handlers) have diverged. Research-runs is strictly richer: subreddit discovery, thread depth, triage findings, deduped evidence. Zones: none of those. See AGENTS.md "TWO pipelines" for detail and the pending upgrade-vs-deprecate decision.
 
 ## Important gaps
 

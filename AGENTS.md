@@ -48,7 +48,12 @@ Bounty is a research system that turns online conversations into cited findings.
 
 Primary product-method reference: [Buzzabout, “Google Trends Alternatives: They All Count the Wrong Thing”](https://buzzabout.ai/blog/google-trends-alternatives). Vincent has provided this repeatedly. Treat it as the design anchor, not background reading.
 
-Its central thesis: **search volume is the receipt for a trend; the trend starts as a conversation.** Google Trends is downstream validation and a cheap candidate generator. It must not become Bounty's primary product or source of truth.
+Its central thesis: **search volume is the receipt for a trend; the trend starts as a conversation.** Bounty adopts the bounded/standing-read method but does not clone Buzzabout's product hierarchy. Bounty has two co-primary user workflows:
+
+1. **Explore / Google Trends discovery:** a broad unknown-unknown radar, particularly important for investing. It surfaces topics the user did not know to place inside a zone. Trends metadata alone is never a finding; every promising candidate must gain plain-language context and pass through conversation and durability checks.
+2. **Projects / bounded and standing reads:** deep research and recurring monitoring of a known niche, useful across investing, marketing and product research. Cairn marketing, for example, should reveal pain points, desired outcomes, workarounds, objections, competitor mentions and verbatim audience language.
+
+Both workflows converge into the same horizontal conversation corpus and research engine. Investing, marketing and product lenses change interpretation and actions, not collection or the underlying evidence.
 
 The intended method:
 
@@ -61,7 +66,7 @@ The intended method:
 
 For investing, add an optional lens after the horizontal read: map observed behavior to verified company exposure, economic materiality, information parity and price context. Do not distort the underlying collection around tickers.
 
-Product implication: Projects/monitored subjects should become user-facing **zones**; the research-runs pipeline should execute both the initial bounded read and subsequent standing reads. Explore/Google Trends belongs inside a zone as a secondary candidate feed, not as the center of the product.
+Product implication: Explore and Projects/Zones are co-primary entry points. Explore is a broad discovery funnel; Projects/Zones provide bounded depth and standing-read continuity. The same research-runs pipeline should execute candidate investigation, initial bounded reads and subsequent standing reads. No raw Google Trends label should be shown without enough context for a user to understand what it is, why it is moving, whether the underlying conversation looks durable and what the active lens can do with it.
 
 ## Critical architecture fact: there are TWO pipelines
 

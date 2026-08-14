@@ -44,6 +44,25 @@ Secrets live in `.env` locally (gitignored — **never commit, never paste conte
 
 Bounty is a research system that turns online conversations into cited findings. Five-platform collection (YouTube, Reddit, TikTok, Instagram, X), Google Trends discovery for unknown-unknowns, LLM extraction of signals with citations. Users: investors, marketers, product teams. First workflow is investing; horizontality is architecture, not branding — never hardcode an investability filter.
 
+## Canonical methodology: Buzzabout, not a Google Trends dashboard
+
+Primary product-method reference: [Buzzabout, “Google Trends Alternatives: They All Count the Wrong Thing”](https://buzzabout.ai/blog/google-trends-alternatives). Vincent has provided this repeatedly. Treat it as the design anchor, not background reading.
+
+Its central thesis: **search volume is the receipt for a trend; the trend starts as a conversation.** Google Trends is downstream validation and a cheap candidate generator. It must not become Bounty's primary product or source of truth.
+
+The intended method:
+
+1. **Declare a bounded zone:** four or five seed keywords, narrow enough to read completely and broad enough to expose a trend crossing terms.
+2. **Bounded read:** once, read a historical window across every available network at the same time, including comment threads and replies. Cluster the corpus to learn the niche, its questions, dissent, beliefs, products and competitive map.
+3. **Candidate feed:** use Google/search trends cheaply to surface unfamiliar names, then run every candidate through a social-conversation gate.
+4. **Durability check:** read actual posts and threads. News, sport, celebrity and short hype can resemble durable topics in a growth score but not in conversation texture.
+5. **Standing read:** rerun the same bounded zone weekly, because breakout windows are short. Detect four events: rising negative sentiment; brand/competitor mentions; shifts in what the market believes; trends starting and ending.
+6. **Downstream validation:** use Google Trends to confirm a suspicion in a legible unit after it was formed upstream from conversation.
+
+For investing, add an optional lens after the horizontal read: map observed behavior to verified company exposure, economic materiality, information parity and price context. Do not distort the underlying collection around tickers.
+
+Product implication: Projects/monitored subjects should become user-facing **zones**; the research-runs pipeline should execute both the initial bounded read and subsequent standing reads. Explore/Google Trends belongs inside a zone as a secondary candidate feed, not as the center of the product.
+
 ## Critical architecture fact: there are TWO pipelines
 
 This is the single most important thing to know. The same codebase has two collection paths with different capabilities:

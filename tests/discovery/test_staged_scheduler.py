@@ -72,8 +72,8 @@ def test_store_history_and_api_plan_promote(tmp_path, monkeypatch):
     app.include_router(dashboard_api.router)
     client = TestClient(app)
     response = client.post("/dashboard/api/discovery/research-runs", json={
-        "workspace_id": "acme", "required_depth": "root_probe",
-        "budget": {"root_probe_candidates": 1, "deep_read_candidates": 0,
+        "workspace_id": "acme", "name": "Root probe plan", "required_depth": "root_probe",
+        "budget": {"root_probe_candidates": 2, "deep_read_candidates": 0,
                    "horizontal_llm_candidates": 0, "optional_enrichments": 0,
                    "threads_per_platform": 2, "comments_per_thread": 20,
                    "max_thread_depth": 2},

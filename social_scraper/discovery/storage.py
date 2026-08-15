@@ -292,7 +292,10 @@ class DiscoveryStore:
                     created_at TEXT NOT NULL,
                     started_at TEXT,
                     completed_at TEXT,
-                    error_category TEXT
+                    error_category TEXT,
+                    result_json TEXT NOT NULL DEFAULT '{}',
+                    lease_token TEXT,
+                    lease_until TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_research_runs_workspace_created
                     ON research_runs(workspace_id, created_at, id);
@@ -537,6 +540,20 @@ class DiscoveryStore:
                         f"ALTER TABLE discovery_stage_usage "
                         f"ADD COLUMN {column} {definition}"
                     )
+            research_columns = {
+                row[1] for row in connection.execute(
+                    "PRAGMA table_info(research_runs)"
+                )
+            }
+            for column, definition in (
+                ("result_json", "TEXT NOT NULL DEFAULT '{}'"),
+                ("lease_token", "TEXT"),
+                ("lease_until", "TEXT"),
+            ):
+                if column not in research_columns:
+                    connection.execute(
+                        f"ALTER TABLE research_runs ADD COLUMN {column} {definition}"
+                    )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_phase1b_discovery_history", datetime.now(timezone.utc).isoformat()),
@@ -556,6 +573,11 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_11_research_findings", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_research_run_receipts_and_leases",
+                 datetime.now(timezone.utc).isoformat()),
             )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
@@ -1186,14 +1208,19 @@ class DiscoveryStore:
             comparable = False
         if status == "error" and not str(error_category or "").strip():
             raise ValueError("error attempts must record error_category")
+        token = "" if lease_token is None else str(lease_token)
+        if not token.strip():
+            raise ValueError("lease_token is required")
         at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
         completed_iso = at.isoformat()
         health_json = _json(source_health) if source_health is not None else None
         with self._connect() as connection:
             connection.execute("BEGIN IMMEDIATE")
             schedule = connection.execute(
-                "SELECT * FROM radar_schedules WHERE id = ? AND lease_token = ?",
-                (schedule_id, lease_token),
+                """SELECT * FROM radar_schedules
+                   WHERE id = ? AND lease_token IS NOT NULL AND lease_token = ?
+                     AND lease_until IS NOT NULL AND lease_until > ?""",
+                (schedule_id, token, completed_iso),
             ).fetchone()
             if schedule is None:
                 raise RuntimeError("radar schedule claim is no longer valid")
@@ -1232,7 +1259,7 @@ class DiscoveryStore:
                     started_iso, status,
                     str(error_category or "").strip() or None, health_json,
                     success_pointer, next_run_iso, completed_iso,
-                    schedule_id, lease_token,
+                    schedule_id, token,
                 ),
             )
             updated = connection.execute(
@@ -1276,24 +1303,26 @@ class DiscoveryStore:
         self, schedule_id: str, claim_token: str, *,
         now: datetime | str | None = None, lease_minutes: int = 10,
     ) -> dict | None:
-        """Extend one live lease only when its claim token still matches."""
+        """Extend one live, unexpired lease when its claim token still matches."""
         if (
             isinstance(lease_minutes, bool)
             or not isinstance(lease_minutes, int)
             or lease_minutes <= 0
         ):
             raise ValueError("lease_minutes must be a positive integer")
-        token = str(claim_token or "").strip()
-        if not token:
+        token = "" if claim_token is None else str(claim_token)
+        if not token.strip():
             raise ValueError("claim_token is required")
         at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        now_iso = at.isoformat()
         lease_until = (at + timedelta(minutes=lease_minutes)).isoformat()
         with self._connect() as connection:
             cursor = connection.execute(
                 """UPDATE radar_schedules
                    SET lease_until = ?, updated_at = ?
-                   WHERE id = ? AND lease_token = ?""",
-                (lease_until, at.isoformat(), str(schedule_id), token),
+                   WHERE id = ? AND lease_token IS NOT NULL AND lease_token = ?
+                     AND lease_until IS NOT NULL AND lease_until > ?""",
+                (lease_until, now_iso, str(schedule_id), token, now_iso),
             )
             if cursor.rowcount != 1:
                 return None
@@ -1306,17 +1335,18 @@ class DiscoveryStore:
         self, schedule_id: str, claim_token: str, *,
         now: datetime | str | None = None,
     ) -> bool:
-        """Release a live claim without advancing cadence or adding a run."""
-        token = str(claim_token or "").strip()
-        if not token:
+        """Release only the matching live claim without advancing cadence."""
+        token = "" if claim_token is None else str(claim_token)
+        if not token.strip():
             raise ValueError("claim_token is required")
         now_iso = _utc_iso(now, label="now")
         with self._connect() as connection:
             cursor = connection.execute(
                 """UPDATE radar_schedules
                    SET lease_token = NULL, lease_until = NULL, updated_at = ?
-                   WHERE id = ? AND lease_token = ?""",
-                (now_iso, str(schedule_id), token),
+                   WHERE id = ? AND lease_token IS NOT NULL AND lease_token = ?
+                     AND lease_until IS NOT NULL AND lease_until > ?""",
+                (now_iso, str(schedule_id), token, now_iso),
             )
         return cursor.rowcount == 1
 
@@ -1980,6 +2010,7 @@ class DiscoveryStore:
         item["requested_budget"] = json.loads(item.pop("requested_budget_json"))
         item["effective_budget"] = json.loads(item.pop("effective_budget_json"))
         item["plan"] = json.loads(item.pop("plan_json"))
+        item["result"] = json.loads(item.pop("result_json") or "{}")
         return item
 
     def get_research_run(self, run_id: str) -> dict | None:
@@ -2002,40 +2033,196 @@ class DiscoveryStore:
 
     def update_research_run(
         self, run_id: str, *, status: str, error_category: str | None = None,
+        result: Mapping[str, Any] | None = None,
+        claim_token: str | None = None,
+        now: datetime | str | None = None,
     ) -> dict:
         allowed = {"planned", "running", "complete", "partial", "error", "cancelled"}
         if status not in allowed:
             raise ValueError(f"invalid research run status: {status}")
-        now = datetime.now(timezone.utc).isoformat()
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        now_iso = at.isoformat()
+        result_json = _json(result) if result is not None else None
+        terminal = status in {"complete", "partial", "error", "cancelled"}
+        token = "" if claim_token is None else str(claim_token)
+        if terminal and not token.strip():
+            raise ValueError("terminal research run updates require a claim token")
+        with self._connect() as connection:
+            if terminal:
+                cursor = connection.execute(
+                    """UPDATE research_runs SET status = ?, error_category = ?,
+                       result_json = COALESCE(?, result_json), completed_at = ?,
+                       lease_token = NULL, lease_until = NULL
+                       WHERE id = ? AND status = 'running'
+                         AND lease_token IS NOT NULL AND lease_token = ?
+                         AND lease_until IS NOT NULL AND lease_until > ?""",
+                    (
+                        status, error_category, result_json, now_iso,
+                        run_id, token, now_iso,
+                    ),
+                )
+            else:
+                # Non-terminal updates may not override a live worker: a
+                # tokenless caller is confined to rows with no live lease
+                # (planned rows, or leases that already expired), while a
+                # tokened caller must still hold the matching unexpired
+                # lease — the same barrier the terminal branch enforces.
+                cursor = connection.execute(
+                    """UPDATE research_runs SET status = ?, error_category = ?,
+                       result_json = COALESCE(?, result_json),
+                       started_at = CASE WHEN ? = 'running' AND started_at IS NULL
+                                         THEN ? ELSE started_at END
+                       WHERE id = ?
+                         AND (
+                              (? IS NOT NULL AND lease_token = ?
+                               AND lease_until IS NOT NULL AND lease_until > ?)
+                           OR (? IS NULL
+                               AND (lease_until IS NULL OR lease_until <= ?))
+                         )""",
+                    (
+                        status, error_category, result_json, status, now_iso,
+                        run_id,
+                        claim_token, claim_token, now_iso,
+                        claim_token, now_iso,
+                    ),
+                )
+            if cursor.rowcount == 0:
+                raise ValueError(f"unknown research run or stale claim: {run_id}")
+        return self.get_research_run(run_id)  # type: ignore[return-value]
+
+    def claim_research_run(
+        self, run_id: str, *, lease_minutes: int = 2,
+        now: datetime | str | None = None,
+    ) -> str | None:
+        """Atomically claim a planned or interrupted run across app replicas.
+
+        Live leases exclude a row — including a ``planned`` row that still
+        carries one — so two workers can never hold the same run. Expired
+        leases and never-leased rows are claimable by anyone, mirroring
+        ``claim_due_schedules``.
+        """
+        if isinstance(lease_minutes, bool) or not isinstance(lease_minutes, int) or lease_minutes <= 0:
+            raise ValueError("lease_minutes must be a positive integer")
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        now_iso = at.isoformat()
+        lease_until = (at + timedelta(minutes=lease_minutes)).isoformat()
+        token = str(uuid.uuid4())
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            cursor = connection.execute(
+                """UPDATE research_runs
+                   SET status = 'running', error_category = NULL,
+                       started_at = COALESCE(started_at, ?),
+                       lease_token = ?, lease_until = ?
+                   WHERE id = ?
+                     AND status IN ('planned','running')
+                     AND (lease_until IS NULL OR lease_until <= ?)""",
+                (now_iso, token, lease_until, run_id, now_iso),
+            )
+        return token if cursor.rowcount == 1 else None
+
+    def renew_research_run_claim(
+        self, run_id: str, claim_token: str, *, lease_minutes: int = 2,
+        now: datetime | str | None = None,
+    ) -> bool:
+        """Extend only the current unexpired worker lease."""
+        if (
+            isinstance(lease_minutes, bool)
+            or not isinstance(lease_minutes, int)
+            or lease_minutes <= 0
+        ):
+            raise ValueError("lease_minutes must be a positive integer")
+        token = "" if claim_token is None else str(claim_token)
+        if not token.strip():
+            raise ValueError("claim_token is required")
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        now_iso = at.isoformat()
+        lease_until = at + timedelta(minutes=lease_minutes)
         with self._connect() as connection:
             cursor = connection.execute(
-                """UPDATE research_runs SET status = ?, error_category = ?,
-                   started_at = CASE WHEN ? = 'running' AND started_at IS NULL THEN ? ELSE started_at END,
-                   completed_at = CASE WHEN ? IN ('complete','partial','error','cancelled')
-                                       THEN ? ELSE completed_at END WHERE id = ?""",
-                (status, error_category, status, now, status, now, run_id),
+                """
+                UPDATE research_runs
+                SET lease_until = ?
+                WHERE id = ? AND status = 'running'
+                  AND lease_token IS NOT NULL AND lease_token = ?
+                  AND lease_until IS NOT NULL AND lease_until > ?
+                """,
+                (lease_until.isoformat(), str(run_id), token, now_iso),
             )
-            if cursor.rowcount == 0:
-                raise ValueError(f"unknown research run: {run_id}")
-        return self.get_research_run(run_id)  # type: ignore[return-value]
+        return cursor.rowcount == 1
+
+    def release_research_run_claim(
+        self, run_id: str, claim_token: str, *,
+        now: datetime | str | None = None,
+    ) -> bool:
+        """Release only the matching live worker lease without erasing run state."""
+        token = "" if claim_token is None else str(claim_token)
+        if not token.strip():
+            raise ValueError("claim_token is required")
+        now_iso = _utc_iso(now, label="now")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE research_runs SET lease_token = NULL, lease_until = NULL
+                   WHERE id = ? AND status = 'running'
+                     AND lease_token IS NOT NULL AND lease_token = ?
+                     AND lease_until IS NOT NULL AND lease_until > ?""",
+                (run_id, token, now_iso),
+            )
+        return cursor.rowcount == 1
 
     def save_findings(
         self, run_id: str, candidate_id: str, topic: str,
-        status: str, analysis: Mapping[str, Any],
+        status: str, analysis: Mapping[str, Any], *, claim_token: str,
     ) -> dict:
-        """Persist one candidate's analysis result as a research finding."""
+        """Persist one candidate finding only under the active worker lease."""
         now = datetime.now(timezone.utc).isoformat()
+        analysis_json = _json(analysis)
         with self._connect() as connection:
-            cursor = connection.execute(
-                """INSERT INTO research_findings
-                   (research_run_id, candidate_id, topic, status, analysis_json, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?)""",
-                (run_id, candidate_id, topic, status, _json(analysis), now),
-            )
-            finding_id = int(cursor.lastrowid)
+            connection.execute("BEGIN IMMEDIATE")
+            owner = connection.execute(
+                """SELECT status, lease_token, lease_until
+                   FROM research_runs WHERE id = ?""",
+                (run_id,),
+            ).fetchone()
+            if owner is None:
+                raise ValueError("unknown research run")
+            if str(owner["status"]) != "running":
+                raise ValueError("findings require an active running claim")
+            if (
+                not claim_token
+                or str(owner["lease_token"] or "") != str(claim_token)
+                or not owner["lease_until"]
+                or str(owner["lease_until"]) <= now
+            ):
+                raise ValueError("stale claim cannot mutate findings")
+
+            existing = connection.execute(
+                """SELECT id, created_at FROM research_findings
+                   WHERE research_run_id = ? AND candidate_id = ?
+                   ORDER BY id LIMIT 1""",
+                (run_id, candidate_id),
+            ).fetchone()
+            if existing is None:
+                cursor = connection.execute(
+                    """INSERT INTO research_findings
+                       (research_run_id, candidate_id, topic, status, analysis_json, created_at)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (run_id, candidate_id, topic, status, analysis_json, now),
+                )
+                finding_id = int(cursor.lastrowid)
+                created_at = now
+            else:
+                finding_id = int(existing["id"])
+                created_at = str(existing["created_at"])
+                connection.execute(
+                    """UPDATE research_findings
+                       SET topic = ?, status = ?, analysis_json = ?
+                       WHERE id = ?""",
+                    (topic, status, analysis_json, finding_id),
+                )
         return {"id": finding_id, "research_run_id": run_id,
                 "candidate_id": candidate_id, "topic": topic,
-                "status": status, "analysis": dict(analysis), "created_at": now}
+                "status": status, "analysis": dict(analysis), "created_at": created_at}
 
     def list_findings(self, run_id: str) -> list[dict]:
         """Return all persisted findings for one research run."""

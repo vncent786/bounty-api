@@ -118,7 +118,7 @@ The Explore/dashboard flow (what users actually see) goes through research-runs 
 ## Commands
 
 ```bash
-# Tests (189 passing as of 2026-08-11) — run before every commit
+# Tests (508 passing as of 2026-08-16) — run before every commit
 python -m pytest tests/ -x -q
 
 # Local server (dashboard at localhost:8000/dashboard)

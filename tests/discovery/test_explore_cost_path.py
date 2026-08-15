@@ -78,7 +78,7 @@ class CountingBroker:
                 "external_id": f"yt-{stem}",
                 "title": f"{keyword} explained",
                 "text": f"People are discussing {keyword}",
-                "url": f"https://youtube.example/{stem}",
+                "url": f"https://www.youtube.com/watch?v={stem}",
                 "engagement": {"likes": 150, "comments": 40},
             })
         return {
@@ -440,7 +440,7 @@ def test_explicit_research_run_still_hydrates_threads_and_analyzes():
                 "external_id": "yt-alpha",
                 "title": "alpha gizmo explained",
                 "text": "People are discussing alpha gizmo",
-                "url": "https://youtube.example/alpha",
+                "url": "https://www.youtube.com/watch?v=alpha",
                 "engagement": {"likes": 150, "comments": 40},
             }],
             "source_health": [{"platform": "youtube", "status": "complete"}],

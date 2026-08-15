@@ -330,6 +330,27 @@ def test_claim_renewal_and_token_checked_release_preserve_due_time(tmp_path):
     assert store.list_radar_schedule_runs(schedule["id"]) == []
 
 
+def test_expired_claim_cannot_be_renewed_or_released(tmp_path):
+    store = DiscoveryStore(tmp_path / "discovery.db")
+    schedule = store.upsert_radar_schedule(
+        scan_mode="trends_snapshot", scope_type="geography", geo="US",
+        interval_minutes=1440, next_run_at=T0,
+    )
+    claim = store.claim_due_schedules(now=T0, lease_minutes=1)[0]
+    expired_at = T0 + timedelta(minutes=1)
+
+    assert store.renew_radar_schedule_claim(
+        schedule["id"], claim["claim_token"],
+        now=expired_at, lease_minutes=1,
+    ) is None
+    assert store.release_radar_schedule_claim(
+        schedule["id"], claim["claim_token"], now=expired_at,
+    ) is False
+    persisted = store.get_radar_schedule(schedule["id"])
+    assert persisted["lease_token"] == claim["claim_token"]
+    assert persisted["lease_until"] == expired_at.isoformat()
+
+
 # --- Reconciliation ---------------------------------------------------------
 
 

@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PLATFORMS = ["youtube", "reddit"]
 
+# Platforms a candidate may request at the execution boundary. Brokers that
+# expose their live routes refine this set; unknown names never reach a search.
+ALLOWED_PLATFORMS = frozenset({
+    "youtube", "reddit", "tiktok", "x", "instagram", "douyin", "xhs",
+})
+
+# Cap on the persisted per-thread failure manifest from deep reads.
+_MAX_DEEP_HEALTH_ENTRIES = 10
+
 
 def _budget_from_context(context: Mapping[str, Any] | None, plan: Mapping[str, Any] | None) -> dict[str, int]:
     """Extract thread/comment caps from the effective budget in the plan."""
@@ -41,11 +50,41 @@ def _keyword_from_candidate(candidate: Mapping[str, Any]) -> str:
     ).strip()
 
 
-def _platforms_from_candidate(candidate: Mapping[str, Any]) -> list[str]:
-    """Determine which platforms to search for this candidate."""
+def _broker_platform_allowlist(broker) -> frozenset[str] | None:
+    """Live platform routes when the broker exposes them, else None."""
+    getter = getattr(broker, "list_platforms", None)
+    if not callable(getter):
+        return None
+    try:
+        listed = getter()
+    except Exception:
+        return None
+    if isinstance(listed, (list, tuple, set)) and all(
+        isinstance(platform, str) and platform for platform in listed
+    ):
+        return frozenset(platform.strip().lower() for platform in listed)
+    return None
+
+
+def _platforms_from_candidate(
+    candidate: Mapping[str, Any],
+    allowed: frozenset[str] | None = None,
+) -> list[str]:
+    """Determine which platforms to search for this candidate.
+
+    Candidate-provided platform names are validated here: only names present
+    in the broker's live routes (or the static allowlist when the broker does
+    not expose them) survive, so an unknown name never reaches a search call.
+    """
+    limit = allowed if allowed is not None else ALLOWED_PLATFORMS
     raw = candidate.get("platforms")
     if isinstance(raw, list) and raw:
-        return [str(p).lower() for p in raw]
+        platforms = list(dict.fromkeys(
+            str(p).strip().lower() for p in raw
+            if str(p).strip().lower() in limit
+        ))
+        if platforms:
+            return platforms
     return DEFAULT_PLATFORMS
 
 
@@ -89,7 +128,9 @@ async def make_root_probe_handler(
         keyword = _keyword_from_candidate(candidate)
         if not keyword:
             return StageHandlerResult(status="skipped", error_category="missing_keyword")
-        platforms = _platforms_from_candidate(candidate)
+        platforms = _platforms_from_candidate(
+            candidate, _broker_platform_allowlist(broker)
+        )
         caps = _budget_from_context(context, plan)
 
         # Auto-discover subreddits for Reddit if none specified
@@ -110,6 +151,17 @@ async def make_root_probe_handler(
             logger.warning("root_probe failed for %r: %s", keyword, exc)
             return StageHandlerResult(
                 status="failed", error_category="search_error",
+                candidates=[{
+                    **candidate,
+                    "_root_items": [],
+                    "_root_deduplication": {},
+                    "_root_summary": {},
+                    "_source_health": [{
+                        "platform": platform,
+                        "status": "failed",
+                        "error": f"{type(exc).__name__}: {exc}",
+                    } for platform in platforms],
+                }],
                 external_calls=len(platforms),
             )
         raw_items = result.get("items", [])
@@ -164,7 +216,9 @@ async def make_deep_read_handler(
         if not keyword:
             return StageHandlerResult(status="skipped", error_category="missing_keyword")
         caps = _budget_from_context(context, plan)
-        platforms = _platforms_from_candidate(candidate)
+        platforms = _platforms_from_candidate(
+            candidate, _broker_platform_allowlist(broker)
+        )
 
         # Root items should have been stashed by root_probe
         cid = candidate.get("candidate_id", keyword)
@@ -194,6 +248,7 @@ async def make_deep_read_handler(
         max_depth = caps["max_thread_depth"]
 
         all_thread_records: list[dict] = []
+        thread_failures: list[dict] = []
         external_calls = 0
         for platform in platforms:
             platform_items = [r for r in root_items if str(r.get("platform", "")).lower() == platform]
@@ -244,17 +299,47 @@ async def make_deep_read_handler(
                         })
                 except Exception as exc:
                     logger.debug("thread read failed for %r on %s: %s", keyword, platform, exc)
+                    thread_failures.append({
+                        "platform": platform,
+                        "status": "failed",
+                        "stage": "deep_read",
+                        "external_id": str(
+                            item.get("external_id") or item.get("post_id") or ""
+                        )[:200],
+                        "error": f"{type(exc).__name__}: {exc}"[:200],
+                    })
+
+        # Bounded failure manifest: partial deep-read coverage must stay
+        # visible to triage, without letting a flood of thread errors grow
+        # the persisted payload.
+        deep_health = thread_failures[:_MAX_DEEP_HEALTH_ENTRIES]
+        if len(thread_failures) > _MAX_DEEP_HEALTH_ENTRIES:
+            deep_health.append({
+                "platform": "multiple",
+                "status": "failed",
+                "stage": "deep_read",
+                "external_id": "",
+                "error": (
+                    f"{len(thread_failures) - _MAX_DEEP_HEALTH_ENTRIES} more "
+                    "thread reads failed and are not listed."
+                ),
+            })
 
         # Combine root items + thread records as the evidence pool
         combined = list(root_items) + all_thread_records
         if collected is not None:
             collected[cid + ":deep"] = combined
+            collected[cid + ":deep_health"] = deep_health
         return StageHandlerResult(
             records_returned=len(all_thread_records),
             external_calls=external_calls,
             cache_hit=False,
             status="empty" if not all_thread_records else "complete",
-            candidates=[{**candidate, "_deep_records": combined}],
+            candidates=[{
+                **candidate,
+                "_deep_records": combined,
+                "_deep_health": deep_health,
+            }],
         )
 
     return handler
@@ -286,17 +371,21 @@ def make_horizontal_extraction_handler(
         elif collected and cid in collected:
             posts = collected[cid]
 
-        if not posts:
-            return StageHandlerResult(status="empty", error_category="no_evidence")
+        source_health: list[dict] = []
+        if collected is not None:
+            # Deep-read failures join root-probe health so triage can state
+            # partial coverage explicitly instead of hiding thread errors.
+            source_health = list(collected.get(cid + ":health") or [])
+            source_health.extend(collected.get(cid + ":deep_health") or [])
 
         # Measure the exact prompt analyze_conversation transmits: the same
         # deterministic preparation (dedup, per-platform cap, truncation), not
-        # the raw collected posts and not an estimate.
+        # the raw collected posts and not an estimate. Empty evidence still
+        # runs through triage so source failures become durable gap findings.
         prompt_receipt = prepare_conversation_prompt(keyword, posts)
-
-        source_health: list[dict] = []
-        if collected and cid + ":health" in collected:
-            source_health = collected[cid + ":health"]
+        # Truthful receipt: the model is only contacted when preparation
+        # leaves usable evidence, so unusable posts must count zero calls.
+        llm_calls = 1 if prompt_receipt.evidence else 0
 
         try:
             analysis = await analyze_conversation(
@@ -309,7 +398,7 @@ def make_horizontal_extraction_handler(
             logger.warning("horizontal extraction failed for %r: %s", keyword, exc)
             return StageHandlerResult(
                 status="failed", error_category="llm_error",
-                llm_calls=1,
+                llm_calls=llm_calls,
             )
 
         result = analysis.to_dict()
@@ -320,7 +409,7 @@ def make_horizontal_extraction_handler(
         return StageHandlerResult(
             records_returned=len(result.get("evidence", [])),
             external_calls=0,
-            llm_calls=1,
+            llm_calls=llm_calls,
             cache_hit=False,
             input_records=prompt_receipt.input_records,
             input_characters=prompt_receipt.input_characters,

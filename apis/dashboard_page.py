@@ -73,11 +73,13 @@ DASHBOARD_HTML = """<!doctype html>
 
       <details class="known-topic-section">
         <summary>Research a known topic or run a bounded trend search</summary>
-        <div class="direct-research-bar">
-          <input id="direct-topic" type="text" placeholder="Type any topic, company, or question" autocomplete="off">
-          <button class="primary" id="research-topic-btn">Research this</button>
+        <div class="research-brief-grid">
+          <label>Research brief<input id="direct-research-name" type="text" maxlength="160" required placeholder="e.g. Cairn buyer language"></label>
+          <label>Use case<select id="direct-preset"><option value="general-research">General research</option><option value="marketing-intelligence">Marketing intelligence</option><option value="product-opportunity">Product opportunities</option><option value="investing-social-arbitrage">Investing / social arbitrage</option></select></label>
+          <label class="research-topics">Topics, one per line (maximum 5)<textarea id="direct-topic" rows="4" aria-describedby="direct-topic-help" placeholder="Meta ads reporting\nad creative fatigue\nAI ad creative tools" autocomplete="off"></textarea></label>
+          <button class="primary" id="research-topic-btn">Start research</button>
         </div>
-        <p class="form-help">Type a topic above to go straight to reading conversations across available sources.</p>
+        <p class="form-help" id="direct-topic-help">Submit up to five related topics. Bounty saves the run, reads available conversations in the background, and preserves explicit source gaps.</p>
         <details class="trends-section">
           <summary>Browse trending topics (Google Trends)</summary>
           <form id="explore-form" class="filter-bar">
@@ -100,6 +102,7 @@ DASHBOARD_HTML = """<!doctype html>
 
     <section class="view" id="view-findings" aria-labelledby="findings-title">
       <header class="page-head"><div><p class="eyebrow">Results</p><h1 id="findings-title">Findings</h1><p>What people are saying, with cited evidence.</p></div><button class="quiet" data-view-link="explore">Explore</button></header>
+      <div id="research-run-history" class="research-run-history" aria-live="polite"></div>
       <div id="findings-content"><div class="empty bordered"><p class="eyebrow">No results yet</p><h2>Nothing analyzed yet</h2><p>Research a topic in Explore to see what people are saying. Findings will appear here with signals, evidence, and limitations.</p></div></div>
     </section>
 

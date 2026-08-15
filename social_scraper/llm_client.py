@@ -15,7 +15,40 @@ from __future__ import annotations
 import asyncio
 import os
 import sys
+import threading
+from contextlib import contextmanager
 from pathlib import Path
+
+
+_CODEX_IMPORT_LOCK = threading.Lock()
+
+
+@contextmanager
+def _temporarily_unshadow_modules(*names: str):
+    """Let an embedded dependency import its own top-level compatibility modules.
+
+    Bounty loads ``crawlers.utils`` under the legacy top-level name ``utils``.
+    The local Hermes Codex adapter also imports a different top-level ``utils``.
+    Remove only those names for the duration of the embedded import, then put
+    Bounty's modules back exactly as they were.
+    """
+    previous = {name: sys.modules.pop(name) for name in names if name in sys.modules}
+    try:
+        yield
+    finally:
+        for name in names:
+            sys.modules.pop(name, None)
+        sys.modules.update(previous)
+
+
+def _move_import_path_to_front(path: str) -> None:
+    """Put one import root first, removing normalized duplicates."""
+    target = os.path.normcase(os.path.abspath(path))
+    sys.path[:] = [
+        item for item in sys.path
+        if os.path.normcase(os.path.abspath(item or os.curdir)) != target
+    ]
+    sys.path.insert(0, path)
 
 
 def _provider() -> str:
@@ -102,19 +135,25 @@ def _call_codex_oauth(
         "BOUNTY_HERMES_AGENT_PATH",
         str(Path.home() / "AppData/Local/hermes/hermes-agent"),
     ).strip()
-    if hermes_path and hermes_path not in sys.path:
-        sys.path.insert(0, hermes_path)
+    # Move the embedded runtime to the front even if the host app imported it
+    # earlier. Bounty prepends crawler compatibility paths during startup.
+    # Leaving Hermes later in sys.path makes its top-level ``utils`` import
+    # resolve to ``crawlers.utils`` instead.
+    if hermes_path:
+        _move_import_path_to_front(hermes_path)
 
     try:
-        from openai import OpenAI
-        from agent.auxiliary_client import (
-            CodexAuxiliaryClient,
-            _codex_cloudflare_headers,
-        )
-        from agent.credential_pool import load_pool
+        with _CODEX_IMPORT_LOCK, _temporarily_unshadow_modules("utils"):
+            from openai import OpenAI
+            from agent.auxiliary_client import (
+                CodexAuxiliaryClient,
+                _codex_cloudflare_headers,
+            )
+            from agent.credential_pool import load_pool
     except ImportError as exc:
         raise RuntimeError(
-            "codex_oauth_unavailable: Hermes Agent/OpenAI SDK not importable"
+            "codex_oauth_unavailable: Hermes/OpenAI dependency import failed: "
+            f"{exc.__class__.__name__}: {exc}"
         ) from exc
 
     entry = load_pool("openai-codex").select()

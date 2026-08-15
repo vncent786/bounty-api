@@ -43,7 +43,8 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
     assert all(label in html for label in (
         "Projects", "Explore", "Findings", "Lenses", "Monitors", "Usage"
     ))
-    assert "Type a topic above" in html
+    assert "Submit up to five related topics" in html
+    assert "Topics, one per line (maximum 5)" in html
     assert "Global Explore" in html
     assert "What's changing" in html
     assert "Recommended for deeper reading" in html
@@ -79,6 +80,67 @@ def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth()
     assert "Family added to monitoring" not in script
     assert "globalExploreEpoch" in script
     assert "Loading family evidence" in script
+    assert "pollResearchRun" in script
+    assert "loadResearchHistory" in script
+    assert "lens_preset_id" in script
+    assert "const fmtDate =" in script
+    assert "fmtDate(item.published_at)" in script
+    assert "appendCitationLinks" in script
+    assert "analysis.summary_evidence_ids" in script
+    assert "const researchPolls = new Map()" in script
+    assert "requestEpoch !== state.workspaceEpoch" in script
+    assert "requestWorkspace !== state.workspace" in script
+    assert "activeResearchRun?.status === 'planned'" in script
+    assert "Start saved research" in script
+    assert "Use no more than five topics" in script
+    assert "'.local'" in script
+    assert "a === 127" in script
+
+
+def test_dashboard_poll_discards_results_from_stale_workspace_contexts():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    poll = script[
+        script.index("async function pollResearchRunOnce"):
+        script.index("async function reviewExplore")
+    ]
+    assert "const requestEpoch = state.workspaceEpoch;" in poll
+    assert "const requestWorkspace = state.workspace;" in poll
+    assert """const isStale = () => (
+      requestEpoch !== state.workspaceEpoch
+      || requestWorkspace !== state.workspace
+      || state.researchRunId !== runId
+    );""" in poll
+    assert poll.count("if (isStale()) return") >= 4
+
+
+def test_dashboard_findings_click_never_passes_the_event_as_the_run_id():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    plan = script[
+        script.index("async function createResearchPlan"):
+        script.index("async function promoteCandidate")
+    ]
+    assert "findBtn.addEventListener('click', () => loadFindings());" in plan
+    assert "findBtn.addEventListener('click', loadFindings);" not in script
+
+
+def test_dashboard_poll_continues_after_a_late_execute_conflict():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    api_section = script[
+        script.index("async function api"):
+        script.index("function statusBadge")
+    ]
+    poll = script[
+        script.index("async function pollResearchRunOnce"):
+        script.index("async function reviewExplore")
+    ]
+    assert "error.status = response.status;" in api_section
+    assert "if (error.status !== 409) throw error;" in poll
 
 
 def test_dashboard_bearer_dependency_and_open_development_mode(tmp_path, monkeypatch):
@@ -148,6 +210,91 @@ def test_core_project_subject_and_monitor_action_contract(tmp_path, monkeypatch)
     assert client.get(
         f"/dashboard/api/workspaces/default/projects/{project['id']}/subjects"
     ).json()["subjects"][0]["active"] is False
+
+
+def test_research_run_preserves_name_and_use_case_without_mutating_candidates(
+    tmp_path, monkeypatch,
+):
+    client = _isolated_client(tmp_path, monkeypatch)
+    payload = {
+        "workspace_id": "default",
+        "name": "Cairn message research",
+        "lens_preset_id": "marketing-intelligence",
+        "candidates": [
+            {"id": "meta-ads-reporting", "keyword": "Meta ads reporting", "eligible": True},
+            {"id": "creative-fatigue", "keyword": "ad creative fatigue", "eligible": True},
+        ],
+        "required_depth": "horizontal_analysis",
+        "budget": {
+            "root_probe_candidates": 2,
+            "deep_read_candidates": 2,
+            "horizontal_llm_candidates": 2,
+        },
+    }
+
+    created = client.post("/dashboard/api/discovery/research-runs", json=payload)
+    assert created.status_code == 201
+    plan = created.json()["plan"]
+    assert plan["name"] == "Cairn message research"
+    assert plan["lens_preset"]["preset_id"] == "marketing-intelligence"
+    assert {
+        item["candidate"]["keyword"] for item in plan["candidates"]
+    } == {"Meta ads reporting", "ad creative fatigue"}
+
+    invalid = {**payload, "lens_preset_id": "make-things-up"}
+    rejected = client.post("/dashboard/api/discovery/research-runs", json=invalid)
+    assert rejected.status_code == 422
+
+
+def test_research_run_enforces_named_one_to_five_topic_briefs_and_budget_caps(
+    tmp_path, monkeypatch,
+):
+    client = _isolated_client(tmp_path, monkeypatch)
+    base = {
+        "workspace_id": "default",
+        "name": "Bounded brief",
+        "candidates": [
+            {"id": "one", "keyword": "topic one", "eligible": True},
+            {"id": "two", "keyword": "topic two", "eligible": True},
+        ],
+        "required_depth": "horizontal_analysis",
+        "budget": {
+            "root_probe_candidates": 2,
+            "deep_read_candidates": 2,
+            "horizontal_llm_candidates": 2,
+            "threads_per_platform": 2,
+            "comments_per_thread": 20,
+            "max_thread_depth": 2,
+            "optional_enrichments": 0,
+        },
+    }
+    assert client.post(
+        "/dashboard/api/discovery/research-runs", json=base
+    ).status_code == 201
+
+    invalid_payloads = [
+        {**base, "name": "   "},
+        {**base, "candidates": []},
+        {**base, "candidates": [
+            {"id": str(index), "keyword": f"topic {index}", "eligible": True}
+            for index in range(6)
+        ]},
+        {**base, "candidates": [
+            {"id": "blank", "keyword": "   ", "eligible": True}
+        ]},
+        {**base, "candidates": [
+            {"id": "a", "keyword": "same topic", "eligible": True},
+            {"id": "b", "keyword": "Same Topic", "eligible": True},
+        ]},
+        {**base, "budget": {**base["budget"], "root_probe_candidates": 6}},
+        {**base, "budget": {**base["budget"], "horizontal_llm_candidates": 1}},
+        {**base, "budget": {**base["budget"], "comments_per_thread": 101}},
+    ]
+    for payload in invalid_payloads:
+        response = client.post(
+            "/dashboard/api/discovery/research-runs", json=payload
+        )
+        assert response.status_code == 422, (payload, response.text)
 
 
 def test_global_explore_uses_persisted_families_and_records_actions(tmp_path, monkeypatch):

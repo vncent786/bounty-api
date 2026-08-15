@@ -7,7 +7,7 @@
     projects: [], subjects: new Map(), project: null, lenses: [],
     families: [], selectedFamily: null,
     candidates: [], selectedCandidate: null, selectedForPlan: new Set(),
-    discoveryRunId: null, discoveryRunStatus: null, researchRunId: null,
+    discoveryRunId: null, discoveryRunStatus: null, researchRunId: null, researchRunStatus: null,
     workspaceEpoch: 0, globalExploreEpoch: 0,
   };
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -24,6 +24,12 @@
   };
   const value = (input) => input === null || input === undefined || input === '' ? 'Not available' : String(input);
   const count = (input) => input === null || input === undefined ? 'Not available' : Number(input).toLocaleString();
+  const fmtDate = (input) => {
+    if (!input) return 'Unknown';
+    const parsed = new Date(input);
+    if (Number.isNaN(parsed.getTime())) return 'Unknown';
+    return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(parsed);
+  };
   const enc = (input) => encodeURIComponent(String(input));
   const workspacePath = () => `/workspaces/${enc(state.workspace)}`;
   const projectPath = (id = state.project?.id) => `${workspacePath()}/projects/${enc(id)}`;
@@ -69,7 +75,9 @@
           ? [body.detail.message, body.detail.error_category].filter(Boolean).join(': ')
           : body.detail || detail;
       } catch (_) { /* no JSON body */ }
-      throw new Error(detail);
+      const error = new Error(detail);
+      error.status = response.status;
+      throw error;
     }
     if (response.status === 204) return null;
     return response.json();
@@ -103,7 +111,7 @@
       });
     }
     if (name === 'monitors') renderMonitors();
-    if (name === 'findings') renderFindings();
+    if (name === 'findings') loadResearchHistory();
     history.replaceState(null, '', `#${name}`);
     $('#desk').focus({ preventScroll: true });
   }
@@ -225,53 +233,130 @@
     } catch (error) { showError(error.message); }
   }
 
-  // ── Direct topic research (skip Google Trends) ─────────────
-  async function researchTopic() {
-    const input = $('#direct-topic');
-    const topic = input.value.trim();
-    if (!topic) return;
-    const btn = $('#research-topic-btn');
-    btn.disabled = true; btn.textContent = 'Researching...';
-    const preview = $('#explore-preview');
-    preview.replaceChildren(el('div', 'notice', `Researching "${topic}" — reading conversations across YouTube, Reddit, and more. This takes 30-90 seconds.`));
+  // ── Saved research briefs ──────────────────────────────────
+  const terminalResearchStatuses = new Set(['complete', 'partial', 'error', 'cancelled']);
+  const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+  const latestRunKey = () => `bounty.latestResearchRun.${state.workspace}`;
 
-    // Create a single-candidate research run directly
-    const budget = { root_probe_candidates: 5, deep_read_candidates: 3, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
-    budget[['horiz', 'ontal_llm_candidates'].join('')] = 3;
+  function briefTopics() {
+    const seen = new Set();
+    return $('#direct-topic').value.split(/\r?\n/).map(topic => topic.trim()).filter(topic => {
+      const key = topic.toLowerCase();
+      if (!topic || seen.has(key)) return false;
+      seen.add(key); return true;
+    });
+  }
+
+  function rememberResearchRun(runId) {
+    state.researchRunId = runId;
+    localStorage.setItem(latestRunKey(), runId);
+  }
+
+  async function researchTopic() {
+    const topics = briefTopics();
+    if (!topics.length) { showError('Enter at least one research topic.'); return; }
+    if (topics.length > 5) { showError('Use no more than five topics in one bounded research brief.'); return; }
+    const name = $('#direct-research-name').value.trim();
+    if (!name) { showError('Name this research brief before starting it.'); return; }
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    const btn = $('#research-topic-btn');
+    btn.disabled = true; btn.textContent = 'Saving brief...';
+    const preview = $('#explore-preview');
+    preview.replaceChildren(el('div', 'notice', `Saving a bounded research run for ${topics.length} topic(s). No findings are claimed yet.`));
+    const candidateLimit = topics.length;
+    const budget = {
+      root_probe_candidates: candidateLimit,
+      deep_read_candidates: candidateLimit,
+      horizontal_llm_candidates: candidateLimit,
+      threads_per_platform: 2,
+      comments_per_thread: 20,
+      max_thread_depth: 2,
+      optional_enrichments: 0,
+    };
     const payload = {
-      workspace_id: state.workspace,
-      candidates: [{ id: topic, keyword: topic, eligible: true }],
+      workspace_id: requestWorkspace,
+      name,
+      lens_preset_id: $('#direct-preset').value === 'general-research' ? 'horizontal-explorer' : $('#direct-preset').value,
+      candidates: topics.map(topic => ({ id: topic, keyword: topic, eligible: true })),
       required_depth: 'horizontal_analysis',
       budget,
     };
     try {
-      // Create the plan
-      const run = await api('/discovery/research-runs', { method: 'POST', body: JSON.stringify(payload) });
-      state.researchRunId = run.id || run.run_id;
-      state.selectedForPlan.clear();
-      state.selectedForPlan.add(topic);
-
-      // Immediately execute
-      btn.textContent = 'Collecting...';
-      preview.replaceChildren(el('div', 'notice', `Reading conversations about "${topic}". Collecting posts, comments, and analyzing what people are saying...`));
-
-      const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
-
-      btn.disabled = false; btn.textContent = 'Research this';
-
-      if (result.findings_count > 0) {
-        toast(`Found ${result.findings_count} result(s) for "${topic}"`);
-        await loadFindings();
-        showView('findings');
-      } else {
-        toast(`No significant conversations found for "${topic}"`);
-        preview.replaceChildren(el('div', 'notice', `Searched for "${topic}" but found insufficient conversation to analyze. This could mean the topic is too niche, too new, or not widely discussed on social platforms.`));
-      }
+      const run = await api('/discovery/research-runs', {
+        method: 'POST', body: JSON.stringify(payload),
+      });
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
+      const runId = run.id || run.run_id;
+      rememberResearchRun(runId);
+      state.researchRunStatus = 'planned';
+      btn.textContent = 'Starting research...';
+      await api(`/discovery/research-runs/${enc(runId)}/execute`, { method: 'POST' });
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
+      state.researchRunStatus = 'running';
+      preview.replaceChildren(el('div', 'notice', 'Research is collecting available conversations. You can leave this view and return from Findings. If the service restarts, reopening this run safely resumes it.'));
+      await pollResearchRun(runId, { button: btn, preview });
     } catch (error) {
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       showError(error.message);
-      btn.disabled = false; btn.textContent = 'Research this';
-      preview.replaceChildren(el('div', 'notice', `Research failed: ${error.message}`));
+      btn.disabled = false; btn.textContent = 'Start research';
+      preview.replaceChildren(el('div', 'notice', `Research could not be started: ${error.message}`));
     }
+  }
+
+  const researchPolls = new Map();
+
+  function pollResearchRun(runId, context = {}) {
+    if (researchPolls.has(runId)) return researchPolls.get(runId);
+    const poll = pollResearchRunOnce(runId, context)
+      .finally(() => researchPolls.delete(runId));
+    researchPolls.set(runId, poll);
+    return poll;
+  }
+
+  async function pollResearchRunOnce(runId, { button = null, preview = null } = {}) {
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    const isStale = () => (
+      requestEpoch !== state.workspaceEpoch
+      || requestWorkspace !== state.workspace
+      || state.researchRunId !== runId
+    );
+    for (let attempt = 0; attempt < 300; attempt += 1) {
+      if (isStale()) return null;
+      const run = await api(`/discovery/research-runs/${enc(runId)}`);
+      if (isStale()) return run;
+      if (['planned', 'running'].includes(run.status) && attempt % 15 === 0) {
+        try {
+          await api(`/discovery/research-runs/${enc(runId)}/execute`, { method: 'POST' });
+        } catch (error) {
+          if (error.status !== 409) throw error;
+        }
+        if (isStale()) return run;
+      }
+      state.researchRunStatus = run.status;
+      if (preview && run.status === 'running') {
+        preview.textContent = `Research is running for ${(run.plan?.candidates || []).length} topic(s). Findings and source receipts remain durable after processing finishes.`;
+      }
+      if (terminalResearchStatuses.has(run.status)) {
+        if (button) { button.disabled = false; button.textContent = 'Start research'; }
+        if (run.status === 'complete' || run.status === 'partial') {
+          await loadFindings(runId, { quiet: true });
+          if (isStale()) return run;
+          if (preview) preview.textContent = `Research ${run.status}. ${persistedFindings.length} saved result(s) are ready in Findings.`;
+          toast(`Research ${run.status}: ${persistedFindings.length} finding(s)`);
+        } else if (preview) {
+          preview.textContent = `Research ${run.status}: ${run.error_category || 'No further detail was recorded.'}`;
+        }
+        await loadResearchHistory({ quiet: true });
+        return run;
+      }
+      await wait(2000);
+    }
+    if (isStale()) return null;
+    if (button) { button.disabled = false; button.textContent = 'Check Findings'; }
+    if (preview) preview.textContent = 'Research is still active. Its latest status remains available in Findings.';
+    return null;
   }
 
   async function reviewExplore(event) {
@@ -452,7 +537,16 @@
       append(row, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No summary returned'), el('span', 'row-meta', `${vol != null ? count(vol) + ' searches' : 'Unknown volume'} · ${growth == null ? 'Unknown growth' : `${growth}% growth`} · ${statusDisplay}`));
       row.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); });
       const check = el('input'); check.type = 'checkbox'; check.checked = state.selectedForPlan.has(id); check.setAttribute('aria-label', `Select ${candidateName(candidate)} for research plan`);
-      check.addEventListener('click', event => { event.stopPropagation(); check.checked ? state.selectedForPlan.add(id) : state.selectedForPlan.delete(id); renderSelectionBar(); });
+      check.addEventListener('click', event => {
+        event.stopPropagation();
+        if (check.checked && state.selectedForPlan.size >= 5) {
+          check.checked = false;
+          showError('Use no more than five topics in one research brief.');
+          return;
+        }
+        check.checked ? state.selectedForPlan.add(id) : state.selectedForPlan.delete(id);
+        renderSelectionBar();
+      });
       row.prepend(check); list.append(row);
     });
     const bar = el('div', 'selection-bar'); bar.id = 'selection-bar'; list.append(bar); renderSelectionBar();
@@ -463,13 +557,43 @@
     bar.replaceChildren(el('span', 'mono', `${state.selectedForPlan.size} selected`));
     const plan = el('button', 'primary', 'Research these topics');
     plan.id = 'create-plan-btn';
-    plan.disabled = !state.selectedForPlan.size || !!state.researchRunId;
+    plan.disabled = !state.selectedForPlan.size || ['planned', 'running'].includes(state.researchRunStatus);
     plan.addEventListener('click', createResearchPlan);
     bar.append(plan);
   }
 
-  function safeUrl(input) {
-    try { const url = new URL(input); return ['http:', 'https:'].includes(url.protocol) ? url.href : null; } catch (_) { return null; }
+  const BLOCKED_SOURCE_SUFFIXES = ['.example', '.invalid', '.localhost', '.local', '.internal', '.home', '.lan', '.test', '.onion'];
+
+  function safeUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw || /[\u0000-\u0020\u007f]/.test(raw)) return null;
+    try {
+      const url = new URL(raw);
+      if (!['http:', 'https:'].includes(url.protocol)) return null;
+      if (url.username || url.password) return null;
+      const host = url.hostname.replace(/\.$/, '').toLowerCase();
+      if (!host || host.includes(':')) return null;
+      const octets = host.split('.');
+      if (octets.length === 4 && octets.every(part => /^\d{1,3}$/.test(part) && Number(part) <= 255)) {
+        const [a, b] = octets.map(Number);
+        const privateOrReserved = (
+          a === 0 || a === 10 || a === 127 || a >= 224
+          || (a === 100 && b >= 64 && b <= 127)
+          || (a === 169 && b === 254)
+          || (a === 172 && b >= 16 && b <= 31)
+          || (a === 192 && (b === 0 || b === 168))
+          || (a === 198 && (b === 18 || b === 19))
+        );
+        if (privateOrReserved) return null;
+      } else {
+        if (!host.includes('.')) return null;
+        if (BLOCKED_SOURCE_SUFFIXES.some(suffix => host === suffix.slice(1) || host.endsWith(suffix))) return null;
+        if (host.split('.').some(label => !/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) return null;
+      }
+      return url.href;
+    } catch (_) {
+      return null;
+    }
   }
 
   function addDataSection(parent, title, data, emptyCopy) {
@@ -482,9 +606,9 @@
       const record = el('article', 'evidence-record');
       if (typeof item !== 'object' || item === null) record.append(el('p', '', item));
       else {
-        const heading = item.claim || item.title || item.text || item.label || item.platform || 'Returned record';
+        const heading = item.claim || item.title || item.name || item.text || item.label || item.platform || item.id || 'Returned record';
         record.append(el('strong', '', heading));
-        const copy = item.evidence || item.summary || item.description || item.excerpt;
+        const copy = item.evidence || item.summary || item.description || item.excerpt || item.rationale || item.relationship;
         if (copy && copy !== heading) record.append(el('p', '', copy));
         const href = safeUrl(item.url || item.source_url || item.permalink);
         if (href) { const link = el('a', 'source-link', 'Open source'); link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer'; record.append(link); }
@@ -493,6 +617,66 @@
       }
       section.append(record);
     }); parent.append(section);
+  }
+
+  function addCoverageSection(parent, coverage) {
+    const section = el('section', 'data-section');
+    section.append(el('h3', '', 'Coverage'));
+    const definitions = [
+      ['Raw records', coverage?.raw_records],
+      ['Reviewed records', coverage?.deduplicated_records],
+      ['Independent voices', coverage?.independent_voices],
+      ['Threads', coverage?.thread_count],
+      ['Platforms', coverage?.platform_count],
+    ];
+    const metrics = el('div', 'coverage-metrics');
+    definitions.forEach(([label, value]) => {
+      if (value === undefined || value === null) return;
+      const item = el('div', 'coverage-metric');
+      item.append(el('strong', '', String(value)), el('span', '', label));
+      metrics.append(item);
+    });
+    section.append(metrics);
+    const sources = Array.isArray(coverage?.source_status) ? coverage.source_status : [];
+    if (sources.length) {
+      section.append(el('h4', 'coverage-source-title', 'Source receipts'));
+      sources.forEach(source => {
+        const row = el('div', 'source-receipt');
+        row.append(el('strong', '', String(source.platform || 'Source')));
+        const counts = source.items_returned === undefined
+          ? ''
+          : `${source.items_returned} of ${source.items_requested ?? 'unknown'} records`;
+        row.append(el('p', '', [source.status, counts, source.connector].filter(Boolean).join(' · ')));
+        if (source.error) row.append(el('p', 'source-error', String(source.error)));
+        section.append(row);
+      });
+    }
+    parent.append(section);
+  }
+
+  function addEvidenceSection(parent, evidence) {
+    const section = el('section', 'data-section evidence-section');
+    section.append(el('h3', '', 'Evidence records'));
+    if (!Array.isArray(evidence) || !evidence.length) {
+      section.append(el('p', 'empty-copy', 'No citable source records were returned.'));
+      parent.append(section);
+      return;
+    }
+    evidence.forEach(item => {
+      const record = el('article', 'data-record evidence-record');
+      record.append(el('p', 'evidence-copy', item.text || 'Source record'));
+      const metadata = [item.platform, item.object_type, fmtDate(item.published_at)]
+        .filter(value => value && value !== 'Unknown').join(' · ');
+      if (metadata) record.append(el('p', 'evidence-meta', metadata));
+      if (item.id) record.append(el('code', 'evidence-id', item.id));
+      if (safeUrl(item.url)) {
+        const link = document.createElement('a');
+        link.href = safeUrl(item.url); link.target = '_blank'; link.rel = 'noopener noreferrer';
+        link.textContent = 'Open source'; record.append(link);
+      }
+      section.append(record);
+    });
+    parent.append(section);
   }
 
 
@@ -641,21 +825,45 @@
   }
 
   async function createResearchPlan(event) {
+    if (!state.selectedForPlan.size) return;
+    if (state.selectedForPlan.size > 5) {
+      showError('Use no more than five topics in one research brief.');
+      return;
+    }
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    if (state.researchRunId) {
+      try {
+        const current = activeResearchRun?.id === state.researchRunId
+          ? activeResearchRun
+          : await api(`/discovery/research-runs/${enc(state.researchRunId)}`);
+        if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
+        if (current && !terminalResearchStatuses.has(current.status)) {
+          toast('Finish or cancel the active research run before creating another.');
+          return;
+        }
+      } catch (error) {
+        if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
+        showError(error.message);
+        return;
+      }
+    }
     if (event?.currentTarget) event.currentTarget.disabled = true;
-    if (!state.selectedForPlan.size || state.researchRunId) return;
     const chosen = state.candidates.filter((candidate, index) => state.selectedForPlan.has(candidateId(candidate, index)));
-    const budget = { root_probe_candidates: 20, deep_read_candidates: 5, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
-    budget[['horiz', 'ontal_llm_candidates'].join('')] = 5;
+    const topicCount = chosen.length;
+    const budget = { root_probe_candidates: topicCount, deep_read_candidates: topicCount, horizontal_llm_candidates: topicCount, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
     const selectedLens = state.lenses.find(lens => lens.id === $('#explore-lens').value);
     const lensDepth = selectedLens?.latest_version?.compiled_requirements?.required_depth || null;
-    const payload = { workspace_id: state.workspace, source_discovery_run_id: state.discoveryRunId, candidates: chosen, required_depth: 'horizontal_analysis', lens_required_depth: lensDepth, lens: selectedLens ? { id: selectedLens.id, version: selectedLens.latest_version?.version || selectedLens.latest_version_number, required_depth: lensDepth } : null, budget };
+    const payload = { workspace_id: requestWorkspace, name: `Trend research · ${chosen.map(candidateName).slice(0, 3).join(', ')}`, lens_preset_id: 'horizontal-explorer', source_discovery_run_id: state.discoveryRunId, candidates: chosen, required_depth: 'horizontal_analysis', lens_required_depth: lensDepth, lens: selectedLens ? { id: selectedLens.id, version: selectedLens.latest_version?.version || selectedLens.latest_version_number, required_depth: lensDepth } : null, budget };
     try {
       const run = await api('/discovery/research-runs', { method: 'POST', body: JSON.stringify(payload) });
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       (run.plan?.candidates || []).forEach(planned => {
         const original = chosen.find(candidate => candidateId(candidate, 0) === planned.candidate_id);
         if (original) original._plannedId = planned.candidate_id;
       });
-      state.researchRunId = run.id || run.run_id;
+      rememberResearchRun(run.id || run.run_id);
+      state.researchRunStatus = run.status || 'planned';
       toast(`Saved ${chosen.length} topic(s) for research`);
       renderSelectionBar();
       renderFindings();
@@ -668,9 +876,13 @@
       execBtn.addEventListener('click', executeResearchRun);
       const findBtn = el('button', 'quiet', 'View results');
       findBtn.id = 'load-findings-btn';
-      findBtn.addEventListener('click', loadFindings);
+      findBtn.addEventListener('click', () => loadFindings());
       append(preview, statusText, execBtn, findBtn);
-    } catch (error) { showError(error.message); if (event?.currentTarget) event.currentTarget.disabled = false; }
+    } catch (error) {
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
+      showError(error.message);
+      if (event?.currentTarget) event.currentTarget.disabled = false;
+    }
   }
 
   async function promoteCandidate(candidateIdValue) {
@@ -685,58 +897,195 @@
     if (!state.researchRunId) return;
     const btn = $('#execute-run-btn');
     if (!btn) return;
-    btn.disabled = true; btn.textContent = 'Reading conversations...';
+    btn.disabled = true; btn.textContent = 'Starting research...';
     const preview = $('#explore-preview');
-    const progress = el('div', 'notice', 'Searching YouTube, Reddit, and more. Reading comments and analyzing what people are saying. This takes 30-90 seconds.');
+    const progress = el('div', 'notice', 'Starting the persisted research run. You may leave this view after it begins.');
     preview.append(progress);
     try {
-      const result = await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
-      toast(`Done — ${result.findings_count} result(s)`);
-      btn.textContent = 'Done';
-      btn.disabled = false;
-      progress.textContent = `Analysis complete. ${result.findings_count} topic(s) with findings. Click "View results" to read what people are saying.`;
-      const viewFindings = el('button', 'primary', 'View results');
-      viewFindings.addEventListener('click', () => { showView('findings'); loadFindings(); });
-      preview.append(viewFindings);
+      await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
+      progress.textContent = 'Research is running in the background. Its status and findings remain available after reload.';
+      await pollResearchRun(state.researchRunId, { button: btn, preview: progress });
+      if (['complete', 'partial'].includes(state.researchRunStatus)) {
+        const viewFindings = el('button', 'primary', 'View results');
+        viewFindings.addEventListener('click', () => { showView('findings'); loadResearchHistory(); });
+        preview.append(viewFindings);
+      }
     } catch (error) {
       showError(error.message);
       btn.disabled = false; btn.textContent = 'Start research';
-      progress.textContent = `Failed: ${error.message}`;
+      progress.textContent = `Failed to start: ${error.message}`;
+    }
+  }
+
+  async function startSavedResearchRun(runId, button) {
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    button.disabled = true;
+    button.textContent = 'Starting research...';
+    try {
+      await api(`/discovery/research-runs/${enc(runId)}/execute`, { method: 'POST' });
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace || state.researchRunId !== runId) return;
+      state.researchRunStatus = 'running';
+      if (activeResearchRun?.id === runId) activeResearchRun.status = 'running';
+      renderFindings();
+      await pollResearchRun(runId, { button });
+    } catch (error) {
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace || state.researchRunId !== runId) return;
+      button.disabled = false;
+      button.textContent = 'Start saved research';
+      showError(error.message);
     }
   }
 
   let persistedFindings = [];
-  async function loadFindings() {
-    if (!state.researchRunId) return;
-    const preview = $('#explore-preview');
-    if (preview) {
-      const loadingNotice = el('div', 'notice', 'Loading persisted findings...');
-      preview.append(loadingNotice);
-    }
+  let activeResearchRun = null;
+
+  function researchRunName(run) {
+    const named = String(run.plan?.name || '').trim();
+    if (named) return named;
+    const topics = (run.plan?.candidates || []).map(item => item.candidate?.keyword).filter(Boolean);
+    return topics.slice(0, 3).join(', ') || `Research run ${run.id}`;
+  }
+
+  async function loadResearchHistory({ quiet = false } = {}) {
+    const target = $('#research-run-history');
+    if (!target) return [];
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    if (!quiet) loading(target, 'Loading saved research');
     try {
-      const data = await api(`/discovery/research-runs/${enc(state.researchRunId)}/findings`);
-      persistedFindings = data.findings || [];
-      if (persistedFindings.length) {
-        toast(`${persistedFindings.length} result(s) ready. Go to Findings to read them.`);
-        const viewBtn = el('button', 'primary', 'View results');
-        viewBtn.addEventListener('click', () => { showView('findings'); renderFindings(); });
-        if (preview) { preview.append(viewBtn); }
-      } else {
-        if (preview) { preview.append(el('div', 'notice', 'No results yet. Click "Start research" first.')); }
+      const data = await api(`/discovery/research-runs?workspace_id=${enc(requestWorkspace)}`);
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return [];
+      const runs = data.runs || [];
+      target.replaceChildren();
+      if (!runs.length) {
+        target.append(emptyState('Saved research', 'No research runs yet', 'Start a bounded research brief in Explore. The run and its evidence will remain available here.', true));
+        persistedFindings = []; activeResearchRun = null; renderFindings();
+        return runs;
       }
-      renderFindings();
+      const remembered = localStorage.getItem(latestRunKey());
+      const selected = runs.find(run => run.id === state.researchRunId)
+        || runs.find(run => run.id === remembered) || runs[0];
+      const list = el('div', 'research-run-list');
+      runs.slice(0, 12).forEach(run => {
+        const row = el('button', `research-run-row${run.id === selected.id ? ' selected' : ''}`);
+        row.type = 'button';
+        append(row,
+          el('span', 'row-title', researchRunName(run)),
+          statusBadge(run.status),
+          el('span', 'row-copy', `${(run.plan?.candidates || []).length} topic(s) · ${run.plan?.lens_preset?.name || 'General research'}`),
+          el('span', 'row-meta mono', run.created_at || 'Creation time unavailable'),
+        );
+        row.addEventListener('click', async () => {
+          rememberResearchRun(run.id); activeResearchRun = run; state.researchRunStatus = run.status;
+          await loadFindings(run.id, { quiet: true });
+          await loadResearchHistory({ quiet: true });
+          if (run.status === 'running') pollResearchRun(run.id).catch(error => showError(error.message));
+        });
+        list.append(row);
+      });
+      target.append(list);
+      rememberResearchRun(selected.id); activeResearchRun = selected; state.researchRunStatus = selected.status;
+      await loadFindings(selected.id, { quiet: true });
+      if (selected.status === 'running') pollResearchRun(selected.id).catch(error => showError(error.message));
+      return runs;
     } catch (error) {
-      showError(error.message);
+      if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return [];
+      target.replaceChildren(emptyState('Unavailable', 'Saved research could not be loaded', error.message, true));
+      if (!quiet) showError(error.message);
+      return [];
     }
+  }
+
+  async function loadFindings(runId = state.researchRunId, { quiet = false } = {}) {
+    if (!runId) { persistedFindings = []; renderFindings(); return []; }
+    const requestEpoch = state.workspaceEpoch;
+    rememberResearchRun(runId);
+    try {
+      const [findingData, run] = await Promise.all([
+        api(`/discovery/research-runs/${enc(runId)}/findings`),
+        api(`/discovery/research-runs/${enc(runId)}`),
+      ]);
+      if (requestEpoch !== state.workspaceEpoch || state.researchRunId !== runId) return [];
+      persistedFindings = findingData.findings || [];
+      activeResearchRun = run; state.researchRunStatus = run.status;
+      if (!quiet && persistedFindings.length) toast(`${persistedFindings.length} saved result(s) loaded.`);
+      renderFindings();
+      return persistedFindings;
+    } catch (error) {
+      if (requestEpoch !== state.workspaceEpoch || state.researchRunId !== runId) return [];
+      persistedFindings = [];
+      const content = $('#findings-content');
+      if (content) content.replaceChildren(emptyState('Unavailable', 'Findings could not be rendered', error.message, true));
+      if (!quiet) showError(error.message);
+      return [];
+    }
+  }
+
+  function evidenceById(analysis) {
+    return new Map((analysis.evidence || []).map(item => [item.id, item]));
+  }
+
+  function hasRenderableCitations(evidenceIds, lookup) {
+    return [...new Set(Array.isArray(evidenceIds) ? evidenceIds : [])]
+      .some(id => safeUrl(lookup.get(id)?.url));
+  }
+
+  function appendCitationLinks(parent, evidenceIds, lookup) {
+    const links = [...new Set(Array.isArray(evidenceIds) ? evidenceIds : [])]
+      .map(id => ({ id, record: lookup.get(id) }))
+      .filter(item => safeUrl(item.record?.url));
+    if (!links.length) return;
+    const row = el('div', 'citation-links');
+    row.append(el('span', 'mono', 'Sources'));
+    links.forEach((item, index) => {
+      const link = el('a', 'source-link', `[${index + 1}] ${value(item.record.platform)}`);
+      link.href = safeUrl(item.record.url);
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = item.id;
+      row.append(link);
+    });
+    parent.append(row);
+  }
+
+  function addEntitySection(parent, entities, lookup) {
+    const section = el('section', 'evidence-section');
+    section.append(el('h3', '', 'Entities and alternatives'));
+    const citableEntities = Array.isArray(entities)
+      ? entities.filter(entity => hasRenderableCitations(entity.evidence_ids, lookup))
+      : [];
+    if (!citableEntities.length) {
+      section.append(el('p', 'muted', 'No citation-backed companies, products, or alternatives were extracted.'));
+      parent.append(section);
+      return;
+    }
+    citableEntities.forEach(entity => {
+      const record = el('article', 'evidence-record');
+      record.append(
+        el('strong', '', value(entity.name)),
+        el('p', '', `${value(entity.type)} · ${value(entity.relationship)}`),
+      );
+      appendCitationLinks(record, entity.evidence_ids, lookup);
+      section.append(record);
+    });
+    parent.append(section);
   }
 
   function renderFindings() {
     const content = $('#findings-content'); content.replaceChildren();
     if (persistedFindings.length) {
-      const heading = el('p', 'eyebrow', `Persisted findings from ${state.researchRunId || 'latest run'}`);
-      content.append(heading);
+      const preset = activeResearchRun?.plan?.lens_preset || null;
+      const preferredKinds = new Set(preset?.suggested_signal_kinds || []);
+      append(content,
+        el('p', 'eyebrow', researchRunName(activeResearchRun || { id: state.researchRunId, plan: {} })),
+        el('div', 'notice', preset
+          ? `${preset.name} reorders relevant signal types for review. The canonical evidence and non-matching signals remain preserved.`
+          : 'Canonical horizontal evidence. No use-case interpretation was applied.'),
+      );
       persistedFindings.forEach(finding => {
         const analysis = finding.analysis || {};
+        const citationLookup = evidenceById(analysis);
         const block = el('article', 'subject-block');
         const title = el('h3', '', finding.topic || finding.candidate_id);
         const badge = statusBadge(analysis.status || finding.status);
@@ -747,39 +1096,60 @@
           el('dt', '', 'Independent voices'), el('dd', '', count(analysis.independent_voice_count)),
         );
         append(block, title, badge);
-        if (analysis.summary) block.append(el('p', '', analysis.summary));
+        if (analysis.summary && hasRenderableCitations(analysis.summary_evidence_ids, citationLookup)) {
+          const summary = el('div', 'finding-summary');
+          summary.append(el('p', '', analysis.summary));
+          appendCitationLinks(summary, analysis.summary_evidence_ids, citationLookup);
+          block.append(summary);
+        }
         block.append(dl);
-        if (analysis.signals && analysis.signals.length) {
+        const signals = [...(analysis.signals || [])]
+          .filter(signal => hasRenderableCitations(signal.evidence_ids, citationLookup))
+          .sort((left, right) => Number(preferredKinds.has(right.kind)) - Number(preferredKinds.has(left.kind)));
+        if (signals.length) {
           const sig = el('section', 'evidence-section'); sig.append(el('h3', '', 'Signals'));
-          analysis.signals.forEach(s => {
-            const rec = el('article', 'evidence-record');
-            rec.append(el('strong', '', `${s.kind} (${s.polarity})`), el('p', '', s.claim));
-            rec.append(el('span', 'mono', `${s.independent_voices} voices · ${s.thread_count} threads · confidence ${s.confidence}`));
+          signals.forEach(signal => {
+            const rec = el('article', `evidence-record${preferredKinds.has(signal.kind) ? ' focused-signal' : ''}`);
+            rec.append(el('strong', '', `${value(signal.kind).replaceAll('_', ' ')} · ${value(signal.polarity)}`), el('p', '', signal.claim));
+            const metrics = [];
+            if (signal.independent_voices != null) metrics.push(`${signal.independent_voices} independent voice(s)`);
+            if (signal.thread_count != null) metrics.push(`${signal.thread_count} thread(s)`);
+            if (signal.confidence != null) metrics.push(`confidence ${signal.confidence}`);
+            if (metrics.length) rec.append(el('span', 'mono', metrics.join(' · ')));
+            appendCitationLinks(rec, signal.evidence_ids, citationLookup);
             sig.append(rec);
           });
           block.append(sig);
         }
-        if (analysis.evidence && analysis.evidence.length) addDataSection(block, 'Evidence records', analysis.evidence, 'No evidence records returned.');
-        if (analysis.limitations && analysis.limitations.length) addDataSection(block, 'Limitations', analysis.limitations, 'No limitations reported.');
+        addEntitySection(block, analysis.entities, citationLookup);
+        addCoverageSection(block, analysis.coverage || {});
+        addEvidenceSection(block, analysis.evidence || []);
+        addDataSection(block, 'Limitations', analysis.limitations, 'No limitations reported.');
         content.append(block);
       });
       return;
     }
-    if (!state.candidates.length) {
-      const box = emptyState('Unavailable after reload', 'No current-session findings', 'The API does not expose a complete saved-findings collection. Run Explore to inspect actual results returned in this session.'); box.classList.add('bordered'); content.append(box); return;
+    if (activeResearchRun?.status === 'planned') {
+      const stateCard = emptyState('Research planned', researchRunName(activeResearchRun), 'This saved brief has not collected or interpreted any sources yet.', true);
+      const start = el('button', 'primary', 'Start saved research');
+      start.type = 'button';
+      start.addEventListener('click', () => startSavedResearchRun(activeResearchRun.id, start));
+      content.append(stateCard, start);
+      return;
     }
-    const table = el('table', 'data-table');
-    const head = el('tr'); ['Finding', 'Evidence status', 'Volume', 'Growth', 'Action'].forEach(title => head.append(el('th', '', title)));
-    const thead = el('thead'); thead.append(head); const body = el('tbody');
-    state.candidates.forEach((candidate, index) => {
-      const analysis = candidate.conversation_analysis || candidate.analysis || {}; const row = el('tr');
-      append(row, el('td', '', candidateName(candidate)));
-      const statusCell = el('td'); statusCell.append(statusBadge(analysis.status || candidate.gate_status || 'not_checked')); row.append(statusCell);
-      const growth = candidate.growth_pct ?? candidate.growth;
-      append(row, el('td', 'mono', count(candidate.search_volume ?? candidate.volume)), el('td', 'mono', growth == null ? 'Not available' : `${growth}%`));
-      const action = el('td'); const inspect = el('button', 'quiet', 'Inspect'); inspect.addEventListener('click', () => { showView('explore'); state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); }); action.append(inspect); row.append(action); body.append(row);
-    }); table.append(thead, body); const wrap = el('div', 'table-wrap'); wrap.append(table); content.append(wrap);
-    if (state.researchRunId) content.append(el('div', 'notice', `Latest research plan ${state.researchRunId} is planned only. No collection execution is claimed.`));
+    if (activeResearchRun?.status === 'running') {
+      content.append(emptyState('Research running', researchRunName(activeResearchRun), 'Collection and analysis are still active. This view will recover the durable run after reload.', true));
+      return;
+    }
+    if (activeResearchRun?.status === 'error') {
+      content.append(emptyState('Research failed', researchRunName(activeResearchRun), activeResearchRun.error_category || 'No error detail was recorded.', true));
+      return;
+    }
+    if (activeResearchRun) {
+      content.append(emptyState('No findings', researchRunName(activeResearchRun), 'The run completed without a persisted finding. Check its source coverage and limitations before changing the brief.', true));
+      return;
+    }
+    content.append(emptyState('Saved research', 'No run selected', 'Start a research brief in Explore or select a saved run above.', true));
   }
 
   async function loadLenses() {
@@ -995,12 +1365,34 @@
     $$('[data-open]').forEach(button => button.addEventListener('click', async () => { if (button.dataset.open === 'lens-dialog') resetLensForm(); if (button.dataset.open === 'subject-dialog') { try { await ensureLenses(); } catch (error) { showError(error.message); return; } } $(`#${button.dataset.open}`).showModal(); }));
     $$('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
     $('#menu-toggle').addEventListener('click', event => { const open = $('#sidebar').classList.toggle('open'); event.currentTarget.setAttribute('aria-expanded', String(open)); });
-    $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspaceEpoch += 1; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.lenses = []; state.families = []; state.selectedFamily = null; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
+    $('#save-workspace').addEventListener('click', () => {
+      const key = $('#workspace-key').value.trim() || 'default';
+      state.workspaceEpoch += 1;
+      state.workspace = key;
+      localStorage.setItem('bounty.workspace', key);
+      state.project = null;
+      state.projects = [];
+      state.lenses = [];
+      state.families = [];
+      state.selectedFamily = null;
+      state.candidates = [];
+      state.selectedCandidate = null;
+      state.selectedForPlan.clear();
+      state.discoveryRunId = null;
+      state.discoveryRunStatus = null;
+      state.researchRunId = null;
+      state.researchRunStatus = null;
+      persistedFindings = [];
+      activeResearchRun = null;
+      state.subjects.clear();
+      toast(`Using workspace ${key}`);
+      showView('projects');
+    });
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
  $('#start-tour').addEventListener('click', startTour);
  $('#research-topic-btn').addEventListener('click', researchTopic);
- $('#direct-topic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); researchTopic(); } });
+ $('#direct-topic').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); researchTopic(); } });
  $('#explore-cat-filter')?.addEventListener('change', renderExploreResults);
  $('#refresh-families')?.addEventListener('click', loadGlobalExplore);
  $('#global-perspective')?.addEventListener('change', loadGlobalExplore);

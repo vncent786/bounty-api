@@ -1,6 +1,8 @@
 import asyncio
 import json
 
+import pytest
+
 from social_scraper.discovery.triage import (
     analyze_conversation,
     prepare_conversation_prompt,
@@ -12,14 +14,14 @@ POSTS = [
         "platform": "reddit",
         "post_id": "r1",
         "text": "I switched from Brand A because delivery now takes two weeks.",
-        "url": "https://reddit.example/r1",
+        "url": "https://www.reddit.com/r/example/comments/r1",
         "author": {"external_id": "u1", "username": "one"},
     },
     {
         "platform": "youtube",
         "post_id": "y1",
         "text": "Brand A delivery delays made me cancel my order too.",
-        "url": "https://youtube.example/y1",
+        "url": "https://www.youtube.com/watch?v=y1",
         "author": {"external_id": "u2", "username": "two"},
     },
 ]
@@ -29,6 +31,7 @@ def test_horizontal_analysis_is_cited_and_useful_to_multiple_lenses():
     async def llm(_system, _user):
         return json.dumps({
             "summary": "Customers describe abandoning Brand A after delivery delays.",
+            "summary_evidence_ids": ["reddit:post:r1", "youtube:post:y1"],
             "signals": [{
                 "kind": "switching",
                 "claim": "Customers are switching away after delivery delays.",
@@ -53,6 +56,9 @@ def test_horizontal_analysis_is_cited_and_useful_to_multiple_lenses():
     ))
     data = result.to_dict()
     assert data["status"] == "supported"
+    assert data["summary_evidence_ids"] == [
+        "reddit:post:r1", "youtube:post:y1"
+    ]
     assert data["coverage"]["independent_voices"] == 2
     assert data["signals"][0]["kind"] == "switching"
     assert data["signals"][0]["independent_voices"] == 2
@@ -91,6 +97,61 @@ def test_unknown_citations_are_rejected_not_silently_treated_as_evidence():
         item.startswith("LLM returned unknown evidence IDs")
         for item in result.limitations
     )
+
+
+def test_claims_without_openable_source_urls_are_rejected():
+    async def llm(_system, _user):
+        return json.dumps({
+            "summary": "",
+            "summary_evidence_ids": [],
+            "signals": [{
+                "kind": "pain_point",
+                "claim": "A cited but unopenable claim.",
+                "polarity": "negative",
+                "evidence_ids": ["reddit:post:r1"],
+            }],
+            "entities": [],
+            "limitations": [],
+        })
+
+    result = asyncio.run(analyze_conversation(
+        "topic", [dict(POSTS[0], url=None)], source_health=[], llm_call_fn=llm
+    ))
+    assert result.status == "insufficient_evidence"
+    assert result.signals == []
+    assert any("without an openable source URL" in item for item in result.limitations)
+
+
+@pytest.mark.parametrize("url", [
+    "https://exa mple.com/path",
+    "https://localhost/private",
+    "http://127.0.0.1/admin",
+    "http://169.254.169.254/latest/meta-data",
+    "https://user:password@example.com/private",
+    "https://source.example/evidence",
+])
+def test_claims_with_non_public_or_malformed_urls_are_rejected(url):
+    async def llm(_system, _user):
+        return json.dumps({
+            "summary": "Malformed-host claim",
+            "summary_evidence_ids": ["reddit:post:r1"],
+            "signals": [{
+                "kind": "pain_point",
+                "claim": "Malformed-host claim",
+                "polarity": "negative",
+                "evidence_ids": ["reddit:post:r1"],
+            }],
+            "entities": [],
+            "limitations": [],
+        })
+
+    result = asyncio.run(analyze_conversation(
+        "topic", [dict(POSTS[0], url=url)], source_health=[], llm_call_fn=llm
+    ))
+    assert result.status == "insufficient_evidence"
+    assert result.summary == ""
+    assert result.signals == []
+    assert any("openable source URL" in item for item in result.limitations)
 
 
 def test_source_failure_is_not_reported_as_no_conversation():
@@ -185,6 +246,7 @@ def test_conversation_analysis_public_output_shape_is_unchanged():
     assert set(result.to_dict()) == {
         "topic", "status", "behavior_type", "direction", "novelty",
         "durability_evidence", "independent_voice_count", "products",
-        "representative_record_ids", "summary", "signals", "entities",
+        "representative_record_ids", "summary", "summary_evidence_ids",
+        "signals", "entities",
         "evidence", "coverage", "limitations", "llm_error", "schema_version",
     }

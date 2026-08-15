@@ -14,7 +14,7 @@ import logging
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Mapping, Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
@@ -33,6 +33,7 @@ _lens_store = None
 _workspace_store = None
 _workspace_service = None
 _engine = None
+_research_tasks: dict[str, asyncio.Task] = {}
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
 
@@ -87,8 +88,10 @@ class CustomFieldCreateRequest(BaseModel):
 
 class ResearchRunCreateRequest(BaseModel):
     workspace_id: str
+    name: str = Field(min_length=1, max_length=160)
+    lens_preset_id: Optional[str] = None
     source_discovery_run_id: Optional[str] = None
-    candidates: list[dict[str, Any]]
+    candidates: list[dict[str, Any]] = Field(min_length=1, max_length=5)
     budget: dict[str, Any] = Field(default_factory=dict)
     required_depth: str = "candidate"
     lens_required_depth: Optional[str] = None
@@ -674,16 +677,148 @@ async def get_trend_detail(
     return result
 
 
+def _public_research_run(run: Mapping[str, Any]) -> dict[str, Any]:
+    """Remove worker-lease internals from the dashboard contract."""
+    public = dict(run)
+    public.pop("lease_token", None)
+    public.pop("lease_until", None)
+    return public
+
+
+# Bounds for persisted research-brief candidates: keywords stay short search
+# topics, every other nested string stays a bounded label/note, and platform
+# collections stay a small, deduplicated list.
+_RESEARCH_TOPIC_MAX_LENGTH = 120
+_RESEARCH_CANDIDATE_STRING_MAX = 500
+_RESEARCH_PLATFORMS_MAX = 8
+_RESEARCH_PLATFORM_NAME_MAX = 32
+
+
+def _reject_oversized_candidate_strings(value: object, path: str = "candidate") -> None:
+    if isinstance(value, str):
+        if len(value) > _RESEARCH_CANDIDATE_STRING_MAX:
+            raise ValueError(
+                f"{path} must be at most {_RESEARCH_CANDIDATE_STRING_MAX} characters"
+            )
+    elif isinstance(value, dict):
+        for key, item in value.items():
+            _reject_oversized_candidate_strings(item, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _reject_oversized_candidate_strings(item, f"{path}[{index}]")
+
+
+def _allowed_research_platforms() -> frozenset[str]:
+    """Platforms research briefs may request; shared with the executor."""
+    from social_scraper.discovery.handlers import ALLOWED_PLATFORMS
+
+    return ALLOWED_PLATFORMS
+
+
+def _normalize_research_candidate(candidate: dict[str, Any]) -> dict[str, Any]:
+    """Bound one research topic without rewriting its untouched fields."""
+    normalized = dict(candidate)
+    if "platforms" in normalized:
+        raw_platforms = normalized["platforms"]
+        if not isinstance(raw_platforms, list):
+            raise ValueError("candidate platforms must be a list")
+        allowed = _allowed_research_platforms()
+        platforms: list[str] = []
+        for entry in raw_platforms:
+            if not isinstance(entry, str):
+                raise ValueError("candidate platforms must be strings")
+            platform = entry.strip().lower()
+            if not platform:
+                raise ValueError("candidate platforms must be non-empty")
+            if len(platform) > _RESEARCH_PLATFORM_NAME_MAX:
+                raise ValueError(
+                    "candidate platform names must be at most "
+                    f"{_RESEARCH_PLATFORM_NAME_MAX} characters"
+                )
+            if platform not in allowed:
+                raise ValueError(
+                    f"unknown platform {platform!r}; allowed platforms: "
+                    + ", ".join(sorted(allowed))
+                )
+            if platform not in platforms:
+                platforms.append(platform)
+        if len(platforms) > _RESEARCH_PLATFORMS_MAX:
+            raise ValueError(
+                f"candidates may list at most {_RESEARCH_PLATFORMS_MAX} platforms"
+            )
+        if platforms:
+            normalized["platforms"] = platforms
+        else:
+            # An empty collection falls back to the handler defaults.
+            normalized.pop("platforms")
+    _reject_oversized_candidate_strings(normalized)
+    return normalized
+
+
 @router.post("/discovery/research-runs", status_code=201)
 async def create_discovery_research_run(body: ResearchRunCreateRequest):
     """Persist a deterministic plan; live collection intentionally happens elsewhere."""
     from social_scraper.discovery import ScanBudget
     from social_scraper.discovery.scheduler import DiscoveryScheduler
+    from social_scraper.lenses import get_lens_preset
     from social_scraper.lenses.storage import LensStoreError
     try:
-        requested = ScanBudget.from_dict(body.budget)
+        name = str(body.name or "").strip()
+        if not name:
+            raise ValueError("research brief name is required")
+        normalized_candidates: list[dict[str, Any]] = []
+        seen_topics: set[str] = set()
+        for candidate in body.candidates:
+            keyword = str(candidate.get("keyword") or "").strip()
+            if not keyword:
+                raise ValueError("every research topic must have a keyword")
+            if len(keyword) > _RESEARCH_TOPIC_MAX_LENGTH:
+                raise ValueError(
+                    "research topic keywords must be at most "
+                    f"{_RESEARCH_TOPIC_MAX_LENGTH} characters"
+                )
+            topic_key = keyword.casefold()
+            if topic_key in seen_topics:
+                raise ValueError("research topics must be unique")
+            seen_topics.add(topic_key)
+            normalized_candidates.append(
+                _normalize_research_candidate({**candidate, "keyword": keyword})
+            )
+
+        candidate_count = len(normalized_candidates)
+        budget_payload = ScanBudget().to_dict()
+        budget_payload.update({
+            "root_probe_candidates": candidate_count,
+            "deep_read_candidates": candidate_count,
+            "horizontal_llm_candidates": candidate_count,
+        })
+        budget_payload.update(body.budget)
+        limits = {
+            "root_probe_candidates": 5,
+            "deep_read_candidates": 5,
+            "horizontal_llm_candidates": 5,
+            "threads_per_platform": 10,
+            "comments_per_thread": 100,
+            "max_thread_depth": 5,
+            "optional_enrichments": 5,
+        }
+        for field, limit in limits.items():
+            value = budget_payload.get(field)
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise ValueError(f"{field} must be an integer")
+            if value < 0 or value > limit:
+                raise ValueError(f"{field} must be within 0..{limit}")
+        requested = ScanBudget.from_dict(budget_payload)
         resolved_depth = body.resolved_depth()
         lens_reference = None
+        lens_preset = None
+        if body.lens_preset_id:
+            try:
+                lens_preset = get_lens_preset(body.lens_preset_id).to_dict()
+            except KeyError as exc:
+                raise ValueError(
+                    f"unknown lens preset: {body.lens_preset_id}"
+                ) from exc
         if body.lens is not None:
             lens_id = str(body.lens.get("id") or "").strip()
             try:
@@ -701,25 +836,37 @@ async def create_discovery_research_run(body: ResearchRunCreateRequest):
                 "version": lens_version,
                 "required_depth": resolved_depth,
             }
+        required_budget_fields = ["root_probe_candidates"]
+        if resolved_depth in {"deep_read", "horizontal_analysis", "custom_extraction"}:
+            required_budget_fields.append("deep_read_candidates")
+        if resolved_depth in {"horizontal_analysis", "custom_extraction"}:
+            required_budget_fields.append("horizontal_llm_candidates")
+        for field in required_budget_fields:
+            if budget_payload[field] < candidate_count:
+                raise ValueError(f"{field} must cover every research topic")
         plan = DiscoveryScheduler().plan(
-            body.candidates, requested, resolved_depth,
+            normalized_candidates, requested, resolved_depth,
             workspace_id=body.workspace_id, metric_order=body.priority_metrics,
         )
         plan["lens"] = lens_reference
-        return _get_discovery_store().create_research_run(
+        plan["lens_preset"] = lens_preset
+        plan["name"] = name
+        run = _get_discovery_store().create_research_run(
             workspace_id=body.workspace_id,
             source_discovery_run_id=body.source_discovery_run_id,
             requested_budget=requested.to_dict(),
             effective_budget=plan["effective_budget"],
             plan=plan,
         )
+        return _public_research_run(run)
     except (TypeError, ValueError, LensStoreError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/discovery/research-runs")
 async def list_discovery_research_runs(workspace_id: Optional[str] = None):
-    return {"runs": _get_discovery_store().list_research_runs(workspace_id)}
+    runs = _get_discovery_store().list_research_runs(workspace_id)
+    return {"runs": [_public_research_run(run) for run in runs]}
 
 
 @router.get("/discovery/research-runs/{run_id}")
@@ -727,7 +874,7 @@ async def get_discovery_research_run(run_id: str):
     run = _get_discovery_store().get_research_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    return run
+    return _public_research_run(run)
 
 
 @router.get("/discovery/research-runs/{run_id}/candidates")
@@ -756,78 +903,210 @@ async def promote_discovery_research_candidate(run_id: str, candidate_id: str):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/discovery/research-runs/{run_id}/execute")
-async def execute_research_run(run_id: str):
-    """Execute a planned research run: collect conversations, analyze, persist findings.
+def _schedule_research_run(run_id: str, claim_token: str) -> None:
+    """Keep a strong reference to one leased process-local task until it ends."""
+    task = asyncio.create_task(_execute_research_run_background(run_id, claim_token))
+    _research_tasks[run_id] = task
 
-    Loads the persisted plan, builds real handlers with the source broker,
-    runs the StagedRunner, persists any findings, and updates run status.
-    Only runs with status 'planned' can be executed.
-    """
+    def _forget(_task: asyncio.Task) -> None:
+        _research_tasks.pop(run_id, None)
+
+    task.add_done_callback(_forget)
+
+
+@router.post("/discovery/research-runs/{run_id}/execute", status_code=202)
+async def execute_research_run(run_id: str):
+    """Start a persisted research run and return immediately for status polling."""
     store = _get_discovery_store()
     run = store.get_research_run(run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Research run not found")
-    if run["status"] not in ("planned",):
+    if run["status"] not in {"planned", "running"}:
         raise HTTPException(
             status_code=409,
-            detail=f"Research run status is '{run['status']}', expected 'planned'",
+            detail=f"Research run status is '{run['status']}', expected 'planned' or 'running'",
+        )
+    if run_id in _research_tasks:
+        return {
+            "run_id": run_id,
+            "status": "running",
+            "resumed": False,
+            "claimed_elsewhere": False,
+            "status_url": f"/dashboard/api/discovery/research-runs/{run_id}",
+        }
+
+    claim_token = store.claim_research_run(run_id)
+    if claim_token is not None:
+        _schedule_research_run(run_id, claim_token)
+    return {
+        "run_id": run_id,
+        "status": "running",
+        "resumed": run["status"] == "running" and claim_token is not None,
+        "claimed_elsewhere": claim_token is None,
+        "status_url": f"/dashboard/api/discovery/research-runs/{run_id}",
+    }
+
+
+async def _renew_research_run_lease(run_id: str, claim_token: str) -> None:
+    """Keep a live worker lease short and fail loudly if ownership is lost."""
+    store = _get_discovery_store()
+    while True:
+        await asyncio.sleep(30)
+        if not store.renew_research_run_claim(run_id, claim_token):
+            raise RuntimeError(f"research run {run_id} lost its worker lease")
+
+
+async def _execute_research_run_background(
+    run_id: str, claim_token: str,
+) -> dict[str, Any]:
+    """Collect conversations, analyze them, and persist findings for one run."""
+    store = _get_discovery_store()
+    run = store.get_research_run(run_id)
+    if run is None:
+        logger.error("Research run %s disappeared before execution", run_id)
+        return {"run_id": run_id, "status": "error", "findings_count": 0}
+
+    heartbeat: asyncio.Task | None = None
+    execution: asyncio.Task | None = None
+    try:
+        if not store.renew_research_run_claim(run_id, claim_token):
+            logger.warning("Research run %s started after its worker lease expired", run_id)
+            return {"run_id": run_id, "status": "error", "findings_count": 0}
+        heartbeat = asyncio.create_task(
+            _renew_research_run_lease(run_id, claim_token)
+        )
+        from social_scraper.discovery.handlers import build_handlers
+        from social_scraper.discovery.staged_runner import StagedRunner
+        from social_scraper.discovery.triage import (
+            all_sources_failed,
+            prepare_conversation_prompt,
+            source_failure_limitations,
         )
 
-    from social_scraper.discovery.handlers import build_handlers
-    from social_scraper.discovery.staged_runner import StagedRunner
+        plan = run["plan"]
+        handlers, collected = build_handlers(
+            _get_broker(), plan, llm_call_fn=_llm_call,
+        )
+        execution = asyncio.create_task(StagedRunner(handlers).run(run_id, plan))
+        done, _ = await asyncio.wait(
+            {execution, heartbeat}, return_when=asyncio.FIRST_COMPLETED,
+        )
+        if heartbeat in done:
+            error = (
+                None if heartbeat.cancelled() else heartbeat.exception()
+            )
+            execution.cancel()
+            await asyncio.gather(execution, return_exceptions=True)
+            raise error or RuntimeError("research lease heartbeat stopped unexpectedly")
+        result = await execution
 
-    plan = run["plan"]
-    broker = _get_broker()
+        if not store.renew_research_run_claim(run_id, claim_token):
+            raise ValueError("research worker lost its claim before persistence")
 
-    handlers, collected = build_handlers(
-        broker, plan, llm_call_fn=_llm_call,
-    )
-
-    runner = StagedRunner(handlers)
-
-    store.update_research_run(run_id, status="running")
-    try:
-        result = await runner.run(run_id, plan)
-    except Exception as exc:
-        store.update_research_run(run_id, status="error", error_category=str(exc)[:200])
-        raise HTTPException(status_code=502, detail=f"Execution failed: {exc}") from exc
-
-    # Persist findings from the shared collected dict
-    findings_saved = []
-    for candidate in plan.get("candidates", []):
-        cid = candidate.get("candidate_id", "")
-        findings_key = cid + ":findings"
-        if findings_key in collected:
-            analysis = collected[findings_key]
+        findings_saved = []
+        for candidate in plan.get("candidates", []):
+            cid = candidate.get("candidate_id", "")
             topic = str(candidate.get("candidate", {}).get("keyword") or cid)
+            analysis = collected.get(cid + ":findings")
+            if analysis is None:
+                posts = (
+                    collected.get(cid + ":deep")
+                    or collected.get(cid)
+                    or []
+                )
+                # Root-probe and deep-read health together decide how total
+                # the collection gap is; deep-read failures must not vanish.
+                source_health = list(collected.get(cid + ":health") or [])
+                source_health.extend(collected.get(cid + ":deep_health") or [])
+                prepared = prepare_conversation_prompt(topic, posts)
+                public_evidence = [
+                    {key: value for key, value in item.items() if key != "voice_id"}
+                    for item in prepared.evidence
+                ]
+                source_unavailable = not posts and all_sources_failed(source_health)
+                analysis = {
+                    "topic": topic,
+                    "status": (
+                        "sources_unavailable" if source_unavailable
+                        else "insufficient_evidence"
+                    ),
+                    "summary": "",
+                    "summary_evidence_ids": [],
+                    "signals": [],
+                    "entities": [],
+                    "evidence": public_evidence,
+                    "coverage": {
+                        "raw_records": len(posts),
+                        "deduplicated_records": len(public_evidence),
+                        "independent_voices": len({
+                            item.get("voice_id") for item in prepared.evidence
+                            if item.get("voice_id")
+                        }),
+                        "thread_count": len({
+                            item.get("root_id") or item.get("id")
+                            for item in prepared.evidence
+                        }),
+                        "platform_count": len({
+                            item.get("platform") for item in prepared.evidence
+                            if item.get("platform")
+                        }),
+                        "source_status": source_health,
+                    },
+                    "limitations": [
+                        "This topic did not reach a completed interpretation; source records and collection gaps remain available.",
+                        *source_failure_limitations(source_health),
+                    ],
+                    "llm_error": "",
+                    "schema_version": "conversation-analysis/2",
+                }
             finding = store.save_findings(
                 run_id, cid, topic,
                 analysis.get("status", "unknown"), analysis,
+                claim_token=claim_token,
             )
             findings_saved.append(finding)
 
-    # Determine final run status from stage results
-    stage_statuses = []
-    for stage_name, stage_results in result.handler_results.items():
-        for cid, sr in stage_results.items():
-            stage_statuses.append(sr.status)
-    if any(s == "failed" for s in stage_statuses):
-        final_status = "partial"
-    elif any(s == "empty" for s in stage_statuses) and not findings_saved:
-        final_status = "complete"
-    else:
-        final_status = "complete"
-
-    store.update_research_run(run_id, status=final_status)
-
-    return {
-        "run_id": run_id,
-        "status": final_status,
-        "stages_executed": list(result.handler_results.keys()),
-        "findings_count": len(findings_saved),
-        "usage": [u.to_dict() for u in result.usages],
-    }
+        stage_statuses = [
+            stage_result.status
+            for stage_results in result.handler_results.values()
+            for stage_result in stage_results.values()
+        ]
+        final_status = "partial" if any(
+            status == "failed" for status in stage_statuses
+        ) else "complete"
+        receipt = {
+            "stages_executed": list(result.handler_results.keys()),
+            "findings_count": len(findings_saved),
+            "usage": [usage.to_dict() for usage in result.usages],
+        }
+        store.update_research_run(
+            run_id, status=final_status, result=receipt, claim_token=claim_token,
+        )
+        return {"run_id": run_id, "status": final_status, **receipt}
+    except asyncio.CancelledError:
+        if execution is not None and not execution.done():
+            execution.cancel()
+            await asyncio.gather(execution, return_exceptions=True)
+        store.release_research_run_claim(run_id, claim_token)
+        raise
+    except Exception as exc:
+        logger.exception("Research run %s failed", run_id)
+        error_receipt = {"findings_count": len(store.list_findings(run_id))}
+        try:
+            store.update_research_run(
+                run_id, status="error", error_category=str(exc)[:200],
+                result=error_receipt, claim_token=claim_token,
+            )
+        except ValueError:
+            logger.warning("Research run %s failed after its worker claim expired", run_id)
+        return {"run_id": run_id, "status": "error", **error_receipt}
+    finally:
+        tasks = [task for task in (execution, heartbeat) if task is not None]
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
 
 @router.get("/discovery/research-runs/{run_id}/findings")

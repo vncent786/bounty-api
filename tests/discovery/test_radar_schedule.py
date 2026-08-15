@@ -468,11 +468,40 @@ def test_expired_lease_is_reclaimable_and_old_token_is_stale(tmp_path):
     assert runs[0]["started_at"] == later.isoformat()
 
 
+@pytest.mark.parametrize(
+    ("status", "comparable", "error_category"),
+    [("complete", True, None), ("error", False, "source_timeout")],
+)
+def test_expired_radar_lease_cannot_finalize_attempt(
+    tmp_path, status, comparable, error_category,
+):
+    store = DiscoveryStore(tmp_path / f"expired-{status}.db")
+    made = store.upsert_radar_schedule(**schedule_kwargs())
+    claim = store.claim_due_schedules(now=T0, lease_minutes=1)[0]
+
+    with pytest.raises(RuntimeError, match="claim"):
+        store.complete_schedule_attempt(
+            made["id"], claim["claim_token"], status=status,
+            comparable=comparable, error_category=error_category,
+            now=T0 + timedelta(minutes=1),
+        )
+
+    assert store.list_radar_schedule_runs(made["id"]) == []
+    persisted = store.get_radar_schedule(made["id"])
+    assert persisted["lease_token"] == claim["claim_token"]
+    assert persisted["lease_until"] == (T0 + timedelta(minutes=1)).isoformat()
+
+
 def test_wrong_token_fails_without_side_effects(tmp_path):
     store = DiscoveryStore(tmp_path / "discovery.db")
     made = store.upsert_radar_schedule(**schedule_kwargs())
     claim = store.claim_due_schedules(now=T0, lease_minutes=30)[0]
 
+    with pytest.raises(ValueError, match="lease_token"):
+        store.complete_schedule_attempt(
+            made["id"], "", status="complete",
+            comparable=True, discovery_run_id="run-x", now=T0 + timedelta(minutes=1),
+        )
     with pytest.raises(RuntimeError, match="claim"):
         store.complete_schedule_attempt(
             made["id"], "not-the-token", status="complete",

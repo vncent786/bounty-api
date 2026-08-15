@@ -812,6 +812,13 @@ async def get_discovery_run_usage(run_id: str):
         "input_tokens": _token_total("input_tokens"),
         "output_tokens": _token_total("output_tokens"),
         "tokens_estimated": any(row["tokens_estimated"] for row in rows),
+        # Provider-reported actuals stay separate from projected/estimated
+        # token fields above; neither is derived from the other.
+        "input_records": sum(row["input_records"] for row in rows),
+        "input_characters": sum(row["input_characters"] for row in rows),
+        "input_tokens_reported": _token_total("input_tokens_reported"),
+        "output_tokens_reported": _token_total("output_tokens_reported"),
+        "shared_evidence_reuse": any(row["shared_evidence_reuse"] for row in rows),
     }
     return {"run_id": run_id, "totals": totals, "rows": rows}
 

@@ -256,7 +256,7 @@ def make_horizontal_extraction_handler(
     """
 
     async def handler(candidate: dict, context: dict | None = None) -> StageHandlerResult:
-        from .triage import analyze_conversation
+        from .triage import analyze_conversation, prepare_conversation_prompt
 
         keyword = _keyword_from_candidate(candidate)
         if not keyword:
@@ -272,6 +272,11 @@ def make_horizontal_extraction_handler(
 
         if not posts:
             return StageHandlerResult(status="empty", error_category="no_evidence")
+
+        # Measure the exact prompt analyze_conversation transmits: the same
+        # deterministic preparation (dedup, per-platform cap, truncation), not
+        # the raw collected posts and not an estimate.
+        prompt_receipt = prepare_conversation_prompt(keyword, posts)
 
         source_health: list[dict] = []
         if collected and cid + ":health" in collected:
@@ -301,6 +306,8 @@ def make_horizontal_extraction_handler(
             external_calls=0,
             llm_calls=1,
             cache_hit=False,
+            input_records=prompt_receipt.input_records,
+            input_characters=prompt_receipt.input_characters,
             status="complete" if result.get("status") == "supported" else (
                 "empty" if result.get("status") in {"insufficient_evidence", "sources_unavailable"} else "complete"
             ),

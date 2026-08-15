@@ -181,7 +181,18 @@ class DiscoveryStore:
                     input_tokens INTEGER CHECK(input_tokens IS NULL OR input_tokens >= 0),
                     output_tokens INTEGER CHECK(output_tokens IS NULL OR output_tokens >= 0),
                     tokens_estimated INTEGER NOT NULL DEFAULT 0
-                        CHECK(tokens_estimated IN (0,1))
+                        CHECK(tokens_estimated IN (0,1)),
+                    input_records INTEGER NOT NULL DEFAULT 0
+                        CHECK(input_records >= 0),
+                    input_characters INTEGER NOT NULL DEFAULT 0
+                        CHECK(input_characters >= 0),
+                    input_tokens_reported INTEGER
+                        CHECK(input_tokens_reported IS NULL OR input_tokens_reported >= 0),
+                    output_tokens_reported INTEGER
+                        CHECK(output_tokens_reported IS NULL OR output_tokens_reported >= 0),
+                    topic_family_id TEXT,
+                    shared_evidence_reuse INTEGER NOT NULL DEFAULT 0
+                        CHECK(shared_evidence_reuse IN (0,1))
                 );
                 CREATE INDEX IF NOT EXISTS idx_discovery_stage_usage_run
                     ON discovery_stage_usage(discovery_run_id, id);
@@ -335,6 +346,33 @@ class DiscoveryStore:
                     "ALTER TABLE discovery_gate_checks "
                     "ADD COLUMN records_json TEXT NOT NULL DEFAULT '[]'"
                 )
+            # Additive 2026-08-15 cost-receipt columns: legacy rows keep their
+            # values, new columns arrive defaulted, reported tokens stay NULL.
+            usage_columns = {
+                row[1] for row in connection.execute(
+                    "PRAGMA table_info(discovery_stage_usage)"
+                )
+            }
+            for column, definition in (
+                ("input_records",
+                 "INTEGER NOT NULL DEFAULT 0 CHECK(input_records >= 0)"),
+                ("input_characters",
+                 "INTEGER NOT NULL DEFAULT 0 CHECK(input_characters >= 0)"),
+                ("input_tokens_reported",
+                 "INTEGER CHECK(input_tokens_reported IS NULL "
+                 "OR input_tokens_reported >= 0)"),
+                ("output_tokens_reported",
+                 "INTEGER CHECK(output_tokens_reported IS NULL "
+                 "OR output_tokens_reported >= 0)"),
+                ("topic_family_id", "TEXT"),
+                ("shared_evidence_reuse",
+                 "INTEGER NOT NULL DEFAULT 0 CHECK(shared_evidence_reuse IN (0,1))"),
+            ):
+                if column not in usage_columns:
+                    connection.execute(
+                        f"ALTER TABLE discovery_stage_usage "
+                        f"ADD COLUMN {column} {definition}"
+                    )
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_10_phase1b_discovery_history", datetime.now(timezone.utc).isoformat()),
@@ -354,6 +392,11 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_11_research_findings", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_stage_usage_cost_receipts",
+                 datetime.now(timezone.utc).isoformat()),
             )
 
     @staticmethod
@@ -681,8 +724,12 @@ class DiscoveryStore:
                    (discovery_run_id, stage, started_at, completed_at, duration_seconds,
                     candidates_considered, candidates_processed, records_returned,
                     external_calls, llm_calls, cache_hits, status, error_category,
-                    input_tokens, output_tokens, tokens_estimated)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    input_tokens, output_tokens, tokens_estimated,
+                    input_records, input_characters,
+                    input_tokens_reported, output_tokens_reported,
+                    topic_family_id, shared_evidence_reuse)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                           ?, ?, ?, ?, ?, ?)""",
                 (
                     row["discovery_run_id"], row["stage"], row["started_at"],
                     row["completed_at"], row["duration_seconds"],
@@ -691,6 +738,9 @@ class DiscoveryStore:
                     row["cache_hits"], row["status"], row["error_category"],
                     row["input_tokens"], row["output_tokens"],
                     int(row["tokens_estimated"]),
+                    row["input_records"], row["input_characters"],
+                    row["input_tokens_reported"], row["output_tokens_reported"],
+                    row["topic_family_id"], int(row["shared_evidence_reuse"]),
                 ),
             )
             return int(cursor.lastrowid)
@@ -707,6 +757,7 @@ class DiscoveryStore:
         for row in rows:
             item = dict(row)
             item["tokens_estimated"] = bool(item["tokens_estimated"])
+            item["shared_evidence_reuse"] = bool(item["shared_evidence_reuse"])
             result.append(item)
         return result
 

@@ -95,9 +95,19 @@ class StageUsage:
     cache_hits: int = 0
     status: str = "complete"
     error_category: str | None = None
+    # input_tokens/output_tokens keep their legacy meaning: projected or
+    # estimated usage, flagged by tokens_estimated. The *_reported fields hold
+    # only provider-reported actuals and stay null when the provider reports
+    # nothing; they are never filled with estimates.
     input_tokens: int | None = None
     output_tokens: int | None = None
     tokens_estimated: bool = False
+    input_records: int = 0
+    input_characters: int = 0
+    input_tokens_reported: int | None = None
+    output_tokens_reported: int | None = None
+    topic_family_id: str | None = None
+    shared_evidence_reuse: bool = False
     duration_seconds: float = field(init=False)
 
     def __post_init__(self) -> None:
@@ -120,20 +130,30 @@ class StageUsage:
         for name in (
             "candidates_considered", "candidates_processed", "records_returned",
             "external_calls", "llm_calls", "cache_hits",
+            "input_records", "input_characters",
         ):
             _nonnegative_integer(name, getattr(self, name))
-        for name in ("input_tokens", "output_tokens"):
+        for name in ("input_tokens", "output_tokens",
+                     "input_tokens_reported", "output_tokens_reported"):
             value = getattr(self, name)
             if value is not None:
                 _nonnegative_integer(name, value)
         if not isinstance(self.tokens_estimated, bool):
             raise TypeError("tokens_estimated must be a boolean")
+        if not isinstance(self.shared_evidence_reuse, bool):
+            raise TypeError("shared_evidence_reuse must be a boolean")
+        topic_family_id = self.topic_family_id
+        if topic_family_id is not None:
+            if not isinstance(topic_family_id, str):
+                raise TypeError("topic_family_id must be a string or None")
+            topic_family_id = topic_family_id.strip() or None
 
         object.__setattr__(self, "discovery_run_id", run_id)
         object.__setattr__(self, "stage", stage)
         object.__setattr__(self, "status", status)
         object.__setattr__(self, "started_at", started)
         object.__setattr__(self, "completed_at", completed)
+        object.__setattr__(self, "topic_family_id", topic_family_id)
         object.__setattr__(self, "duration_seconds", (completed - started).total_seconds())
 
     def to_dict(self) -> dict[str, Any]:

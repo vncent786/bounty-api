@@ -22,6 +22,15 @@ class StageHandlerResult:
     input_tokens: int | None = None
     output_tokens: int | None = None
     tokens_estimated: bool = False
+    # Measured input cost: exact record and character counts are always known,
+    # while *_reported tokens carry provider-reported actuals only (None when
+    # the provider does not report them; never an estimate).
+    input_records: int = 0
+    input_characters: int = 0
+    input_tokens_reported: int | None = None
+    output_tokens_reported: int | None = None
+    topic_family_id: str | None = None
+    shared_evidence_reuse: bool = False
     # Discovery from a handler is evidence, not permission to expand this fixed plan.
     candidates: list[Mapping[str, Any]] = field(default_factory=list)
 
@@ -93,6 +102,11 @@ class StagedRunner:
             records = external = llm = cache_hits = 0
             input_tokens = output_tokens = 0
             tokens_known = True
+            input_records = input_characters = 0
+            input_tokens_reported = output_tokens_reported = 0
+            reported_known = True
+            families: set[str] = set()
+            shared_evidence_reuse = False
             estimated = False
             status = "complete"
             error_category = None
@@ -129,6 +143,11 @@ class StagedRunner:
                 external += result.external_calls
                 llm += result.llm_calls
                 cache_hits += int(result.cache_hit)
+                input_records += result.input_records
+                input_characters += result.input_characters
+                if result.topic_family_id:
+                    families.add(result.topic_family_id)
+                shared_evidence_reuse = shared_evidence_reuse or result.shared_evidence_reuse
                 if result.input_tokens is None:
                     tokens_known = False
                 else:
@@ -137,6 +156,14 @@ class StagedRunner:
                     tokens_known = False
                 else:
                     output_tokens += result.output_tokens
+                if result.input_tokens_reported is None:
+                    reported_known = False
+                else:
+                    input_tokens_reported += result.input_tokens_reported
+                if result.output_tokens_reported is None:
+                    reported_known = False
+                else:
+                    output_tokens_reported += result.output_tokens_reported
                 estimated = estimated or result.tokens_estimated
                 if result.status not in {"complete", "empty"}:
                     status = result.status
@@ -151,6 +178,16 @@ class StagedRunner:
                 input_tokens=input_tokens if tokens_known and llm else None,
                 output_tokens=output_tokens if tokens_known and llm else None,
                 tokens_estimated=estimated,
+                input_records=input_records,
+                input_characters=input_characters,
+                input_tokens_reported=(
+                    input_tokens_reported if reported_known and llm else None
+                ),
+                output_tokens_reported=(
+                    output_tokens_reported if reported_known and llm else None
+                ),
+                topic_family_id=families.pop() if len(families) == 1 else None,
+                shared_evidence_reuse=shared_evidence_reuse,
             )
             usages.append(usage)
             results[stage] = stage_results

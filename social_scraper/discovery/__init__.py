@@ -13,7 +13,12 @@ from .scheduler import DiscoveryScheduler, WorkspacePlanRequest
 from .staged_runner import StageHandlerResult, StagedRunResult, StagedRunner
 from .stages import CandidateStage, StageOutcome
 from .storage import DiscoveryStore
-from .triage import ConversationAnalysis, analyze_conversation
+from .triage import (
+    ConversationAnalysis,
+    PreparedConversationPrompt,
+    analyze_conversation,
+    prepare_conversation_prompt,
+)
 
 __all__ = [
     "CandidateStage",
@@ -23,6 +28,7 @@ __all__ = [
     "DiscoveryScheduler",
     "DiscoveryStore",
     "EvidenceBundle",
+    "PreparedConversationPrompt",
     "PrioritizationConfig",
     "ScanBudget",
     "StageHandlerResult",
@@ -34,4 +40,5 @@ __all__ = [
     "analyze_conversation",
     "build_evidence_bundle",
     "build_horizontal_cache_key",
+    "prepare_conversation_prompt",
 ]

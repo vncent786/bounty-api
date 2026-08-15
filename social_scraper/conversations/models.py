@@ -13,7 +13,18 @@ from typing import Any
 
 
 RECORD_TYPES = {"post", "comment", "reply"}
-ENGAGEMENT_FIELDS = ("views", "likes", "comments", "shares", "collects")
+ENGAGEMENT_FIELDS = (
+    "views",
+    "likes",
+    "comments",
+    "shares",
+    "collects",
+    "upvotes",
+    "replies",
+    "reposts",
+    "bookmarks",
+    "creator_followers",
+)
 
 
 def canonical_json(value: Any) -> str:
@@ -110,13 +121,27 @@ class CanonicalObservation:
     engagement: dict[str, int | None] = field(
         default_factory=lambda: {key: None for key in ENGAGEMENT_FIELDS}
     )
+    engagement_sources: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
+        if not isinstance(self.engagement, dict):
+            raise ValueError("engagement must be an object")
         normalized = {key: self.engagement.get(key) for key in ENGAGEMENT_FIELDS}
         for key, value in normalized.items():
             if value is not None and (isinstance(value, bool) or not isinstance(value, int)):
                 raise ValueError(f"engagement {key} must be an integer or None")
+
+        if not isinstance(self.engagement_sources, dict):
+            raise ValueError("engagement sources must be an object")
+        normalized_sources = {}
+        for key, source in self.engagement_sources.items():
+            if not isinstance(source, str):
+                raise ValueError(f"engagement source for {key} must be a string")
+            if key in ENGAGEMENT_FIELDS and normalized[key] is not None:
+                normalized_sources[key] = source
+
         object.__setattr__(self, "engagement", normalized)
+        object.__setattr__(self, "engagement_sources", normalized_sources)
 
     def to_dict(self) -> dict:
         return asdict(self)

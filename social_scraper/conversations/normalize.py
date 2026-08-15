@@ -132,6 +132,43 @@ def normalize_broker_item(item: dict, *, collected_at: str) -> CanonicalBundle:
     normalized_engagement = {
         key: _metric(engagement.get(key)) for key in ENGAGEMENT_FIELDS
     }
+    connector_sources = provenance.get("engagement_sources")
+    if not isinstance(connector_sources, dict):
+        connector_sources = {}
+    engagement_sources = {}
+    for key, value in normalized_engagement.items():
+        if value is None:
+            continue
+        connector_source = connector_sources.get(key)
+        engagement_sources[key] = (
+            connector_source if isinstance(connector_source, str) else key
+        )
+
+    # `collects` remains in the public contract while also feeding canonical
+    # bookmarks. Explicit invalid bookmark values remain missing.
+    raw_bookmarks = engagement.get("bookmarks")
+    if (
+        normalized_engagement["bookmarks"] is None
+        and ("bookmarks" not in engagement or raw_bookmarks is None)
+        and normalized_engagement["collects"] is not None
+    ):
+        normalized_engagement["bookmarks"] = normalized_engagement["collects"]
+        engagement_sources["bookmarks"] = engagement_sources["collects"]
+
+    # Existing broker items expose follower count under author. Record the
+    # exact source path when deriving the canonical metric.
+    raw_creator_followers = engagement.get("creator_followers")
+    if (
+        normalized_engagement["creator_followers"] is None
+        and (
+            "creator_followers" not in engagement
+            or raw_creator_followers is None
+        )
+    ):
+        author_followers = _metric(author.get("follower_count"))
+        if author_followers is not None:
+            normalized_engagement["creator_followers"] = author_followers
+            engagement_sources["creator_followers"] = "author.follower_count"
 
     record = CanonicalConversationRecord(
         platform=platform,
@@ -163,5 +200,6 @@ def normalize_broker_item(item: dict, *, collected_at: str) -> CanonicalBundle:
         collected_at=collected_instant,
         source_observed_at=_strict_instant(provenance.get("source_observed_at")),
         engagement=normalized_engagement,
+        engagement_sources=engagement_sources,
     )
     return CanonicalBundle(record=record, observation=observation)

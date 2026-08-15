@@ -168,6 +168,20 @@ class XHSPlaywrightConnector(BaseConnector):
 
         # Engagement
         interact = note.get("interact_info", {})
+        raw_collect_count = interact.get("collected_count")
+        collect_count = (
+            int(raw_collect_count)
+            if raw_collect_count is not None and raw_collect_count != ""
+            else None
+        )
+        engagement_sources = (
+            {
+                "collects": "collected_count",
+                "bookmarks": "collected_count",
+            }
+            if collect_count is not None
+            else {}
+        )
 
         # Media
         media_type = "image"
@@ -200,12 +214,16 @@ class XHSPlaywrightConnector(BaseConnector):
             text=text,
             likes=int(interact.get("liked_count", 0)) if interact.get("liked_count") else None,
             comments=int(interact.get("comment_count", 0)) if interact.get("comment_count") else None,
-            collects=int(interact.get("collected_count", 0)) if interact.get("collected_count") else None,
+            collects=collect_count,
+            bookmarks=collect_count,
             media_type=media_type,
             thumbnail_url=cover,
             hashtags=hashtags,
             region="CN",
-            raw={"note_id": note_id},
+            raw={
+                "note_id": note_id,
+                "engagement_sources": engagement_sources,
+            },
         )
 
     async def health_check(self) -> SourceHealth:

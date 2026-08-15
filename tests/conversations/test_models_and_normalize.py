@@ -10,13 +10,27 @@ import pytest
 
 from social_scraper.conversations import (
     NormalizationError,
+    CanonicalObservation,
     conversation_identity,
     normalize_broker_item,
     payload_hash,
 )
+from social_scraper.conversations.models import ENGAGEMENT_FIELDS
 
 
 COLLECTED_AT = "2026-08-10T12:00:00+00:00"
+CANONICAL_METRICS = (
+    "likes",
+    "upvotes",
+    "comments",
+    "replies",
+    "views",
+    "shares",
+    "reposts",
+    "bookmarks",
+    "creator_followers",
+)
+LEGACY_METRICS = ("collects",)
 FIXTURE_PATH = (
     Path(__file__).parents[1]
     / "fixtures"
@@ -82,6 +96,17 @@ def test_normalization_preserves_complete_current_item():
         "comments": 12,
         "shares": None,
         "collects": None,
+        "upvotes": None,
+        "replies": None,
+        "reposts": None,
+        "bookmarks": None,
+        "creator_followers": None,
+    }
+    assert observation.engagement_sources == {"likes": "likes", "comments": "comments"}
+    assert set(observation.to_dict()["engagement"]) == set(ENGAGEMENT_FIELDS)
+    assert observation.to_dict()["engagement_sources"] == {
+        "likes": "likes",
+        "comments": "comments",
     }
 
 
@@ -103,6 +128,18 @@ def test_all_current_platform_fixtures_normalize_without_inventing_metrics():
         assert bundle.record.source_route == item["provenance"]["connector"]
         for metric in expected_missing[platform]:
             assert bundle.observation.engagement[metric] is None
+        for metric in ("upvotes", "replies", "reposts", "creator_followers"):
+            assert bundle.observation.engagement[metric] is None
+        collects = bundle.observation.engagement["collects"]
+        if collects is None:
+            assert bundle.observation.engagement["bookmarks"] is None
+        else:
+            assert bundle.observation.engagement["bookmarks"] == collects
+            assert (
+                bundle.observation.engagement_sources["bookmarks"] == "collects"
+            )
+        assert "upvotes" not in bundle.observation.engagement_sources
+        assert "creator_followers" not in bundle.observation.engagement_sources
 
 
 def test_missing_values_remain_none_and_zero_remains_zero():
@@ -242,3 +279,201 @@ def test_comment_count_does_not_create_synthetic_records():
     )
     assert bundle.record.record_type == "post"
     assert bundle.observation.engagement["comments"] == 25
+
+
+def test_canonical_engagement_key_set_is_exact():
+    assert set(ENGAGEMENT_FIELDS) == set(CANONICAL_METRICS) | set(LEGACY_METRICS)
+    bundle = normalize_broker_item(broker_item(), collected_at=COLLECTED_AT)
+    assert set(bundle.observation.engagement) == set(ENGAGEMENT_FIELDS)
+    assert set(bundle.observation.to_dict()) == {
+        "collected_at",
+        "source_observed_at",
+        "engagement",
+        "engagement_sources",
+    }
+
+
+def test_unsupported_metrics_remain_none_without_zero_fill():
+    bundle = normalize_broker_item(
+        broker_item(engagement={"likes": 12}),
+        collected_at=COLLECTED_AT,
+    )
+    engagement = bundle.observation.engagement
+    assert engagement["likes"] == 12
+    for metric in (
+        "upvotes",
+        "comments",
+        "replies",
+        "views",
+        "shares",
+        "reposts",
+        "bookmarks",
+        "creator_followers",
+        "collects",
+    ):
+        assert engagement[metric] is None
+    assert bundle.observation.engagement_sources == {"likes": "likes"}
+
+
+@pytest.mark.parametrize("metric", CANONICAL_METRICS)
+def test_explicit_zero_remains_zero(metric):
+    bundle = normalize_broker_item(
+        broker_item(engagement={metric: 0}),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.observation.engagement[metric] == 0
+    assert bundle.observation.engagement_sources[metric] == metric
+
+
+def test_legacy_collects_populates_bookmarks_with_provenance():
+    bundle = normalize_broker_item(
+        broker_item(engagement={"collects": 7}),
+        collected_at=COLLECTED_AT,
+    )
+    engagement = bundle.observation.engagement
+    assert engagement["collects"] == 7
+    assert engagement["bookmarks"] == 7
+    assert bundle.observation.engagement_sources["bookmarks"] == "collects"
+    assert bundle.observation.engagement_sources["collects"] == "collects"
+
+
+def test_explicit_bookmarks_wins_over_collects_fallback():
+    bundle = normalize_broker_item(
+        broker_item(engagement={"bookmarks": 3, "collects": 9}),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.observation.engagement["bookmarks"] == 3
+    assert bundle.observation.engagement["collects"] == 9
+    assert bundle.observation.engagement_sources["bookmarks"] == "bookmarks"
+
+
+def test_creator_followers_falls_back_to_author_follower_count_with_provenance():
+    bundle = normalize_broker_item(
+        broker_item(author={"username": "source-user", "follower_count": 4321}),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.observation.engagement["creator_followers"] == 4321
+    assert (
+        bundle.observation.engagement_sources["creator_followers"]
+        == "author.follower_count"
+    )
+
+
+def test_explicit_creator_followers_wins_over_author_fallback():
+    bundle = normalize_broker_item(
+        broker_item(
+            author={"username": "source-user", "follower_count": 4321},
+            engagement={"creator_followers": 10},
+        ),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.observation.engagement["creator_followers"] == 10
+    assert (
+        bundle.observation.engagement_sources["creator_followers"]
+        == "creator_followers"
+    )
+
+
+def test_invalid_metric_values_are_not_coerced():
+    bundle = normalize_broker_item(
+        broker_item(
+            engagement={
+                "likes": "12",
+                "upvotes": 1.5,
+                "reposts": True,
+                "views": False,
+            }
+        ),
+        collected_at=COLLECTED_AT,
+    )
+    engagement = bundle.observation.engagement
+    assert engagement["likes"] is None
+    assert engagement["upvotes"] is None
+    assert engagement["reposts"] is None
+    assert engagement["views"] is None
+    for metric in ("likes", "upvotes", "reposts", "views"):
+        assert metric not in bundle.observation.engagement_sources
+
+
+def test_invalid_bookmarks_does_not_fall_back_to_collects():
+    bundle = normalize_broker_item(
+        broker_item(engagement={"bookmarks": "7", "collects": 9}),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.observation.engagement["bookmarks"] is None
+    assert bundle.observation.engagement["collects"] == 9
+    assert "bookmarks" not in bundle.observation.engagement_sources
+
+
+def test_connector_engagement_field_provenance_is_recorded():
+    bundle = normalize_broker_item(
+        broker_item(
+            engagement={"collects": 5, "bookmarks": 5, "views": 900},
+            provenance={
+                "connector": "tiktok_auth_web",
+                "engagement_sources": {
+                    "collects": "collect_count",
+                    "bookmarks": "collect_count",
+                },
+            },
+        ),
+        collected_at=COLLECTED_AT,
+    )
+    sources = bundle.observation.engagement_sources
+    assert sources["collects"] == "collect_count"
+    assert sources["bookmarks"] == "collect_count"
+    assert sources["views"] == "views"
+    assert "upvotes" not in sources
+
+
+def test_connector_provenance_for_absent_metrics_is_ignored():
+    bundle = normalize_broker_item(
+        broker_item(
+            engagement={"likes": 4},
+            provenance={
+                "connector": "tiktok_auth_web",
+                "engagement_sources": {"upvotes": "digg_count", "likes": 3},
+            },
+        ),
+        collected_at=COLLECTED_AT,
+    )
+    sources = bundle.observation.engagement_sources
+    assert sources == {"likes": "likes"}
+
+
+def test_reply_records_retain_own_engagement_parent_and_depth():
+    bundle = normalize_broker_item(
+        broker_item(
+            post_id="t1_reply",
+            record_type="reply",
+            parent_external_id="t1_parent",
+            root_post_external_id="t3_root",
+            depth=2,
+            engagement={"likes": 4, "replies": 1, "comments": 0},
+        ),
+        collected_at=COLLECTED_AT,
+    )
+    assert bundle.record.record_type == "reply"
+    assert bundle.record.parent_external_id == "t1_parent"
+    assert bundle.record.root_post_external_id == "t3_root"
+    assert bundle.record.depth == 2
+    assert bundle.observation.engagement["likes"] == 4
+    assert bundle.observation.engagement["replies"] == 1
+    assert bundle.observation.engagement["comments"] == 0
+    assert bundle.observation.engagement_sources["replies"] == "replies"
+
+
+def test_observation_rejects_non_integer_engagement():
+    with pytest.raises(ValueError, match="upvotes"):
+        CanonicalObservation(
+            collected_at=COLLECTED_AT,
+            engagement={"upvotes": True},
+        )
+
+
+def test_observation_rejects_non_string_engagement_sources():
+    with pytest.raises(ValueError, match="engagement source"):
+        CanonicalObservation(
+            collected_at=COLLECTED_AT,
+            engagement_sources={"likes": 3},
+        )

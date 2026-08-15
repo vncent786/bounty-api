@@ -174,6 +174,17 @@ class TikTokPlaywrightConnector(BaseConnector):
 
         # Engagement
         stats = aweme.get("stats", {}) or aweme.get("statistics", {})
+        if "collectCount" in stats:
+            collect_count = stats.get("collectCount")
+            collect_source = "collectCount"
+        else:
+            collect_count = stats.get("collect_count")
+            collect_source = "collect_count"
+        engagement_sources = (
+            {"collects": collect_source, "bookmarks": collect_source}
+            if collect_count is not None
+            else {}
+        )
 
         # Media
         video = aweme.get("video", {})
@@ -225,12 +236,16 @@ class TikTokPlaywrightConnector(BaseConnector):
             likes=stats.get("diggCount") or stats.get("digg_count"),
             comments=stats.get("commentCount") or stats.get("comment_count"),
             shares=stats.get("shareCount") or stats.get("share_count"),
-            collects=stats.get("collectCount") or stats.get("collect_count"),
+            collects=collect_count,
+            bookmarks=collect_count,
             media_type=media_type,
             thumbnail_url=cover,
             hashtags=hashtags,
             region=aweme.get("region"),
-            raw={"aweme_id": aweme_id},
+            raw={
+                "aweme_id": aweme_id,
+                "engagement_sources": engagement_sources,
+            },
         )
 
     async def health_check(self) -> SourceHealth:

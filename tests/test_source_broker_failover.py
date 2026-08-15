@@ -113,6 +113,52 @@ def test_broker_retains_nonempty_partial_result_if_fallback_fails():
     assert response["source_health"][-1]["error"] == "connector_error"
 
 
+def test_broker_preserves_connector_engagement_sources_beside_route_provenance():
+    item = SocialItem(
+        platform="tiktok",
+        post_id="bk1",
+        url="https://example/bk1",
+        collects=5,
+        bookmarks=5,
+        raw={
+            "engagement_sources": {
+                "collects": "collect_count",
+                "bookmarks": "collect_count",
+            }
+        },
+    )
+    connector = FakeConnector("owned", [connector_result("owned", "ok", [item])])
+    broker = SourceBroker()
+    broker.register(connector)
+
+    response = asyncio.run(broker.search("collect", platforms=["tiktok"]))
+
+    serialized = response["items"][0]
+    assert serialized["engagement"]["collects"] == 5
+    assert serialized["engagement"]["bookmarks"] == 5
+    provenance = serialized["provenance"]
+    assert provenance["connector"] == "owned"
+    assert provenance["query"] == "collect"
+    assert provenance["fetched_at"]
+    assert provenance["engagement_sources"] == {
+        "collects": "collect_count",
+        "bookmarks": "collect_count",
+    }
+
+
+def test_broker_does_not_invent_engagement_sources():
+    item = SocialItem(platform="tiktok", post_id="bk2", url="https://example/bk2", likes=3)
+    connector = FakeConnector("only", [connector_result("only", "ok", [item])])
+    broker = SourceBroker()
+    broker.register(connector)
+
+    response = asyncio.run(broker.search("test", platforms=["tiktok"]))
+
+    serialized = response["items"][0]
+    assert serialized["engagement"]["likes"] == 3
+    assert "engagement_sources" not in serialized["provenance"]
+
+
 class HangingConnector(FakeConnector):
     async def search(self, keyword, count=20, time_filter="", sort="", region=""):
         self.calls += 1

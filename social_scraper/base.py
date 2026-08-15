@@ -38,6 +38,13 @@ class SocialItem:
     language: Optional[str] = None
     region: Optional[str] = None
     raw: dict = field(default_factory=dict)
+    # Appended to preserve the positional constructor contract of the legacy
+    # fields above.
+    upvotes: Optional[int] = None
+    replies: Optional[int] = None
+    reposts: Optional[int] = None
+    bookmarks: Optional[int] = None
+    creator_followers: Optional[int] = None
 
     def to_dict(self):
         return {
@@ -58,6 +65,11 @@ class SocialItem:
                 "comments": self.comments,
                 "shares": self.shares,
                 "collects": self.collects,
+                "upvotes": self.upvotes,
+                "replies": self.replies,
+                "reposts": self.reposts,
+                "bookmarks": self.bookmarks,
+                "creator_followers": self.creator_followers,
             },
             "media": {
                 "type": self.media_type,

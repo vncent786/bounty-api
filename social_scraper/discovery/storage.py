@@ -244,6 +244,23 @@ class DiscoveryStore:
                     analysis_json TEXT,
                     error_category TEXT
                 );
+                CREATE TABLE IF NOT EXISTS engagement_baseline_observations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    platform TEXT NOT NULL,
+                    root_external_id TEXT NOT NULL,
+                    observed_at TEXT NOT NULL,
+                    published_at TEXT,
+                    content_age_seconds REAL
+                        CHECK(content_age_seconds IS NULL OR content_age_seconds >= 0),
+                    content_age_bucket TEXT,
+                    creator_size_bucket TEXT,
+                    raw_counts_json TEXT NOT NULL,
+                    UNIQUE(platform, root_external_id, observed_at)
+                );
+                CREATE INDEX IF NOT EXISTS idx_engagement_baseline_dimensions
+                    ON engagement_baseline_observations(
+                        platform, content_age_bucket, creator_size_bucket, observed_at
+                    );
                 CREATE TABLE IF NOT EXISTS discovery_lens_evaluations (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     candidate_observation_id INTEGER NOT NULL
@@ -483,6 +500,11 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_15_radar_schedules",
+                 datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_engagement_baseline_observations",
                  datetime.now(timezone.utc).isoformat()),
             )
 
@@ -1250,6 +1272,112 @@ class DiscoveryStore:
             "observations": [self._observation(row) for row in observations],
             "gaps": [dict(row) for row in gaps],
         }
+
+    @staticmethod
+    def _engagement_baseline_observation(row: sqlite3.Row) -> dict:
+        """Convert persisted dimensions back to the calculator's root shape."""
+        item = dict(row)
+        raw = json.loads(item.pop("raw_counts_json"))
+        item["external_id"] = item["root_external_id"]
+        item["record_type"] = "post"
+        item["depth"] = 0
+        item["engagement"] = raw
+        item["raw_counts"] = dict(raw)
+        return item
+
+    def record_engagement_baseline_observation(
+        self,
+        record: Mapping[str, Any],
+        *,
+        observed_at: datetime | str | None = None,
+        config: Any = None,
+    ) -> int:
+        """Persist one immutable root observation for engagement baselines.
+
+        Repeating the exact same observation is idempotent.  Reusing its
+        platform/root/time identity with different counts or dimensions is
+        rejected instead of silently replacing source evidence.
+        """
+        from social_scraper.analysis.engagement import (
+            DEFAULT_CONFIG,
+            prepare_baseline_observation,
+        )
+
+        normalized = prepare_baseline_observation(
+            record,
+            observed_at=observed_at,
+            config=config or DEFAULT_CONFIG,
+        )
+        identity = (
+            normalized["platform"],
+            normalized["root_external_id"],
+            normalized["observed_at"],
+        )
+        values = (
+            *identity,
+            normalized["published_at"],
+            normalized["content_age_seconds"],
+            normalized["content_age_bucket"],
+            normalized["creator_size_bucket"],
+            _json(normalized["raw_counts"]),
+        )
+        with self._connect() as connection:
+            existing = connection.execute(
+                """SELECT * FROM engagement_baseline_observations
+                   WHERE platform = ? AND root_external_id = ? AND observed_at = ?""",
+                identity,
+            ).fetchone()
+            if existing is not None:
+                stored = self._engagement_baseline_observation(existing)
+                expected = {
+                    "published_at": normalized["published_at"],
+                    "content_age_seconds": normalized["content_age_seconds"],
+                    "content_age_bucket": normalized["content_age_bucket"],
+                    "creator_size_bucket": normalized["creator_size_bucket"],
+                    "raw_counts": normalized["raw_counts"],
+                }
+                if any(stored[key] != value for key, value in expected.items()):
+                    raise ValueError(
+                        "conflicting engagement baseline observation for "
+                        "platform/root/observed_at"
+                    )
+                return int(existing["id"])
+            cursor = connection.execute(
+                """INSERT INTO engagement_baseline_observations
+                   (platform, root_external_id, observed_at, published_at,
+                    content_age_seconds, content_age_bucket, creator_size_bucket,
+                    raw_counts_json)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                values,
+            )
+            return int(cursor.lastrowid)
+
+    def list_engagement_baseline_observations(
+        self,
+        *,
+        platform: str,
+        observed_through: datetime | str,
+        trailing_period: timedelta | None = None,
+    ) -> list[dict]:
+        """Return one platform's persisted roots in an inclusive trailing window."""
+        from social_scraper.analysis.engagement import DEFAULT_TRAILING_PERIOD
+
+        normalized_platform = str(platform or "").strip().lower()
+        if not normalized_platform:
+            raise ValueError("platform is required")
+        period = DEFAULT_TRAILING_PERIOD if trailing_period is None else trailing_period
+        if not isinstance(period, timedelta) or period <= timedelta(0):
+            raise ValueError("trailing_period must be a positive timedelta")
+        through = _utc_parse(observed_through, label="observed_through")
+        started = through - period
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM engagement_baseline_observations
+                   WHERE platform = ? AND observed_at >= ? AND observed_at <= ?
+                   ORDER BY observed_at, id""",
+                (normalized_platform, started.isoformat(), through.isoformat()),
+            ).fetchall()
+        return [self._engagement_baseline_observation(row) for row in rows]
 
     def record_gate_check(
         self,

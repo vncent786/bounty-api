@@ -161,6 +161,15 @@ class DouyinConnector(BaseConnector):
 
         # Engagement
         statistics = aweme.get("statistics", {})
+        collect_count = statistics.get("collect_count")
+        engagement_sources = (
+            {
+                "collects": "collect_count",
+                "bookmarks": "collect_count",
+            }
+            if collect_count is not None
+            else {}
+        )
 
         # Media
         video = aweme.get("video", {})
@@ -202,12 +211,16 @@ class DouyinConnector(BaseConnector):
             likes=statistics.get("digg_count"),
             comments=statistics.get("comment_count"),
             shares=statistics.get("share_count"),
-            collects=statistics.get("collect_count"),
+            collects=collect_count,
+            bookmarks=collect_count,
             media_type=media_type,
             thumbnail_url=cover,
             hashtags=hashtags,
             region="CN",
-            raw={"aweme_id": aweme_id},
+            raw={
+                "aweme_id": aweme_id,
+                "engagement_sources": engagement_sources,
+            },
         )
 
     async def health_check(self) -> SourceHealth:

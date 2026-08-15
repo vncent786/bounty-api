@@ -114,6 +114,15 @@ class DouyinPlaywrightConnector(BaseConnector):
         author = aweme.get("author", {})
         stats = aweme.get("statistics", {})
         video = aweme.get("video", {})
+        collect_count = stats.get("collect_count")
+        engagement_sources = (
+            {
+                "collects": "collect_count",
+                "bookmarks": "collect_count",
+            }
+            if collect_count is not None
+            else {}
+        )
 
         cover = None
         if video:
@@ -151,12 +160,16 @@ class DouyinPlaywrightConnector(BaseConnector):
             likes=stats.get("digg_count"),
             comments=stats.get("comment_count"),
             shares=stats.get("share_count"),
-            collects=stats.get("collect_count"),
+            collects=collect_count,
+            bookmarks=collect_count,
             media_type="video" if video else "text",
             thumbnail_url=cover,
             hashtags=hashtags,
             region="CN",
-            raw={"aweme_id": aweme_id},
+            raw={
+                "aweme_id": aweme_id,
+                "engagement_sources": engagement_sources,
+            },
         )
 
     async def health_check(self) -> SourceHealth:

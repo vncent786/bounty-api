@@ -336,6 +336,11 @@ class SourceBroker:
                     serialized["provenance"]["source_timestamp_kind"] = item.raw["source_timestamp_kind"]
                 if item.raw.get("subreddit"):
                     serialized["provenance"]["subreddit"] = item.raw["subreddit"]
+                engagement_sources = item.raw.get("engagement_sources")
+                if isinstance(engagement_sources, dict) and engagement_sources:
+                    serialized["provenance"]["engagement_sources"] = dict(
+                        engagement_sources
+                    )
                 serialized_items.append(serialized)
 
         def engagement_score(item):

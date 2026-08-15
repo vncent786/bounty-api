@@ -112,7 +112,17 @@ async def make_root_probe_handler(
                 status="failed", error_category="search_error",
                 external_calls=len(platforms),
             )
-        items = result.get("items", [])
+        raw_items = result.get("items", [])
+        # Root collection is the one integration boundary where repeated
+        # query/connector observations become unique evidence. Keep the full
+        # observation manifest, while leaving separately addressable reposts
+        # available for propagation rather than independent corroboration.
+        from social_scraper.conversations.deduplication import deduplicate_roots
+        from social_scraper.conversations.propagation import summarize_propagation
+
+        deduplication = deduplicate_roots(raw_items)
+        items = deduplication.roots_with_provenance()
+        root_summary = summarize_propagation(items).to_dict()
         source_health = result.get("source_health", [])
         platform_results = result.get("platform_results", {})
         external_calls = len(platforms)
@@ -126,7 +136,13 @@ async def make_root_probe_handler(
             cache_hit=False,
             status="failed" if failed else ("empty" if not items else "complete"),
             error_category="all_sources_failed" if failed else None,
-            candidates=[{**candidate, "_root_items": items, "_source_health": source_health}],
+            candidates=[{
+                **candidate,
+                "_root_items": items,
+                "_root_deduplication": deduplication.to_dict(),
+                "_root_summary": root_summary,
+                "_source_health": source_health,
+            }],
         )
 
     return root_probe
@@ -353,8 +369,12 @@ def build_handlers(
         if result.candidates:
             cid = candidate.get("candidate_id", _keyword_from_candidate(candidate))
             root_items = result.candidates[0].get("_root_items", [])
+            root_deduplication = result.candidates[0].get("_root_deduplication", {})
+            root_summary = result.candidates[0].get("_root_summary", {})
             health = result.candidates[0].get("_source_health", [])
             collected[cid] = root_items
+            collected[cid + ":root_deduplication"] = root_deduplication
+            collected[cid + ":root_summary"] = root_summary
             collected[cid + ":health"] = health
         return result
 

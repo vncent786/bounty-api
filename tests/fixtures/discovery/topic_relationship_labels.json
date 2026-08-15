@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "created": "2026-08-15",
+  "purpose": "Labeled related/unrelated topic pairs for the Task 3.3 local semantic-linkage spike (tmp/spikes/topic_family_embeddings.py). Contexts simulate a bounded related-query + root-post text window per topic. Contexts deliberately avoid leaking the paired topic's distinctive vocabulary so that lexical methods cannot shortcut semantically related pairs.",
+  "pairing_rule": "related=true means the two topics should end up in the same topic family or connected by an allowed relationship (alias/broader/narrower/enabling_technology/alternative/associated_event/related_distinct). related=false means clearly distinct families.",
+  "canonical_pair": ["x402", "agentic_payments"],
+  "topics": {
+    "x402": {
+      "label": "x402",
+      "context": "Coinbase AP2 turns the HTTP 402 Payment Required status into a working micropayment rail. Requests attach USDC wrapped in payment headers; middleware intercepts 402 responses, pays and retries. Builders discuss replacing API keys with pay-per-request metering."
+    },
+    "agentic_payments": {
+      "label": "agentic payments",
+      "context": "AI agents that transact on their own: a wallet provisioned per session, machine-to-machine settlement, budgets and spend limits enforced in code. Debate over per-call billing for tool endpoints and whether human approval should gate every charge."
+    },
+    "stablecoin_payments": {
+      "label": "stablecoin payments",
+      "context": "Treasury teams settle invoices in USDC instead of waiting on correspondent banks. Cross-border remittance over on-chain rails, near-instant finality, finance threads on treasury policy and reconciliation headaches."
+    },
+    "mcp_servers": {
+      "label": "MCP servers",
+      "context": "Model Context Protocol servers expose databases, browsers and filesystems to LLM applications through a standard tool interface. Community registries list third-party servers; teams argue about sandboxing and auth scopes."
+    },
+    "function_calling": {
+      "label": "function calling",
+      "context": "Structured tool use for LLM APIs: arguments validated against JSON schemas, parallel invocations, streaming partial results. Portability complaints across providers; wrappers that normalize request shapes."
+    },
+    "claude_code": {
+      "label": "Claude Code",
+      "context": "Terminal-native coding assistant: subagents spawned per task, context window budgeting, hooks and plugins. Threads on unattended overnight refactor runs and reviewing the diff in the morning."
+    },
+    "glp1": {
+      "label": "GLP-1",
+      "context": "GLP-1 receptor agonist injections dominate obesity treatment forums. Titration schedules, nausea management, compounding pharmacy shortages after demand spikes, staying on versus cycling off."
+    },
+    "ozempic": {
+      "label": "Ozempic",
+      "context": "Semaglutide weekly pen. Insurance denial threads, coupon hunting before refills, restaurant portions suddenly uneaten, hair thinning anecdotes. Shortage of the starter dose pushing users toward alternatives."
+    },
+    "tirzepatide": {
+      "label": "tirzepatide",
+      "context": "Dual GIP/GLP-1 agonist with higher headline weight loss. Users switching from semaglutide report fewer cravings, GI side effects and plateau fears; gray-market peptide sourcing warnings."
+    },
+    "nofap": {
+      "label": "nofap",
+      "context": "Abstinence challenge communities count streaks, log relapses and trade motivation framing. Self-improvement language around energy, confidence and discipline. Success-story threads and flatline anxiety posts."
+    },
+    "dopamine_detox": {
+      "label": "dopamine detox",
+      "context": "Cutting short-form video, porn and endless scrolling to reset a fried reward system. Cold-turkey diaries, screen-time screenshot flexes, replacement habits like lifting and reading."
+    },
+    "rtx_5090": {
+      "label": "RTX 5090",
+      "context": "Nvidia Blackwell flagship launch. Scalper bots, the gap between MSRP and street price, 575W power connector worries, stock-drop Discord trackers, returned-unit horror stories."
+    },
+    "gpu_shortage": {
+      "label": "GPU shortage",
+      "context": "AI datacenter demand eats consumer card supply. Memory allocation favors hyperscalers, board partners raise prices, the shortage extends to previous-gen cards, used-market listings spike."
+    },
+    "sleep_maxing": {
+      "label": "sleep maxing",
+      "context": "Optimized bedtime stack: mouth tape, magnesium glycinate, blackout curtains, cold room, consistent wake time. Daily readiness scores posted from wearables; debate over which gadgets move the needle."
+    },
+    "oura_ring": {
+      "label": "Oura ring",
+      "context": "Finger wearable tracking sleep stages, HRV and temperature trends. Firmware update complaints, subscription pricing gripes, comparisons against chest straps and smartwatch sleep estimates."
+    }
+  },
+  "pairs": [
+    {"a": "x402", "b": "agentic_payments", "related": true, "relationship": "enabling_technology", "note": "Canonical lexically-dissimilar pair required by plan Task 3.3; contexts share no distinctive keyword."},
+    {"a": "agentic_payments", "b": "stablecoin_payments", "related": true, "relationship": "associated_event"},
+    {"a": "x402", "b": "stablecoin_payments", "related": true, "relationship": "enabling_technology", "note": "USDC is the settlement rail."},
+    {"a": "mcp_servers", "b": "function_calling", "related": true, "relationship": "broader"},
+    {"a": "claude_code", "b": "mcp_servers", "related": true, "relationship": "related_distinct"},
+    {"a": "glp1", "b": "ozempic", "related": true, "relationship": "broader"},
+    {"a": "ozempic", "b": "tirzepatide", "related": true, "relationship": "alternative"},
+    {"a": "glp1", "b": "tirzepatide", "related": true, "relationship": "broader"},
+    {"a": "nofap", "b": "dopamine_detox", "related": true, "relationship": "associated_event"},
+    {"a": "rtx_5090", "b": "gpu_shortage", "related": true, "relationship": "associated_event"},
+    {"a": "oura_ring", "b": "sleep_maxing", "related": true, "relationship": "associated_event"},
+    {"a": "x402", "b": "rtx_5090", "related": false, "note": "Both crypto/tech adjacent; no semantic bridge."},
+    {"a": "agentic_payments", "b": "glp1", "related": false},
+    {"a": "mcp_servers", "b": "nofap", "related": false},
+    {"a": "glp1", "b": "rtx_5090", "related": false},
+    {"a": "nofap", "b": "stablecoin_payments", "related": false},
+    {"a": "dopamine_detox", "b": "function_calling", "related": false},
+    {"a": "sleep_maxing", "b": "gpu_shortage", "related": false},
+    {"a": "claude_code", "b": "glp1", "related": false, "note": "Lexical trap: coding 'subagents' vs drug-class 'agonists'."},
+    {"a": "oura_ring", "b": "x402", "related": false},
+    {"a": "ozempic", "b": "gpu_shortage", "related": false, "note": "Lexical trap: the word 'shortage' appears in both contexts."},
+    {"a": "tirzepatide", "b": "mcp_servers", "related": false}
+  ]
+}

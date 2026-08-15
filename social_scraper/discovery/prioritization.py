@@ -36,6 +36,17 @@ def candidate_id(candidate: Mapping[str, Any]) -> str:
     return value
 
 
+def _promotion_overrides(candidate: Mapping[str, Any]) -> dict[str, bool]:
+    """Prefer an attached promotion evaluation (discovery/promotion.py) over raw flags."""
+    promotion = candidate.get("promotion")
+    if not isinstance(promotion, Mapping):
+        return {}
+    return {
+        "eligible": bool(promotion.get("eligible", candidate.get("eligible", True))),
+        "manual_promoted": promotion.get("promotion_mode") == "manual",
+    }
+
+
 def _number(value: Any) -> float:
     if value is None or isinstance(value, bool):
         return 0.0
@@ -60,9 +71,11 @@ def priority_components(
             metrics[metric] = _number(next(
                 (candidate[field] for field in fields if candidate.get(field) is not None), 0
             ))
+    promotion = _promotion_overrides(candidate)
     return {
-        "eligible": bool(candidate.get("eligible", True)),
-        "manual_promoted": bool(candidate.get("manual_promoted", False)),
+        "eligible": promotion.get("eligible", bool(candidate.get("eligible", True))),
+        "manual_promoted": promotion.get(
+            "manual_promoted", bool(candidate.get("manual_promoted", False))),
         "standing_read": bool(candidate.get("standing_read", False)),
         "metrics": metrics,
         "metric_order": list(metric_order),

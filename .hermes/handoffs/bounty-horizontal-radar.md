@@ -21,7 +21,7 @@ Implement the approved plan at `.hermes/plans/2026-08-14_212522-bounty-horizonta
 - Worktree contains pre-existing runtime DB/image/log/tmp changes; never stage them.
 
 ## Current task
-Phase 2 Task 2.1: preserve source-native nullable engagement metrics without zero-filling unsupported data.
+Phase 4 Tasks 4.2-4.4: persist route evaluations, run shadow mode, expose funnel/labels; then serve and browser-verify Global Explore through Task 5.3.
 
 ## Completed milestones
 - `21eeb19`: concise passing characterization test for the current accidental Explore thread/LLM cost path.
@@ -58,3 +58,14 @@ Implement Phase 2 Task 2.1 as a narrow test-first increment: extend canonical ro
 - Three non-overlapping GLM-5.2 workstreams authorized: Task 2.1 engagement/provenance, Task 2.2 root deduplication/propagation, and Task 2.3 engagement baselines.
 - Workers must not stage, commit, push, or touch unrelated artifacts. Orchestrator will inspect diffs, integrate, run tests, and make narrow commits.
 - If interrupted, inspect `git status`, preserve useful worker edits, and resume from the exact failing focused suite rather than restarting broad agents.
+
+## 2026-08-15 Phase 2-4.1 checkpoint
+- `318e544`: Phase 2 Tasks 2.1-2.3 complete; integrated suite was 359 passed.
+- Phase 3 Tasks 3.1-3.2 implemented: additive topic-family/member/edge persistence, strict immutable evidence, deterministic relationship builders, correlational-only no-merge rule, and conservative family planning.
+- Phase 3 Explore projection implemented: cited explanations only, corroboration separated from propagation, source/period-gated volume, versioned lifecycle rules, and pure zero-collection Perspective transforms using existing lens evaluation.
+- Task 3.3 measured spike: `fastembed` with `BAAI/bge-small-en-v1.5` reached P=0.917/R=1.000 at 0.60 and P=1.000/R=0.909 at 0.65 on 22 labeled pairs; canonical x402/agentic-payments context similarity 0.667; warm load 0.54s, roughly 23ms/text, peak working set 265MB, model cache 64.1MB. Lexical fallback was rejected. Do not ship a fixed threshold before expanding to at least 100 representative pairs.
+- Task 4.1 implemented: versioned universal eligibility plus nine inspectable promotion routes, explicit limitations, manual attribution guard, and deterministic capped/stratified exploration allocation.
+- Focused integration gate: 55 passed, JS syntax clean, diff check clean. Runtime DBs/images/logs/tmp remain unstaged.
+
+## Next action
+Add route-evaluation/shadow-funnel/label persistence and APIs, then implement the persisted family read-model endpoint consumed by the already-built Global Explore shell. Seed only a controlled QA database, verify populated/empty/loading/error behavior in browser at desktop and mobile widths, run full regression and independent review, update this handoff, and commit only verified source/tests/docs.

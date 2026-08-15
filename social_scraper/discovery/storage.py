@@ -13,6 +13,7 @@ from typing import Any, Iterable, Mapping
 
 from .budgets import StageUsage
 from .scan_modes import FEED_MODES, coerce_scan_mode
+from .topic_families import EDGE_KINDS, RELATIONSHIPS, candidate_key
 
 
 _ALLOWED_RUN_STATUS = {"complete", "partial", "error"}
@@ -383,6 +384,43 @@ class DiscoveryStore:
                 );
                 CREATE INDEX IF NOT EXISTS idx_research_findings_run
                     ON research_findings(research_run_id, candidate_id);
+                CREATE TABLE IF NOT EXISTS topic_families (
+                    id TEXT PRIMARY KEY,
+                    canonical_label TEXT NOT NULL,
+                    status TEXT NOT NULL CHECK(status IN ('active','retired')),
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS topic_family_memberships (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    family_id TEXT NOT NULL REFERENCES topic_families(id),
+                    candidate_series_id INTEGER NOT NULL
+                        REFERENCES discovery_candidate_series(id),
+                    relationship TEXT NOT NULL,
+                    confidence TEXT NOT NULL CHECK(confidence IN ('low','medium','high')),
+                    evidence_json TEXT NOT NULL,
+                    first_linked_at TEXT NOT NULL,
+                    UNIQUE(family_id, candidate_series_id)
+                );
+                CREATE INDEX IF NOT EXISTS idx_topic_family_members_family
+                    ON topic_family_memberships(family_id, id);
+                CREATE TABLE IF NOT EXISTS topic_relationship_edges (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    left_candidate_series_id INTEGER NOT NULL
+                        REFERENCES discovery_candidate_series(id),
+                    right_candidate_series_id INTEGER NOT NULL
+                        REFERENCES discovery_candidate_series(id),
+                    edge_type TEXT NOT NULL,
+                    strength REAL NOT NULL CHECK(strength >= -1 AND strength <= 1),
+                    evidence_json TEXT NOT NULL,
+                    observed_at TEXT NOT NULL,
+                    UNIQUE(left_candidate_series_id, right_candidate_series_id,
+                           edge_type, strength, evidence_json, observed_at)
+                );
+                CREATE INDEX IF NOT EXISTS idx_topic_edges_pair
+                    ON topic_relationship_edges(
+                        left_candidate_series_id, right_candidate_series_id, id
+                    );
                 """
             )
             # Additive 2026-08-15 radar schedule persistence (Task 1.3a):
@@ -507,6 +545,247 @@ class DiscoveryStore:
                 ("2026_08_15_engagement_baseline_observations",
                  datetime.now(timezone.utc).isoformat()),
             )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_topic_families", datetime.now(timezone.utc).isoformat()),
+            )
+
+    # --- Topic families and evidence edges (Tasks 3.1-3.2) ---------------
+
+    @staticmethod
+    def _topic_family_row(row: sqlite3.Row, memberships: list[dict]) -> dict:
+        item = dict(row)
+        item["memberships"] = memberships
+        return item
+
+    @staticmethod
+    def _topic_membership(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["evidence"] = json.loads(item.pop("evidence_json"))
+        return item
+
+    def create_topic_family(
+        self, *, canonical_label: str, status: str = "active",
+        now: datetime | str | None = None, family_id: str | None = None,
+    ) -> dict:
+        label = str(canonical_label or "").strip()
+        if not label:
+            raise ValueError("canonical_label is required")
+        if status not in {"active", "retired"}:
+            raise ValueError(f"invalid family status: {status}")
+        stamp = _iso(now or datetime.now(timezone.utc))
+        identifier = str(family_id or uuid.uuid4())
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT INTO topic_families
+                   (id, canonical_label, status, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (identifier, label, status, stamp, stamp),
+            )
+        return self.get_topic_family(identifier)  # type: ignore[return-value]
+
+    def get_topic_family(self, family_id: str) -> dict | None:
+        with self._connect() as connection:
+            family = connection.execute(
+                "SELECT * FROM topic_families WHERE id = ?", (str(family_id),),
+            ).fetchone()
+            if family is None:
+                return None
+            rows = connection.execute(
+                """SELECT m.id, m.family_id, s.geo, s.normalized_keyword,
+                          m.relationship, m.confidence, m.evidence_json,
+                          m.first_linked_at
+                   FROM topic_family_memberships m
+                   JOIN discovery_candidate_series s
+                     ON s.id = m.candidate_series_id
+                   WHERE m.family_id = ?
+                   ORDER BY s.normalized_keyword, s.geo, m.id""",
+                (str(family_id),),
+            ).fetchall()
+        return self._topic_family_row(
+            family, [self._topic_membership(row) for row in rows]
+        )
+
+    def list_topic_families(self, *, status: str | None = None) -> list[dict]:
+        if status is not None and status not in {"active", "retired"}:
+            raise ValueError(f"invalid family status: {status}")
+        with self._connect() as connection:
+            if status is None:
+                rows = connection.execute(
+                    "SELECT id FROM topic_families ORDER BY created_at, id"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT id FROM topic_families WHERE status = ?
+                       ORDER BY created_at, id""", (status,),
+                ).fetchall()
+        return [self.get_topic_family(row["id"]) for row in rows]  # type: ignore[list-item]
+
+    def set_topic_family_status(
+        self, family_id: str, status: str, *, now: datetime | str | None = None,
+    ) -> dict | None:
+        if status not in {"active", "retired"}:
+            raise ValueError(f"invalid family status: {status}")
+        stamp = _iso(now or datetime.now(timezone.utc))
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE topic_families SET status = ?, updated_at = ? WHERE id = ?",
+                (status, stamp, str(family_id)),
+            )
+        return self.get_topic_family(family_id) if cursor.rowcount else None
+
+    def link_topic_family_member(
+        self, *, family_id: str, geo: str, keyword: str, relationship: str,
+        confidence: str, evidence: Mapping[str, Any],
+        now: datetime | str | None = None,
+    ) -> dict:
+        if relationship not in RELATIONSHIPS:
+            raise ValueError(f"invalid relationship: {relationship}")
+        if confidence not in {"low", "medium", "high"}:
+            raise ValueError(f"invalid confidence: {confidence}")
+        if not isinstance(evidence, Mapping) or not evidence:
+            raise ValueError("evidence must be a non-empty mapping")
+        normalized_geo, normalized_keyword = str(geo).strip().upper(), _key(keyword)
+        evidence_json = _json(dict(evidence))
+        stamp = _iso(now or datetime.now(timezone.utc))
+        with self._connect() as connection:
+            family = connection.execute(
+                "SELECT status FROM topic_families WHERE id = ?", (str(family_id),),
+            ).fetchone()
+            if family is None:
+                raise ValueError("unknown topic family")
+            if family["status"] != "active":
+                raise ValueError("topic family is not active")
+            series = connection.execute(
+                """SELECT id FROM discovery_candidate_series
+                   WHERE geo = ? AND normalized_keyword = ?""",
+                (normalized_geo, normalized_keyword),
+            ).fetchone()
+            if series is None:
+                raise ValueError("unknown candidate series")
+            existing = connection.execute(
+                """SELECT * FROM topic_family_memberships
+                   WHERE family_id = ? AND candidate_series_id = ?""",
+                (str(family_id), series["id"]),
+            ).fetchone()
+            if existing is not None:
+                if (existing["relationship"] != relationship or
+                        existing["confidence"] != confidence or
+                        existing["evidence_json"] != evidence_json):
+                    raise ValueError("conflicting membership write")
+                membership_id = existing["id"]
+            else:
+                cursor = connection.execute(
+                    """INSERT INTO topic_family_memberships
+                       (family_id, candidate_series_id, relationship, confidence,
+                        evidence_json, first_linked_at)
+                       VALUES (?, ?, ?, ?, ?, ?)""",
+                    (str(family_id), series["id"], relationship, confidence,
+                     evidence_json, stamp),
+                )
+                membership_id = cursor.lastrowid
+        family_result = self.get_topic_family(family_id)
+        return next(item for item in family_result["memberships"]
+                    if item["id"] == membership_id)
+
+    def record_topic_edge(
+        self, *, left_geo: str, left_keyword: str, right_geo: str,
+        right_keyword: str, edge_type: str, evidence: Mapping[str, Any],
+        strength: float, observed_at: datetime | str,
+    ) -> int:
+        if edge_type not in EDGE_KINDS:
+            raise ValueError(f"invalid edge type: {edge_type}")
+        if isinstance(strength, bool) or not isinstance(strength, (int, float)) or not -1 <= strength <= 1:
+            raise ValueError("strength must be between -1 and 1")
+        if not isinstance(evidence, Mapping) or not evidence:
+            raise ValueError("evidence must be a non-empty mapping")
+        keyed = sorted((
+            (candidate_key(left_geo, left_keyword), str(left_geo).strip().upper(), _key(left_keyword)),
+            (candidate_key(right_geo, right_keyword), str(right_geo).strip().upper(), _key(right_keyword)),
+        ))
+        if keyed[0][0] == keyed[1][0]:
+            raise ValueError("edge requires two different candidates")
+        evidence_json = _json(dict(evidence))
+        stamp = _iso(observed_at)
+        with self._connect() as connection:
+            series_ids = []
+            for _, edge_geo, edge_keyword in keyed:
+                row = connection.execute(
+                    """SELECT id FROM discovery_candidate_series
+                       WHERE geo = ? AND normalized_keyword = ?""",
+                    (edge_geo, edge_keyword),
+                ).fetchone()
+                if row is None:
+                    raise ValueError("unknown candidate series")
+                series_ids.append(row["id"])
+            existing = connection.execute(
+                """SELECT id FROM topic_relationship_edges
+                   WHERE left_candidate_series_id = ?
+                     AND right_candidate_series_id = ? AND edge_type = ?
+                     AND strength = ? AND evidence_json = ? AND observed_at = ?""",
+                (series_ids[0], series_ids[1], edge_type, float(strength),
+                 evidence_json, stamp),
+            ).fetchone()
+            if existing is not None:
+                return int(existing["id"])
+            cursor = connection.execute(
+                """INSERT INTO topic_relationship_edges
+                   (left_candidate_series_id, right_candidate_series_id,
+                    edge_type, strength, evidence_json, observed_at)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+                (series_ids[0], series_ids[1], edge_type, float(strength),
+                 evidence_json, stamp),
+            )
+            return int(cursor.lastrowid)
+
+    def list_topic_edges(
+        self, *, edge_type: str | None = None, geo: str | None = None,
+        keyword: str | None = None,
+    ) -> list[dict]:
+        if edge_type is not None and edge_type not in EDGE_KINDS:
+            raise ValueError(f"invalid edge type: {edge_type}")
+        if (geo is None) != (keyword is None):
+            raise ValueError("geo and keyword must be provided together")
+        conditions, parameters = [], []
+        if edge_type is not None:
+            conditions.append("e.edge_type = ?")
+            parameters.append(edge_type)
+        if geo is not None:
+            normalized_geo, normalized_keyword = str(geo).strip().upper(), _key(keyword)
+            conditions.append(
+                "((ls.geo = ? AND ls.normalized_keyword = ?) OR "
+                "(rs.geo = ? AND rs.normalized_keyword = ?))"
+            )
+            parameters.extend([normalized_geo, normalized_keyword,
+                               normalized_geo, normalized_keyword])
+        where = " WHERE " + " AND ".join(conditions) if conditions else ""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT e.*, ls.geo AS left_geo,
+                          ls.normalized_keyword AS left_keyword,
+                          rs.geo AS right_geo,
+                          rs.normalized_keyword AS right_keyword
+                   FROM topic_relationship_edges e
+                   JOIN discovery_candidate_series ls
+                     ON ls.id = e.left_candidate_series_id
+                   JOIN discovery_candidate_series rs
+                     ON rs.id = e.right_candidate_series_id""" + where +
+                " ORDER BY e.id", tuple(parameters),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            item["left_candidate_key"] = candidate_key(
+                item.pop("left_geo"), item.pop("left_keyword")
+            )
+            item["right_candidate_key"] = candidate_key(
+                item.pop("right_geo"), item.pop("right_keyword")
+            )
+            item.pop("left_candidate_series_id")
+            item.pop("right_candidate_series_id")
+            item["evidence"] = json.loads(item.pop("evidence_json"))
+            result.append(item)
+        return result
 
     # --- Radar schedules (Task 1.3a: persistence and leases only) ---------
 

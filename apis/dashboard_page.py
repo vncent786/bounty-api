@@ -52,32 +52,50 @@ DASHBOARD_HTML = """<!doctype html>
     </section>
 
     <section class="view" id="view-explore" aria-labelledby="explore-title">
-      <header class="page-head"><div><p class="eyebrow">Research</p><h1 id="explore-title">Explore</h1><p>Type a topic to research, or browse what's trending.</p></div></header>
+      <header class="page-head global-head"><div><p class="eyebrow">Evidence radar</p><h1 id="explore-title">Global Explore</h1><p>See topic families that changed, why they surfaced, and where the evidence is still thin.</p></div><button class="quiet" id="refresh-families">Refresh</button></header>
 
-      <div class="direct-research-bar">
-        <input id="direct-topic" type="text" placeholder="Type any topic, company, or question — e.g. 'Circle Internet Group', 'GLP-1 side effects', 'why people quit budgeting apps'" autocomplete="off">
-        <button class="primary" id="research-topic-btn">Research this</button>
-      </div>
-      <p class="form-help" style="margin: -4px 0 12px 8px">This skips trend browsing and goes straight to reading conversations across YouTube, Reddit, and more.</p>
+      <section class="global-controls" aria-label="Global Explore controls">
+        <label>Perspective<select id="global-perspective"><option value="">All evidence</option></select></label>
+        <label>Stage<select id="global-stage"><option value="">All stages</option><option value="emerging">Emerging</option><option value="confirming">Confirming</option><option value="established">Established</option><option value="event_spike">Event spike</option><option value="cooling">Cooling</option><option value="observed">Observed</option><option value="unclear">Unclear</option></select></label>
+        <label>Region<input id="global-geo" maxlength="8" placeholder="All"></label>
+        <label class="check"><input id="global-include-rejected" type="checkbox">Include rejected or unclear</label>
+      </section>
 
-      <details class="trends-section">
-      <summary>Browse trending topics (Google Trends)</summary>
-      <form id="explore-form" class="filter-bar">
-        <label>Region<input id="explore-geo" value="US" maxlength="2" required></label>
-        <label>Lens<select id="explore-lens"><option value="">No lens</option></select></label>
-        <label>Min searches<input id="explore-volume" type="number" min="0" value="0"></label>
-        <label>Min growth (%)<input id="explore-growth" type="number" min="0" value="0"></label>
-        <label>Recent (hours)<input id="explore-age" type="number" min="0" step="1" value="0"></label>
-        <label class="check"><input id="explore-verified" type="checkbox">Only show topics with social discussion</label>
-        <button class="primary" type="submit">Search trends</button>
-      </form>
+      <div id="global-explore-status" class="notice">Loading persisted topic families. This view does not start a new collection run.</div>
+      <section class="global-section" aria-labelledby="changing-title">
+        <div class="section-head"><div><p class="eyebrow">What's changing</p><h2 id="changing-title">Recommended for deeper reading</h2></div><span id="family-count" class="mono muted">Not loaded</span></div>
+        <p class="section-copy">Recommendations preserve source coverage, route reasons, trajectory periods, and rejected families. Missing evidence stays missing.</p>
+        <div class="global-explore-layout">
+          <div id="family-grid" class="family-grid" aria-live="polite"><div class="empty bordered"><p class="eyebrow">Loading</p><h2>Checking persisted evidence</h2><p>No live sources are being called.</p></div></div>
+          <aside id="family-detail" class="family-detail" aria-live="polite"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a topic family</h2><p>Open a family to inspect member terms, trajectory, corroboration, propagation, coverage, and limitations.</p></div></aside>
+        </div>
+      </section>
+
+      <details class="known-topic-section">
+        <summary>Research a known topic or run a bounded trend search</summary>
+        <div class="direct-research-bar">
+          <input id="direct-topic" type="text" placeholder="Type any topic, company, or question" autocomplete="off">
+          <button class="primary" id="research-topic-btn">Research this</button>
+        </div>
+        <p class="form-help">Type a topic above to go straight to reading conversations across available sources.</p>
+        <details class="trends-section">
+          <summary>Browse trending topics (Google Trends)</summary>
+          <form id="explore-form" class="filter-bar">
+            <label>Region<input id="explore-geo" value="US" maxlength="2" required></label>
+            <label>Lens<select id="explore-lens"><option value="">No lens</option></select></label>
+            <label>Min searches<input id="explore-volume" type="number" min="0" value="0"></label>
+            <label>Min growth (%)<input id="explore-growth" type="number" min="0" value="0"></label>
+            <label>Recent (hours)<input id="explore-age" type="number" min="0" step="1" value="0"></label>
+            <label class="check"><input id="explore-verified" type="checkbox">Only show topics with social discussion</label>
+            <button class="primary" type="submit">Search trends</button>
+          </form>
+        </details>
+        <div id="explore-preview" class="notice">Type a topic above to start researching, or browse trending topics to discover what's rising.</div>
+        <div class="split findings-split">
+          <section class="index-pane"><div class="section-head"><h2>Bounded search results</h2><div class="filter-cluster"><select id="explore-cat-filter" class="cat-filter" aria-label="Filter by category"><option value="">All categories</option><option value="Business & Finance">Business &amp; Finance</option><option value="Gaming & Tech">Gaming &amp; Tech</option><option value="Health">Health</option><option value="Consumer Products">Consumer Products</option><option value="Entertainment">Entertainment</option><option value="Society & Culture">Society &amp; Culture</option><option value="Sports">Sports</option><option value="Politics & Government">Politics &amp; Government</option><option value="Science">Science</option></select><span id="explore-count" class="mono muted">No search yet</span></div></div><div id="explore-results" class="row-list"><div class="empty compact"><h3>No results yet</h3><p>Type a topic above or search trending topics to begin.</p></div></div></section>
+          <section class="detail-pane" id="explore-detail"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a result</h2><p>Click any result to see what people are saying, with cited evidence.</p></div></section>
+        </div>
       </details>
-
-      <div id="explore-preview" class="notice">Type a topic above to start researching, or browse trending topics to discover what's rising.</div>
-      <div class="split findings-split">
-        <section class="index-pane"><div class="section-head"><h2>Results</h2><div class="filter-cluster"><select id="explore-cat-filter" class="cat-filter" aria-label="Filter by category"><option value="">All categories</option><option value="Business & Finance">Business &amp; Finance</option><option value="Gaming & Tech">Gaming &amp; Tech</option><option value="Health">Health</option><option value="Consumer Products">Consumer Products</option><option value="Entertainment">Entertainment</option><option value="Society & Culture">Society &amp; Culture</option><option value="Sports">Sports</option><option value="Politics & Government">Politics &amp; Government</option><option value="Science">Science</option></select><span id="explore-count" class="mono muted">No search yet</span></div></div><div id="explore-results" class="row-list"><div class="empty compact"><h3>No results yet</h3><p>Type a topic above or search trending topics to begin.</p></div></div></section>
-        <section class="detail-pane" id="explore-detail"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a result</h2><p>Click any result to see what people are saying, with cited evidence.</p></div></section>
-      </div>
     </section>
 
     <section class="view" id="view-findings" aria-labelledby="findings-title">

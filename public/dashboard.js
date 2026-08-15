@@ -5,8 +5,10 @@
   const state = {
     workspace: localStorage.getItem('bounty.workspace') || 'default',
     projects: [], subjects: new Map(), project: null, lenses: [],
+    families: [], selectedFamily: null,
     candidates: [], selectedCandidate: null, selectedForPlan: new Set(),
-    discoveryRunId: null, discoveryRunStatus: null, researchRunId: null, workspaceEpoch: 0,
+    discoveryRunId: null, discoveryRunStatus: null, researchRunId: null,
+    workspaceEpoch: 0, globalExploreEpoch: 0,
   };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -96,7 +98,9 @@
     if (name === 'lenses') loadLenses();
     if (name === 'explore') {
       const epoch = state.workspaceEpoch;
-      ensureLenses().catch(error => { if (epoch === state.workspaceEpoch) showError(error.message); });
+      Promise.all([ensureLenses(), loadGlobalExplore()]).catch(error => {
+        if (epoch === state.workspaceEpoch) showError(error.message);
+      });
     }
     if (name === 'monitors') renderMonitors();
     if (name === 'findings') renderFindings();
@@ -278,6 +282,127 @@
     dialog.showModal();
     const answer = await new Promise(resolve => dialog.addEventListener('close', () => resolve(dialog.returnValue), { once: true }));
     if (answer === 'confirm') runExplore();
+  }
+
+  function selectedFamilyFilters() {
+    return {
+      perspectiveId: $('#global-perspective')?.value || '',
+      stage: $('#global-stage')?.value || '',
+      geo: ($('#global-geo')?.value || '').trim().toUpperCase(),
+      includeRejected: $('#global-include-rejected')?.checked === true,
+    };
+  }
+
+  async function loadGlobalExplore() {
+    const grid = $('#family-grid');
+    if (!grid) return;
+    const epoch = state.workspaceEpoch;
+    const requestEpoch = ++state.globalExploreEpoch;
+    const selectedFamilyId = state.selectedFamily?.family_id || null;
+    state.selectedFamily = null;
+    loading(grid, 'Loading topic families');
+    loading($('#family-detail'), 'Loading family evidence');
+    $('#global-explore-status').textContent = 'Loading persisted topic families. No live sources are being called.';
+    const filters = selectedFamilyFilters();
+    const query = new URLSearchParams({ workspace_id: state.workspace });
+    if (filters.perspectiveId) query.set('perspective_id', filters.perspectiveId);
+    try {
+      const data = await api(`/explore/families?${query}`);
+      if (epoch !== state.workspaceEpoch || requestEpoch !== state.globalExploreEpoch) return;
+      state.families = data.items || data.families || [];
+      state.selectedFamily = state.families.find(item => item.family_id === selectedFamilyId) || null;
+      const receipt = data.collection_performed === false
+        ? 'Perspective applied to persisted evidence. No collection was performed.'
+        : 'Persisted family evidence loaded.';
+      $('#global-explore-status').textContent = `${receipt} ${state.families.length} families available before local filters.`;
+      renderGlobalExplore();
+      if (state.selectedFamily) renderFamilyDetail(state.selectedFamily);
+      else $('#family-detail').replaceChildren(emptyState('Select a family', 'Evidence detail', 'Choose a topic family to inspect its persisted evidence and limitations.', true));
+    } catch (error) {
+      if (epoch !== state.workspaceEpoch || requestEpoch !== state.globalExploreEpoch) return;
+      state.families = []; state.selectedFamily = null;
+      grid.replaceChildren(emptyState('Unavailable', 'Global Explore could not be loaded', error.message, true));
+      $('#family-detail').replaceChildren(emptyState('Unavailable', 'No family detail is available', 'Restore persisted family access and refresh.', true));
+      $('#family-count').textContent = 'Unavailable';
+      $('#global-explore-status').textContent = `Persisted evidence unavailable: ${error.message}`;
+    }
+  }
+
+  function renderGlobalExplore() {
+    const grid = $('#family-grid');
+    const filters = selectedFamilyFilters();
+    const visible = state.families.filter(family => {
+      if (filters.stage && family.stage !== filters.stage) return false;
+      if (filters.geo && String(family.geo || '').toUpperCase() !== filters.geo) return false;
+      const unclear = family.stage === 'unclear' || String(family.status || '').toLowerCase() === 'rejected';
+      return filters.includeRejected || !unclear;
+    });
+    $('#family-count').textContent = `${visible.length} of ${state.families.length}`;
+    grid.replaceChildren();
+    if (!visible.length) {
+      grid.append(emptyState('No matching families', 'Nothing passed these view filters', 'Broaden the stage or region filter. Rejected and unclear families remain available when explicitly included.', true));
+      return;
+    }
+    visible.forEach(family => {
+      const card = el('article', `family-card${state.selectedFamily?.family_id === family.family_id ? ' selected' : ''}`);
+      const header = el('div', 'family-card-head');
+      const title = el('button', 'family-open', family.label || 'Unnamed topic family');
+      title.type = 'button'; title.addEventListener('click', () => {
+        state.selectedFamily = family; renderGlobalExplore(); renderFamilyDetail(family);
+      });
+      append(header, title, statusBadge(family.stage || 'unclear'));
+      const explanation = family.what_it_is?.text || 'Not enough context yet.';
+      const terms = (family.member_terms || []).slice(0, 4).map(item => item.term).filter(Boolean);
+      const routes = (family.why_surfaced || []).filter(item => item.passed !== false).map(item => item.route).filter(Boolean);
+      append(card, header, el('p', 'family-summary', explanation));
+      if (terms.length) card.append(el('p', 'family-terms', terms.join(' · ')));
+      const trajectory = family.trajectory || {};
+      const meta = [
+        trajectory.direction,
+        trajectory.period?.start && trajectory.period?.end ? `period ${trajectory.period.start} to ${trajectory.period.end}` : null,
+        routes.length ? `via ${routes.join(', ')}` : 'route not confirmed',
+      ].filter(Boolean).join(' · ');
+      card.append(el('p', 'family-meta mono', meta));
+      grid.append(card);
+    });
+  }
+
+  function renderFamilyDetail(family) {
+    const detail = $('#family-detail'); detail.replaceChildren();
+    const head = el('div', 'detail-head'); const intro = el('div');
+    append(intro, el('p', 'eyebrow', family.category || family.geo || 'Topic family'), el('h2', '', family.label || 'Unnamed topic family'), statusBadge(family.stage || 'unclear'));
+    const actions = el('div', 'actions');
+    const investigate = el('button', 'primary', 'Investigate');
+    investigate.addEventListener('click', () => {
+      $('#direct-topic').value = family.label || '';
+      $('.known-topic-section').open = true;
+      $('#direct-topic').focus();
+    });
+    const monitor = el('button', 'quiet', 'Request monitor'); monitor.addEventListener('click', () => runFamilyAction(family, 'monitor'));
+    const dismiss = el('button', 'quiet danger', 'Dismiss'); dismiss.addEventListener('click', () => runFamilyAction(family, 'dismiss'));
+    append(actions, investigate, monitor, dismiss); append(head, intro, actions); detail.append(head);
+    detail.append(el('p', 'lead-copy', family.what_it_is?.text || 'Not enough context yet.'));
+    addDataSection(detail, 'Member terms', family.member_terms, 'No member terms were recorded.');
+    addDataSection(detail, 'Why it surfaced', family.why_surfaced, 'No promotion route passed.');
+    addDataSection(detail, 'Trajectory', family.trajectory, 'No comparable trajectory was recorded.');
+    addDataSection(detail, 'Resonance', family.resonance, 'No supported engagement baseline was recorded.');
+    addDataSection(detail, 'Independent corroboration', family.corroboration, 'Independent-root evidence is unavailable.');
+    addDataSection(detail, 'Propagation', family.propagation, 'No repost or copy propagation was recorded.');
+    addDataSection(detail, 'Conversation depth', family.conversation_depth, 'Conversation depth was not checked.');
+    addDataSection(detail, 'Coverage', family.coverage, 'Source coverage was not recorded.');
+    addDataSection(detail, 'Limitations', family.limitations, 'No limitations were recorded.');
+    addDataSection(detail, 'Citations', family.what_it_is?.support, 'No cited context supports the explanation yet.');
+  }
+
+  async function runFamilyAction(family, actionType) {
+    try {
+      await api(`/explore/families/${enc(family.family_id)}/actions`, {
+        method: 'POST',
+        body: JSON.stringify({ workspace_id: state.workspace, action_type: actionType }),
+      });
+      toast(actionType === 'monitor' ? 'Monitoring request recorded' : 'Family dismissed for this workspace');
+      await loadGlobalExplore();
+    } catch (error) { showError(error.message); }
   }
 
   async function runExplore() {
@@ -671,9 +796,9 @@
       state.lenses = lenses;
     }
     const options = state.lenses.map(lens => ({ value: lens.id, label: `${lens.name} · v${value(lens.latest_version?.version || lens.latest_version_number)}` }));
-    [$('#explore-lens'), $('#subject-form select[name=lens_id]')].filter(Boolean).forEach(select => {
+    [$('#explore-lens'), $('#subject-form select[name=lens_id]'), $('#global-perspective')].filter(Boolean).forEach(select => {
       const current = select.value; select.replaceChildren();
-      const none = el('option', '', 'No lens'); none.value = ''; select.append(none);
+      const none = el('option', '', select.id === 'global-perspective' ? 'All evidence' : 'No lens'); none.value = ''; select.append(none);
       options.forEach(item => { const option = el('option', '', item.label); option.value = item.value; select.append(option); });
       if ([...select.options].some(option => option.value === current)) select.value = current;
     });
@@ -870,15 +995,20 @@
     $$('[data-open]').forEach(button => button.addEventListener('click', async () => { if (button.dataset.open === 'lens-dialog') resetLensForm(); if (button.dataset.open === 'subject-dialog') { try { await ensureLenses(); } catch (error) { showError(error.message); return; } } $(`#${button.dataset.open}`).showModal(); }));
     $$('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
     $('#menu-toggle').addEventListener('click', event => { const open = $('#sidebar').classList.toggle('open'); event.currentTarget.setAttribute('aria-expanded', String(open)); });
-    $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspaceEpoch += 1; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.lenses = []; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
+    $('#save-workspace').addEventListener('click', () => { const key = $('#workspace-key').value.trim() || 'default'; state.workspaceEpoch += 1; state.workspace = key; localStorage.setItem('bounty.workspace', key); state.project = null; state.projects = []; state.lenses = []; state.families = []; state.selectedFamily = null; state.subjects.clear(); toast(`Using workspace ${key}`); showView('projects'); });
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
  $('#start-tour').addEventListener('click', startTour);
  $('#research-topic-btn').addEventListener('click', researchTopic);
  $('#direct-topic').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); researchTopic(); } });
  $('#explore-cat-filter')?.addEventListener('change', renderExploreResults);
+ $('#refresh-families')?.addEventListener('click', loadGlobalExplore);
+ $('#global-perspective')?.addEventListener('change', loadGlobalExplore);
+ $('#global-stage')?.addEventListener('change', renderGlobalExplore);
+ $('#global-geo')?.addEventListener('input', renderGlobalExplore);
+ $('#global-include-rejected')?.addEventListener('change', renderGlobalExplore);
  // Auto-start on first visit
- if (!localStorage.getItem('bounty.tourCompleted')) setTimeout(startTour, 600);
+ if (!localStorage.getItem('bounty.tourCompleted') && !location.hash) setTimeout(startTour, 600);
  }
 
   bind();

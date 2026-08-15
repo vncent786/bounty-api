@@ -21,7 +21,7 @@ Implement the approved plan at `.hermes/plans/2026-08-14_212522-bounty-horizonta
 - Worktree contains pre-existing runtime DB/image/log/tmp changes; never stage them.
 
 ## Current task
-Phase 4 Tasks 4.2-4.4: persist route evaluations, run shadow mode, expose funnel/labels; then serve and browser-verify Global Explore through Task 5.3.
+Approval boundary reached through Phase 5 Task 5.3. Await Vincent's product review before extending the roadmap.
 
 ## Completed milestones
 - `21eeb19`: concise passing characterization test for the current accidental Explore thread/LLM cost path.
@@ -67,5 +67,16 @@ Implement Phase 2 Task 2.1 as a narrow test-first increment: extend canonical ro
 - Task 4.1 implemented: versioned universal eligibility plus nine inspectable promotion routes, explicit limitations, manual attribution guard, and deterministic capped/stratified exploration allocation.
 - Focused integration gate: 55 passed, JS syntax clean, diff check clean. Runtime DBs/images/logs/tmp remain unstaged.
 
+## 2026-08-15 Phase 4-5.3 closeout
+- Durable shadow promotion evaluation, funnel and workspace-scoped action labels are implemented. Shadow mode performs zero collection, zero LLM calls and zero downstream actions.
+- Shadow evidence now fails closed when its source observation timestamp is missing, future-dated or more than 90 days old. Invalid action/outcome combinations are rejected before insertion.
+- Global Explore is backed only by persisted family/evaluation/history records. Trajectory uses complete, comparable, timestamped runs and withholds stale series. Explanations retain only parseable HTTP(S) citations; malformed URL input is discarded without failing the family feed.
+- Monitor is truthfully presented as a monitoring request rather than an active schedule. Dismissal is derived from workspace labels and does not mutate the shared family record.
+- UI request epochs reject out-of-order Perspective responses; stale family detail is cleared during loading and on failures. Structured trajectory periods render as explicit start/end timestamps.
+- Controlled browser QA used visibly synthetic `QA` families and `.invalid` citations. Populated, loading, empty and forced-error states passed at 1440x1000 and 390x844 with 0px horizontal overflow. Monitor/Dismiss interactions settled correctly. The isolated port-8101 server was stopped; the pre-existing port-8100 process was untouched.
+- Final focused gate: 26 passed. Final authoritative suite: 413 passed, 11 existing deprecation warnings. `node --check public/dashboard.js` and `git diff --check` passed.
+- Independent review initially blocked on evidence provenance/freshness, trajectory comparability, citation validation and action truthfulness. Fixes were regression-tested; exact-tree narrow re-review returned PASS, including malformed citation and out-of-order response probes.
+- Runtime databases, WAL/SHM files, screenshots, logs, browser harnesses, seed scripts and unrelated scratch remain uncommitted.
+
 ## Next action
-Add route-evaluation/shadow-funnel/label persistence and APIs, then implement the persisted family read-model endpoint consumed by the already-built Global Explore shell. Seed only a controlled QA database, verify populated/empty/loading/error behavior in browser at desktop and mobile widths, run full regression and independent review, update this handoff, and commit only verified source/tests/docs.
+Vincent reviews the Phase 5 Task 5.3 product boundary. Do not add embedding-based grouping until the labeled calibration set materially exceeds the 22-pair spike; do not convert monitoring requests into schedules without an explicit project/subject ownership design.

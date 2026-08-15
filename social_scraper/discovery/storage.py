@@ -421,6 +421,33 @@ class DiscoveryStore:
                     ON topic_relationship_edges(
                         left_candidate_series_id, right_candidate_series_id, id
                     );
+                CREATE TABLE IF NOT EXISTS promotion_evaluations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workspace_id TEXT NOT NULL,
+                    candidate_id TEXT NOT NULL,
+                    family_id TEXT,
+                    policy_version TEXT NOT NULL,
+                    shadow INTEGER NOT NULL CHECK(shadow IN (0,1)),
+                    evaluation_json TEXT NOT NULL,
+                    evidence_json TEXT NOT NULL,
+                    evaluated_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_promotion_eval_workspace_time
+                    ON promotion_evaluations(workspace_id, evaluated_at, id);
+                CREATE TABLE IF NOT EXISTS promotion_labels (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    workspace_id TEXT NOT NULL,
+                    candidate_id TEXT,
+                    family_id TEXT,
+                    evaluation_id INTEGER REFERENCES promotion_evaluations(id),
+                    action_type TEXT NOT NULL,
+                    route TEXT,
+                    outcome TEXT,
+                    details_json TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_promotion_labels_workspace_time
+                    ON promotion_labels(workspace_id, created_at, id);
                 """
             )
             # Additive 2026-08-15 radar schedule persistence (Task 1.3a):
@@ -548,6 +575,11 @@ class DiscoveryStore:
             connection.execute(
                 "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
                 ("2026_08_15_topic_families", datetime.now(timezone.utc).isoformat()),
+            )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_promotion_shadow_labels",
+                 datetime.now(timezone.utc).isoformat()),
             )
 
     # --- Topic families and evidence edges (Tasks 3.1-3.2) ---------------
@@ -786,6 +818,147 @@ class DiscoveryStore:
             item["evidence"] = json.loads(item.pop("evidence_json"))
             result.append(item)
         return result
+
+    # --- Promotion shadow evaluations and labels (Tasks 4.2-4.4) ---------
+
+    @staticmethod
+    def _promotion_evaluation(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["shadow"] = bool(item["shadow"])
+        item["evaluation"] = json.loads(item.pop("evaluation_json"))
+        item["evidence"] = json.loads(item.pop("evidence_json"))
+        return item
+
+    def record_promotion_evaluation(
+        self, *, workspace_id: str, candidate_id: str,
+        policy_version: str, evaluation: Mapping[str, Any],
+        evidence: Mapping[str, Any], family_id: str | None = None,
+        shadow: bool = True, evaluated_at: datetime | str | None = None,
+    ) -> dict:
+        if not str(workspace_id).strip() or not str(candidate_id).strip():
+            raise ValueError("workspace_id and candidate_id are required")
+        if not isinstance(evaluation, Mapping) or not evaluation:
+            raise ValueError("evaluation must be a non-empty mapping")
+        if not isinstance(evidence, Mapping):
+            raise ValueError("evidence must be a mapping")
+        stamp = _iso(evaluated_at or datetime.now(timezone.utc))
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO promotion_evaluations
+                   (workspace_id, candidate_id, family_id, policy_version,
+                    shadow, evaluation_json, evidence_json, evaluated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (str(workspace_id).strip(), str(candidate_id).strip(), family_id,
+                 str(policy_version), int(bool(shadow)), _json(dict(evaluation)),
+                 _json(dict(evidence)), stamp),
+            )
+            row = connection.execute(
+                "SELECT * FROM promotion_evaluations WHERE id = ?",
+                (cursor.lastrowid,),
+            ).fetchone()
+        return self._promotion_evaluation(row)
+
+    def list_promotion_evaluations(
+        self, *, workspace_id: str, family_id: str | None = None,
+    ) -> list[dict]:
+        with self._connect() as connection:
+            if family_id is None:
+                rows = connection.execute(
+                    """SELECT * FROM promotion_evaluations
+                       WHERE workspace_id = ? ORDER BY evaluated_at, id""",
+                    (workspace_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT * FROM promotion_evaluations
+                       WHERE workspace_id = ? AND family_id = ?
+                       ORDER BY evaluated_at, id""", (workspace_id, family_id),
+                ).fetchall()
+        return [self._promotion_evaluation(row) for row in rows]
+
+    @staticmethod
+    def _promotion_label(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["details"] = json.loads(item.pop("details_json"))
+        return item
+
+    def record_promotion_label(
+        self, *, workspace_id: str, action_type: str,
+        candidate_id: str | None = None, family_id: str | None = None,
+        evaluation_id: int | None = None, route: str | None = None,
+        outcome: str | None = None, details: Mapping[str, Any] | None = None,
+        created_at: datetime | str | None = None,
+    ) -> dict:
+        if action_type not in {"investigate", "monitor", "dismiss", "outcome"}:
+            raise ValueError(f"invalid promotion label action: {action_type}")
+        if candidate_id is None and family_id is None:
+            raise ValueError("candidate_id or family_id is required")
+        if action_type == "outcome" and not str(outcome or "").strip():
+            raise ValueError("outcome is required for outcome labels")
+        if action_type != "outcome" and outcome is not None:
+            raise ValueError("outcome is only valid for outcome labels")
+        stamp = _iso(created_at or datetime.now(timezone.utc))
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """INSERT INTO promotion_labels
+                   (workspace_id, candidate_id, family_id, evaluation_id,
+                    action_type, route, outcome, details_json, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (workspace_id, candidate_id, family_id, evaluation_id,
+                 action_type, route, outcome, _json(dict(details or {})), stamp),
+            )
+            row = connection.execute(
+                "SELECT * FROM promotion_labels WHERE id = ?", (cursor.lastrowid,),
+            ).fetchone()
+        return self._promotion_label(row)
+
+    def list_promotion_labels(
+        self, *, workspace_id: str, family_id: str | None = None,
+    ) -> list[dict]:
+        with self._connect() as connection:
+            if family_id is None:
+                rows = connection.execute(
+                    """SELECT * FROM promotion_labels WHERE workspace_id = ?
+                       ORDER BY created_at, id""", (workspace_id,),
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT * FROM promotion_labels
+                       WHERE workspace_id = ? AND family_id = ?
+                       ORDER BY created_at, id""", (workspace_id, family_id),
+                ).fetchall()
+        return [self._promotion_label(row) for row in rows]
+
+    def summarize_promotion_funnel(self, *, workspace_id: str) -> dict:
+        rows = self.list_promotion_evaluations(workspace_id=workspace_id)
+        counts = {
+            "evaluated": len(rows), "eligible": 0, "automatic": 0,
+            "manual": 0, "exploration": 0, "not_promoted": 0,
+        }
+        routes: dict[str, int] = {}
+        for row in rows:
+            evaluation = row["evaluation"]
+            counts["eligible"] += int(bool(evaluation.get("eligible")))
+            mode = str(evaluation.get("promotion_mode") or "none")
+            if mode in {"automatic", "manual", "exploration"}:
+                counts[mode] += 1
+            else:
+                counts["not_promoted"] += 1
+            for route in evaluation.get("routes") or []:
+                if route.get("passed"):
+                    name = str(route.get("route") or "unknown")
+                    routes[name] = routes.get(name, 0) + 1
+        labels = self.list_promotion_labels(workspace_id=workspace_id)
+        label_counts: dict[str, int] = {}
+        for label in labels:
+            key = str(label["action_type"])
+            label_counts[key] = label_counts.get(key, 0) + 1
+        return {
+            "workspace_id": workspace_id,
+            "counts": counts,
+            "route_pass_counts": dict(sorted(routes.items())),
+            "label_counts": dict(sorted(label_counts.items())),
+        }
 
     # --- Radar schedules (Task 1.3a: persistence and leases only) ---------
 
@@ -1534,9 +1707,11 @@ class DiscoveryStore:
             observations = connection.execute(
                 """SELECT o.*, s.normalized_keyword, s.first_seen_at, s.last_seen_at,
                           s.consecutive_observations, s.total_observations,
-                          s.presence_status
+                          s.presence_status, r.status AS run_status,
+                          r.comparable AS run_comparable
                    FROM discovery_candidate_observations o
                    JOIN discovery_candidate_series s ON s.id = o.candidate_series_id
+                   JOIN discovery_runs r ON r.id = o.discovery_run_id
                    WHERE o.candidate_series_id = ? ORDER BY o.observed_at, o.id""",
                 (series["id"],),
             ).fetchall()

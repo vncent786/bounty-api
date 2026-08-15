@@ -159,6 +159,20 @@ class ActionCreateRequest(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
+class PromotionShadowRequest(BaseModel):
+    workspace_id: str = "default"
+    evidence: list[dict[str, Any]]
+    policy: Optional[dict[str, Any]] = None
+
+
+class FamilyActionRequest(BaseModel):
+    workspace_id: str = "default"
+    action_type: str
+    route: Optional[str] = None
+    outcome: Optional[str] = None
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
 def _get_registry():
     global _registry
     if _registry is None:
@@ -871,6 +885,66 @@ async def get_discovery_run_usage(run_id: str):
         "shared_evidence_reuse": any(row["shared_evidence_reuse"] for row in rows),
     }
     return {"run_id": run_id, "totals": totals, "rows": rows}
+
+
+@router.post("/promotion/shadow/evaluate")
+async def evaluate_promotion_shadow(body: PromotionShadowRequest):
+    """Evaluate persisted evidence in shadow mode; execute no downstream action."""
+    from social_scraper.discovery.promotion import PromotionPolicy
+    from social_scraper.discovery.shadow_mode import run_shadow_mode
+    try:
+        policy = PromotionPolicy(body.policy) if body.policy is not None else None
+        return run_shadow_mode(
+            _get_discovery_store(), body.evidence,
+            workspace_id=body.workspace_id, policy=policy,
+        )
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.get("/promotion/funnel")
+async def promotion_funnel(workspace_id: str = "default"):
+    return _get_discovery_store().summarize_promotion_funnel(
+        workspace_id=workspace_id
+    )
+
+
+@router.get("/explore/families")
+async def global_explore_families(
+    workspace_id: str = "default", perspective_id: Optional[str] = None,
+):
+    from social_scraper.discovery.explore_service import build_persisted_explore
+    perspective = None
+    if perspective_id:
+        lens = _lens_store_call("get_lens", workspace_id, perspective_id)
+        perspective = lens["latest_version"]["spec"]
+    return build_persisted_explore(
+        _get_discovery_store(), workspace_id=workspace_id, perspective=perspective
+    )
+
+
+@router.get("/explore/families/{family_id}/labels")
+async def family_labels(family_id: str, workspace_id: str = "default"):
+    return _get_discovery_store().list_promotion_labels(
+        workspace_id=workspace_id, family_id=family_id
+    )
+
+
+@router.post("/explore/families/{family_id}/actions", status_code=201)
+async def create_family_action(family_id: str, body: FamilyActionRequest):
+    store = _get_discovery_store()
+    family = store.get_topic_family(family_id)
+    if family is None:
+        raise HTTPException(status_code=404, detail="topic family not found")
+    try:
+        label = store.record_promotion_label(
+            workspace_id=body.workspace_id, family_id=family_id,
+            action_type=body.action_type, route=body.route,
+            outcome=body.outcome, details=body.details,
+        )
+        return {"label": label, "family": family}
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/discovery/lenses/presets")

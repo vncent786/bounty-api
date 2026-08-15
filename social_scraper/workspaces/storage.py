@@ -358,6 +358,32 @@ class WorkspaceStore:
                 result.append(self._subject(row, aliases))
         return result
 
+    def list_active_subjects(self) -> list[dict[str, Any]]:
+        """Read-only cross-workspace listing of active subjects in active projects.
+
+        Joins each subject with its project's ``workspace_id`` and
+        ``default_geo`` and decodes platforms, budget and aliases, so the
+        radar cadence layer (Task 1.3b) stays workspace-controlled with no
+        hardcoded regions. Inactive subjects and archived projects are
+        excluded; the method performs no writes.
+        """
+        with self._connect() as connection:
+            rows = connection.execute("""
+                SELECT s.*, p.workspace_id AS workspace_id,
+                       p.default_geo AS project_default_geo
+                FROM monitored_subjects s
+                JOIN projects p ON p.id = s.project_id
+                WHERE p.status='active' AND s.active=1
+                ORDER BY p.created_at,p.id,s.created_at,s.id
+            """).fetchall()
+            result = []
+            for row in rows:
+                aliases = connection.execute(
+                    "SELECT * FROM subject_aliases WHERE subject_id=? ORDER BY alias,kind,id",
+                    (row["id"],)).fetchall()
+                result.append(self._subject(row, aliases))
+        return result
+
     def update_subject(self, workspace_id: str, project_id: str, subject_id: str,
                        **changes: Any) -> dict[str, Any]:
         current = self.get_subject(workspace_id, project_id, subject_id)

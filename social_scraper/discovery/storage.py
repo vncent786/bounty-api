@@ -7,15 +7,47 @@ import json
 import sqlite3
 import unicodedata
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
 from .budgets import StageUsage
+from .scan_modes import FEED_MODES, coerce_scan_mode
 
 
 _ALLOWED_RUN_STATUS = {"complete", "partial", "error"}
 _ALLOWED_GATE_STATUS = {"not_checked", "complete", "empty", "partial", "failed"}
+_RADAR_SCOPE_TYPES = frozenset({"geography", "subject"})
+_RADAR_ATTEMPT_STATUS = frozenset({"complete", "partial", "error"})
+
+
+def _utc_parse(value: datetime | str, *, label: str = "timestamp") -> datetime:
+    """Parse an injected clock value into an aware UTC datetime.
+
+    Aware datetimes are converted; naive datetimes are read as UTC. Strings
+    must be ISO-8601 (trailing ``Z`` accepted); anything else is rejected
+    rather than silently replaced with ``now``.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).strip()
+        if text.endswith(("Z", "z")):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.fromisoformat(text)
+        except ValueError as exc:
+            raise ValueError(f"{label} must be an ISO-8601 timestamp") from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _utc_iso(value: datetime | str | None, *, label: str = "timestamp") -> str:
+    """UTC ISO string for radar lease timestamps; ``None`` means now."""
+    if value is None:
+        return datetime.now(timezone.utc).isoformat()
+    return _utc_parse(value, label=label).isoformat()
 
 
 def _iso(value: datetime | str | None) -> str | None:
@@ -336,6 +368,56 @@ class DiscoveryStore:
                     ON research_findings(research_run_id, candidate_id);
                 """
             )
+            # Additive 2026-08-15 radar schedule persistence (Task 1.3a):
+            # new tables only, existing discovery tables are never rebuilt.
+            schedulable_modes = ",".join(
+                f"'{mode.value}'"
+                for mode in sorted(FEED_MODES, key=lambda item: item.value)
+            )
+            connection.executescript(
+                f"""
+                CREATE TABLE IF NOT EXISTS radar_schedules (
+                    id TEXT PRIMARY KEY,
+                    scan_mode TEXT NOT NULL
+                        CHECK(scan_mode IN ({schedulable_modes})),
+                    scope_type TEXT NOT NULL
+                        CHECK(scope_type IN ('geography','subject')),
+                    scope_key TEXT NOT NULL,
+                    geo TEXT NOT NULL,
+                    subject_id TEXT,
+                    interval_minutes INTEGER NOT NULL CHECK(interval_minutes > 0),
+                    next_run_at TEXT NOT NULL,
+                    last_attempt_at TEXT,
+                    last_successful_comparable_run_id INTEGER,
+                    last_status TEXT CHECK(last_status IS NULL
+                        OR last_status IN ('complete','partial','error')),
+                    last_error_category TEXT,
+                    last_source_health_json TEXT,
+                    enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+                    lease_token TEXT,
+                    lease_until TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(scan_mode, scope_type, scope_key)
+                );
+                CREATE INDEX IF NOT EXISTS idx_radar_schedules_due
+                    ON radar_schedules(enabled, next_run_at, id);
+                CREATE TABLE IF NOT EXISTS radar_schedule_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    schedule_id TEXT NOT NULL REFERENCES radar_schedules(id),
+                    started_at TEXT NOT NULL,
+                    completed_at TEXT NOT NULL,
+                    status TEXT NOT NULL
+                        CHECK(status IN ('complete','partial','error')),
+                    comparable INTEGER CHECK(comparable IS NULL OR comparable IN (0,1)),
+                    discovery_run_id TEXT,
+                    source_health_json TEXT,
+                    error_category TEXT
+                );
+                CREATE INDEX IF NOT EXISTS idx_radar_schedule_runs_schedule
+                    ON radar_schedule_runs(schedule_id, id);
+                """
+            )
             gate_columns = {
                 row[1] for row in connection.execute(
                     "PRAGMA table_info(discovery_gate_checks)"
@@ -398,6 +480,297 @@ class DiscoveryStore:
                 ("2026_08_15_stage_usage_cost_receipts",
                  datetime.now(timezone.utc).isoformat()),
             )
+            connection.execute(
+                "INSERT OR IGNORE INTO schema_migrations(name, applied_at) VALUES (?, ?)",
+                ("2026_08_15_radar_schedules",
+                 datetime.now(timezone.utc).isoformat()),
+            )
+
+    # --- Radar schedules (Task 1.3a: persistence and leases only) ---------
+
+    @staticmethod
+    def _radar_schedule(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["enabled"] = bool(item["enabled"])
+        health = item.pop("last_source_health_json")
+        item["last_source_health"] = json.loads(health) if health is not None else None
+        return item
+
+    @staticmethod
+    def _radar_run(row: sqlite3.Row) -> dict:
+        item = dict(row)
+        item["comparable"] = (
+            bool(item["comparable"]) if item["comparable"] is not None else None
+        )
+        health = item.pop("source_health_json")
+        item["source_health"] = json.loads(health) if health is not None else None
+        return item
+
+    def upsert_radar_schedule(
+        self,
+        *,
+        scan_mode: str,
+        scope_type: str,
+        geo: str,
+        interval_minutes: int,
+        next_run_at: datetime | str,
+        subject_id: str | None = None,
+        scope_key: str | None = None,
+        enabled: bool = True,
+        schedule_id: str | None = None,
+        now: datetime | str | None = None,
+    ) -> dict:
+        """Create or refresh one durable radar schedule idempotently.
+
+        Only feed modes (``trends_snapshot``/``root_sweep``) may be
+        scheduled; research-run modes are rejected here at the storage
+        boundary. ``next_run_at`` applies only when the schedule is
+        inserted: a conflicting upsert is a config refresh that may update
+        geo/subject/cadence/enabled, but the existing schedule keeps its
+        current ``next_run_at`` due time, any live lease and the full
+        attempt history including the last successful comparable run.
+        ``scope_key`` defaults to the geo (geography scope) or the subject
+        id (subject scope) so ``UNIQUE(scan_mode, scope_type, scope_key)``
+        stays stable.
+        """
+        mode = coerce_scan_mode(scan_mode)
+        if mode not in FEED_MODES:
+            valid = ", ".join(
+                item.value for item in sorted(FEED_MODES, key=lambda m: m.value)
+            )
+            raise ValueError(
+                f"scan mode cannot be scheduled: {mode.value} "
+                f"(schedulable modes: {valid})"
+            )
+        scope_type = str(scope_type or "").strip().casefold()
+        if scope_type not in _RADAR_SCOPE_TYPES:
+            raise ValueError("scope_type must be 'geography' or 'subject'")
+        geo = str(geo or "").strip().upper()
+        if not geo:
+            raise ValueError("geo is required")
+        if scope_type == "subject":
+            if not str(subject_id or "").strip():
+                raise ValueError("subject_id is required for subject schedules")
+        elif subject_id is not None:
+            raise ValueError("subject_id must be null for geography schedules")
+        if (
+            isinstance(interval_minutes, bool)
+            or not isinstance(interval_minutes, int)
+            or interval_minutes <= 0
+        ):
+            raise ValueError("interval_minutes must be a positive integer")
+        key = str(scope_key or "").strip() or (
+            subject_id if scope_type == "subject" else geo
+        )
+        next_run_iso = _utc_iso(next_run_at, label="next_run_at")
+        now_iso = _utc_iso(now, label="now")
+        with self._connect() as connection:
+            connection.execute(
+                """INSERT INTO radar_schedules
+                   (id, scan_mode, scope_type, scope_key, geo, subject_id,
+                    interval_minutes, next_run_at, enabled, created_at, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   ON CONFLICT(scan_mode, scope_type, scope_key) DO UPDATE SET
+                       geo = excluded.geo,
+                       subject_id = excluded.subject_id,
+                       interval_minutes = excluded.interval_minutes,
+                       enabled = excluded.enabled,
+                       updated_at = excluded.updated_at
+                   /* next_run_at deliberately not reset: the live schedule
+                      keeps its current due time, lease and history. */""",
+                (
+                    schedule_id or str(uuid.uuid4()), mode.value, scope_type, key,
+                    geo, subject_id or None, interval_minutes, next_run_iso,
+                    int(bool(enabled)), now_iso, now_iso,
+                ),
+            )
+            row = connection.execute(
+                """SELECT * FROM radar_schedules
+                   WHERE scan_mode = ? AND scope_type = ? AND scope_key = ?""",
+                (mode.value, scope_type, key),
+            ).fetchone()
+        return self._radar_schedule(row)
+
+    def get_radar_schedule(self, schedule_id: str) -> dict | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM radar_schedules WHERE id = ?", (schedule_id,)
+            ).fetchone()
+        return self._radar_schedule(row) if row is not None else None
+
+    def list_radar_schedules(self, *, enabled: bool | None = None) -> list[dict]:
+        with self._connect() as connection:
+            if enabled is None:
+                rows = connection.execute(
+                    "SELECT * FROM radar_schedules ORDER BY created_at, id"
+                ).fetchall()
+            else:
+                rows = connection.execute(
+                    """SELECT * FROM radar_schedules WHERE enabled = ?
+                       ORDER BY created_at, id""",
+                    (int(enabled),),
+                ).fetchall()
+        return [self._radar_schedule(row) for row in rows]
+
+    def list_radar_schedule_runs(self, schedule_id: str) -> list[dict]:
+        """Return one schedule's attempt history in insertion order."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT * FROM radar_schedule_runs WHERE schedule_id = ?
+                   ORDER BY id""",
+                (schedule_id,),
+            ).fetchall()
+        return [self._radar_run(row) for row in rows]
+
+    def claim_due_schedules(
+        self,
+        now: datetime | str | None = None,
+        lease_minutes: int = 10,
+        limit: int = 100,
+    ) -> list[dict]:
+        """Atomically claim due schedules; safe across store replicas.
+
+        Runs under ``BEGIN IMMEDIATE`` with a conditional update so two
+        ``DiscoveryStore`` instances on the same database can never hold
+        the same row. Live leases exclude a row; expired leases are
+        reclaimable by anyone. Each claim records ``last_attempt_at``.
+        """
+        if (
+            isinstance(lease_minutes, bool)
+            or not isinstance(lease_minutes, int)
+            or lease_minutes <= 0
+        ):
+            raise ValueError("lease_minutes must be a positive integer")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit <= 0:
+            raise ValueError("limit must be a positive integer")
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        now_iso = at.isoformat()
+        lease_until = (at + timedelta(minutes=lease_minutes)).isoformat()
+        claims: list[dict] = []
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            rows = connection.execute(
+                """SELECT * FROM radar_schedules
+                   WHERE enabled = 1 AND next_run_at <= ?
+                     AND (lease_until IS NULL OR lease_until <= ?)
+                   ORDER BY next_run_at, id
+                   LIMIT ?""",
+                (now_iso, now_iso, limit),
+            ).fetchall()
+            for row in rows:
+                token = str(uuid.uuid4())
+                cursor = connection.execute(
+                    """UPDATE radar_schedules
+                       SET lease_token = ?, lease_until = ?, last_attempt_at = ?,
+                           updated_at = ?
+                       WHERE id = ? AND (lease_until IS NULL OR lease_until <= ?)""",
+                    (token, lease_until, now_iso, now_iso, row["id"], now_iso),
+                )
+                if cursor.rowcount == 1:
+                    claim = self._radar_schedule(row)
+                    claim.update({
+                        "schedule_id": row["id"],
+                        "claim_token": token,
+                        "lease_until": lease_until,
+                        "claimed_at": now_iso,
+                        "last_attempt_at": now_iso,
+                    })
+                    claims.append(claim)
+        return claims
+
+    def complete_schedule_attempt(
+        self,
+        schedule_id: str,
+        lease_token: str,
+        *,
+        status: str,
+        comparable: bool,
+        discovery_run_id: str | None = None,
+        source_health: list[dict] | None = None,
+        error_category: str | None = None,
+        started_at: datetime | str | None = None,
+        now: datetime | str | None = None,
+    ) -> dict:
+        """Finalize one claimed attempt: run row, lease clear, cadence.
+
+        Requires the matching lease token; stale tokens fail without
+        inserting a run row or touching the schedule. ``next_run_at``
+        advances from the completion time by the schedule interval.
+        ``last_successful_comparable_run_id`` stores the inserted
+        ``radar_schedule_runs.id`` of a ``complete`` comparable attempt;
+        every other outcome preserves the previous pointer so failures
+        never fake candidate gaps. ``discovery_run_id`` is optional
+        provenance: a healthy subject root sweep may complete comparable
+        with ``discovery_run_id=None``. Missing source health is stored
+        as unknown (NULL), never invented.
+        """
+        if status not in _RADAR_ATTEMPT_STATUS:
+            raise ValueError(f"invalid radar attempt status: {status}")
+        if not isinstance(comparable, bool):
+            raise ValueError("comparable must be a boolean")
+        if status != "complete":
+            comparable = False
+        if status == "error" and not str(error_category or "").strip():
+            raise ValueError("error attempts must record error_category")
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        completed_iso = at.isoformat()
+        health_json = _json(source_health) if source_health is not None else None
+        with self._connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            schedule = connection.execute(
+                "SELECT * FROM radar_schedules WHERE id = ? AND lease_token = ?",
+                (schedule_id, lease_token),
+            ).fetchone()
+            if schedule is None:
+                raise RuntimeError("radar schedule claim is no longer valid")
+            if started_at is not None:
+                started_iso = _utc_iso(started_at, label="started_at")
+            else:
+                started_iso = schedule["last_attempt_at"] or completed_iso
+            cursor = connection.execute(
+                """INSERT INTO radar_schedule_runs
+                   (schedule_id, started_at, completed_at, status, comparable,
+                    discovery_run_id, source_health_json, error_category)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    schedule_id, started_iso, completed_iso, status,
+                    int(comparable), str(discovery_run_id or "").strip() or None,
+                    health_json, str(error_category or "").strip() or None,
+                ),
+            )
+            run_id = int(cursor.lastrowid)
+            next_run_iso = (
+                at + timedelta(minutes=int(schedule["interval_minutes"]))
+            ).isoformat()
+            success = status == "complete" and comparable
+            success_pointer = (
+                run_id if success
+                else schedule["last_successful_comparable_run_id"]
+            )
+            connection.execute(
+                """UPDATE radar_schedules
+                   SET last_attempt_at = ?, last_status = ?,
+                       last_error_category = ?, last_source_health_json = ?,
+                       last_successful_comparable_run_id = ?, next_run_at = ?,
+                       lease_token = NULL, lease_until = NULL, updated_at = ?
+                   WHERE id = ? AND lease_token = ?""",
+                (
+                    started_iso, status,
+                    str(error_category or "").strip() or None, health_json,
+                    success_pointer, next_run_iso, completed_iso,
+                    schedule_id, lease_token,
+                ),
+            )
+            updated = connection.execute(
+                "SELECT * FROM radar_schedules WHERE id = ?", (schedule_id,)
+            ).fetchone()
+            run = connection.execute(
+                "SELECT * FROM radar_schedule_runs WHERE id = ?", (run_id,)
+            ).fetchone()
+        return {
+            "schedule": self._radar_schedule(updated),
+            "run": self._radar_run(run),
+        }
 
     @staticmethod
     def _cached_row(row: sqlite3.Row | None) -> dict | None:

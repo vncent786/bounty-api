@@ -2,6 +2,8 @@
 
 from enum import Enum
 
+from .scan_modes import ScanMode, coerce_scan_mode
+
 
 class CandidateStage(str, Enum):
     OBSERVED = "observed"
@@ -50,3 +52,32 @@ def stages_for_depth(required_depth: str) -> tuple[str, ...]:
     if key not in DEPTH_STAGES:
         raise ValueError(f"unknown required depth: {required_depth}")
     return DEPTH_STAGES[key]
+
+
+# Explicit scan modes (social_scraper.discovery.scan_modes) mapped to the
+# candidate collection stages they are allowed to execute. Feed modes stop
+# at root evidence; the deep modes are research-run territory.
+SCAN_MODE_STAGES = {
+    ScanMode.TRENDS_SNAPSHOT: (),
+    ScanMode.ROOT_SWEEP: (CandidateStage.ROOT_PROBE.value,),
+    ScanMode.DEEP_READ: (
+        CandidateStage.ROOT_PROBE.value,
+        CandidateStage.DEEP_READ.value,
+    ),
+    ScanMode.HORIZONTAL_SYNTHESIS: (
+        CandidateStage.ROOT_PROBE.value,
+        CandidateStage.DEEP_READ.value,
+        CandidateStage.HORIZONTAL_EXTRACTION.value,
+    ),
+    ScanMode.OPTIONAL_INTERPRETATION: (
+        CandidateStage.ROOT_PROBE.value,
+        CandidateStage.DEEP_READ.value,
+        CandidateStage.HORIZONTAL_EXTRACTION.value,
+        CandidateStage.OPTIONAL_ENRICHMENT.value,
+    ),
+}
+
+
+def stages_for_scan_mode(mode) -> tuple[str, ...]:
+    """Return the collection stages a scan mode may execute."""
+    return SCAN_MODE_STAGES[coerce_scan_mode(mode)]

@@ -495,33 +495,83 @@ async def get_zone_diff(zone_id: int):
 @router.get("/discover")
 async def discover_keywords(
     geo: str = Query("US"),
-    gate: bool = Query(True, description="Apply conversation gate"),
+    mode: str | None = Query(
+        None,
+        description=(
+            "Explicit scan mode: trends_snapshot (default) or root_sweep. "
+            "Deep modes run only through explicit research-runs."
+        ),
+    ),
+    gate: bool | None = Query(
+        None,
+        description=(
+            "Legacy social-source check flag. Maps to root_sweep; never "
+            "triggers thread hydration or LLM analysis."
+        ),
+    ),
     min_volume: int = Query(0, description="Minimum search volume"),
     min_growth: int = Query(0, description="Minimum growth %"),
     max_age_hours: float = Query(0, description="Only trends started within N hours"),
     categories: str = Query("", description="Comma-separated category names to include"),
     gate_only: bool = Query(False, description="Only return candidates whose configured social check threshold passed"),
 ):
-    """Run top-down keyword discovery.
+    """Run top-down keyword discovery in an explicit scan mode.
 
     Pipeline:
     1. Candidate generation via Google Trends trending_now (trendspy)
     2. User filters (volume, growth, age, categories)
-    3. Bounded social-source check and horizontal conversation analysis
+    3. Mode-governed check: trends_snapshot stops at Trends metadata
+       (zero broker/LLM calls); root_sweep adds root social evidence
+       with max_threads=0 and no LLM. Thread hydration and conversation
+       analysis happen only in explicit research-runs.
     """
+    from social_scraper.discovery.scan_modes import (
+        RESEARCH_RUN_MODES,
+        policy_for,
+        resolve_scan_mode,
+    )
+
+    try:
+        scan_mode = resolve_scan_mode(mode=mode, apply_gate=gate)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    if scan_mode in RESEARCH_RUN_MODES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"scan mode {scan_mode.value} is a research-run stage; "
+                "create and execute a research run instead"
+            ),
+        )
+
+    policy = policy_for(scan_mode)
+    if gate_only and not policy.allows_broker_search:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "gate_only requires a scan mode that checks conversations; "
+                f"{scan_mode.value} never runs the conversation check "
+                "(use root_sweep to check conversations)"
+            ),
+        )
+
     discovery = _get_discovery()
 
     cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
 
-    keywords = await discovery.scan_all(
-        geo=geo,
-        apply_gate=gate,
-        min_volume=min_volume,
-        min_growth=min_growth,
-        max_age_hours=max_age_hours,
-        categories=cat_list,
-        gate_only=gate_only,
-    )
+    try:
+        keywords = await discovery.scan_all(
+            geo=geo,
+            mode=scan_mode,
+            min_volume=min_volume,
+            min_growth=min_growth,
+            max_age_hours=max_age_hours,
+            categories=cat_list,
+            gate_only=gate_only,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     run = (
         _get_discovery_store().get_discovery_run(discovery.last_run_id)
         if discovery.last_run_id else None

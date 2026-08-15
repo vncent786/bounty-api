@@ -187,7 +187,9 @@ async def gate_check_keyword(
 ) -> ConversationGateResult:
     """Run a single keyword through the conversation gate.
 
-    Checks multiple social platforms concurrently for discussion of this keyword.
+    Checks multiple social platforms concurrently for discussion of this
+    keyword. ``max_threads_per_platform=0`` restricts the check to root posts: no
+    comment-thread hydration, root counts/engagement/source health only.
     """
     if platforms is None:
         platforms = GATE_PLATFORMS
@@ -285,6 +287,7 @@ async def run_conversation_gate(
     platforms: list[str] = None,
     max_keywords: int = 20,
     concurrency: int = 5,
+    max_threads: int = 2,
 ) -> list[ConversationGateResult]:
     """Run the conversation gate on multiple candidate keywords.
 
@@ -297,6 +300,8 @@ async def run_conversation_gate(
         platforms: Social platforms to check (default: youtube, reddit, tiktok).
         max_keywords: Maximum keywords to gate-check (bounds execution time).
         concurrency: How many keywords to check simultaneously (default: 5).
+        max_threads: Thread hydrations allowed per platform per keyword.
+            ``0`` means root evidence only (root sweep mode).
     """
     keywords = keywords[:max_keywords]
     if platforms is None:
@@ -308,7 +313,7 @@ async def run_conversation_gate(
     for i in range(0, len(keywords), concurrency):
         batch = keywords[i : i + concurrency]
         batch_tasks = [
-            gate_check_keyword(broker, kw, platforms)
+            gate_check_keyword(broker, kw, platforms, max_threads_per_platform=max_threads)
             for kw in batch
         ]
         batch_results = await asyncio.gather(*batch_tasks)

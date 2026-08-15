@@ -285,7 +285,11 @@
     button.disabled = true; button.textContent = 'Searching…';
     results.replaceChildren(emptyState('Live search', 'Checking sources', 'Keep this page open while the bounded search completes.', true));
     $('#explore-preview').replaceChildren(el('strong', '', 'Running. '), document.createTextNode('Live sources are being checked within the reviewed limits.'));
-    const query = new URLSearchParams({ geo: $('#explore-geo').value.trim().toUpperCase(), min_volume: $('#explore-volume').value, min_growth: $('#explore-growth').value, max_age_hours: $('#explore-age').value, gate_only: $('#explore-verified').checked ? 'true' : 'false' });
+    // Explicit scan modes: the Trend feed defaults to the cheap Trends
+    // snapshot (zero social-source and zero LLM calls). "Confirmed checks
+    // only" runs root_sweep — root social evidence, no threads, no LLM.
+    // Deep reads and conversation analysis happen via research-runs only.
+    const query = new URLSearchParams({ geo: $('#explore-geo').value.trim().toUpperCase(), mode: $('#explore-verified').checked ? 'root_sweep' : 'trends_snapshot', min_volume: $('#explore-volume').value, min_growth: $('#explore-growth').value, max_age_hours: $('#explore-age').value, gate_only: $('#explore-verified').checked ? 'true' : 'false' });
     try {
       const data = await api(`/discover?${query}`);
       state.candidates = data.keywords || [];

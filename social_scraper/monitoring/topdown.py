@@ -287,8 +287,9 @@ class TopDownDiscovery:
         candidates: list[EmergingKeyword],
         max_keywords: int = 20,
         platforms: list[str] = None,
+        max_threads: int = 0,
     ) -> list[EmergingKeyword]:
-        """Run candidates through the conversation gate.
+        """Attach root social evidence to candidates (conversation gate).
 
         Checks whether real people are discussing each keyword on social
         platforms. Keywords with no social discussion are marked as
@@ -296,6 +297,11 @@ class TopDownDiscovery:
 
         Only the top `max_keywords` candidates are checked (by freshness
         + growth) to bound execution time.
+
+        ``max_threads`` bounds comment-thread hydration per platform;
+        ``0`` means root posts only (root sweep). This method never
+        performs LLM analysis: conversation reading belongs to explicit
+        research-run stages (discovery/handlers.py).
 
         Returns ALL candidates, with gate results filled in for those checked.
         """
@@ -320,7 +326,7 @@ class TopDownDiscovery:
 
         logger.info(
             f"Conversation gate: checking {len(gate_keywords)} of "
-            f"{len(candidates)} candidates"
+            f"{len(candidates)} candidates (max_threads={max_threads})"
         )
 
         results = await run_conversation_gate(
@@ -328,6 +334,7 @@ class TopDownDiscovery:
             keywords=gate_keywords,
             platforms=platforms,
             max_keywords=max_keywords,
+            max_threads=max_threads,
         )
 
         # Build lookup
@@ -355,41 +362,9 @@ class TopDownDiscovery:
             f"Conversation gate: {passed} keywords verified with social discussion"
         )
 
-        # Horizontal, citation-backed reader for every checked candidate with records.
-        readable = [
-            (kw, gate_map[kw.keyword.lower()])
-            for kw in candidates
-            if gate_map.get(kw.keyword.lower())
-            and gate_map[kw.keyword.lower()].raw_posts
-        ]
-
-        if readable:
-            from social_scraper.discovery.triage import analyze_conversation
-            logger.info(f"Reading conversations for {len(readable)} candidates...")
-
-            for kw, gate_result in readable:
-                analysis = await analyze_conversation(
-                    topic=kw.keyword,
-                    posts=gate_result.raw_posts,
-                    source_health=gate_result.source_health or [],
-                )
-                kw.conversation_analysis = analysis.to_dict()
-                kw.conv_summary = analysis.summary
-                polarities = {item["polarity"] for item in analysis.signals}
-                kw.conv_sentiment = (
-                    next(iter(polarities)) if len(polarities) == 1
-                    else "mixed" if polarities else ""
-                )
-                kw.conv_brands = ", ".join(dict.fromkeys(
-                    item["name"] for item in analysis.entities
-                    if item["type"] in {"company", "product"}
-                ))
-                if analysis.evidence:
-                    kw.conv_key_quote = analysis.evidence[0].get("text", "")[:300]
-
-            logger.info(
-                f"Conversation reader: {len(readable)} candidates analyzed"
-            )
+        # No LLM reader here. Horizontal conversation analysis runs only in
+        # explicit research-run stages (deep_read / horizontal_extraction),
+        # never from the Explore Trend feed.
 
         if self.discovery_store:
             for kw in candidates:
@@ -403,17 +378,14 @@ class TopDownDiscovery:
                         passed=None,
                     )
                     continue
-                coverage = kw.conversation_analysis.get("coverage", {})
                 self.discovery_store.record_gate_check(
                     kw.candidate_observation_id,
                     status=gate_result.status,
                     passed=gate_result.passed,
                     platforms=list(gate_result.platform_breakdown),
                     total_items=gate_result.total_items,
-                    independent_voices=coverage.get("independent_voices"),
                     source_health=gate_result.source_health or [],
                     records=gate_result.raw_posts or [],
-                    analysis=kw.conversation_analysis or None,
                     error_category=gate_result.error or None,
                 )
 
@@ -424,7 +396,7 @@ class TopDownDiscovery:
     async def scan_all(
         self,
         geo: str = "US",
-        apply_gate: bool = True,
+        apply_gate: bool | None = None,
         gate_max: int = 20,
         gate_platforms: list[str] = None,
         min_volume: int = 0,
@@ -432,19 +404,34 @@ class TopDownDiscovery:
         max_age_hours: float = 0,
         categories: list[str] = None,
         gate_only: bool = False,
+        mode=None,
     ) -> list[EmergingKeyword]:
-        """Run the full discovery pipeline.
+        """Run the discovery pipeline in an explicit scan mode.
 
         1. Candidate generation: Google Trends trending_now (trendspy)
         2. Optional user filters: volume, growth, age, categories
-        3. Conversation gate: social platform verification (if broker available)
+        3. Mode-governed social check (see scan_modes.py policies)
 
-        User-facing filters are applied BEFORE the gate so we check the
-        most relevant candidates, not waste slots on noise the user doesn't want.
+        Modes:
+        - ``trends_snapshot`` (default): Trends metadata only. Persists
+          raw candidates; zero broker searches, zero thread hydration,
+          zero LLM calls.
+        - ``root_sweep``: additionally checks root social records per
+          candidate (counts, engagement, source health) with
+          ``max_threads=0`` and no LLM.
+        - ``deep_read`` / ``horizontal_synthesis`` /
+          ``optional_interpretation``: research-run stages only; passing
+          them here raises ``ValueError``. Deep reads and LLM analysis
+          happen exclusively in explicit research runs.
+
+        ``apply_gate`` is the legacy spelling: ``True`` resolves to
+        ``root_sweep`` and ``False`` to ``trends_snapshot``; an explicit
+        ``mode`` always wins. No legacy combination triggers LLM analysis.
 
         Args:
             geo: Country code for Google Trends (US, SG, GB, etc.)
-            apply_gate: Whether to run the conversation gate.
+            apply_gate: Legacy flag for the social-source check.
+            mode: Explicit scan mode (ScanMode or string).
             gate_max: Max keywords to gate-check.
             gate_platforms: Platforms to check in gate.
             min_volume: Minimum search volume to include (0 = no filter).
@@ -454,6 +441,26 @@ class TopDownDiscovery:
                         (None = all categories, e.g. ["Health", "Consumer Products"]).
             gate_only: Only return keywords that passed the conversation gate.
         """
+        from social_scraper.discovery.scan_modes import (
+            RESEARCH_RUN_MODES,
+            policy_for,
+            resolve_scan_mode,
+        )
+
+        scan_mode = resolve_scan_mode(mode=mode, apply_gate=apply_gate)
+        if scan_mode in RESEARCH_RUN_MODES:
+            raise ValueError(
+                f"scan mode {scan_mode.value} is a research-run stage; "
+                "run it through an explicit research run instead"
+            )
+        policy = policy_for(scan_mode)
+
+        if gate_only and not policy.allows_broker_search:
+            raise ValueError(
+                "gate_only requires a scan mode that checks conversations; "
+                f"{scan_mode.value} never runs the conversation check"
+            )
+
         # Step 1: Get candidates
         candidates = await self.fetch_candidates(geo=geo)
 
@@ -492,12 +499,15 @@ class TopDownDiscovery:
         filtered = before - len(candidates)
         logger.info(f"User filters removed {filtered} candidates, {len(candidates)} remain")
 
-        # Step 3: Conversation gate
-        if apply_gate and self.broker:
+        # Step 3: Mode-governed social check. Only modes whose policy allows
+        # broker searches reach the gate; the snapshot stops at Trends
+        # metadata. Thread hydration and LLM analysis never happen here.
+        if policy.allows_broker_search and self.broker:
             candidates = await self.apply_conversation_gate(
                 candidates,
                 max_keywords=gate_max,
                 platforms=gate_platforms,
+                max_threads=policy.max_threads if policy.max_threads is not None else 2,
             )
 
         # Step 4: Filter to gate-only if requested

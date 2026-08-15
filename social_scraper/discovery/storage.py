@@ -772,6 +772,80 @@ class DiscoveryStore:
             "run": self._radar_run(run),
         }
 
+    def set_radar_schedule_enabled(
+        self, schedule_id: str, enabled: bool, *,
+        now: datetime | str | None = None,
+    ) -> dict | None:
+        """Enable or disable one existing radar schedule in place.
+
+        Reconciliation (Task 1.3b) disables schedules whose scope left the
+        desired set instead of deleting them, so the due time and the full
+        attempt history survive a later reactivation. Only ``enabled`` and
+        ``updated_at`` change: the current ``next_run_at``, any live lease
+        and the success pointer are untouched. Unknown ids return ``None``
+        like ``get_radar_schedule``; nothing is ever created here.
+        """
+        now_iso = _utc_iso(now, label="now")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                "UPDATE radar_schedules SET enabled = ?, updated_at = ? WHERE id = ?",
+                (int(bool(enabled)), now_iso, str(schedule_id)),
+            )
+            if cursor.rowcount != 1:
+                return None
+            row = connection.execute(
+                "SELECT * FROM radar_schedules WHERE id = ?", (schedule_id,)
+            ).fetchone()
+        return self._radar_schedule(row)
+
+    def renew_radar_schedule_claim(
+        self, schedule_id: str, claim_token: str, *,
+        now: datetime | str | None = None, lease_minutes: int = 10,
+    ) -> dict | None:
+        """Extend one live lease only when its claim token still matches."""
+        if (
+            isinstance(lease_minutes, bool)
+            or not isinstance(lease_minutes, int)
+            or lease_minutes <= 0
+        ):
+            raise ValueError("lease_minutes must be a positive integer")
+        token = str(claim_token or "").strip()
+        if not token:
+            raise ValueError("claim_token is required")
+        at = _utc_parse(now, label="now") if now is not None else datetime.now(timezone.utc)
+        lease_until = (at + timedelta(minutes=lease_minutes)).isoformat()
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE radar_schedules
+                   SET lease_until = ?, updated_at = ?
+                   WHERE id = ? AND lease_token = ?""",
+                (lease_until, at.isoformat(), str(schedule_id), token),
+            )
+            if cursor.rowcount != 1:
+                return None
+            row = connection.execute(
+                "SELECT * FROM radar_schedules WHERE id = ?", (schedule_id,),
+            ).fetchone()
+        return self._radar_schedule(row)
+
+    def release_radar_schedule_claim(
+        self, schedule_id: str, claim_token: str, *,
+        now: datetime | str | None = None,
+    ) -> bool:
+        """Release a live claim without advancing cadence or adding a run."""
+        token = str(claim_token or "").strip()
+        if not token:
+            raise ValueError("claim_token is required")
+        now_iso = _utc_iso(now, label="now")
+        with self._connect() as connection:
+            cursor = connection.execute(
+                """UPDATE radar_schedules
+                   SET lease_token = NULL, lease_until = NULL, updated_at = ?
+                   WHERE id = ? AND lease_token = ?""",
+                (now_iso, str(schedule_id), token),
+            )
+        return cursor.rowcount == 1
+
     @staticmethod
     def _cached_row(row: sqlite3.Row | None) -> dict | None:
         if row is None:

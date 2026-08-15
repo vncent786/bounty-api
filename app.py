@@ -1439,6 +1439,15 @@ async def _start_monitoring_scheduler():
     except Exception as e:
         print(f"Warning: scheduler not started: {e}")
 
+@app.on_event("shutdown")
+async def _stop_monitoring_scheduler():
+    """Cancel the scheduler task and await it so shutdown leaves no orphan."""
+    try:
+        from apis.scheduler import shutdown_scheduler
+        await shutdown_scheduler()
+    except Exception as e:
+        print(f"Warning: scheduler shutdown issue: {e}")
+
 # AgentCash discovery — enriches /openapi.json with x402 payment metadata
 # so agents running `npx agentcash install` can discover and pay for our API
 try:

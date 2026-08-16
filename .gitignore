@@ -27,3 +27,4 @@ account_factory/deep_probe_screenshots/
 /data/reddit_mobile_device.json
 /data/ig_cookies.json
 /data/*cookies*
+.worktrees/

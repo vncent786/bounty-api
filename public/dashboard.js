@@ -738,6 +738,9 @@
     const quickBtn = el('button', 'primary', 'Research conversations');
     quickBtn.addEventListener('click', () => {
       const topic = candidateName(candidate);
+      const briefName = $('#direct-research-name');
+      if (!briefName.value.trim()) briefName.value = `${topic} · emerging-trend investigation`;
+      $('#direct-preset').value = 'investing-social-arbitrage';
       $('#direct-topic').value = topic;
       $('#research-topic-btn').click();
     });

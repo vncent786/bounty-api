@@ -168,6 +168,16 @@ def test_dashboard_script_keeps_explore_anchor_ids_under_the_new_shell():
     assert "safeUrl(item.record.url)" in script
 
 
+def test_emerging_candidate_research_action_launches_a_named_investing_brief():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    assert "`${topic} · emerging-trend investigation`" in script
+    assert "$('#direct-preset').value = 'investing-social-arbitrage'" in script
+    assert "$('#direct-topic').value = topic" in script
+    assert "$('#research-topic-btn').click()" in script
+
+
 def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth():
     from pathlib import Path
 

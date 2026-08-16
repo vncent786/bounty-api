@@ -119,6 +119,7 @@
       supported: 'Evidence found',
       insufficient_evidence: 'Insufficient evidence',
       sources_unavailable: 'Sources unavailable',
+      analysis_unavailable: 'Analysis unavailable',
     };
     return el('span', `status ${raw}`, labels[raw] || value(raw).replaceAll('_', ' '));
   }
@@ -381,33 +382,16 @@
     const body = el('div', 'completed-run-body');
     const definitions = el('dl', 'definition-list');
     const sources = requestedResearchSources(run);
-    const stages = Array.isArray(run.result?.stages_executed) ? run.result.stages_executed : [];
     [
       ['Run ID', run.id || run.run_id],
       ['Final status', run.status],
       ['Started', run.started_at || 'Not recorded'],
       ['Completed', run.completed_at || 'Not recorded'],
       ['Topics', (run.plan?.candidates || []).length],
-      ['Requested sources', sources.length ? sources.join(', ') : 'Not recorded'],
-      ['Stages completed', stages.length ? stages.map(friendlyResearchPhase).join(', ') : 'Not recorded'],
+      ['Platforms selected', sources.length ? sources.join(', ') : 'Not recorded'],
     ].forEach(([term, itemValue]) => append(definitions, el('dt', '', term), el('dd', '', value(itemValue))));
     body.append(definitions);
-    const usage = Array.isArray(run.result?.usage) ? run.result.usage : [];
-    if (usage.length) {
-      const receipt = el('div', 'run-stage-receipt');
-      receipt.append(el('h4', '', 'Completed stage receipts'));
-      usage.forEach(item => {
-        const line = el('p', 'mono', [
-          friendlyResearchPhase(item.stage),
-          item.candidates_processed == null ? null : `${item.candidates_processed} topic unit(s)`,
-          item.records_returned == null ? null : `${item.records_returned} record(s)`,
-          item.status,
-        ].filter(Boolean).join(' · '));
-        receipt.append(line);
-      });
-      body.append(receipt);
-    }
-    body.append(el('p', 'form-help', 'Requested sources are not assumed available. Findings retains the actual source receipts, failures, raw evidence, and limitations.'));
+    body.append(el('p', 'form-help', 'Findings summarizes actual platform availability without exposing internal collection diagnostics.'));
     details.append(body);
     return details;
   }
@@ -469,7 +453,7 @@
         : `${counted(countReady, 'saved finding')} ${Number(countReady) === 1 ? 'is' : 'are'} ready to review.`;
       const completion = ['complete', 'partial'].includes(run.status)
         ? readyCopy
-        : `The run ended without completion: ${run.error_category || 'no further detail was recorded.'}`;
+        : 'The run ended before findings were completed. Retry the brief or change the selected platforms.';
       card.append(el('p', 'progress-phase', completion));
       if (startedAt) {
         const clock = el('span', 'elapsed-clock mono', formatElapsed(startedAt, endedAt));
@@ -901,7 +885,7 @@
       const failed = el('div', 'active-progress error');
       append(failed,
         el('strong', '', 'Scan did not complete'),
-        el('p', '', `${scope}. ${error.message}. Your choices were preserved.`),
+        el('p', '', `${scope}. The scan source was unavailable. Your choices were preserved.`),
         el('span', 'mono', formatElapsed(scanStartedAt, new Date().toISOString())),
       );
       $('#explore-preview').replaceChildren(failed);
@@ -1156,38 +1140,61 @@
     }); parent.append(section);
   }
 
-  function addCoverageSection(parent, coverage) {
-    const section = el('section', 'data-section');
-    section.append(el('h3', '', 'Coverage'));
-    const definitions = [
-      ['Raw records', coverage?.raw_records],
-      ['Reviewed records', coverage?.deduplicated_records],
-      ['Independent voices', coverage?.independent_voices],
-      ['Threads', coverage?.thread_count],
-      ['Platforms', coverage?.platform_count],
-    ];
-    const metrics = el('div', 'coverage-metrics');
-    definitions.forEach(([label, value]) => {
-      if (value === undefined || value === null) return;
-      const item = el('div', 'coverage-metric');
-      item.append(el('strong', '', String(value)), el('span', '', label));
-      metrics.append(item);
+  function platformLabel(platform) {
+    const key = String(platform || '').trim().toLowerCase();
+    const labels = {
+      reddit: 'Reddit', youtube: 'YouTube', instagram: 'Instagram',
+      tiktok: 'TikTok', x: 'X', twitter: 'X',
+    };
+    return labels[key] || (key ? key.replaceAll('_', ' ') : 'Other source');
+  }
+
+  function compactPlatformCoverage(coverage, evidence = []) {
+    const byPlatform = new Map();
+    const ensure = (platform) => {
+      const key = String(platform || '').trim().toLowerCase();
+      if (!key) return null;
+      if (!byPlatform.has(key)) byPlatform.set(key, { label: platformLabel(key), statuses: new Set(), hasEvidence: false });
+      return byPlatform.get(key);
+    };
+    (Array.isArray(coverage?.source_status) ? coverage.source_status : []).forEach(source => {
+      const platform = ensure(source.platform);
+      if (platform) platform.statuses.add(String(source.status || 'not_checked').toLowerCase());
     });
-    section.append(metrics);
-    const sources = Array.isArray(coverage?.source_status) ? coverage.source_status : [];
-    if (sources.length) {
-      section.append(el('h4', 'coverage-source-title', 'Source receipts'));
-      sources.forEach(source => {
-        const row = el('div', 'source-receipt');
-        row.append(el('strong', '', String(source.platform || 'Source')));
-        const counts = source.items_returned === undefined
-          ? ''
-          : `${source.items_returned} of ${source.items_requested ?? 'unknown'} records`;
-        row.append(el('p', '', [source.status, counts, source.connector].filter(Boolean).join(' · ')));
-        if (source.error) row.append(el('p', 'source-error', String(source.error)));
-        section.append(row);
-      });
-    }
+    (Array.isArray(evidence) ? evidence : []).forEach(item => {
+      const platform = ensure(item.platform);
+      if (platform) platform.hasEvidence = true;
+    });
+
+    const totals = [];
+    if (coverage?.deduplicated_records != null) totals.push(`${counted(coverage.deduplicated_records, 'reviewed record')}`);
+    if (coverage?.independent_voices != null) totals.push(`${counted(coverage.independent_voices, 'independent voice')}`);
+    if (coverage?.thread_count != null) totals.push(`${counted(coverage.thread_count, 'thread')}`);
+    const totalCopy = totals.length ? `${totals.join(' · ')}.` : 'Coverage totals were not reported.';
+    if (!byPlatform.size) return `${totalCopy} Platform availability was not reported.`;
+
+    const unavailable = new Set(['failed', 'error', 'unavailable', 'blocked', 'unsupported']);
+    const available = new Set(['ok', 'complete', 'supported', 'success', 'empty', 'no_results']);
+    const platforms = [...byPlatform.values()].map(platform => {
+      const hasUnavailable = [...platform.statuses].some(status => unavailable.has(status));
+      const hasAvailable = [...platform.statuses].some(status => available.has(status));
+      let stateCopy = 'not checked';
+      if (platform.hasEvidence) stateCopy = 'evidence found';
+      else if (hasAvailable && hasUnavailable) stateCopy = 'partly available';
+      else if (hasAvailable) stateCopy = 'checked; no evidence saved';
+      else if (hasUnavailable) stateCopy = 'unavailable';
+      else if (platform.statuses.has('partial')) stateCopy = 'partly available';
+      return `${platform.label}: ${stateCopy}`;
+    });
+    return `${totalCopy} Platform coverage: ${platforms.join('; ')}.`;
+  }
+
+  function addCoverageSection(parent, coverage, evidence = []) {
+    const section = el('section', 'data-section');
+    section.append(
+      el('h3', '', 'Coverage'),
+      el('p', 'coverage-summary', compactPlatformCoverage(coverage, evidence)),
+    );
     parent.append(section);
   }
 
@@ -1312,30 +1319,23 @@
       if (tags) detail.append(tags);
     }
 
-    // If already analyzed, show findings
-    const summary = analysis.summary || analysis.finding || candidate.conv_summary || candidate.description;
-    if (summary) addDataSection(detail, 'Summary', summary, '');
-    if (analysis.signals && analysis.signals.length) addDataSection(detail, 'Signals', analysis.signals, 'No signals extracted.');
-    if (analysis.evidence && analysis.evidence.length) addDataSection(detail, 'Evidence', analysis.evidence, 'No evidence records.');
-    if (analysis.limitations && analysis.limitations.length) addDataSection(detail, 'Limitations', analysis.limitations, 'No limitations reported.');
+    // Conversation evidence is rendered only in Findings, where every summary,
+    // theme, and source link passes the citation-safe renderer.
 
-    // Stats
-    if (!analysis.signals && !analysis.evidence && !summary) {
-      const stats = el('div', 'definition-list');
-      const growth = candidate.growth_pct ?? candidate.growth;
-      append(stats,
-        el('dt', '', 'Search volume'), el('dd', '', count(candidate.search_volume ?? candidate.volume)),
-        el('dt', '', 'Growth'), el('dd', '', growth == null ? 'Unknown' : `${growth}%`),
-        el('dt', '', 'Search age'), el('dd', '', searchAge(candidate) || 'Not available'),
-        el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
-        el('dt', '', 'Country'), el('dd', '', scanCountry),
-        el('dt', '', 'Public-post platforms'), el('dd', '', value(candidate.gate_platforms)),
-        el('dt', '', 'Public items'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_items)),
-        el('dt', '', 'Observed engagement'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_engagement)),
-        el('dt', '', 'Evidence status'), el('dd', '', publicPostStatus(candidate)),
-      );
-      detail.append(stats);
-    }
+    const stats = el('div', 'definition-list');
+    const growth = candidate.growth_pct ?? candidate.growth;
+    append(stats,
+      el('dt', '', 'Search volume'), el('dd', '', count(candidate.search_volume ?? candidate.volume)),
+      el('dt', '', 'Growth'), el('dd', '', growth == null ? 'Unknown' : `${growth}%`),
+      el('dt', '', 'Search age'), el('dd', '', searchAge(candidate) || 'Not available'),
+      el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
+      el('dt', '', 'Country'), el('dd', '', scanCountry),
+      el('dt', '', 'Public-post platforms'), el('dd', '', value(candidate.gate_platforms)),
+      el('dt', '', 'Public items'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_items)),
+      el('dt', '', 'Observed engagement'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_engagement)),
+      el('dt', '', 'Evidence status'), el('dd', '', publicPostStatus(candidate)),
+    );
+    detail.append(stats);
 
     // Live enrichment: sparkline + related queries from Google Trends
     const enrichDiv = el('div', 'trend-enrichment');
@@ -1375,13 +1375,11 @@
       }
 
       if (!enriched.timeline?.length && !rising.length && !top.length) {
-        enrichDiv.append(el('p', 'muted small', enriched.error
-          ? `Trend chart unavailable (${enriched.error}). Click "Research conversations" to read what people are saying.`
-          : 'No additional trend data available. Click "Research conversations" to read social discussions.'));
+        enrichDiv.append(el('p', 'muted small', 'No additional trend data is available. Click "Research conversations" to read social discussions.'));
       }
     } catch (error) {
       if (myEpoch !== _detailEpoch) return;
-      enrichDiv.replaceChildren(el('p', 'muted small', `Could not load trend details: ${error.message}`));
+      enrichDiv.replaceChildren(el('p', 'muted small', 'Trend details are unavailable right now. You can still research the topic conversations.'));
     }
   }
 
@@ -1704,11 +1702,7 @@
     const citableEntities = Array.isArray(entities)
       ? entities.filter(entity => hasRenderableCitations(entity.evidence_ids, lookup))
       : [];
-    if (!citableEntities.length) {
-      section.append(el('p', 'muted', 'No citation-backed companies, products, or alternatives were extracted.'));
-      parent.append(section);
-      return;
-    }
+    if (!citableEntities.length) return;
     citableEntities.forEach(entity => {
       const record = el('article', 'evidence-record');
       record.append(
@@ -1753,11 +1747,12 @@
 
   function findingStatusCopy(status) {
     const labels = {
-      supported: 'Citation-backed conversation signals were extracted.',
-      insufficient_evidence: 'Conversation records were found, but they did not support a cited interpretation.',
-      sources_unavailable: 'The attempted sources were unavailable; this is a coverage gap, not a negative finding.',
+      supported: 'Citation-backed conversation themes were extracted.',
+      insufficient_evidence: 'The available records did not support a cited interpretation.',
+      sources_unavailable: 'The attempted platforms were unavailable; this is a coverage gap, not a negative finding.',
+      analysis_unavailable: 'The records were collected, but conversation analysis was temporarily unavailable.',
       complete: 'The finding completed with the evidence shown below.',
-      partial: 'The finding is partial; read the source receipts and limitations below.',
+      partial: 'The finding is partial; read the platform coverage and limitation below.',
     };
     return labels[status] || `Evidence status: ${value(status)}.`;
   }
@@ -1819,10 +1814,38 @@
     return groups;
   }
 
-  function signalGroupCopy(kinds, emptyCopy) {
-    return kinds.length
-      ? `Citation-backed kinds: ${kinds.map(kind => kind.replaceAll('_', ' ')).join(', ')}.`
-      : emptyCopy;
+  function signalGroupCopy(kinds) {
+    return `Citation-backed kinds: ${kinds.map(kind => kind.replaceAll('_', ' ')).join(', ')}.`;
+  }
+
+  function hasPreservedSearchAttention(candidate) {
+    return [
+      candidate.search_market_geo, candidate.search_market_name,
+      candidate.search_observed_at, candidate.discovered_at,
+      candidate.started_hours_ago, candidate.source_started_at,
+      candidate.growth_pct, candidate.growth,
+      candidate.search_volume, candidate.volume,
+    ].some(item => item !== null && item !== undefined && item !== '');
+  }
+
+  function findingLimitation(analysis, finding, candidate) {
+    const coverageSources = Array.isArray(analysis.coverage?.source_status)
+      ? analysis.coverage.source_status : [];
+    const unavailable = new Set(['failed', 'error', 'unavailable', 'blocked', 'unsupported', 'partial']);
+    if (coverageSources.some(source => unavailable.has(String(source.status || '').toLowerCase()))) {
+      return 'Some selected platforms were partly or fully unavailable, so this finding may be incomplete.';
+    }
+    const rawDiagnostic = /\b(?:connector|route|exception|traceback|stack|timeout|error(?:_category)?|failed:)\b|\bhttp\s*\d{3}\b/i;
+    const explicit = (Array.isArray(analysis.limitations) ? analysis.limitations : [])
+      .map(item => typeof item === 'string' ? item.trim() : '')
+      .find(item => item && !rawDiagnostic.test(item));
+    if (explicit) return explicit;
+    const status = String(analysis.status || finding.status || '').toLowerCase();
+    if (status === 'sources_unavailable') return 'The selected platforms were unavailable, so no negative conclusion should be inferred.';
+    if (status === 'analysis_unavailable') return 'The records remain available, but the system could not complete the conversation analysis for this run.';
+    if (status === 'insufficient_evidence') return 'The available records did not support a citation-backed interpretation.';
+    if (!comparablePeriodsAvailable(analysis, candidate)) return 'A single collection period cannot establish how the conversation is changing over time.';
+    return '';
   }
 
   function renderEvidenceSummary(analysis, finding) {
@@ -1842,24 +1865,25 @@
       else item.append(el('p', '', copy));
       grid.append(item);
     };
-    dimension('Search attention (Google Trends)', renderSearchAttention(candidate));
-    dimension('Observed behavior', signalGroupCopy(groups.behavior, 'No citation-backed adoption, switching, behavior-change, or workaround signal was extracted.'));
-    dimension('Commercial intent', signalGroupCopy(groups.commercial, 'No citation-backed purchase, desire, request, need, or comparison signal was extracted.'));
-    dimension('Negative or rejection', signalGroupCopy(groups.negative, 'No citation-backed rejection, objection, pain-point, or risk signal was extracted.'));
-    dimension('General discussion', signalGroupCopy(groups.general, 'No other citation-backed discussion kind was extracted.'));
-    dimension('Social trajectory', socialTrajectoryCopy(analysis, candidate));
-    const coverage = analysis.coverage || {};
-    dimension('Coverage', [
-      coverage.deduplicated_records == null ? null : `${coverage.deduplicated_records} reviewed record(s)`,
-      coverage.independent_voices == null ? null : `${coverage.independent_voices} independent voice(s)`,
-      coverage.platform_count == null ? null : `${coverage.platform_count} platform(s)`,
-    ].filter(Boolean).join(' · ') || 'Coverage counts were not reported.');
+    if (hasPreservedSearchAttention(candidate)) {
+      dimension('Search attention (Google Trends)', renderSearchAttention(candidate));
+    }
+    if (groups.behavior.length) dimension('Observed behavior', signalGroupCopy(groups.behavior));
+    if (groups.commercial.length) dimension('Commercial intent', signalGroupCopy(groups.commercial));
+    if (groups.negative.length) dimension('Negative or rejection', signalGroupCopy(groups.negative));
+    if (groups.general.length) dimension('General discussion', signalGroupCopy(groups.general));
+    const trajectory = analysis.trajectory?.direction || candidate.trajectory?.direction;
+    if (comparablePeriodsAvailable(analysis, candidate) && trajectory && trajectory !== 'unknown') {
+      dimension('Social trajectory', socialTrajectoryCopy(analysis, candidate));
+    }
     const evidence = Array.isArray(analysis.evidence) ? analysis.evidence : [];
     const withEngagement = evidence.filter(item => engagementMetrics(item).length).length;
-    dimension('Raw observed engagement', withEngagement
-      ? `${withEngagement} of ${evidence.length} evidence record(s) include raw engagement metrics. Read each observed count below; they do not measure change over time.`
-      : 'No per-record engagement metrics were returned. Missing counts are not treated as zero.');
-    section.append(grid);
+    if (withEngagement) {
+      dimension('Raw observed engagement', `${withEngagement} of ${evidence.length} evidence record(s) include observed engagement metrics. Read each count below; they do not measure change over time.`);
+    }
+    if (grid.children.length) section.append(grid);
+    const limitation = findingLimitation(analysis, finding, candidate);
+    if (limitation) section.append(el('p', 'evidence-summary-limitation', `Limitation: ${limitation}`));
     return section;
   }
 
@@ -1899,7 +1923,7 @@
           .filter(signal => hasRenderableCitations(signal.evidence_ids, citationLookup))
           .sort((left, right) => Number(preferredKinds.has(right.kind)) - Number(preferredKinds.has(left.kind)));
         if (signals.length) {
-          const sig = el('section', 'evidence-section'); sig.append(el('h3', '', 'Signals'));
+          const sig = el('section', 'evidence-section'); sig.append(el('h3', '', 'Conversation themes'));
           signals.forEach(signal => {
             const rec = el('article', `evidence-record${preferredKinds.has(signal.kind) ? ' focused-signal' : ''}`);
             rec.append(el('strong', '', `${value(signal.kind).replaceAll('_', ' ')} · ${value(signal.polarity)}`), el('p', '', signal.claim));
@@ -1914,9 +1938,8 @@
           block.append(sig);
         }
         addEntitySection(block, analysis.entities, citationLookup);
-        addCoverageSection(block, analysis.coverage || {});
+        addCoverageSection(block, analysis.coverage || {}, analysis.evidence || []);
         addEvidenceSection(block, analysis.evidence || []);
-        addDataSection(block, 'Limitations', analysis.limitations, 'No limitations reported.');
         content.append(block);
       });
       return;
@@ -1934,7 +1957,7 @@
       return;
     }
     if (activeResearchRun?.status === 'error') {
-      content.append(emptyState('Research failed', researchRunName(activeResearchRun), activeResearchRun.error_category || 'No error detail was recorded.', true));
+      content.append(emptyState('Research failed', researchRunName(activeResearchRun), 'The run ended before findings were completed. Retry the brief or change the selected platforms.', true));
       return;
     }
     if (activeResearchRun) {

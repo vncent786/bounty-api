@@ -57,8 +57,7 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
         'id="global-include-rejected"',
     ))
     assert "Social triage" in html
-    assert "Selected sources are attempted" in html
-    assert "Unavailable sources remain explicit" in html
+    assert "Instagram and TikTok remain optional while hosted access is being repaired" in html
     assert "Deep reads" not in html
     assert "sample" not in html.casefold()
     for forbidden in ("horizontal", "ontology", "candidate intelligence"):
@@ -199,16 +198,19 @@ def test_live_scan_scope_elapsed_and_ordering_are_explicit_without_fake_eta():
     assert "endedAt" in scan
 
 
-def test_known_and_trend_research_offer_all_default_sources_and_copy_them_per_candidate():
+def test_known_and_trend_research_default_to_reliable_sources_and_copy_selection_per_candidate():
     html = get_dashboard_html().body.decode()
     script = _product_script()
     for scope in ("direct", "trend"):
-        for platform in ("reddit", "youtube", "instagram", "tiktok"):
+        for platform in ("reddit", "youtube"):
             marker = f'id="{scope}-source-{platform}"'
             start = html.index(marker)
             assert "checked" in html[start:html.index(">", start)]
-    assert html.count("Selected sources are attempted") >= 2
-    assert html.count("Unavailable sources remain explicit") >= 2
+        for platform in ("instagram", "tiktok"):
+            marker = f'id="{scope}-source-{platform}"'
+            start = html.index(marker)
+            assert "checked" not in html[start:html.index(">", start)]
+    assert html.count("Instagram and TikTok remain optional while hosted access is being repaired") >= 2
     known = script[script.index("async function researchTopic"):script.index("const researchPolls")]
     assert "selectedResearchPlatforms('direct')" in known
     assert "platforms: selectedPlatforms" in known
@@ -383,6 +385,25 @@ def test_dashboard_script_keeps_explore_anchor_ids_under_the_new_shell():
     ):
         assert anchor in script, anchor
     assert "safeUrl(item.record.url)" in script
+
+
+def test_live_trend_list_and_selected_detail_form_a_responsive_split_pane():
+    from pathlib import Path
+
+    html = get_dashboard_html().body.decode()
+    split_start = html.index('<div class="live-topics-split">')
+    split_end = html.index('id="research-progress-title"')
+    split = html[split_start:split_end]
+    assert split.index('id="explore-results"') < split.index('id="explore-detail"')
+    assert 'id="explore-results" class="row-list"' in split
+    assert 'id="explore-detail" class="detail-pane evidence-sheet-pane"' in split
+
+    css = (Path(__file__).parents[1] / "public" / "dashboard.css").read_text(encoding="utf-8")
+    desktop = css[css.index(".live-topics-split {"):css.index(".selection-sources {")]
+    assert "display: grid" in desktop
+    assert "grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr)" in desktop
+    mobile = css[css.index("@media (max-width: 900px)"):css.index("@media (max-width: 760px)")]
+    assert ".live-topics-split { grid-template-columns: 1fr; }" in mobile
 
 
 def test_emerging_candidate_research_action_uses_the_selected_lens_plan():
@@ -611,6 +632,63 @@ def test_findings_lead_with_interpretable_evidence_and_raw_engagement():
     assert "trends.google.com/trending" in script
     assert "evidenceCitationNumber" in script
     assert "[${evidenceCitationNumber(item.id, lookup)}]" in script
+
+
+def test_findings_use_one_deduplicated_platform_coverage_sentence_without_diagnostics():
+    script = _product_script()
+    coverage = script[
+        script.index("function compactPlatformCoverage"):
+        script.index("function engagementMetrics")
+    ]
+    assert "const byPlatform = new Map()" in coverage
+    assert "Platform coverage:" in coverage
+    assert "coverage-summary" in coverage
+    assert "source.platform" in coverage
+    for diagnostic in (
+        "source.connector", "source.error", "source.route",
+        "items_requested", "items_returned", "source-receipt",
+    ):
+        assert diagnostic not in coverage
+
+    findings = script[
+        script.index("function renderFindings"):
+        script.index("async function loadLenses")
+    ]
+    assert "addCoverageSection(block, analysis.coverage || {}, analysis.evidence || [])" in findings
+    assert "addEvidenceSection(block, analysis.evidence || [])" in findings
+    assert "addEntitySection(block, analysis.entities, citationLookup)" in findings
+    assert "activeResearchRun.error_category" not in findings
+
+
+def test_findings_hide_unsupported_ontology_rows_and_show_at_most_one_safe_limitation():
+    script = _product_script()
+    summary = script[
+        script.index("function signalGroupCopy"):
+        script.index("function renderFindings")
+    ]
+    for condition in (
+        "if (groups.behavior.length)", "if (groups.commercial.length)",
+        "if (groups.negative.length)", "if (groups.general.length)",
+        "if (hasPreservedSearchAttention(candidate))", "if (withEngagement)",
+        "if (grid.children.length)",
+    ):
+        assert condition in summary
+    for repetitive_empty in (
+        "No citation-backed adoption", "No citation-backed purchase",
+        "No citation-backed rejection", "No other citation-backed discussion",
+        "No per-record engagement metrics",
+    ):
+        assert repetitive_empty not in summary
+    render_summary = summary[summary.index("function renderEvidenceSummary"):]
+    assert render_summary.count("'evidence-summary-limitation'") == 1
+    assert "findingLimitation(analysis, finding, candidate)" in render_summary
+
+    findings = script[
+        script.index("function renderFindings"):
+        script.index("async function loadLenses")
+    ]
+    assert "addDataSection(block, 'Limitations'" not in findings
+    assert "No limitations reported" not in findings
 
 
 def test_dashboard_poll_continues_after_a_late_execute_conflict():

@@ -466,8 +466,10 @@ def test_horizontal_extraction_receipt_counts_prompt_even_when_llm_fails():
         assert len(sent) == 1
         assert result.input_records == prepared.input_records == 1
         assert result.input_characters == prepared.input_characters
-        assert result.status == "empty"
-        assert collected["c1:findings"]["status"] == "insufficient_evidence"
+        assert result.status == "failed"
+        assert result.error_category == "provider_error"
+        assert collected["c1:findings"]["status"] == "analysis_unavailable"
+        assert collected["c1:findings"]["analysis_error_category"] == "provider_error"
 
     asyncio.run(_run())
 

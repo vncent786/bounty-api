@@ -885,8 +885,13 @@ dialog header h2 { font: 600 26px / 1.15 var(--serif); margin: 0; }
   letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-60);
 }
 .result-controls .source-picker { grid-column: 1 / -1; }
+.live-topics-split {
+  display: grid; grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
+  gap: 18px; align-items: start;
+}
+.live-topics-split > * { min-width: 0; }
 .live-topics .row-list { border: 1px solid var(--rule-hair); }
-.evidence-sheet-pane { margin-top: 18px; min-height: 0; border: 1px solid var(--rule-hair); }
+.evidence-sheet-pane { margin-top: 0; min-height: 0; border: 1px solid var(--rule-hair); }
 
 .candidate-rank {
   grid-column: 1; grid-row: 1 / span 4; align-self: start;
@@ -960,6 +965,10 @@ dialog header h2 { font: 600 26px / 1.15 var(--serif); margin: 0; }
 }
 .evidence-dimension p { margin: 0; color: var(--ink-60); font-size: 12px; line-height: 1.45; }
 .evidence-engagement { margin: 7px 0 0; color: var(--ink); font-size: 10.5px; }
+.coverage-summary, .evidence-summary-limitation {
+  margin: 10px 0 0; color: var(--ink-60); font-size: 12.5px; line-height: 1.55;
+}
+.evidence-summary-limitation { padding-left: 10px; border-left: 2px solid var(--warn); }
 
 /* ── Wide layout collapses ────────────────────────────────── */
 
@@ -992,6 +1001,7 @@ dialog header h2 { font: 600 26px / 1.15 var(--serif); margin: 0; }
   .page-head { align-items: flex-start; flex-direction: column; gap: 16px; }
   .page-head > button { width: 100%; }
   .split { grid-template-columns: 1fr; }
+  .live-topics-split { grid-template-columns: 1fr; }
   .index-pane { border-right: 0; border-bottom: 1px solid var(--rule-hair); }
   .detail-pane { min-height: 380px; }
   .usage-query { align-items: stretch; flex-direction: column; }

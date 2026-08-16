@@ -117,7 +117,8 @@ def test_claims_without_openable_source_urls_are_rejected():
     result = asyncio.run(analyze_conversation(
         "topic", [dict(POSTS[0], url=None)], source_health=[], llm_call_fn=llm
     ))
-    assert result.status == "insufficient_evidence"
+    assert result.status == "analysis_unavailable"
+    assert result.analysis_error_category == "citation_error"
     assert result.signals == []
     assert any("without an openable source URL" in item for item in result.limitations)
 
@@ -148,7 +149,8 @@ def test_claims_with_non_public_or_malformed_urls_are_rejected(url):
     result = asyncio.run(analyze_conversation(
         "topic", [dict(POSTS[0], url=url)], source_health=[], llm_call_fn=llm
     ))
-    assert result.status == "insufficient_evidence"
+    assert result.status == "analysis_unavailable"
+    assert result.analysis_error_category == "citation_error"
     assert result.summary == ""
     assert result.signals == []
     assert any("openable source URL" in item for item in result.limitations)
@@ -250,7 +252,8 @@ def test_conversation_analysis_public_output_shape_includes_interpretation():
         "durability_evidence", "independent_voice_count", "products",
         "representative_record_ids", "summary", "summary_evidence_ids",
         "signals", "entities", "interpretation",
-        "evidence", "coverage", "limitations", "llm_error", "schema_version",
+        "evidence", "coverage", "limitations", "llm_error",
+        "analysis_error_category", "schema_version",
     }
 
 
@@ -367,3 +370,86 @@ def test_interpretation_is_deterministic_and_only_counts_cited_signals(
     }
     assert "score" not in result.interpretation
     assert "trend" not in result.interpretation
+
+
+def test_prompt_reserves_room_for_audience_replies():
+    posts = [
+        {
+            "platform": "reddit",
+            "external_id": f"root-{index}",
+            "object_type": "post",
+            "url": f"https://www.reddit.com/r/example/comments/root{index}",
+            "text": f"Root post {index}",
+        }
+        for index in range(6)
+    ] + [
+        {
+            "platform": "reddit",
+            "external_id": f"reply-{index}",
+            "object_type": "comment",
+            "root_post_external_id": "root-0",
+            "url": f"https://www.reddit.com/r/example/comments/root0/reply{index}",
+            "text": f"Audience reply {index}",
+        }
+        for index in range(2)
+    ]
+
+    prepared = prepare_conversation_prompt("topic", posts)
+    selected_ids = [item["id"] for item in prepared.evidence]
+    assert len(selected_ids) == 5
+    assert "reddit:comment:reply-0" in selected_ids
+    assert "reddit:comment:reply-1" in selected_ids
+
+
+def test_valid_cited_themes_supply_the_overview_when_model_omits_summary():
+    async def llm(_system, _user):
+        return json.dumps({
+            "summary": "",
+            "summary_evidence_ids": [],
+            "signals": [{
+                "kind": "question",
+                "claim": "Customers are asking when delivery will resume",
+                "polarity": "neutral",
+                "evidence_ids": ["reddit:post:r1"],
+            }],
+            "entities": [],
+            "limitations": [],
+        })
+
+    result = asyncio.run(analyze_conversation(
+        "topic", POSTS[:1], source_health=[], llm_call_fn=llm,
+    ))
+    assert result.status == "supported"
+    assert result.summary == "Customers are asking when delivery will resume."
+    assert result.summary_evidence_ids == ["reddit:post:r1"]
+
+
+def test_unreadable_analysis_is_not_reported_as_weak_evidence():
+    async def llm(_system, _user):
+        return "not json"
+
+    result = asyncio.run(analyze_conversation(
+        "topic", POSTS[:1], source_health=[], llm_call_fn=llm,
+    ))
+    assert result.status == "analysis_unavailable"
+    assert result.analysis_error_category == "parse_error"
+    assert result.evidence
+
+
+def test_schema_invalid_analysis_preserves_collected_evidence():
+    async def llm(_system, _user):
+        return json.dumps({
+            "summary": "",
+            "summary_evidence_ids": [],
+            "signals": None,
+            "entities": [],
+            "limitations": [],
+        })
+
+    result = asyncio.run(analyze_conversation(
+        "topic", POSTS[:1], source_health=[], llm_call_fn=llm,
+    ))
+    assert result.status == "analysis_unavailable"
+    assert result.analysis_error_category == "parse_error"
+    assert result.evidence
+    assert "signals" in result.llm_error

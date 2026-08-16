@@ -406,6 +406,13 @@ def make_horizontal_extraction_handler(
         if collected is not None:
             collected[cid + ":findings"] = result
 
+        finding_status = result.get("status")
+        stage_status = (
+            "complete" if finding_status == "supported"
+            else "empty" if finding_status in {"insufficient_evidence", "sources_unavailable"}
+            else "failed" if finding_status == "analysis_unavailable"
+            else "complete"
+        )
         return StageHandlerResult(
             records_returned=len(result.get("evidence", [])),
             external_calls=0,
@@ -413,8 +420,10 @@ def make_horizontal_extraction_handler(
             cache_hit=False,
             input_records=prompt_receipt.input_records,
             input_characters=prompt_receipt.input_characters,
-            status="complete" if result.get("status") == "supported" else (
-                "empty" if result.get("status") in {"insufficient_evidence", "sources_unavailable"} else "complete"
+            status=stage_status,
+            error_category=(
+                result.get("analysis_error_category")
+                if finding_status == "analysis_unavailable" else None
             ),
             candidates=[{**candidate, "_findings": result}],
         )

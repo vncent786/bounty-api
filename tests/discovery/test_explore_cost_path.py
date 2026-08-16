@@ -554,3 +554,305 @@ def test_apply_conversation_gate_without_max_threads_stays_thread_free(monkeypat
     assert len(broker.search_calls) > 0
     assert broker.fetch_thread_calls == []
     assert prompts == []
+
+
+# ── Source-native categories (trendspy 0.1.6) ─────────────────
+
+
+def test_topic_categories_use_trendspy_source_meanings():
+    from social_scraper.monitoring.topdown import (
+        TOPIC_CATEGORIES,
+        _topic_ids_to_categories,
+    )
+
+    # Corrected meanings from trendspy 0.1.6 TREND_TOPICS (Google's
+    # Trending Now payload topic IDs). The empirically-guessed map had
+    # reassigned meanings for these IDs.
+    assert TOPIC_CATEGORIES[6] == "Games"
+    assert TOPIC_CATEGORIES[18] == "Technology"
+    assert TOPIC_CATEGORIES[16] == "Shopping"
+    assert TOPIC_CATEGORIES[19] == "Travel & Transportation"
+    assert TOPIC_CATEGORIES[20] == "Climate"
+    assert TOPIC_CATEGORIES[10] == "Law & Government"
+    assert TOPIC_CATEGORIES[11] == "Other"
+    assert TOPIC_CATEGORIES[14] == "Politics"
+    assert TOPIC_CATEGORIES[9] == "Jobs & Education"
+    assert TOPIC_CATEGORIES[8] == "Hobbies & Leisure"
+    # Retired wrong meanings must not survive anywhere in the map.
+    assert set(TOPIC_CATEGORIES.values()).isdisjoint({
+        "Autos",
+        "Gaming & Tech",
+        "Hobbies & Pets",
+        "Education",
+        "Society & Culture",
+        "News & Current Events",
+        "Politics & Government",
+        "Travel",
+        "Consumer Products",
+        "Weather & Nature",
+    })
+    assert _topic_ids_to_categories([6, 18]) == "Games, Technology"
+    assert _topic_ids_to_categories([]) == "Other"
+
+
+def test_topic_categories_agree_with_installed_trendspy_ids():
+    pytest.importorskip("trendspy")
+    from trendspy.constants import TREND_TOPICS
+    from social_scraper.monitoring.topdown import TOPIC_CATEGORIES
+
+    def canon(name: str) -> str:
+        return name.casefold().replace(" and ", " & ")
+
+    assert set(TOPIC_CATEGORIES) == set(TREND_TOPICS)
+    for tid, source_name in TREND_TOPICS.items():
+        assert canon(TOPIC_CATEGORIES[tid]) == canon(source_name)
+
+
+# ── Verified Trending Now country allowlist ────────────────────
+
+
+def test_trending_now_countries_is_a_versioned_verified_allowlist():
+    from social_scraper.monitoring.topdown import (
+        TRENDING_NOW_COUNTRIES,
+        TRENDING_NOW_COUNTRIES_VERSION,
+    )
+
+    assert TRENDING_NOW_COUNTRIES_VERSION
+    assert len(TRENDING_NOW_COUNTRIES) == 125
+    countries = dict(TRENDING_NOW_COUNTRIES)
+    for code in ("US", "GB", "SG"):
+        assert countries[code]
+    for absent in ("UK", "CN", "GLOBAL"):
+        assert absent not in countries
+    assert countries["US"] == "United States"
+    assert countries["GB"] == "United Kingdom"
+    assert countries["SG"] == "Singapore"
+
+
+def test_discover_options_lists_countries_categories_defaults_and_window(monkeypatch):
+    discovery, _broker = _make_discovery(monkeypatch)
+    client = _api_client(monkeypatch, discovery)
+
+    response = client.get("/dashboard/api/discover/options")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_window_hours"] == 24
+    codes = {c["code"]: c["name"] for c in body["countries"]}
+    assert len(codes) == 125
+    assert {"US", "GB", "SG"} <= set(codes)
+    assert not ({"UK", "CN", "GLOBAL"} & set(codes))
+    assert codes["SG"] == "Singapore"
+    names = [c["name"] for c in body["countries"]]
+    assert names == sorted(names)  # full-name dropdown order
+    categories = {c["name"]: c["id"] for c in body["categories"]}
+    assert categories["Games"] == 6
+    assert categories["Technology"] == 18
+    assert categories["Shopping"] == 16
+    assert categories["Travel & Transportation"] == 19
+    assert "Sports" in categories  # no hardcoded Sports exclusion
+    defaults = body["defaults"]
+    assert defaults["geo"] == "US"
+    assert defaults["categories"] == []
+    assert defaults["mode"] == "trends_snapshot"
+
+
+# ── Request validation happens before any collection ───────────
+
+
+class SpyDiscovery:
+    """Records scan_all calls so tests can prove no collection happened."""
+
+    def __init__(self):
+        self.calls: list[dict] = []
+        self.last_run_id = ""
+
+    async def scan_all(self, **kwargs):
+        self.calls.append(kwargs)
+        return []
+
+
+def test_discover_api_rejects_unsupported_country_before_collection(monkeypatch):
+    spy = SpyDiscovery()
+    client = _api_client(monkeypatch, spy)
+
+    for geo in ("UK", "XX", "GLOBAL", "US-NY"):
+        response = client.get("/dashboard/api/discover", params={"geo": geo})
+        assert response.status_code == 422
+        assert "options" in response.json()["detail"]
+
+    assert spy.calls == []
+
+
+def test_discover_api_normalizes_country_case_before_collection(monkeypatch):
+    spy = SpyDiscovery()
+    client = _api_client(monkeypatch, spy)
+
+    response = client.get("/dashboard/api/discover", params={"geo": "sg"})
+
+    assert response.status_code == 200
+    assert spy.calls[0]["geo"] == "SG"
+
+
+def test_discover_api_rejects_unknown_categories_before_collection(monkeypatch):
+    spy = SpyDiscovery()
+    client = _api_client(monkeypatch, spy)
+
+    response = client.get(
+        "/dashboard/api/discover",
+        params={"geo": "US", "categories": "Gaming & Tech"},  # retired wrong name
+    )
+
+    assert response.status_code == 422
+    assert "Gaming & Tech" in response.json()["detail"]
+    assert spy.calls == []
+
+
+def test_discover_api_normalizes_category_spellings_before_collection(monkeypatch):
+    spy = SpyDiscovery()
+    client = _api_client(monkeypatch, spy)
+
+    response = client.get(
+        "/dashboard/api/discover",
+        params={"geo": "US", "categories": "games, Business and Finance, GAMES"},
+    )
+
+    assert response.status_code == 200
+    assert spy.calls[0]["categories"] == ["Games", "Business & Finance"]
+
+
+def test_discover_api_rejects_negative_filters_before_collection(monkeypatch):
+    spy = SpyDiscovery()
+    client = _api_client(monkeypatch, spy)
+
+    for query in (
+        {"min_volume": -1},
+        {"min_growth": -5},
+        {"max_age_hours": -0.5},
+    ):
+        response = client.get(
+            "/dashboard/api/discover", params={"geo": "US", **query}
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]
+
+    assert spy.calls == []
+
+
+# ── Deterministic category-agnostic round-robin selection ──────
+
+
+def _categorized(keyword: str, categories: str) -> EmergingKeyword:
+    return EmergingKeyword(
+        keyword=keyword,
+        source="google_trends",
+        growth_pct=100.0,
+        started_hours_ago=1.0,
+        search_volume=500,
+        categories=categories,
+    )
+
+
+def test_diversified_candidates_is_deterministic_and_category_agnostic():
+    from social_scraper.monitoring.topdown import diversified_candidates
+
+    items = (
+        [_categorized(f"sports trend {i}", "Sports") for i in range(10)]
+        + [_categorized(f"health trend {i}", "Health") for i in range(3)]
+    )
+
+    picked = diversified_candidates(items, 5)
+    assert [k.keyword for k in picked] == [
+        "health trend 0",
+        "sports trend 0",
+        "health trend 1",
+        "sports trend 1",
+        "health trend 2",
+    ]
+    # Same input, same output — deterministic.
+    again = diversified_candidates(list(items), 5)
+    assert [k.keyword for k in again] == [k.keyword for k in picked]
+    # Every candidate survives when the limit exceeds supply.
+    assert len(diversified_candidates(items, 999)) == 13
+    # Sports is never excluded by rule: a sports-only list still selects.
+    sports_only = diversified_candidates(items[:10], 2)
+    assert [k.keyword for k in sports_only] == ["sports trend 0", "sports trend 1"]
+    # A zero limit selects nothing.
+    assert diversified_candidates(items, 0) == []
+
+
+def test_root_sweep_gate_checks_round_robin_across_categories(monkeypatch):
+    discovery, broker = _make_discovery(monkeypatch)
+    candidates = (
+        [_categorized(f"sports trend {i}", "Sports") for i in range(12)]
+        + [_categorized(f"health trend {i}", "Health") for i in range(3)]
+    )
+
+    async def fake_fetch(geo="US"):
+        return list(candidates)
+
+    monkeypatch.setattr(discovery, "fetch_candidates", fake_fetch)
+    _install_llm_counter(monkeypatch)
+
+    results = asyncio.run(discovery.scan_all(
+        geo="US", mode="root_sweep", gate_max=4, gate_platforms=["youtube"],
+    ))
+
+    searched = {call[0] for call in broker.search_calls}
+    assert len(searched) == 4
+    # The minority category still gets checked despite Sports dominating.
+    assert sum(1 for k in searched if k.startswith("health")) >= 1
+    # Unchecked candidates are preserved untouched.
+    assert len(results) == 15
+    assert sum(1 for r in results if r.gate_status == "not_checked") == 11
+
+
+def test_discover_api_cap_uses_round_robin_and_category_filters_first(monkeypatch):
+    discovery, _broker = _make_discovery(monkeypatch)
+    candidates = (
+        [_categorized(f"health trend {i:02d}", "Health") for i in range(40)]
+        + [_categorized(f"sports trend {i:02d}", "Sports") for i in range(40)]
+    )
+
+    async def fake_fetch(geo="US"):
+        return list(candidates)
+
+    monkeypatch.setattr(discovery, "fetch_candidates", fake_fetch)
+    client = _api_client(monkeypatch, discovery)
+
+    # An explicit category filters server-side BEFORE the response cap.
+    filtered = client.get(
+        "/dashboard/api/discover", params={"geo": "US", "categories": "Health"}
+    ).json()
+    assert filtered["total"] == 40
+    assert len(filtered["keywords"]) == 40
+    assert all(k["categories"] == "Health" for k in filtered["keywords"])
+
+    # Default balanced scan: cap 50, diversified, Sports never excluded.
+    broad = client.get("/dashboard/api/discover", params={"geo": "US"}).json()
+    assert broad["total"] == 80
+    assert len(broad["keywords"]) == 50
+    first_six = [k["categories"] for k in broad["keywords"][:6]]
+    assert first_six == ["Health", "Sports", "Health", "Sports", "Health", "Sports"]
+    assert {k["categories"] for k in broad["keywords"]} == {"Health", "Sports"}
+
+
+def test_discover_api_root_sweep_gate_only_false_preserves_all_candidates(monkeypatch):
+    discovery, _broker = _make_discovery(monkeypatch)
+    client = _api_client(monkeypatch, discovery)
+
+    response = client.get(
+        "/dashboard/api/discover",
+        params={"geo": "US", "mode": "root_sweep", "gate_only": "false"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == len(ALL_KEYWORDS)
+    statuses = {k["keyword"]: k["gate_status"] for k in body["keywords"]}
+    assert statuses == {
+        COMPLETE_KEYWORD: "complete",
+        PARTIAL_KEYWORD: "partial",
+        EMPTY_KEYWORD: "empty",
+        FAILED_KEYWORD: "failed",
+    }

@@ -509,6 +509,41 @@ async def get_zone_diff(zone_id: int):
 
 # ── Top-Down Discovery ─────────────────────────────────────
 
+@router.get("/discover/options")
+async def discovery_options():
+    """Return the validated Google Trends controls used by Explore."""
+    from social_scraper.monitoring.topdown import (
+        TOPIC_CATEGORIES,
+        TREND_CATEGORY_SCHEMA_VERSION,
+        TRENDING_NOW_COUNTRIES,
+        TRENDING_NOW_COUNTRIES_VERSION,
+    )
+
+    return {
+        "countries": [
+            {"code": code, "name": name}
+            for code, name in sorted(
+                TRENDING_NOW_COUNTRIES, key=lambda item: item[1].casefold()
+            )
+        ],
+        "categories": [
+            {"id": topic_id, "name": name}
+            for topic_id, name in TOPIC_CATEGORIES.items()
+        ],
+        "defaults": {
+            "country": "US",
+            "category": "",
+            "geo": "US",
+            "categories": [],
+            "mode": "trends_snapshot",
+        },
+        "source": "Google Trends Trending Now",
+        "source_window_hours": 24,
+        "category_schema_version": TREND_CATEGORY_SCHEMA_VERSION,
+        "country_allowlist_version": TRENDING_NOW_COUNTRIES_VERSION,
+    }
+
+
 @router.get("/discover")
 async def discover_keywords(
     geo: str = Query("US"),
@@ -526,9 +561,9 @@ async def discover_keywords(
             "triggers thread hydration or LLM analysis."
         ),
     ),
-    min_volume: int = Query(0, description="Minimum search volume"),
-    min_growth: int = Query(0, description="Minimum growth %"),
-    max_age_hours: float = Query(0, description="Only trends started within N hours"),
+    min_volume: int = Query(0, ge=0, description="Minimum search volume"),
+    min_growth: int = Query(0, ge=0, description="Minimum growth %"),
+    max_age_hours: float = Query(0, ge=0, description="Only trends started within N hours"),
     categories: str = Query("", description="Comma-separated category names to include"),
     gate_only: bool = Query(False, description="Only return candidates whose configured social check threshold passed"),
 ):
@@ -547,6 +582,47 @@ async def discover_keywords(
         policy_for,
         resolve_scan_mode,
     )
+    from social_scraper.monitoring.topdown import (
+        TREND_CATEGORY_NAMES,
+        TRENDING_NOW_COUNTRY_CODES,
+        diversified_candidates,
+    )
+
+    geo = geo.strip().upper()
+    if geo not in TRENDING_NOW_COUNTRY_CODES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Unsupported Trending Now country code: {geo or '(blank)'}. "
+                "Choose a country from /dashboard/api/discover/options."
+            ),
+        )
+
+    requested_categories = [
+        value.strip() for value in categories.split(",") if value.strip()
+    ]
+    def normalize_category(value: str) -> str:
+        return " ".join(value.casefold().replace(" and ", " & ").split())
+
+    category_lookup = {
+        normalize_category(name): name for name in TREND_CATEGORY_NAMES
+    }
+    unknown_categories = [
+        value for value in requested_categories
+        if normalize_category(value) not in category_lookup
+    ]
+    if unknown_categories:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Unsupported Trending Now category: "
+                + ", ".join(unknown_categories)
+            ),
+        )
+    cat_list = list(dict.fromkeys(
+        category_lookup[normalize_category(value)]
+        for value in requested_categories
+    ))
 
     try:
         scan_mode = resolve_scan_mode(mode=mode, apply_gate=gate)
@@ -575,8 +651,6 @@ async def discover_keywords(
 
     discovery = _get_discovery()
 
-    cat_list = [c.strip() for c in categories.split(",") if c.strip()] if categories else None
-
     try:
         keywords = await discovery.scan_all(
             geo=geo,
@@ -584,7 +658,7 @@ async def discover_keywords(
             min_volume=min_volume,
             min_growth=min_growth,
             max_age_hours=max_age_hours,
-            categories=cat_list,
+            categories=cat_list or None,
             gate_only=gate_only,
         )
     except ValueError as exc:
@@ -604,9 +678,12 @@ async def discover_keywords(
                 "source_health": run["source_health"],
             },
         )
+    returned_keywords = diversified_candidates(keywords, limit=50)
     return {
-        "keywords": [k.to_dict() for k in keywords[:50]],
+        "keywords": [k.to_dict() for k in returned_keywords],
         "total": len(keywords),
+        "returned": len(returned_keywords),
+        "selection_strategy": "category_balanced" if not cat_list else "selected_category",
         "run_id": discovery.last_run_id,
         "run": run,
     }

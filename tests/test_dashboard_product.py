@@ -50,13 +50,13 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
     assert "Topics, one per line (maximum 5)" in html
     assert "Global Explore" in html
     assert "What's changing" in html
-    assert "Recommended for deeper reading" in html
+    assert "saved standing register" in html
     assert "Perspective" in html
     assert all(marker in html for marker in (
         'id="family-grid"', 'id="family-detail"', 'id="global-stage"',
         'id="global-include-rejected"',
     ))
-    assert "Candidate checks" in html
+    assert "Public-post checks" in html
     assert "Deep reads" not in html
     assert "sample" not in html.casefold()
     for forbidden in ("horizontal", "ontology", "candidate intelligence"):
@@ -98,6 +98,134 @@ def test_global_explore_visibly_organizes_composer_register_sheet_and_receipt():
     # The dark receipt keeps both status channels.
     assert 'id="global-explore-status"' in html
     assert 'id="explore-preview"' in html
+
+
+def _product_script():
+    from pathlib import Path
+
+    return (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+
+
+def test_explore_country_is_a_full_name_select_backed_by_discover_options():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    # Country is a full-name dropdown, not a two-letter free-text input.
+    assert '<select id="explore-geo" required>' in html
+    assert '<option value="US">United States</option>' in html
+    assert '<input id="explore-geo"' not in html
+    # The full validated list is populated from the versioned backend allowlist.
+    assert "api('/discover/options')" in script
+    assert "option.value = country.code" in script
+
+
+def test_explore_threshold_fields_are_hidden_zeros():
+    html = get_dashboard_html().body.decode()
+    for field_id in ("explore-volume", "explore-growth", "explore-age"):
+        assert f'<input id="{field_id}" type="hidden" value="0">' in html
+    for label in ("Min searches", "Min growth", "Recent (hours)"):
+        assert label not in html
+
+
+def test_explore_topic_area_precedes_search_with_balanced_default():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    start = html.index('id="explore-form"')
+    form = html[start:html.index("</form>", start)]
+    assert '<label>Topic area<select id="explore-cat-filter">' in form
+    assert '<option value="">Balanced across all categories</option>' in form
+    assert form.index('id="explore-cat-filter"') < form.index('type="submit"')
+    # Choices come from the corrected source-native backend taxonomy and the
+    # chosen area rides the existing categories query parameter.
+    assert "data.categories" in script
+    assert "query.set('categories', category)" in script
+
+
+def test_explore_copy_explains_scope_defaults_signals_and_missing_metrics():
+    html = get_dashboard_html().body.decode()
+    assert 'class="scan-instructions" aria-label="How to find topics"' in html
+    assert "Choose a country" in html
+    assert "No growth number is required" in html
+    assert "Find, then research" in html
+    assert "Select up to five useful topics" in html
+    assert "Country controls which search market is scanned" in html
+    assert "Recommended: leave this balanced" in html
+    assert "Search activity is a discovery signal, not evidence" in html
+    assert "Missing metrics are shown as unavailable, not zero" in html
+    assert '<select id="global-geo"><option value="">All countries</option>' in html
+    script = _product_script()
+    assert "savedCountrySelect" in script
+    assert "No saved topic families yet" in script
+    assert "Live topic-scan results appear in the separate register below" in script
+
+
+def test_explore_lens_is_labeled_as_a_later_research_angle():
+    html = get_dashboard_html().body.decode()
+    assert 'id="explore-lens"' in html
+    assert "Conversation-research angle (used after you choose a topic)" in html
+
+
+def test_find_topics_renames_the_search_and_the_public_post_check_is_additive():
+    html = get_dashboard_html().body.decode()
+    assert ">Find topics</button>" in html
+    assert "Search trends" not in html
+    assert "Only show topics with social discussion" not in html
+    assert "Also check for matching public posts" in html
+    assert "A failed post check never hides a search topic" in html
+
+
+def test_explore_request_stays_zero_thresholded_and_never_gates():
+    script = _product_script()
+    assert "mode: checkPosts ? 'root_sweep' : 'trends_snapshot'" in script
+    assert "min_volume: $('#explore-volume').value" in script
+    assert "min_growth: $('#explore-growth').value" in script
+    assert "max_age_hours: $('#explore-age').value" in script
+    # gate_only is pinned false in every mode: check failures must never
+    # remove topics.
+    assert "gate_only: 'false'" in script
+    assert "checked ? 'true' : 'false'" not in script
+
+
+def test_public_post_statuses_use_the_approved_plain_english_vocabulary():
+    script = _product_script()
+    status_copy = script[
+        script.index("function publicPostStatus"):
+        script.index("function renderExploreResults")
+    ].casefold()
+    for phrase in (
+        "matching public posts found",
+        "no matching posts on sites checked",
+        "some sites could not be checked",
+        "public-post check failed",
+        "public posts not checked",
+    ):
+        assert phrase in status_copy, phrase
+    for banned in ("verified", "confirmed", "some sources checked", "not yet checked"):
+        assert banned not in status_copy, banned
+
+
+def test_confirmation_dialog_is_truthful_about_search_only_and_public_post_checks():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    for gone in ("Threads / source", "Comments / thread", "Thread depth"):
+        assert gone not in html, gone
+    assert "Up to 50" in html
+    assert "Up to 20" in html
+    review = script[
+        script.index("async function reviewExplore"):script.index("function selectedFamilyFilters")
+    ]
+    assert "Google Trends snapshot only" in review
+    assert "check root public posts" in review
+    assert "will not hide the topic" in review
+    assert "dialog.returnValue = '';" in review
+
+
+def test_explore_empty_and_failure_states_keep_choices_and_offer_recovery():
+    script = _product_script()
+    assert "function appendExploreRecovery" in script
+    assert "choices are still selected" in script
+    assert "'Use balanced topic mix'" in script
+    assert "'Choose another country'" in script
+    assert "'Try again'" in script
 
 
 def test_dashboard_assets_carry_no_emoji_or_decoration_glyphs():
@@ -169,14 +297,66 @@ def test_dashboard_script_keeps_explore_anchor_ids_under_the_new_shell():
     assert "safeUrl(item.record.url)" in script
 
 
-def test_emerging_candidate_research_action_launches_a_named_investing_brief():
+def test_emerging_candidate_research_action_uses_the_selected_lens_plan():
     from pathlib import Path
 
     script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
-    assert "`${topic} · emerging-trend investigation`" in script
-    assert "$('#direct-preset').value = 'investing-social-arbitrage'" in script
-    assert "$('#direct-topic').value = topic" in script
-    assert "$('#research-topic-btn').click()" in script
+    detail = script[
+        script.index("async function renderCandidateDetail"):
+        script.index("async function createResearchPlan")
+    ]
+    assert "state.selectedForPlan.add(id)" in detail
+    assert "createResearchPlan({ currentTarget: quickBtn }, { autoStart: true })" in detail
+    assert "$('#direct-preset').value = 'investing-social-arbitrage'" not in detail
+
+
+def test_trend_scan_discards_stale_results_and_preserves_result_geo():
+    script = _product_script()
+    scan = script[
+        script.index("async function runExplore"):
+        script.index("function candidateName")
+    ]
+    assert "const requestScanEpoch = ++state.trendScanEpoch;" in scan
+    assert "requestEpoch !== state.workspaceEpoch" in scan
+    assert "requestWorkspace !== state.workspace" in scan
+    assert "requestScanEpoch !== state.trendScanEpoch" in scan
+    assert "if (isStale()) return;" in scan
+    assert "if (!isStale()) { button.disabled = false;" in scan
+    assert "state.trendScanGeo = requestGeo;" in scan
+    assert "state.trendScanCountry = requestCountry;" in scan
+    detail = script[
+        script.index("async function renderCandidateDetail"):
+        script.index("async function createResearchPlan")
+    ]
+    assert "geo=${enc(scanGeo)}" in detail
+    assert "$('#explore-geo')?.value" not in detail
+
+
+def test_rescan_clears_stale_topic_actions_and_rows_do_not_nest_controls():
+    from pathlib import Path
+
+    script = _product_script()
+    scan = script[
+        script.index("async function runExplore"):
+        script.index("function candidateName")
+    ]
+    assert "state.selectedCandidate = null;" in scan
+    assert "state.selectedForPlan.clear();" in scan
+    assert "state.discoveryRunId = null;" in scan
+    assert "_detailEpoch += 1;" in scan
+    assert "$('#explore-detail').replaceChildren" in scan
+    rows = script[
+        script.index("function renderExploreResults"):
+        script.index("function renderSelectionBar")
+    ]
+    assert "el('article', `data-row trend-result-row" in rows
+    assert "el('label', 'trend-select')" in rows
+    assert "el('button', 'trend-result-open')" in rows
+    assert "append(row, select, open)" in rows
+    assert "const row = el('button'" not in rows
+    css = (Path(__file__).parents[1] / "public" / "dashboard.css").read_text(encoding="utf-8")
+    assert ".trend-select {" in css
+    assert "min-width: 52px; min-height: 52px;" in css
 
 
 def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth():

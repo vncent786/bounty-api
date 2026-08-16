@@ -68,15 +68,22 @@ DASHBOARD_HTML = """<!doctype html>
         <div class="composer-half">
           <p class="eyebrow">Workflow B · Emerging trends</p>
           <h3>Live trend scan</h3>
-          <p class="composer-copy">For unknown unknowns, particularly investing: see what is rising in search now. Every promising candidate still has to pass a real-conversation check before it counts.</p>
+          <p class="composer-copy">Use this when you do not yet know which topics matter. Search activity is a discovery signal, not evidence.</p>
+          <ol class="scan-instructions" aria-label="How to find topics">
+            <li><span>01</span><strong>Choose a country</strong><small>This sets the search market.</small></li>
+            <li><span>02</span><strong>Start balanced</strong><small>No growth number is required. Choose an area only when you already have a focus.</small></li>
+            <li><span>03</span><strong>Find, then research</strong><small>Select up to five useful topics, then press Research these topics for cited evidence.</small></li>
+          </ol>
           <form id="explore-form" class="filter-bar">
-            <label>Region<input id="explore-geo" value="US" maxlength="2" required></label>
-            <label>Lens<select id="explore-lens"><option value="">No lens</option></select></label>
-            <label>Min searches<input id="explore-volume" type="number" min="0" value="0"></label>
-            <label>Min growth (%)<input id="explore-growth" type="number" min="0" value="0"></label>
-            <label>Recent (hours)<input id="explore-age" type="number" min="0" step="1" value="0"></label>
-            <label class="check"><input id="explore-verified" type="checkbox">Only show topics with social discussion</label>
-            <button class="primary" type="submit">Search trends</button>
+            <label>Country<select id="explore-geo" required><option value="US">United States</option></select><span class="control-help">Country controls which search market is scanned.</span></label>
+            <label>Topic area<select id="explore-cat-filter"><option value="">Balanced across all categories</option></select><span class="control-help">Recommended: leave this balanced. Choose one area only when you already have a focus.</span></label>
+            <input id="explore-volume" type="hidden" value="0">
+            <input id="explore-growth" type="hidden" value="0">
+            <input id="explore-age" type="hidden" value="0">
+            <label class="check"><input id="explore-verified" type="checkbox"><span>Also check for matching public posts<small>Optional. A failed post check never hides a search topic.</small></span></label>
+            <label>Conversation-research angle (used after you choose a topic)<select id="explore-lens"><option value="">No lens</option></select></label>
+            <p class="filter-note">Search activity is a discovery signal, not evidence. Missing metrics are shown as unavailable, not zero. Bounty does not ask you to guess a growth threshold.</p>
+            <button class="primary" type="submit">Find topics</button>
           </form>
         </div>
       </div>
@@ -86,7 +93,7 @@ DASHBOARD_HTML = """<!doctype html>
       <div class="zone-head"><h2 id="run-receipt-title"><span class="zone-no">02</span>Run receipt</h2><p class="zone-note">What actually ran, in plain terms. Missing evidence stays missing.</p></div>
       <div class="receipt-block">
         <div class="receipt-row"><span class="receipt-label">Persisted evidence</span><p id="global-explore-status" class="receipt-text">Loading persisted topic families. This view does not start a new collection run.</p></div>
-        <div class="receipt-row"><span class="receipt-label">Live run</span><div id="explore-preview" class="receipt-text">Type a topic above to start researching, or search trends to discover what is rising.</div></div>
+        <div class="receipt-row"><span class="receipt-label">Live run</span><div id="explore-preview" class="receipt-text">Type a topic above to start researching, or choose a country and find topics drawing search attention.</div></div>
       </div>
     </section>
 
@@ -95,18 +102,18 @@ DASHBOARD_HTML = """<!doctype html>
         <div class="zone-head"><h2 id="candidate-register-title"><span class="zone-no">03</span>Candidate register</h2><p class="zone-note">Persisted families first, then live scan results.</p></div>
         <div class="register-block">
           <div class="register-block-head"><h3 id="changing-title">Global Explore — What's changing</h3><span id="family-count" class="mono muted">Not loaded</span></div>
-          <p class="section-copy">Recommended for deeper reading. Recommendations preserve source coverage, route reasons, trajectory periods, and rejected families. Missing evidence stays missing.</p>
+          <p class="section-copy">This is the saved standing register, separate from the live topic scan below. Recommendations preserve source coverage, route reasons, trajectory periods, and rejected families.</p>
           <section class="global-controls" aria-label="Global Explore controls">
             <label>Perspective<select id="global-perspective"><option value="">All evidence</option></select></label>
             <label>Stage<select id="global-stage"><option value="">All stages</option><option value="emerging">Emerging</option><option value="confirming">Confirming</option><option value="established">Established</option><option value="event_spike">Event spike</option><option value="cooling">Cooling</option><option value="observed">Observed</option><option value="unclear">Unclear</option></select></label>
-            <label>Region<input id="global-geo" maxlength="8" placeholder="All"></label>
+            <label>Saved-family country<select id="global-geo"><option value="">All countries</option><option value="GLOBAL">Global / multi-country</option></select></label>
             <label class="check"><input id="global-include-rejected" type="checkbox">Include rejected or unclear</label>
           </section>
           <div id="family-grid" class="family-grid" aria-live="polite"><div class="empty bordered"><p class="eyebrow">Loading</p><h2>Checking persisted evidence</h2><p>No live sources are being called.</p></div></div>
         </div>
         <div class="register-block">
-          <div class="register-block-head"><h3>Trend scan results</h3><div class="filter-cluster"><select id="explore-cat-filter" class="cat-filter" aria-label="Filter by category"><option value="">All categories</option><option value="Business & Finance">Business &amp; Finance</option><option value="Gaming & Tech">Gaming &amp; Tech</option><option value="Health">Health</option><option value="Consumer Products">Consumer Products</option><option value="Entertainment">Entertainment</option><option value="Society & Culture">Society &amp; Culture</option><option value="Sports">Sports</option><option value="Politics & Government">Politics &amp; Government</option><option value="Science">Science</option></select><span id="explore-count" class="mono muted">No search yet</span></div></div>
-          <div id="explore-results" class="row-list"><div class="empty compact"><h3>No results yet</h3><p>Run a trend scan above to fill this register.</p></div></div>
+          <div class="register-block-head"><h3>Trend scan results</h3><span id="explore-count" class="mono muted">No search yet</span></div>
+          <div id="explore-results" class="row-list" aria-live="polite"><div class="empty compact"><h3>No topics yet</h3><p>Choose a country and topic area, then press Find topics above.</p></div></div>
         </div>
       </section>
 
@@ -118,7 +125,7 @@ DASHBOARD_HTML = """<!doctype html>
         </div>
         <div class="register-block">
           <div class="register-block-head"><h3>Scan result evidence</h3></div>
-          <section id="explore-detail" class="detail-pane evidence-sheet-pane"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a result</h2><p>Click any result to see what people are saying, with cited evidence.</p></div></section>
+          <section id="explore-detail" class="detail-pane evidence-sheet-pane"><div class="empty"><p class="eyebrow">Search signal</p><h2>Select a topic</h2><p>Inspect its search signal and related queries. Public evidence appears only after a separate research run.</p></div></section>
         </div>
       </section>
     </div>
@@ -158,7 +165,7 @@ DASHBOARD_HTML = """<!doctype html>
 <dialog id="project-dialog"><form id="project-form"><header><p class="eyebrow">New scope</p><h2>Create project</h2></header><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="3"></textarea></label><label>Default region<input name="default_geo" maxlength="2" placeholder="US"></label><label>First subject (optional)<input name="subject" maxlength="120"></label><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Create project</button></div></form></dialog>
 <dialog id="subject-dialog"><form id="subject-form"><header><p class="eyebrow">Research target</p><h2>Add subject</h2></header><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="3"></textarea></label><label>Region<input name="geo" maxlength="2" placeholder="Project default"></label><label>Lens<select name="lens_id"><option value="">No lens</option></select></label><label>Cadence (minutes)<input name="cadence_minutes" type="number" min="1" value="10080"></label><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Add subject</button></div></form></dialog>
 <dialog id="lens-dialog"><form id="lens-form"><header><p class="eyebrow">Versioned definition</p><h2 id="lens-dialog-title">Create lens</h2></header><input type="hidden" name="lens_id"><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="2"></textarea></label><label>Specification (JSON)<textarea class="mono" name="spec" rows="12" required spellcheck="false">{"objective":"Find unmet needs","criteria":[{"criterion_id":"unmet_need","label":"Unmet need","feature_key":"unmet_need","mode":"display","weight":0,"missing_policy":"keep_unknown"}]}</textarea></label><p class="form-help">Start with a valid unmet-need criterion or replace it with registered criteria. Saving an edit creates a new immutable version. Definition changes do not run research.</p><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Save lens</button></div></form></dialog>
-<dialog id="confirm-dialog"><form method="dialog"><header><p class="eyebrow">Live source check</p><h2>Run this search?</h2></header><div id="confirm-copy" class="prose"></div><div class="limit-grid"><div><span>Returned results</span><strong>Up to 50</strong></div><div><span>Candidate checks</span><strong>Up to 20</strong></div><div><span>Threads / source</span><strong>Up to 2</strong></div><div><span>Comments / thread</span><strong>Up to 20</strong></div><div><span>Thread depth</span><strong>Up to 2</strong></div></div><p class="form-help">These are hard operational limits, not a promise that every source is available or every limit will be used.</p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button value="confirm" class="primary">Run live search</button></div></form></dialog>
+<dialog id="confirm-dialog"><form method="dialog"><header><p class="eyebrow">Live source check</p><h2>Find these topics?</h2></header><div id="confirm-copy" class="prose"></div><div class="limit-grid"><div><span>Returned topics</span><strong>Up to 50</strong></div><div><span>Public-post checks</span><strong>Up to 20 when selected</strong></div></div><p class="form-help">The scan reads the current Google Trends window for the selected country. Optional public-post checks inspect root posts only. They do not read threads or create findings.</p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button value="confirm" class="primary">Find topics</button></div></form></dialog>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body></html>"""
 

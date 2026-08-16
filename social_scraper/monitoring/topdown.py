@@ -25,29 +25,167 @@ from .zones import ZoneRegistry, Zone
 
 logger = logging.getLogger(__name__)
 
-# Google Trends trending_now topic ID → human-readable category name.
-# Derived empirically from trending_now data (Google does not publish this mapping).
-# IDs with unknown values fall back to "Other".
+# Google Trends Trending Now topic IDs from trendspy==0.1.6 TREND_TOPICS.
+# Keep this versioned snapshot source-native: IDs are collection semantics,
+# not product taxonomy slots that Bounty may relabel.
+TREND_CATEGORY_SCHEMA_VERSION = "trendspy-0.1.6"
 TOPIC_CATEGORIES = {
-    1: "Autos",
+    1: "Autos & Vehicles",
     2: "Beauty & Fashion",
     3: "Business & Finance",
+    20: "Climate",
     4: "Entertainment",
     5: "Food & Drink",
-    6: "Gaming & Tech",
+    6: "Games",
     7: "Health",
-    8: "Hobbies & Pets",
-    9: "Education",
-    10: "Society & Culture",
-    11: "News & Current Events",
+    8: "Hobbies & Leisure",
+    9: "Jobs & Education",
+    10: "Law & Government",
+    11: "Other",
     13: "Pets & Animals",
-    14: "Politics & Government",
+    14: "Politics",
     15: "Science",
-    16: "Travel",
+    16: "Shopping",
     17: "Sports",
-    18: "Consumer Products",
-    20: "Weather & Nature",
+    18: "Technology",
+    19: "Travel & Transportation",
 }
+TREND_CATEGORY_NAMES = tuple(dict.fromkeys(TOPIC_CATEGORIES.values()))
+
+# Verified 2026-08-16 against trendspy==0.1.6 Trends.trending_now. The
+# endpoint returned data for all 125 entries; unsupported geographies are not
+# exposed as choices because trendspy otherwise fails with an empty payload.
+TRENDING_NOW_COUNTRIES_VERSION = "2026-08-16/trendspy-0.1.6"
+TRENDING_NOW_COUNTRIES = (
+    ("AL", "Albania"),
+    ("DZ", "Algeria"),
+    ("AO", "Angola"),
+    ("AR", "Argentina"),
+    ("AM", "Armenia"),
+    ("AU", "Australia"),
+    ("AT", "Austria"),
+    ("AZ", "Azerbaijan"),
+    ("BH", "Bahrain"),
+    ("BD", "Bangladesh"),
+    ("BY", "Belarus"),
+    ("BE", "Belgium"),
+    ("BJ", "Benin"),
+    ("BO", "Bolivia"),
+    ("BA", "Bosnia & Herzegovina"),
+    ("BR", "Brazil"),
+    ("BG", "Bulgaria"),
+    ("BF", "Burkina Faso"),
+    ("KH", "Cambodia"),
+    ("CM", "Cameroon"),
+    ("CA", "Canada"),
+    ("CL", "Chile"),
+    ("CO", "Colombia"),
+    ("CD", "Congo - Kinshasa"),
+    ("CR", "Costa Rica"),
+    ("HR", "Croatia"),
+    ("CU", "Cuba"),
+    ("CY", "Cyprus"),
+    ("CZ", "Czechia"),
+    ("CI", "Côte d’Ivoire"),
+    ("DK", "Denmark"),
+    ("DO", "Dominican Republic"),
+    ("EC", "Ecuador"),
+    ("EG", "Egypt"),
+    ("SV", "El Salvador"),
+    ("EE", "Estonia"),
+    ("ET", "Ethiopia"),
+    ("FI", "Finland"),
+    ("FR", "France"),
+    ("GE", "Georgia"),
+    ("DE", "Germany"),
+    ("GH", "Ghana"),
+    ("GR", "Greece"),
+    ("GT", "Guatemala"),
+    ("HT", "Haiti"),
+    ("HN", "Honduras"),
+    ("HK", "Hong Kong"),
+    ("HU", "Hungary"),
+    ("IN", "India"),
+    ("ID", "Indonesia"),
+    ("IR", "Iran"),
+    ("IQ", "Iraq"),
+    ("IE", "Ireland"),
+    ("IL", "Israel"),
+    ("IT", "Italy"),
+    ("JM", "Jamaica"),
+    ("JP", "Japan"),
+    ("JO", "Jordan"),
+    ("KZ", "Kazakhstan"),
+    ("KE", "Kenya"),
+    ("KW", "Kuwait"),
+    ("KG", "Kyrgyzstan"),
+    ("LV", "Latvia"),
+    ("LB", "Lebanon"),
+    ("LY", "Libya"),
+    ("LT", "Lithuania"),
+    ("MY", "Malaysia"),
+    ("ML", "Mali"),
+    ("MX", "Mexico"),
+    ("MD", "Moldova"),
+    ("MA", "Morocco"),
+    ("MZ", "Mozambique"),
+    ("MM", "Myanmar (Burma)"),
+    ("NP", "Nepal"),
+    ("NL", "Netherlands"),
+    ("NZ", "New Zealand"),
+    ("NI", "Nicaragua"),
+    ("NG", "Nigeria"),
+    ("MK", "North Macedonia"),
+    ("NO", "Norway"),
+    ("OM", "Oman"),
+    ("PK", "Pakistan"),
+    ("PS", "Palestine"),
+    ("PA", "Panama"),
+    ("PY", "Paraguay"),
+    ("PE", "Peru"),
+    ("PH", "Philippines"),
+    ("PL", "Poland"),
+    ("PT", "Portugal"),
+    ("PR", "Puerto Rico"),
+    ("QA", "Qatar"),
+    ("RO", "Romania"),
+    ("RU", "Russia"),
+    ("SA", "Saudi Arabia"),
+    ("SN", "Senegal"),
+    ("RS", "Serbia"),
+    ("SG", "Singapore"),
+    ("SK", "Slovakia"),
+    ("SI", "Slovenia"),
+    ("ZA", "South Africa"),
+    ("KR", "South Korea"),
+    ("ES", "Spain"),
+    ("LK", "Sri Lanka"),
+    ("SE", "Sweden"),
+    ("CH", "Switzerland"),
+    ("SY", "Syria"),
+    ("TW", "Taiwan"),
+    ("TZ", "Tanzania"),
+    ("TH", "Thailand"),
+    ("TT", "Trinidad & Tobago"),
+    ("TN", "Tunisia"),
+    ("TM", "Turkmenistan"),
+    ("TR", "Türkiye"),
+    ("UG", "Uganda"),
+    ("UA", "Ukraine"),
+    ("AE", "United Arab Emirates"),
+    ("GB", "United Kingdom"),
+    ("US", "United States"),
+    ("UY", "Uruguay"),
+    ("UZ", "Uzbekistan"),
+    ("VE", "Venezuela"),
+    ("VN", "Vietnam"),
+    ("YE", "Yemen"),
+    ("ZM", "Zambia"),
+    ("ZW", "Zimbabwe"),
+)
+TRENDING_NOW_COUNTRY_CODES = frozenset(
+    code for code, _name in TRENDING_NOW_COUNTRIES
+)
 
 
 def _topic_ids_to_categories(topic_ids: list[int]) -> str:
@@ -100,6 +238,55 @@ class EmergingKeyword:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+def _candidate_rank_key(candidate: EmergingKeyword) -> tuple:
+    """Rank collection candidates without inventing missing measurements."""
+    return (
+        candidate.started_hours_ago is not None,
+        -candidate.started_hours_ago if candidate.started_hours_ago is not None else -999,
+        candidate.growth_pct if candidate.growth_pct is not None else float("-inf"),
+    )
+
+
+def rank_candidates(candidates: list[EmergingKeyword]) -> list[EmergingKeyword]:
+    """Return the existing neutral Trends ordering with explicit missingness."""
+    return sorted(candidates, key=_candidate_rank_key, reverse=True)
+
+
+def diversified_candidates(
+    candidates: list[EmergingKeyword],
+    limit: int | None = None,
+) -> list[EmergingKeyword]:
+    """Round-robin ranked candidates across their first source category.
+
+    This is category-agnostic: it neither promotes nor excludes Sports (or any
+    other category). It prevents a large source bucket from monopolising a
+    bounded review/check set while preserving rank within every bucket.
+    """
+    buckets: dict[str, list[EmergingKeyword]] = {}
+    for candidate in candidates:
+        primary = next(
+            (part.strip() for part in candidate.categories.split(",") if part.strip()),
+            "Other",
+        )
+        buckets.setdefault(primary, []).append(candidate)
+
+    selected: list[EmergingKeyword] = []
+    bucket_names = sorted(buckets, key=str.casefold)
+    index = 0
+    while bucket_names and (limit is None or len(selected) < limit):
+        name = bucket_names[index]
+        bucket = buckets[name]
+        selected.append(bucket.pop(0))
+        if not bucket:
+            bucket_names.pop(index)
+            if not bucket_names:
+                break
+            index %= len(bucket_names)
+        else:
+            index = (index + 1) % len(bucket_names)
+    return selected
 
 
 def _deduplicate_candidates(items: list[EmergingKeyword]) -> list[EmergingKeyword]:
@@ -311,16 +498,12 @@ class TopDownDiscovery:
 
         from .conversation_gate import run_conversation_gate
 
-        # Select top candidates for gate check: prioritize freshest + highest growth
-        gate_candidates = sorted(
-            candidates,
-            key=lambda k: (
-                k.started_hours_ago is not None,
-                -(k.started_hours_ago or 0),
-                k.growth_pct if k.growth_pct is not None else float("-inf"),
-            ),
-            reverse=True,
-        )[:max_keywords]
+        # Rank within each source category, then round-robin categories so a
+        # large current-events bucket cannot monopolise the bounded check set.
+        gate_candidates = diversified_candidates(
+            rank_candidates(candidates),
+            limit=max_keywords,
+        )
 
         gate_keywords = [k.keyword for k in gate_candidates]
 
@@ -438,7 +621,7 @@ class TopDownDiscovery:
             min_growth: Minimum growth % to include (0 = no filter).
             max_age_hours: Only trends started within this window (0 = no filter).
             categories: Only include keywords matching these categories
-                        (None = all categories, e.g. ["Health", "Consumer Products"]).
+                        (None = all categories, e.g. ["Health", "Shopping"]).
             gate_only: Only return keywords that passed the conversation gate.
         """
         from social_scraper.discovery.scan_modes import (
@@ -515,15 +698,7 @@ class TopDownDiscovery:
             candidates = [k for k in candidates if k.gate_passed is True]
 
         # Neutral collection priority. Active user lenses may rerank this set.
-        result = sorted(
-            candidates,
-            key=lambda k: (
-                k.started_hours_ago is not None,
-                -k.started_hours_ago if k.started_hours_ago is not None else -999,
-                k.growth_pct if k.growth_pct is not None else float("-inf"),
-            ),
-            reverse=True,
-        )
+        result = rank_candidates(candidates)
 
         gate_count = sum(1 for k in result if k.gate_passed)
         total = len(result)

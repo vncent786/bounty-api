@@ -8,7 +8,8 @@
     families: [], selectedFamily: null,
     candidates: [], selectedCandidate: null, selectedForPlan: new Set(),
     discoveryRunId: null, discoveryRunStatus: null, researchRunId: null, researchRunStatus: null,
-    workspaceEpoch: 0, globalExploreEpoch: 0,
+    workspaceEpoch: 0, globalExploreEpoch: 0, trendScanEpoch: 0, discoveryOptionsLoaded: false,
+    trendScanGeo: null, trendScanCountry: null,
   };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -47,6 +48,13 @@
     const node = $('#global-error');
     node.textContent = message;
     node.classList.remove('hidden');
+  }
+
+  function clearError(prefix = '') {
+    const node = $('#global-error');
+    if (prefix && !node.textContent.startsWith(prefix)) return;
+    node.textContent = '';
+    node.classList.add('hidden');
   }
 
   async function api(path, options = {}, retried = false) {
@@ -106,7 +114,7 @@
     if (name === 'lenses') loadLenses();
     if (name === 'explore') {
       const epoch = state.workspaceEpoch;
-      Promise.all([ensureLenses(), loadGlobalExplore()]).catch(error => {
+      Promise.all([ensureLenses(), loadDiscoveryOptions(), loadGlobalExplore()]).catch(error => {
         if (epoch === state.workspaceEpoch) showError(error.message);
       });
     }
@@ -361,12 +369,81 @@
 
   async function reviewExplore(event) {
     event.preventDefault();
-    const geo = $('#explore-geo').value.trim().toUpperCase();
-    $('#confirm-copy').textContent = `Region ${geo}; minimum volume ${$('#explore-volume').value}; minimum growth ${$('#explore-growth').value}%; freshness ${$('#explore-age').value === '0' ? 'any' : `${$('#explore-age').value} hours`}; ${$('#explore-verified').checked ? 'confirmed checks only' : 'include incomplete checks'}.`;
+    const country = $('#explore-geo').selectedOptions[0]?.textContent || $('#explore-geo').value;
+    const category = $('#explore-cat-filter').selectedOptions[0]?.textContent || 'Balanced across all categories';
+    const postCheck = $('#explore-verified').checked
+      ? 'Bounty will also check root public posts for up to 20 category-balanced topics. A failed or empty post check will not hide the topic.'
+      : 'This is a Google Trends snapshot only. No public posts, threads, or comments will be read.';
+    $('#confirm-copy').textContent = `${country}; ${category}. ${postCheck} Search activity only surfaces topics for investigation; it is not evidence of an investment or customer conclusion.`;
     const dialog = $('#confirm-dialog');
+    dialog.returnValue = '';
     dialog.showModal();
     const answer = await new Promise(resolve => dialog.addEventListener('close', () => resolve(dialog.returnValue), { once: true }));
     if (answer === 'confirm') runExplore();
+  }
+
+  async function loadDiscoveryOptions() {
+    if (state.discoveryOptionsLoaded) return;
+    try {
+      const data = await api('/discover/options');
+      const countrySelect = $('#explore-geo');
+      const categorySelect = $('#explore-cat-filter');
+      const savedCountrySelect = $('#global-geo');
+      const currentCountry = countrySelect.value || data.defaults?.country || 'US';
+      const currentCategory = categorySelect.value || '';
+      const currentSavedCountry = savedCountrySelect?.value || '';
+      const countries = Array.isArray(data.countries) ? data.countries : [];
+      const categories = Array.isArray(data.categories) ? data.categories : [];
+
+      if (countries.length) {
+        countrySelect.replaceChildren();
+        countries.forEach(country => {
+          const option = el('option', '', country.name || country.label || country.code);
+          option.value = country.code || country.id || '';
+          countrySelect.append(option);
+        });
+        countrySelect.value = [...countrySelect.options].some(option => option.value === currentCountry)
+          ? currentCountry
+          : (data.defaults?.country || 'US');
+        if (savedCountrySelect) {
+          const allCountries = el('option', '', 'All countries');
+          allCountries.value = '';
+          const globalCountry = el('option', '', 'Global / multi-country');
+          globalCountry.value = 'GLOBAL';
+          savedCountrySelect.replaceChildren(allCountries, globalCountry);
+          countries.forEach(country => {
+            const option = el('option', '', country.name || country.label || country.code);
+            option.value = country.code || country.id || '';
+            savedCountrySelect.append(option);
+          });
+          savedCountrySelect.value = [...savedCountrySelect.options].some(
+            option => option.value === currentSavedCountry
+          ) ? currentSavedCountry : '';
+        }
+      }
+
+      categorySelect.replaceChildren();
+      const balanced = el('option', '', 'Balanced across all categories');
+      balanced.value = '';
+      categorySelect.append(balanced);
+      categories.forEach(item => {
+        const name = typeof item === 'string' ? item : item.name || item.label;
+        if (!name) return;
+        const option = el('option', '', name);
+        option.value = name;
+        categorySelect.append(option);
+      });
+      if ([...categorySelect.options].some(option => option.value === currentCategory)) {
+        categorySelect.value = currentCategory;
+      }
+      syncSavedCountryOptions();
+      clearError('Country and topic options could not be refreshed:');
+      state.discoveryOptionsLoaded = true;
+    } catch (error) {
+      // Keep the static United States fallback usable instead of blocking the
+      // rest of Explore when only the options request fails.
+      showError(`Country and topic options could not be refreshed: ${error.message}`);
+    }
   }
 
   function selectedFamilyFilters() {
@@ -424,8 +501,22 @@
     });
     $('#family-count').textContent = `${visible.length} of ${state.families.length}`;
     grid.replaceChildren();
+    if (!state.families.length) {
+      grid.append(emptyState(
+        'No saved topic families yet',
+        'The standing register is empty',
+        'Live topic-scan results appear in the separate register below. Saved families appear here after a standing discovery run.',
+        true,
+      ));
+      return;
+    }
     if (!visible.length) {
-      grid.append(emptyState('No matching families', 'Nothing passed these view filters', 'Broaden the stage or region filter. Rejected and unclear families remain available when explicitly included.', true));
+      grid.append(emptyState(
+        'No saved families match these filters',
+        'The standing register has no matching entries',
+        'Broaden the stage or country filter. Rejected and unclear families remain available when explicitly included.',
+        true,
+      ));
       return;
     }
     visible.forEach((family, index) => {
@@ -492,52 +583,140 @@
     } catch (error) { showError(error.message); }
   }
 
+  function appendExploreRecovery(target, { failed = false } = {}) {
+    const country = $('#explore-geo').selectedOptions[0]?.textContent || $('#explore-geo').value;
+    const category = $('#explore-cat-filter').value;
+    const box = emptyState(
+      failed ? 'Source unavailable' : 'No current topics',
+      failed ? 'The scan did not complete' : `No topics returned for ${country}`,
+      failed
+        ? 'Your country and topic choices are still selected. Retry, or change one input before running again.'
+        : (category
+          ? 'Keep the country, switch back to the balanced topic mix, and run again.'
+          : 'The source returned no current topics for this country. Choose another country and run again.'),
+      true,
+    );
+    const actions = el('div', 'actions');
+    if (failed) {
+      const retry = el('button', 'primary', 'Try again');
+      retry.type = 'button';
+      retry.addEventListener('click', () => $('#explore-form').requestSubmit());
+      actions.append(retry);
+    }
+    if (category) {
+      const balanced = el('button', 'quiet', 'Use balanced topic mix');
+      balanced.type = 'button';
+      balanced.addEventListener('click', () => {
+        $('#explore-cat-filter').value = '';
+        $('#explore-cat-filter').focus();
+        toast('Balanced topic mix selected. Press Find topics when ready.');
+      });
+      actions.append(balanced);
+    }
+    const changeCountry = el('button', 'quiet', 'Choose another country');
+    changeCountry.type = 'button';
+    changeCountry.addEventListener('click', () => $('#explore-geo').focus());
+    actions.append(changeCountry);
+    box.append(actions);
+    target.replaceChildren(box);
+  }
+
   async function runExplore() {
     const results = $('#explore-results'); const button = $('#explore-form button[type=submit]');
-    button.disabled = true; button.textContent = 'Searching…';
-    results.replaceChildren(emptyState('Live search', 'Checking sources', 'Keep this page open while the bounded search completes.', true));
-    $('#explore-preview').replaceChildren(el('strong', '', 'Running. '), document.createTextNode('Live sources are being checked within the reviewed limits.'));
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    const requestScanEpoch = ++state.trendScanEpoch;
+    const requestGeo = $('#explore-geo').value.trim().toUpperCase();
+    const requestCountry = $('#explore-geo').selectedOptions[0]?.textContent || requestGeo;
+    const isStale = () => (
+      requestEpoch !== state.workspaceEpoch
+      || requestWorkspace !== state.workspace
+      || requestScanEpoch !== state.trendScanEpoch
+    );
+    clearError();
+    state.candidates = [];
+    state.selectedCandidate = null;
+    state.selectedForPlan.clear();
+    state.discoveryRunId = null;
+    state.discoveryRunStatus = null;
+    state.trendScanGeo = null;
+    state.trendScanCountry = null;
+    _detailEpoch += 1;
+    $('#usage-run').value = '';
+    $('#explore-detail').replaceChildren(emptyState('New scan', 'Choose a returned topic', 'Topic details and conversation-research actions appear after this scan finishes.'));
+    button.disabled = true; button.textContent = 'Finding topics…';
+    results.replaceChildren(emptyState('Live search', 'Reading the current search window', 'Keep this page open while Google Trends returns the selected country.', true));
+    const checkPosts = $('#explore-verified').checked;
+    $('#explore-preview').replaceChildren(
+      el('strong', '', 'Running. '),
+      document.createTextNode(checkPosts
+        ? 'Reading Google Trends, then checking matching root public posts for up to 20 balanced topics.'
+        : 'Reading Google Trends only. No public posts, threads, or comments are being read.'),
+    );
     // Explicit scan modes: the Trend feed defaults to the cheap Trends
-    // snapshot (zero social-source and zero LLM calls). "Confirmed checks
-    // only" runs root_sweep — root social evidence, no threads, no LLM.
-    // Deep reads and conversation analysis happen via research-runs only.
-    const query = new URLSearchParams({ geo: $('#explore-geo').value.trim().toUpperCase(), mode: $('#explore-verified').checked ? 'root_sweep' : 'trends_snapshot', min_volume: $('#explore-volume').value, min_growth: $('#explore-growth').value, max_age_hours: $('#explore-age').value, gate_only: $('#explore-verified').checked ? 'true' : 'false' });
+    // snapshot (zero social-source and zero LLM calls). The optional root
+    // sweep adds root public-post checks only. It never hides candidates.
+    const query = new URLSearchParams({
+      geo: requestGeo,
+      mode: checkPosts ? 'root_sweep' : 'trends_snapshot',
+      min_volume: $('#explore-volume').value,
+      min_growth: $('#explore-growth').value,
+      max_age_hours: $('#explore-age').value,
+      gate_only: 'false',
+    });
+    const category = $('#explore-cat-filter').value;
+    if (category) query.set('categories', category);
     try {
       const data = await api(`/discover?${query}`);
+      if (isStale()) return;
       state.candidates = data.keywords || [];
       state.discoveryRunId = data.run_id || null;
       state.discoveryRunStatus = data.run?.status || null;
+      state.trendScanGeo = requestGeo;
+      state.trendScanCountry = requestCountry;
       state.selectedCandidate = null; state.selectedForPlan.clear();
       $('#usage-run').value = state.discoveryRunId || '';
       $('#explore-preview').textContent = state.discoveryRunStatus === 'complete'
-        ? `Completed discovery run ${state.discoveryRunId}. Results are held in this browser session.`
-        : `Search returned ${state.candidates.length} results, but persisted completion status was not available.`;
+        ? `Discovery run ${state.discoveryRunId} completed. ${state.candidates.length} current topic(s) are held in this browser session; search activity is not evidence.`
+        : `Search returned ${state.candidates.length} topic(s), but persisted completion status was not available.`;
       renderExploreResults(); renderFindings();
     } catch (error) {
-      results.replaceChildren(emptyState('Failed', 'Search did not complete', error.message, true));
-      $('#explore-preview').textContent = `Search failed: ${error.message}`;
-    } finally { button.disabled = false; button.textContent = 'Search trends'; }
+      if (isStale()) return;
+      appendExploreRecovery(results, { failed: true });
+      $('#explore-preview').textContent = `Search failed: ${error.message}. Your country and topic choices were preserved.`;
+    } finally {
+      if (!isStale()) { button.disabled = false; button.textContent = 'Find topics'; }
+    }
   }
 
   function candidateName(candidate) { return candidate.keyword || candidate.name || candidate.query || candidate.id || 'Unnamed result'; }
   function candidateId(candidate, index) { return String(candidate._plannedId || candidate.candidate_id || candidate.id || candidate.keyword || candidate.name || index).trim().toLowerCase().split(/\s+/).join(' '); }
 
+  function publicPostStatus(candidate) {
+    const analysis = candidate.conversation_analysis || candidate.analysis || {};
+    const status = String(analysis.status || candidate.gate_status || 'not_checked').toLowerCase();
+    const items = candidate.gate_total_items ?? analysis.total_items;
+    const hasPosts = candidate.gate_passed === true || (items != null && Number(items) > 0);
+    if (status === 'complete') return hasPosts ? 'Matching public posts found' : 'No matching posts on sites checked';
+    if (status === 'empty') return 'No matching posts on sites checked';
+    if (status === 'partial') return hasPosts ? 'Matching public posts found; some sites could not be checked' : 'Some sites could not be checked';
+    if (status === 'failed' || status === 'error') return 'Public-post check failed';
+    return 'Public posts not checked';
+  }
+
   function renderExploreResults() {
     const list = $('#explore-results'); list.replaceChildren();
-    // Apply category filter
-    const catFilter = $('#explore-cat-filter')?.value || '';
-    const filtered = catFilter ? state.candidates.filter(c => (c.categories || c.category || '').includes(catFilter)) : state.candidates;
-    $('#explore-count').textContent = catFilter ? `${filtered.length} of ${state.candidates.length}` : `${state.candidates.length} returned`;
-    if (!filtered.length) { list.append(emptyState('Empty result', catFilter ? `No topics in "${catFilter}"` : 'No topics matched', catFilter ? 'Try a different category filter or clear it to see all results.' : 'The live search completed but returned no results within the selected filters.', true)); return; }
-    filtered.forEach((candidate, index) => {
-      const id = candidateId(candidate, index); const row = el('button', `data-row${state.selectedCandidate === candidate ? ' selected' : ''}`); row.type = 'button';
-      const analysis = candidate.conversation_analysis || candidate.analysis || {};
+    $('#explore-count').textContent = `${state.candidates.length} returned`;
+    if (!state.candidates.length) {
+      appendExploreRecovery(list);
+      return;
+    }
+    state.candidates.forEach((candidate, index) => {
+      const id = candidateId(candidate, index);
+      const row = el('article', `data-row trend-result-row${state.selectedCandidate === candidate ? ' selected' : ''}`);
       const growth = candidate.growth_pct ?? candidate.growth;
-      const statusText = String(analysis.status || candidate.gate_status || '').toLowerCase();
-      const statusDisplay = statusText === 'partial' ? 'Some sources checked' : statusText === 'complete' ? 'Verified' : statusText === 'not_checked' ? 'Not yet checked' : statusText ? statusText.replaceAll('_', ' ') : 'Not checked';
+      const statusDisplay = publicPostStatus(candidate);
       const vol = candidate.search_volume ?? candidate.volume;
-      append(row, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No summary returned'), el('span', 'row-meta', `${vol != null ? count(vol) + ' searches' : 'Unknown volume'} · ${growth == null ? 'Unknown growth' : `${growth}% growth`} · ${statusDisplay}`));
-      row.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); });
       const check = el('input'); check.type = 'checkbox'; check.checked = state.selectedForPlan.has(id); check.setAttribute('aria-label', `Select ${candidateName(candidate)} for research plan`);
       check.addEventListener('click', event => {
         event.stopPropagation();
@@ -549,7 +728,15 @@
         check.checked ? state.selectedForPlan.add(id) : state.selectedForPlan.delete(id);
         renderSelectionBar();
       });
-      row.prepend(check); list.append(row);
+      const select = el('label', 'trend-select');
+      select.setAttribute('title', `Select ${candidateName(candidate)} for research`);
+      select.append(check);
+      const open = el('button', 'trend-result-open');
+      open.type = 'button';
+      open.setAttribute('aria-pressed', String(state.selectedCandidate === candidate));
+      append(open, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No category returned'), el('span', 'row-meta', `${vol != null ? count(vol) + ' searches' : 'Search volume unavailable'} · ${growth == null ? 'Growth unavailable' : `${growth}% growth`} · ${statusDisplay}`));
+      open.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); });
+      append(row, select, open); list.append(row);
     });
     const bar = el('div', 'selection-bar'); bar.id = 'selection-bar'; list.append(bar); renderSelectionBar();
   }
@@ -730,19 +917,20 @@
 
     // Header
     const head = el('div', 'detail-head'); const intro = el('div');
-    append(intro, el('p', 'eyebrow', candidate.categories || candidate.category || 'Trending topic'), el('h2', '', candidateName(candidate)), statusBadge(analysis.status || candidate.gate_status || 'not_checked'));
+    const scanGeo = state.trendScanGeo || candidate.geo || 'US';
+    const scanCountry = state.trendScanCountry || scanGeo;
+    const topicArea = candidate.categories || candidate.category || 'Trending topic';
+    append(intro, el('p', 'eyebrow', `${topicArea} · ${scanCountry}`), el('h2', '', candidateName(candidate)), statusBadge(analysis.status || candidate.gate_status || 'not_checked'));
     const actions = el('div', 'actions');
     const id = candidateId(candidate, index);
 
-    // Quick research button — reads conversations immediately
+    // Quick research uses the same lens-aware plan path as multi-topic research.
     const quickBtn = el('button', 'primary', 'Research conversations');
-    quickBtn.addEventListener('click', () => {
-      const topic = candidateName(candidate);
-      const briefName = $('#direct-research-name');
-      if (!briefName.value.trim()) briefName.value = `${topic} · emerging-trend investigation`;
-      $('#direct-preset').value = 'investing-social-arbitrage';
-      $('#direct-topic').value = topic;
-      $('#research-topic-btn').click();
+    quickBtn.addEventListener('click', async () => {
+      state.selectedForPlan.clear();
+      state.selectedForPlan.add(id);
+      renderExploreResults();
+      await createResearchPlan({ currentTarget: quickBtn }, { autoStart: true });
     });
     actions.append(quickBtn);
 
@@ -774,6 +962,7 @@
         el('dt', '', 'Search volume'), el('dd', '', count(candidate.search_volume ?? candidate.volume)),
         el('dt', '', 'Growth'), el('dd', '', growth == null ? 'Unknown' : `${growth}%`),
         el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
+        el('dt', '', 'Country'), el('dd', '', scanCountry),
       );
       detail.append(stats);
     }
@@ -784,9 +973,8 @@
     detail.append(enrichDiv);
 
     try {
-      const geo = ($('#explore-geo')?.value || 'US').trim().toUpperCase();
       const kw = candidateName(candidate);
-      const enriched = await api(`/discover/trend-detail?keyword=${enc(kw)}&geo=${enc(geo)}`);
+      const enriched = await api(`/discover/trend-detail?keyword=${enc(kw)}&geo=${enc(scanGeo)}`);
       if (myEpoch !== _detailEpoch) return; // user clicked another trend
 
       enrichDiv.replaceChildren();
@@ -829,7 +1017,7 @@
     }
   }
 
-  async function createResearchPlan(event) {
+  async function createResearchPlan(event, { autoStart = false } = {}) {
     if (!state.selectedForPlan.size) return;
     if (state.selectedForPlan.size > 5) {
       showError('Use no more than five topics in one research brief.');
@@ -883,6 +1071,7 @@
       findBtn.id = 'load-findings-btn';
       findBtn.addEventListener('click', () => loadFindings());
       append(preview, statusText, execBtn, findBtn);
+      if (autoStart) await executeResearchRun();
     } catch (error) {
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       showError(error.message);
@@ -1261,7 +1450,7 @@
     { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty reads online conversations and returns cited findings. Two ways in: research a niche you can already name, or scan for emerging topics you did not know about.' },
     { view: 'explore', target: '#scan-composer-title', placement: 'bottom', title: 'Compose a scan', body: 'Workflow A reads a known niche in depth — pain points, objections, workarounds, verbatim audience language. Workflow B scans live trends for unknown unknowns, useful for investing.' },
     { view: 'explore', target: '#direct-topic', placement: 'bottom', title: 'Known topic, bounded read', body: 'Type a company, product, or question here. Bounty goes straight to reading conversations — no need to browse trends. This is the fastest way to research something specific.' },
-    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Unknown trends, live scan', body: 'Filter by region, searches, and growth to see what is rising now. Every promising topic still has to pass a real-conversation check before it counts.' },
+    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Unknown trends, live scan', body: 'Choose a country and keep the balanced topic mix unless you already have a focus. Search activity surfaces topics to investigate; it is not evidence by itself.' },
     { view: 'explore', target: '#run-receipt-title', placement: 'bottom', title: 'Check the run receipt', body: 'The dark strip records what actually ran and what did not. Receipts, not estimates. Missing evidence stays missing.' },
     { view: 'explore', target: '#explore-results', placement: 'right', title: 'Candidate register', body: 'Scan results appear in this register. Select up to five topics and research them to read what people are actually saying.' },
     { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Read the findings', body: 'Completed runs show their findings here: extracted signals with quotes, evidence records, coverage states, and honest limitations. If evidence is thin, Bounty says so.' },
@@ -1379,6 +1568,8 @@
     $('#save-workspace').addEventListener('click', () => {
       const key = $('#workspace-key').value.trim() || 'default';
       state.workspaceEpoch += 1;
+      state.trendScanEpoch += 1;
+      _detailEpoch += 1;
       state.workspace = key;
       localStorage.setItem('bounty.workspace', key);
       state.project = null;
@@ -1391,20 +1582,28 @@
       state.selectedForPlan.clear();
       state.discoveryRunId = null;
       state.discoveryRunStatus = null;
+      state.trendScanGeo = null;
+      state.trendScanCountry = null;
       state.researchRunId = null;
       state.researchRunStatus = null;
       persistedFindings = [];
       activeResearchRun = null;
       state.subjects.clear();
+      $('#usage-run').value = '';
+      $('#explore-results').replaceChildren(emptyState('No scan yet', 'Choose a country and find topics', 'Current search topics will appear here.'));
+      $('#explore-detail').replaceChildren(emptyState('No selection', 'Select a topic', 'Search context and conversation-research actions appear here.'));
+      $('#explore-preview').replaceChildren();
+      const scanButton = $('#explore-form button[type=submit]');
+      scanButton.disabled = false;
+      scanButton.textContent = 'Find topics';
       toast(`Using workspace ${key}`);
       showView('explore');
     });
-    $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
+    $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); if (token.trim()) loadDiscoveryOptions(); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
  $('#start-tour').addEventListener('click', startTour);
  $('#research-topic-btn').addEventListener('click', researchTopic);
  $('#direct-topic').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); researchTopic(); } });
- $('#explore-cat-filter')?.addEventListener('change', renderExploreResults);
  $('#refresh-families')?.addEventListener('click', loadGlobalExplore);
  $('#global-perspective')?.addEventListener('change', loadGlobalExplore);
  $('#global-stage')?.addEventListener('change', renderGlobalExplore);

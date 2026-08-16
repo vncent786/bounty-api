@@ -39,7 +39,10 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
     assert response.status_code == 200
     assert '<link rel="stylesheet" href="/dashboard.css">' in html
     assert '<script src="/dashboard.js" defer></script>' in html
-    assert '/logo-wordmark-dark-master.png' in html
+    # Typography-led wordmark; the raster logo is retired.
+    assert "logo-wordmark" not in html
+    assert '<span class="brand-name">BOUNTY</span>' in html
+    assert "Research API" in html
     assert all(label in html for label in (
         "Projects", "Explore", "Findings", "Lenses", "Monitors", "Usage"
     ))
@@ -60,6 +63,109 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
         assert forbidden not in html.casefold()
     assert "BOUNTY_DASHBOARD_TOKEN" not in html
     assert DASHBOARD_HTML == html
+
+
+def test_dashboard_shell_defaults_to_explore_behind_a_numbered_masthead():
+    html = get_dashboard_html().body.decode()
+    # Explore is the front door: it ships as the active view.
+    assert '<section class="view active" id="view-explore"' in html
+    assert '<section class="view" id="view-projects"' in html
+    # The sidebar shell is gone, replaced by a top masthead.
+    assert 'id="masthead"' in html
+    assert 'class="sidebar"' not in html
+    # Legacy functional IDs remain attached to their new masthead roles.
+    assert 'id="menu-toggle"' in html
+    assert 'id="sidebar"' in html
+    assert 'id="changing-title"' in html
+    assert 'aria-label="Product"' in html
+    # Numbered navigation in the declared order, Explore first.
+    order = ["explore", "projects", "findings", "lenses", "monitors", "usage"]
+    positions = [html.index(f'data-view="{view}"') for view in order]
+    assert positions == sorted(positions)
+    for number in range(1, 7):
+        assert f'<span class="nav-no">{number:02d}</span>' in html
+
+
+def test_global_explore_visibly_organizes_composer_register_sheet_and_receipt():
+    html = get_dashboard_html().body.decode()
+    for label in ("Scan composer", "Candidate register", "Evidence sheet", "Run receipt"):
+        assert label in html, label
+    # Both co-primary workflows stay obvious at a glance.
+    assert "Workflow A · Known topic" in html
+    assert "Workflow B · Emerging trends" in html
+    assert "Bounded research brief" in html
+    assert "Live trend scan" in html
+    # The dark receipt keeps both status channels.
+    assert 'id="global-explore-status"' in html
+    assert 'id="explore-preview"' in html
+
+
+def test_dashboard_assets_carry_no_emoji_or_decoration_glyphs():
+    from pathlib import Path
+
+    html = get_dashboard_html().body.decode()
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    offenders = [
+        ch for ch in html + script
+        if (
+            0x1F000 <= ord(ch)
+            or 0x2190 <= ord(ch) <= 0x21FF
+            or 0x2600 <= ord(ch) <= 0x27BF
+        )
+    ]
+    assert not offenders, offenders
+
+
+def test_dashboard_css_ships_the_paper_ink_cobalt_system():
+    from pathlib import Path
+
+    css = (Path(__file__).parents[1] / "public" / "dashboard.css").read_text(encoding="utf-8")
+    assert "#f4f1e8" in css      # warm paper ground
+    assert "#111" in css         # ink text and rules
+    assert "#085ffe" in css      # the single cobalt accent
+    # Flat print system: no gradients, no rounded corners, no movement effects.
+    assert "linear-gradient" not in css.casefold()
+    assert "radial-gradient" not in css.casefold()
+    assert "border-radius" not in css
+    for motion in ("translate", "scale(", "rotate("):
+        assert motion not in css, motion
+    # The dark sidebar is gone; ink appears only as blocks on paper.
+    assert "grid-template-columns:224px" not in css
+    # Mobile is designed, not accidental.
+    assert "@media (max-width: 390px)" in css
+    assert ".masthead-nav.open" in css
+    # Persisted families are rendered as ledger rows, never feed cards.
+    assert ".family-card" not in css
+
+
+def test_dashboard_script_defaults_to_explore_and_never_auto_tours():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    assert "showView(['projects','explore','findings','lenses','monitors','usage'].includes(initial) ? initial : 'explore')" in script
+    # First-load auto-tour interruption removed...
+    assert "setTimeout(startTour" not in script
+    # ...but the manual tour entry point survives.
+    assert "$('#start-tour').addEventListener('click', startTour)" in script
+    # The old shell is gone, while its functional mobile-nav hooks survive.
+    assert "$('#menu-toggle').addEventListener('click'" in script
+    assert "$('#sidebar').classList.toggle('open')" in script
+    assert "known-topic-section" not in script
+    assert "family-card" not in script
+    assert "candidate-row" in script
+
+
+def test_dashboard_script_keeps_explore_anchor_ids_under_the_new_shell():
+    from pathlib import Path
+
+    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    for anchor in (
+        "$('#family-grid')", "$('#family-detail')", "$('#explore-results')",
+        "$('#explore-detail')", "$('#explore-preview')", "$('#global-explore-status')",
+        "$('#direct-topic')", "$('#explore-form')",
+    ):
+        assert anchor in script, anchor
+    assert "safeUrl(item.record.url)" in script
 
 
 def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth():

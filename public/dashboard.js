@@ -428,14 +428,17 @@
       grid.append(emptyState('No matching families', 'Nothing passed these view filters', 'Broaden the stage or region filter. Rejected and unclear families remain available when explicitly included.', true));
       return;
     }
-    visible.forEach(family => {
-      const card = el('article', `family-card${state.selectedFamily?.family_id === family.family_id ? ' selected' : ''}`);
-      const header = el('div', 'family-card-head');
+    visible.forEach((family, index) => {
+      const card = el('article', `candidate-row${state.selectedFamily?.family_id === family.family_id ? ' selected' : ''}`);
+      const header = el('div', 'candidate-row-head');
+      const rank = el('span', 'candidate-rank mono', String(index + 1).padStart(2, '0'));
       const title = el('button', 'family-open', family.label || 'Unnamed topic family');
-      title.type = 'button'; title.addEventListener('click', () => {
+      title.type = 'button';
+      title.setAttribute('aria-pressed', String(state.selectedFamily?.family_id === family.family_id));
+      title.addEventListener('click', () => {
         state.selectedFamily = family; renderGlobalExplore(); renderFamilyDetail(family);
       });
-      append(header, title, statusBadge(family.stage || 'unclear'));
+      append(header, rank, title, statusBadge(family.stage || 'unclear'));
       const explanation = family.what_it_is?.text || 'Not enough context yet.';
       const terms = (family.member_terms || []).slice(0, 4).map(item => item.term).filter(Boolean);
       const routes = (family.why_surfaced || []).filter(item => item.passed !== false).map(item => item.route).filter(Boolean);
@@ -460,7 +463,6 @@
     const investigate = el('button', 'primary', 'Investigate');
     investigate.addEventListener('click', () => {
       $('#direct-topic').value = family.label || '';
-      $('.known-topic-section').open = true;
       $('#direct-topic').focus();
     });
     const monitor = el('button', 'quiet', 'Request monitor'); monitor.addEventListener('click', () => runFamilyAction(family, 'monitor'));
@@ -514,7 +516,7 @@
     } catch (error) {
       results.replaceChildren(emptyState('Failed', 'Search did not complete', error.message, true));
       $('#explore-preview').textContent = `Search failed: ${error.message}`;
-    } finally { button.disabled = false; button.textContent = 'Review search'; }
+    } finally { button.disabled = false; button.textContent = 'Search trends'; }
   }
 
   function candidateName(candidate) { return candidate.keyword || candidate.name || candidate.query || candidate.id || 'Unnamed result'; }
@@ -693,12 +695,12 @@
     svg.setAttribute('preserveAspectRatio', 'none');
     svg.classList.add('sparkline');
     const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
-    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', '#7dd3a0');
+    poly.setAttribute('fill', 'none'); poly.setAttribute('stroke', '#085ffe');
     poly.setAttribute('stroke-width', '2'); poly.setAttribute('points', pts.join(' '));
     svg.appendChild(poly);
     if (values.length > 2) {
       const area = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-      area.setAttribute('fill', 'rgba(125,211,160,0.12)');
+      area.setAttribute('fill', 'rgba(8,95,254,0.10)');
       area.setAttribute('points', `0,${height} ${pts.join(' ')} ${width},${height}`);
       svg.insertBefore(area, poly);
     }
@@ -797,7 +799,7 @@
         const recent = values.slice(-4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
         const early = values.slice(0, 4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
         const velocity = early > 0 ? Math.round(((recent - early) / early) * 100) : 0;
-        const velText = velocity > 0 ? `↑ ${velocity}% accelerating` : velocity < 0 ? `↓ ${Math.abs(velocity)}% cooling` : 'Steady';
+        const velText = velocity > 0 ? `${velocity}% accelerating` : velocity < 0 ? `${Math.abs(velocity)}% cooling` : 'Steady';
         chartBox.append(el('p', 'muted small', `Range ${lo}\u2013${hi} (0\u2013100 scale) · ${velText}`));
         enrichDiv.append(chartBox);
       }
@@ -1251,13 +1253,16 @@
 
   // ── Guided tour ────────────────────────────────────────────
   // Data-driven steps. Update this array as the product evolves.
+  // The tour is manual only: nothing interrupts the first load.
   const tourSteps = [
-    { view: 'projects', target: '#projects-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty finds what people are saying across the web, reads the conversations, and gives you cited signals you can act on. Let\'s walk through how it works.' },
-    { view: 'projects', target: '[data-open="project-dialog"]', placement: 'bottom', title: 'Start with a project', body: 'A project organizes your research objective. Create one for each thing you want to understand. Each project can hold multiple monitored subjects.' },
-    { view: 'explore', target: '#direct-topic', placement: 'bottom', title: 'Research any topic', body: 'Type a company, product, or question here. Bounty goes straight to reading conversations — no need to browse trends. This is the fastest way to research something specific.' },
-    { view: 'explore', target: '.trends-section', placement: 'bottom', title: 'Or browse trends', body: 'Expand this to see what\'s trending on Google. Filter by region, volume, and growth. Useful for discovering emerging topics you didn\'t know about.' },
-    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Results', body: 'Topics appear here. "Searches" = how many people searched for it. "Growth" = how fast it\'s rising. Select topics and click "Research these topics" to read what people are actually saying.' },
+    { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty reads online conversations and returns cited findings. Two ways in: research a niche you can already name, or scan for emerging topics you did not know about.' },
+    { view: 'explore', target: '#scan-composer-title', placement: 'bottom', title: 'Compose a scan', body: 'Workflow A reads a known niche in depth — pain points, objections, workarounds, verbatim audience language. Workflow B scans live trends for unknown unknowns, useful for investing.' },
+    { view: 'explore', target: '#direct-topic', placement: 'bottom', title: 'Known topic, bounded read', body: 'Type a company, product, or question here. Bounty goes straight to reading conversations — no need to browse trends. This is the fastest way to research something specific.' },
+    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Unknown trends, live scan', body: 'Filter by region, searches, and growth to see what is rising now. Every promising topic still has to pass a real-conversation check before it counts.' },
+    { view: 'explore', target: '#run-receipt-title', placement: 'bottom', title: 'Check the run receipt', body: 'The dark strip records what actually ran and what did not. Receipts, not estimates. Missing evidence stays missing.' },
+    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Candidate register', body: 'Scan results appear in this register. Select up to five topics and research them to read what people are actually saying.' },
     { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Read the findings', body: 'Completed runs show their findings here: extracted signals with quotes, evidence records, coverage states, and honest limitations. If evidence is thin, Bounty says so.' },
+    { view: 'projects', target: '#projects-title', placement: 'bottom', title: 'Organize projects', body: 'Projects group research subjects and scope planned actions. Each subject can be monitored on a cadence.' },
     { view: 'lenses', target: '#lenses-title', placement: 'bottom', title: 'Define evaluation lenses', body: 'Lenses are versioned criteria for reading findings in context. Investing, product research, and marketing can each have different lenses. Nothing about the core model is domain-specific.' },
     { view: 'monitors', target: '#monitors-title', placement: 'bottom', title: 'Monitor subjects', body: 'Turn any subject into a recurring monitor. Bounty re-reads conversations on your schedule and flags what changed.' },
     { view: 'usage', target: '#usage-title', placement: 'bottom', title: 'Track every call', body: 'Usage shows exact receipts: source calls, LLM calls, cache hits, tokens consumed. No estimates, no hidden costs. This is your audit trail.' },
@@ -1364,7 +1369,10 @@
     $$('[data-view-link]').forEach(button => button.addEventListener('click', () => showView(button.dataset.viewLink)));
     $$('[data-open]').forEach(button => button.addEventListener('click', async () => { if (button.dataset.open === 'lens-dialog') resetLensForm(); if (button.dataset.open === 'subject-dialog') { try { await ensureLenses(); } catch (error) { showError(error.message); return; } } $(`#${button.dataset.open}`).showModal(); }));
     $$('[data-close]').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
-    $('#menu-toggle').addEventListener('click', event => { const open = $('#sidebar').classList.toggle('open'); event.currentTarget.setAttribute('aria-expanded', String(open)); });
+    $('#menu-toggle').addEventListener('click', event => {
+      const open = $('#sidebar').classList.toggle('open');
+      event.currentTarget.setAttribute('aria-expanded', String(open));
+    });
     $('#save-workspace').addEventListener('click', () => {
       const key = $('#workspace-key').value.trim() || 'default';
       state.workspaceEpoch += 1;
@@ -1386,7 +1394,7 @@
       activeResearchRun = null;
       state.subjects.clear();
       toast(`Using workspace ${key}`);
-      showView('projects');
+      showView('explore');
     });
     $('#set-token').addEventListener('click', () => { const token = prompt('API bearer token. Leave blank to clear this tab’s token.', getToken()); if (token === null) return; token.trim() ? sessionStorage.setItem('bounty.apiToken', token.trim()) : sessionStorage.removeItem('bounty.apiToken'); toast(token.trim() ? 'API token saved for this tab' : 'API token cleared'); });
     $('#project-form').addEventListener('submit', createProject); $('#subject-form').addEventListener('submit', createSubject); $('#lens-form').addEventListener('submit', saveLens); $('#explore-form').addEventListener('submit', reviewExplore); $('#load-usage').addEventListener('click', loadUsage);
@@ -1399,10 +1407,10 @@
  $('#global-stage')?.addEventListener('change', renderGlobalExplore);
  $('#global-geo')?.addEventListener('input', renderGlobalExplore);
  $('#global-include-rejected')?.addEventListener('change', renderGlobalExplore);
- // Auto-start on first visit
- if (!localStorage.getItem('bounty.tourCompleted') && !location.hash) setTimeout(startTour, 600);
  }
 
   bind();
-  const initial = location.hash.slice(1); showView(['projects','explore','findings','lenses','monitors','usage'].includes(initial) ? initial : 'projects');
+  // Explore is the front door. The tour stays manual: nothing
+  // interrupts the first load.
+  const initial = location.hash.slice(1); showView(['projects','explore','findings','lenses','monitors','usage'].includes(initial) ? initial : 'explore');
 })();

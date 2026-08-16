@@ -134,6 +134,7 @@ def test_dashboard_css_ships_the_paper_ink_cobalt_system():
     # Mobile is designed, not accidental.
     assert "@media (max-width: 390px)" in css
     assert ".masthead-nav.open" in css
+    assert ".source-link { display: inline-flex; align-items: center; min-height: 44px; }" in css
     # Persisted families are rendered as ledger rows, never feed cards.
     assert ".family-card" not in css
 

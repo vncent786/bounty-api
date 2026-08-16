@@ -850,6 +850,7 @@ dialog header h2 { font: 600 26px / 1.15 var(--serif); margin: 0; }
   .selection-bar button { width: 100%; }
   .sparkline { height: 40px !important; }
   .tag { font-size: 10.5px; }
+  .source-link { display: inline-flex; align-items: center; min-height: 44px; }
   .toast { left: 16px; right: 16px; }
   .brand-sub { display: none; }
   .composer-copy { font-size: 13px; }

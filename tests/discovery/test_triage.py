@@ -164,6 +164,8 @@ def test_source_failure_is_not_reported_as_no_conversation():
     ))
     assert result.status == "sources_unavailable"
     assert result.coverage["source_status"][0]["status"] == "error"
+    assert result.interpretation["conversation_state"] == "insufficient_evidence"
+    assert result.interpretation["signal_counts"] == {}
 
 
 def test_prepared_prompt_helper_matches_exactly_what_the_llm_receives():
@@ -234,7 +236,7 @@ def test_prepared_prompt_records_zero_when_no_usable_evidence_survives():
     assert sent == []
 
 
-def test_conversation_analysis_public_output_shape_is_unchanged():
+def test_conversation_analysis_public_output_shape_includes_interpretation():
     async def llm(_system, _user):
         return json.dumps({
             "summary": "s", "signals": [], "entities": [], "limitations": [],
@@ -247,6 +249,121 @@ def test_conversation_analysis_public_output_shape_is_unchanged():
         "topic", "status", "behavior_type", "direction", "novelty",
         "durability_evidence", "independent_voice_count", "products",
         "representative_record_ids", "summary", "summary_evidence_ids",
-        "signals", "entities",
+        "signals", "entities", "interpretation",
         "evidence", "coverage", "limitations", "llm_error", "schema_version",
     }
+
+
+def test_engagement_and_provenance_survive_prompt_and_public_evidence():
+    sent = []
+    provenance = {
+        "connector": "youtube_free",
+        "query": "topic",
+        "engagement_sources": {"views": "view_count"},
+    }
+    engagement = {
+        "views": 0,
+        "likes": 12,
+        "comments": None,
+        "shares": 3,
+        "collects": 4,
+        "upvotes": 5,
+        "replies": 6,
+        "reposts": 7,
+        "bookmarks": 8,
+        "creator_followers": 900,
+        "engagement_rate": 0.91,
+    }
+    posts = [
+        {
+            "platform": "youtube",
+            "external_id": "v1",
+            "url": "https://www.youtube.com/watch?v=v1&utm_source=kept",
+            "text": "A source record with observed engagement.",
+            "provenance": provenance,
+            "engagement": engagement,
+        },
+        {
+            "platform": "reddit",
+            "external_id": "r2",
+            "url": "https://www.reddit.com/r/example/comments/r2",
+            "text": "A source record with one explicit metric.",
+            "engagement": {"likes": 0},
+        },
+    ]
+
+    async def llm(_system, user):
+        sent.append(json.loads(user))
+        return json.dumps({
+            "summary": "", "summary_evidence_ids": [], "signals": [],
+            "entities": [], "limitations": [],
+        })
+
+    prepared = prepare_conversation_prompt("topic", posts)
+    result = asyncio.run(analyze_conversation(
+        "topic", posts, source_health=[], llm_call_fn=llm,
+    ))
+
+    expected_engagement = {
+        key: value for key, value in engagement.items()
+        if key != "engagement_rate"
+    }
+    assert prepared.evidence[0]["engagement"] == expected_engagement
+    assert prepared.evidence[1]["engagement"] == {"likes": 0}
+    assert prepared.evidence[0]["url"] == posts[0]["url"]
+    assert prepared.evidence[0]["provenance"] == provenance
+    assert sent[0]["evidence_records"][0]["engagement"] == expected_engagement
+    assert sent[0]["evidence_records"][0]["url"] == posts[0]["url"]
+    assert sent[0]["evidence_records"][0]["provenance"] == provenance
+    assert result.evidence[0]["engagement"] == expected_engagement
+    assert result.evidence[0]["url"] == posts[0]["url"]
+    assert result.evidence[0]["provenance"] == provenance
+
+
+@pytest.mark.parametrize(("kinds", "expected_state"), [
+    (["adoption", "adoption"], "observed_behavior"),
+    (["purchase_trigger"], "purchase_or_desire"),
+    (["rejection"], "negative_or_rejection"),
+    (["question"], "general_discussion"),
+    ([], "insufficient_evidence"),
+])
+def test_interpretation_is_deterministic_and_only_counts_cited_signals(
+    kinds, expected_state,
+):
+    async def llm(_system, _user):
+        return json.dumps({
+            "summary": "",
+            "summary_evidence_ids": [],
+            "signals": [
+                {
+                    "kind": kind,
+                    "claim": f"Cited {kind} claim {index}.",
+                    "polarity": "negative" if kind == "question" else "neutral",
+                    "evidence_ids": ["reddit:post:r1"],
+                }
+                for index, kind in enumerate(kinds)
+            ] + [{
+                "kind": "adoption",
+                "claim": "This unknown citation must not affect interpretation.",
+                "polarity": "positive",
+                "evidence_ids": ["reddit:post:not-supplied"],
+            }],
+            "entities": [],
+            "limitations": [],
+        })
+
+    result = asyncio.run(analyze_conversation(
+        "topic", POSTS[:1], source_health=[], llm_call_fn=llm,
+    ))
+
+    expected_counts = {kind: kinds.count(kind) for kind in dict.fromkeys(kinds)}
+    assert result.interpretation == {
+        "conversation_state": expected_state,
+        "signal_counts": expected_counts,
+        "limitations": [
+            "Brewing, turning, and conversation velocity cannot be concluded "
+            "without comparable collection periods."
+        ],
+    }
+    assert "score" not in result.interpretation
+    assert "trend" not in result.interpretation

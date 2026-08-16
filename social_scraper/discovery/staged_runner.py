@@ -43,6 +43,7 @@ class StagedRunResult:
 
 
 StageHandler = Callable[..., Awaitable[StageHandlerResult | Mapping[str, Any] | None]]
+ProgressRecorder = Callable[[Mapping[str, Any]], Any]
 
 
 class StagedRunner:
@@ -50,9 +51,45 @@ class StagedRunner:
         self,
         handlers: Mapping[str, StageHandler],
         usage_recorder: Callable[[StageUsage], Any] | None = None,
+        progress_recorder: ProgressRecorder | None = None,
     ):
         self.handlers = dict(handlers)
         self.usage_recorder = usage_recorder
+        self.progress_recorder = progress_recorder
+
+    async def _record_progress(
+        self,
+        *,
+        phase: str,
+        candidate_id: str | None,
+        completed_units: int,
+        total_units: int,
+        phase_completed: int,
+        phase_total: int,
+        complete: bool = False,
+    ) -> dict[str, Any]:
+        percent = (
+            round((completed_units / total_units) * 100, 2)
+            if total_units
+            else None
+        )
+        snapshot = {
+            "phase": phase,
+            "candidate_id": candidate_id,
+            "completed_units": completed_units,
+            "total_units": total_units,
+            "phase_completed": phase_completed,
+            "phase_total": phase_total,
+            "complete": complete,
+            "percent": percent,
+            "estimated_remaining_seconds": None,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+        if self.progress_recorder:
+            recorded = self.progress_recorder(snapshot)
+            if inspect.isawaitable(recorded):
+                await recorded
+        return snapshot
 
     @staticmethod
     def _work(plan: Mapping[str, Any]) -> list[dict[str, Any]]:
@@ -89,12 +126,28 @@ class StagedRunner:
     async def run(self, run_id: str, plan: Mapping[str, Any]) -> StagedRunResult:
         work = self._work(plan)
         caps = self._caps(plan)
+        stage_work_by_stage = {
+            stage: [item for item in work if item["stage"] == stage][:caps[stage]]
+            for stage in COLLECTION_STAGES
+        }
+        total_units = sum(len(stage_work) for stage_work in stage_work_by_stage.values())
+        completed_units = 0
         results: dict[str, dict[str, StageHandlerResult]] = {}
         usages: list[StageUsage] = []
+        await self._record_progress(
+            phase="starting", candidate_id=None,
+            completed_units=completed_units, total_units=total_units,
+            phase_completed=0, phase_total=0,
+        )
         for stage in COLLECTION_STAGES:
-            stage_work = [item for item in work if item["stage"] == stage][:caps[stage]]
+            stage_work = stage_work_by_stage[stage]
             if not stage_work:
                 continue
+            await self._record_progress(
+                phase=stage, candidate_id=None,
+                completed_units=completed_units, total_units=total_units,
+                phase_completed=0, phase_total=len(stage_work),
+            )
             if stage not in self.handlers:
                 raise ValueError(f"missing handler for planned stage: {stage}")
             started = datetime.now(timezone.utc)
@@ -111,7 +164,7 @@ class StagedRunner:
             status = "complete"
             error_category = None
             stage_results: dict[str, StageHandlerResult] = {}
-            for item in stage_work:
+            for phase_completed, item in enumerate(stage_work, start=1):
                 context = {
                     "run_id": run_id,
                     "stage": stage,
@@ -168,6 +221,12 @@ class StagedRunner:
                 if result.status not in {"complete", "empty"}:
                     status = result.status
                     error_category = error_category or result.error_category
+                completed_units += 1
+                await self._record_progress(
+                    phase=stage, candidate_id=str(item["candidate_id"]),
+                    completed_units=completed_units, total_units=total_units,
+                    phase_completed=phase_completed, phase_total=len(stage_work),
+                )
             completed = datetime.now(timezone.utc)
             usage = StageUsage(
                 discovery_run_id=run_id, stage=stage, started_at=started,
@@ -195,4 +254,11 @@ class StagedRunner:
                 recorded = self.usage_recorder(usage)
                 if inspect.isawaitable(recorded):
                     await recorded
+        # Stage execution is finished, but the run is not complete until the
+        # caller durably saves every candidate outcome and the terminal receipt.
+        await self._record_progress(
+            phase="finalizing", candidate_id=None,
+            completed_units=completed_units, total_units=total_units,
+            phase_completed=0, phase_total=0, complete=False,
+        )
         return StagedRunResult(run_id, usages, results)

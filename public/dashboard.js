@@ -25,12 +25,34 @@
   };
   const value = (input) => input === null || input === undefined || input === '' ? 'Not available' : String(input);
   const count = (input) => input === null || input === undefined ? 'Not available' : Number(input).toLocaleString();
+  const counted = (input, singular, plural = `${singular}s`) => `${count(input)} ${Number(input) === 1 ? singular : plural}`;
   const fmtDate = (input) => {
     if (!input) return 'Unknown';
     const parsed = new Date(input);
     if (Number.isNaN(parsed.getTime())) return 'Unknown';
     return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(parsed);
   };
+  function formatElapsed(startedAt, endedAt = null) {
+    const start = new Date(startedAt).getTime();
+    const end = endedAt ? new Date(endedAt).getTime() : Date.now();
+    if (!Number.isFinite(start) || !Number.isFinite(end)) return 'Elapsed time unavailable';
+    const seconds = Math.max(0, Math.floor((end - start) / 1000));
+    if (seconds < 60) return `${seconds}s elapsed`;
+    const minutes = Math.floor(seconds / 60);
+    const remainder = seconds % 60;
+    if (minutes < 60) return `${minutes}m ${remainder}s elapsed`;
+    const hours = Math.floor(minutes / 60);
+    return `${hours}h ${minutes % 60}m elapsed`;
+  }
+  function selectedResearchPlatforms(scope) {
+    return $$(`#${scope}-source-picker input[type="checkbox"]:checked`)
+      .map(input => input.value);
+  }
+  function updateElapsedClocks() {
+    $$('.elapsed-clock[data-started-at]').forEach(clock => {
+      clock.textContent = formatElapsed(clock.dataset.startedAt, clock.dataset.endedAt || null);
+    });
+  }
   const enc = (input) => encodeURIComponent(String(input));
   const workspacePath = () => `/workspaces/${enc(state.workspace)}`;
   const projectPath = (id = state.project?.id) => `${workspacePath()}/projects/${enc(id)}`;
@@ -92,7 +114,13 @@
   }
 
   function statusBadge(status) {
-    return el('span', `status ${String(status || 'not_checked').toLowerCase()}`, value(status || 'not checked').replaceAll('_', ' '));
+    const raw = String(status || 'not_checked').toLowerCase();
+    const labels = {
+      supported: 'Evidence found',
+      insufficient_evidence: 'Insufficient evidence',
+      sources_unavailable: 'Sources unavailable',
+    };
+    return el('span', `status ${raw}`, labels[raw] || value(raw).replaceAll('_', ' '));
   }
 
   function emptyState(kicker, title, copy, compact = false) {
@@ -114,7 +142,7 @@
     if (name === 'lenses') loadLenses();
     if (name === 'explore') {
       const epoch = state.workspaceEpoch;
-      Promise.all([ensureLenses(), loadDiscoveryOptions(), loadGlobalExplore()]).catch(error => {
+      Promise.all([ensureLenses(), loadDiscoveryOptions(), loadGlobalExplore(), restoreResearchProgress()]).catch(error => {
         if (epoch === state.workspaceEpoch) showError(error.message);
       });
     }
@@ -266,12 +294,16 @@
     if (topics.length > 5) { showError('Use no more than five topics in one bounded research brief.'); return; }
     const name = $('#direct-research-name').value.trim();
     if (!name) { showError('Name this research brief before starting it.'); return; }
+    const selectedPlatforms = selectedResearchPlatforms('direct');
+    if (!selectedPlatforms.length) { showError('Select at least one research source to attempt.'); return; }
+    clearError();
     const requestEpoch = state.workspaceEpoch;
     const requestWorkspace = state.workspace;
     const btn = $('#research-topic-btn');
-    btn.disabled = true; btn.textContent = 'Saving brief...';
-    const preview = $('#explore-preview');
-    preview.replaceChildren(el('div', 'notice', `Saving a bounded research run for ${topics.length} topic(s). No findings are claimed yet.`));
+    btn.dataset.idleLabel = 'Start research';
+    btn.disabled = true; btn.textContent = 'Creating and starting...';
+    const preview = $('#research-progress');
+    preview.replaceChildren(el('div', 'notice', `Creating one persisted research run for ${topics.length} topic(s), then starting it immediately.`));
     const candidateLimit = topics.length;
     const budget = {
       root_probe_candidates: candidateLimit,
@@ -286,7 +318,7 @@
       workspace_id: requestWorkspace,
       name,
       lens_preset_id: $('#direct-preset').value === 'general-research' ? 'horizontal-explorer' : $('#direct-preset').value,
-      candidates: topics.map(topic => ({ id: topic, keyword: topic, eligible: true })),
+      candidates: topics.map(topic => ({ id: topic, keyword: topic, eligible: true, platforms: selectedPlatforms })),
       required_depth: 'horizontal_analysis',
       budget,
     };
@@ -297,22 +329,164 @@
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       const runId = run.id || run.run_id;
       rememberResearchRun(runId);
-      state.researchRunStatus = 'planned';
+      activeResearchRun = run;
+      state.researchRunStatus = run.status || 'planned';
+      renderResearchProgress(run, preview);
       btn.textContent = 'Starting research...';
       await api(`/discovery/research-runs/${enc(runId)}/execute`, { method: 'POST' });
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       state.researchRunStatus = 'running';
-      preview.replaceChildren(el('div', 'notice', 'Research is collecting available conversations. You can leave this view and return from Findings. If the service restarts, reopening this run safely resumes it.'));
+      const running = { ...run, status: 'running', started_at: run.started_at || new Date().toISOString() };
+      activeResearchRun = running;
+      renderResearchProgress(running, preview);
       await pollResearchRun(runId, { button: btn, preview });
     } catch (error) {
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       showError(error.message);
       btn.disabled = false; btn.textContent = 'Start research';
-      preview.replaceChildren(el('div', 'notice', `Research could not be started: ${error.message}`));
+      preview.replaceChildren(el('div', 'notice error', `Research could not be started: ${error.message}`));
     }
   }
 
   const researchPolls = new Map();
+
+  function friendlyResearchPhase(phase) {
+    const labels = {
+      starting: 'Preparing research',
+      observed: 'Preparing topics',
+      screening: 'Checking research scope',
+      root_probe: 'Checking source posts',
+      deep_read: 'Reading conversations and replies',
+      horizontal_extraction: 'Interpreting cited evidence',
+      lens_evaluation: 'Applying the selected lens',
+      optional_enrichment: 'Adding optional context',
+      persistence: 'Saving findings',
+      finalizing: 'Saving findings',
+      complete: 'Research complete',
+    };
+    const key = String(phase || '').trim().toLowerCase();
+    return labels[key] || (key ? key.replaceAll('_', ' ') : 'Research is running');
+  }
+
+  function requestedResearchSources(run) {
+    return [...new Set((run.plan?.candidates || []).flatMap(item => {
+      const candidate = item.candidate || item;
+      return Array.isArray(candidate.platforms) ? candidate.platforms : [];
+    }))];
+  }
+
+  function completedResearchDetails(run) {
+    const details = el('details', 'completed-run-details');
+    details.append(el('summary', '', 'Completed run details'));
+    const body = el('div', 'completed-run-body');
+    const definitions = el('dl', 'definition-list');
+    const sources = requestedResearchSources(run);
+    const stages = Array.isArray(run.result?.stages_executed) ? run.result.stages_executed : [];
+    [
+      ['Run ID', run.id || run.run_id],
+      ['Final status', run.status],
+      ['Started', run.started_at || 'Not recorded'],
+      ['Completed', run.completed_at || 'Not recorded'],
+      ['Topics', (run.plan?.candidates || []).length],
+      ['Requested sources', sources.length ? sources.join(', ') : 'Not recorded'],
+      ['Stages completed', stages.length ? stages.map(friendlyResearchPhase).join(', ') : 'Not recorded'],
+    ].forEach(([term, itemValue]) => append(definitions, el('dt', '', term), el('dd', '', value(itemValue))));
+    body.append(definitions);
+    const usage = Array.isArray(run.result?.usage) ? run.result.usage : [];
+    if (usage.length) {
+      const receipt = el('div', 'run-stage-receipt');
+      receipt.append(el('h4', '', 'Completed stage receipts'));
+      usage.forEach(item => {
+        const line = el('p', 'mono', [
+          friendlyResearchPhase(item.stage),
+          item.candidates_processed == null ? null : `${item.candidates_processed} topic unit(s)`,
+          item.records_returned == null ? null : `${item.records_returned} record(s)`,
+          item.status,
+        ].filter(Boolean).join(' · '));
+        receipt.append(line);
+      });
+      body.append(receipt);
+    }
+    body.append(el('p', 'form-help', 'Requested sources are not assumed available. Findings retains the actual source receipts, failures, raw evidence, and limitations.'));
+    details.append(body);
+    return details;
+  }
+
+  function renderResearchProgress(run, target = $('#research-progress')) {
+    if (!target || !run) return;
+    target.replaceChildren();
+    const card = el('article', 'research-progress-card');
+    const header = el('div', 'research-progress-head');
+    const intro = el('div');
+    const progressLabel = run.status === 'planned'
+      ? 'Research planned'
+      : run.status === 'running' ? 'Active research' : 'Research finished';
+    append(intro,
+      el('p', 'eyebrow', progressLabel),
+      el('h3', '', researchRunName(run)),
+    );
+    append(header, intro, statusBadge(run.status));
+    card.append(header);
+
+    const startedAt = run.status === 'planned' ? null : run.started_at;
+    const endedAt = terminalResearchStatuses.has(run.status) ? run.completed_at : null;
+    if (['planned', 'running'].includes(run.status)) {
+      const progress = run.result?.progress;
+      if (progress && typeof progress === 'object') {
+        const phase = progress.phase || progress.stage || progress.current_phase;
+        card.append(el('p', 'progress-phase', friendlyResearchPhase(phase)));
+        const reported = [];
+        const completedUnits = progress.completed_units ?? progress.completed;
+        const totalUnits = progress.total_units ?? progress.total;
+        if (completedUnits != null && totalUnits != null) {
+          reported.push(`${completedUnits} of ${totalUnits} units complete`);
+        }
+        if (progress.phase_completed != null && progress.phase_total != null && progress.phase_total > 0) {
+          reported.push(`${progress.phase_completed} of ${progress.phase_total} in this stage`);
+        }
+        if (progress.percent != null) {
+          reported.push(`${progress.percent}% reported by the server`);
+        }
+        card.append(el('p', 'progress-units mono', reported.length
+          ? reported.join(' · ')
+          : 'The server reported a phase but no completed or total units.'));
+      } else {
+        card.append(
+          el('p', 'progress-phase', run.status === 'planned' ? 'Preparing to start' : 'Research is running'),
+          el('p', 'progress-units', 'The server has not reported unit progress. No percent or arrival time is inferred.'),
+        );
+      }
+      if (startedAt) {
+        const clock = el('span', 'elapsed-clock mono', formatElapsed(startedAt));
+        clock.dataset.startedAt = startedAt;
+        card.append(clock);
+      }
+      card.append(el('p', 'progress-note', 'This persisted run can be reopened from Findings after navigation or reload.'));
+    } else {
+      const countReady = run.result?.findings_count;
+      const readyCopy = countReady == null
+        ? 'Saved findings are ready to review.'
+        : `${counted(countReady, 'saved finding')} ${Number(countReady) === 1 ? 'is' : 'are'} ready to review.`;
+      const completion = ['complete', 'partial'].includes(run.status)
+        ? readyCopy
+        : `The run ended without completion: ${run.error_category || 'no further detail was recorded.'}`;
+      card.append(el('p', 'progress-phase', completion));
+      if (startedAt) {
+        const clock = el('span', 'elapsed-clock mono', formatElapsed(startedAt, endedAt));
+        clock.dataset.startedAt = startedAt;
+        if (endedAt) clock.dataset.endedAt = endedAt;
+        card.append(clock);
+      }
+      if (['complete', 'partial'].includes(run.status)) {
+        const findings = el('button', 'primary', 'Go to Findings');
+        findings.type = 'button';
+        findings.addEventListener('click', () => { showView('findings'); loadResearchHistory(); });
+        card.append(findings);
+      }
+      card.append(completedResearchDetails(run));
+    }
+    target.append(card);
+  }
 
   function pollResearchRun(runId, context = {}) {
     if (researchPolls.has(runId)) return researchPolls.get(runId);
@@ -343,20 +517,26 @@
         if (isStale()) return run;
       }
       state.researchRunStatus = run.status;
-      if (preview && run.status === 'running') {
-        preview.textContent = `Research is running for ${(run.plan?.candidates || []).length} topic(s). Findings and source receipts remain durable after processing finishes.`;
+      activeResearchRun = run;
+      if (preview) renderResearchProgress(run, preview);
+      if ($('#view-findings').classList.contains('active') && !terminalResearchStatuses.has(run.status)) {
+        renderFindings();
       }
       if (terminalResearchStatuses.has(run.status)) {
-        if (button) { button.disabled = false; button.textContent = 'Start research'; }
+        if (button) {
+          button.disabled = false;
+          button.textContent = button.dataset.idleLabel || 'Start research';
+        }
         if (run.status === 'complete' || run.status === 'partial') {
           await loadFindings(runId, { quiet: true });
           if (isStale()) return run;
-          if (preview) preview.textContent = `Research ${run.status}. ${persistedFindings.length} saved result(s) are ready in Findings.`;
-          toast(`Research ${run.status}: ${persistedFindings.length} finding(s)`);
-        } else if (preview) {
-          preview.textContent = `Research ${run.status}: ${run.error_category || 'No further detail was recorded.'}`;
+          if (preview) renderResearchProgress(activeResearchRun || run, preview);
+        } else {
+          if (preview) renderResearchProgress(run, preview);
         }
         await loadResearchHistory({ quiet: true });
+        if (isStale()) return run;
+        renderSelectionBar();
         return run;
       }
       await wait(2000);
@@ -372,7 +552,7 @@
     const country = $('#explore-geo').selectedOptions[0]?.textContent || $('#explore-geo').value;
     const category = $('#explore-cat-filter').selectedOptions[0]?.textContent || 'Balanced across all categories';
     const postCheck = $('#explore-verified').checked
-      ? 'Bounty will also check root public posts for up to 20 category-balanced topics. A failed or empty post check will not hide the topic.'
+      ? 'Bounty will check root public posts for up to 20 category-balanced topics across Instagram, TikTok, YouTube, and Reddit. A failed or empty source check will not hide the topic.'
       : 'This is a Google Trends snapshot only. No public posts, threads, or comments will be read.';
     $('#confirm-copy').textContent = `${country}; ${category}. ${postCheck} Search activity only surfaces topics for investigation; it is not evidence of an investment or customer conclusion.`;
     const dialog = $('#confirm-dialog');
@@ -505,7 +685,7 @@
       grid.append(emptyState(
         'No saved topic families yet',
         'The standing register is empty',
-        'Live topic-scan results appear in the separate register below. Saved families appear here after a standing discovery run.',
+        'Live scan topics stay above in the current journey. Saved families appear here after a standing discovery run.',
         true,
       ));
       return;
@@ -628,6 +808,7 @@
     const requestScanEpoch = ++state.trendScanEpoch;
     const requestGeo = $('#explore-geo').value.trim().toUpperCase();
     const requestCountry = $('#explore-geo').selectedOptions[0]?.textContent || requestGeo;
+    const scanStartedAt = new Date().toISOString();
     const isStale = () => (
       requestEpoch !== state.workspaceEpoch
       || requestWorkspace !== state.workspace
@@ -643,19 +824,42 @@
     state.trendScanCountry = null;
     _detailEpoch += 1;
     $('#usage-run').value = '';
-    $('#explore-detail').replaceChildren(emptyState('New scan', 'Choose a returned topic', 'Topic details and conversation-research actions appear after this scan finishes.'));
-    button.disabled = true; button.textContent = 'Finding topics…';
+    $('#explore-detail').replaceChildren(emptyState(
+      'Scan in progress',
+      'Reading the current search window',
+      'Topic details will be available after the source returns this scan.',
+    ));
+    button.disabled = true; button.textContent = 'Finding topics...';
     results.replaceChildren(emptyState('Live search', 'Reading the current search window', 'Keep this page open while Google Trends returns the selected country.', true));
     const checkPosts = $('#explore-verified').checked;
-    $('#explore-preview').replaceChildren(
-      el('strong', '', 'Running. '),
-      document.createTextNode(checkPosts
-        ? 'Reading Google Trends, then checking matching root public posts for up to 20 balanced topics.'
-        : 'Reading Google Trends only. No public posts, threads, or comments are being read.'),
-    );
-    // Explicit scan modes: the Trend feed defaults to the cheap Trends
-    // snapshot (zero social-source and zero LLM calls). The optional root
-    // sweep adds root public-post checks only. It never hides candidates.
+    const scope = checkPosts
+      ? 'Trends plus social triage for up to 20 topics'
+      : 'Google Trends only';
+    const renderScanProgress = ({ title, copy, status = 'active', endedAt = null }) => {
+      const card = el('div', `active-progress ${status}`);
+      const statusLabels = {
+        active: 'Active scan',
+        complete: 'Scan complete',
+        partial: 'Scan ended with partial source coverage',
+        error: 'Scan failed',
+      };
+      append(card,
+        el('span', 'progress-status mono', statusLabels[status] || 'Scan status unavailable'),
+        el('strong', '', title),
+        el('p', '', copy),
+      );
+      const clock = el('span', 'elapsed-clock mono', formatElapsed(scanStartedAt, endedAt));
+      clock.dataset.startedAt = scanStartedAt;
+      if (endedAt) clock.dataset.endedAt = endedAt;
+      card.append(clock);
+      $('#explore-preview').replaceChildren(card);
+    };
+    renderScanProgress({
+      title: checkPosts ? 'Scanning search attention and public-post roots' : 'Scanning current search attention',
+      copy: `${scope}. No research interpretation is running.`,
+    });
+    // The optional root sweep adds root public-post checks only. It never
+    // mutates or hides the raw search candidates returned by the source.
     const query = new URLSearchParams({
       geo: requestGeo,
       mode: checkPosts ? 'root_sweep' : 'trends_snapshot',
@@ -676,21 +880,38 @@
       state.trendScanCountry = requestCountry;
       state.selectedCandidate = null; state.selectedForPlan.clear();
       $('#usage-run').value = state.discoveryRunId || '';
-      $('#explore-preview').textContent = state.discoveryRunStatus === 'complete'
-        ? `Discovery run ${state.discoveryRunId} completed. ${state.candidates.length} current topic(s) are held in this browser session; search activity is not evidence.`
-        : `Search returned ${state.candidates.length} topic(s), but persisted completion status was not available.`;
+      const endedAt = new Date().toISOString();
+      renderScanProgress({
+        title: `Scan returned ${state.candidates.length} current topic(s)`,
+        copy: state.discoveryRunStatus === 'complete'
+          ? `${scope}. Search topics remain raw candidates until you choose research.`
+          : `${scope}. Persisted completion status was not available.`,
+        status: state.discoveryRunStatus === 'complete' ? 'complete' : 'partial',
+        endedAt,
+      });
+      $('#explore-detail').replaceChildren(emptyState(
+        'Topic detail',
+        'Select one returned topic to inspect it',
+        'Checkboxes queue topics for batch research. Open a topic row to inspect its search signal and related queries.',
+      ));
       renderExploreResults(); renderFindings();
     } catch (error) {
       if (isStale()) return;
       appendExploreRecovery(results, { failed: true });
-      $('#explore-preview').textContent = `Search failed: ${error.message}. Your country and topic choices were preserved.`;
+      const failed = el('div', 'active-progress error');
+      append(failed,
+        el('strong', '', 'Scan did not complete'),
+        el('p', '', `${scope}. ${error.message}. Your choices were preserved.`),
+        el('span', 'mono', formatElapsed(scanStartedAt, new Date().toISOString())),
+      );
+      $('#explore-preview').replaceChildren(failed);
     } finally {
       if (!isStale()) { button.disabled = false; button.textContent = 'Find topics'; }
     }
   }
 
   function candidateName(candidate) { return candidate.keyword || candidate.name || candidate.query || candidate.id || 'Unnamed result'; }
-  function candidateId(candidate, index) { return String(candidate._plannedId || candidate.candidate_id || candidate.id || candidate.keyword || candidate.name || index).trim().toLowerCase().split(/\s+/).join(' '); }
+  function candidateId(candidate, index) { return String(candidate.candidate_id || candidate.id || candidate.keyword || candidate.name || index).trim().toLowerCase().split(/\s+/).join(' '); }
 
   function publicPostStatus(candidate) {
     const analysis = candidate.conversation_analysis || candidate.analysis || {};
@@ -704,15 +925,114 @@
     return 'Public posts not checked';
   }
 
+  function searchAge(candidate) {
+    let hours = candidate.started_hours_ago;
+    if (hours == null && candidate.source_started_at) {
+      const started = new Date(candidate.source_started_at).getTime();
+      if (Number.isFinite(started)) hours = Math.max(0, (Date.now() - started) / 3600000);
+    }
+    if (hours == null || !Number.isFinite(Number(hours))) return null;
+    const numeric = Number(hours);
+    if (numeric < 1) return `Started ${Math.max(1, Math.round(numeric * 60))} minute(s) ago`;
+    if (numeric < 48) return `Started ${Math.round(numeric)} hour(s) ago`;
+    return `Started ${Math.round(numeric / 24)} day(s) ago`;
+  }
+
+  function candidatePrimaryCategory(candidate) {
+    return String(candidate.categories || candidate.category || 'Other').split(',')[0].trim() || 'Other';
+  }
+
+  function newestThenGrowth(left, right) {
+    const leftAge = left.started_hours_ago == null ? null : Number(left.started_hours_ago);
+    const rightAge = right.started_hours_ago == null ? null : Number(right.started_hours_ago);
+    if (leftAge != null || rightAge != null) {
+      if (leftAge == null) return 1;
+      if (rightAge == null) return -1;
+      if (leftAge !== rightAge) return leftAge - rightAge;
+    }
+    const leftGrowth = left.growth_pct ?? left.growth;
+    const rightGrowth = right.growth_pct ?? right.growth;
+    if (leftGrowth != null || rightGrowth != null) {
+      if (leftGrowth == null) return 1;
+      if (rightGrowth == null) return -1;
+      if (Number(leftGrowth) !== Number(rightGrowth)) return Number(rightGrowth) - Number(leftGrowth);
+    }
+    return 0;
+  }
+
+  function categoryBalancedCandidates(candidates) {
+    const buckets = new Map();
+    candidates.forEach(candidate => {
+      const category = candidatePrimaryCategory(candidate);
+      if (!buckets.has(category)) buckets.set(category, []);
+      buckets.get(category).push(candidate);
+    });
+    const names = [...buckets.keys()].sort((left, right) => left.localeCompare(right));
+    names.forEach(name => buckets.get(name).sort(newestThenGrowth));
+    const balanced = [];
+    while (names.some(name => buckets.get(name).length)) {
+      names.forEach(name => {
+        const next = buckets.get(name).shift();
+        if (next) balanced.push(next);
+      });
+    }
+    return balanced;
+  }
+
+  function hasPublicSourceGap(candidate) {
+    const status = String(candidate.gate_status || 'not_checked').toLowerCase();
+    const health = Array.isArray(candidate.gate_source_health) ? candidate.gate_source_health : [];
+    return ['not_checked', 'partial', 'failed', 'error'].includes(status)
+      || health.some(item => ['partial', 'failed', 'error', 'unavailable', 'blocked'].includes(String(item.status || '').toLowerCase()));
+  }
+
+  function candidatesForDisplay() {
+    let candidates = state.candidates.slice();
+    const socialFilter = $('#explore-social-filter')?.value || 'all';
+    if (socialFilter === 'matching') {
+      candidates = candidates.filter(candidate => candidate.gate_passed === true || Number(candidate.gate_total_items || 0) > 0);
+    } else if (socialFilter === 'gaps') {
+      candidates = candidates.filter(candidate => hasPublicSourceGap(candidate));
+    }
+    const sort = $('#explore-sort')?.value || 'balanced';
+    if (sort === 'balanced') return categoryBalancedCandidates(candidates);
+    const originalOrder = new Map(state.candidates.map((candidate, index) => [candidate, index]));
+    const compareDescending = (left, right, field) => {
+      const leftValue = left[field] == null ? null : Number(left[field]);
+      const rightValue = right[field] == null ? null : Number(right[field]);
+      if (leftValue == null && rightValue == null) return originalOrder.get(left) - originalOrder.get(right);
+      if (leftValue == null) return 1;
+      if (rightValue == null) return -1;
+      return rightValue - leftValue || originalOrder.get(left) - originalOrder.get(right);
+    };
+    if (sort === 'newest') candidates.sort((left, right) => newestThenGrowth(left, right) || originalOrder.get(left) - originalOrder.get(right));
+    if (sort === 'growth') candidates.sort((left, right) => compareDescending(left, right, left.growth_pct != null || right.growth_pct != null ? 'growth_pct' : 'growth'));
+    if (sort === 'searches') candidates.sort((left, right) => compareDescending(left, right, left.search_volume != null || right.search_volume != null ? 'search_volume' : 'volume'));
+    if (sort === 'social') candidates.sort((left, right) => (
+      compareDescending(left, right, 'gate_total_engagement')
+      || compareDescending(left, right, 'gate_total_items')
+    ));
+    return candidates;
+  }
+
   function renderExploreResults() {
     const list = $('#explore-results'); list.replaceChildren();
-    $('#explore-count').textContent = `${state.candidates.length} returned`;
+    const candidates = candidatesForDisplay();
+    $('#explore-count').textContent = `${candidates.length} shown · ${state.candidates.length} returned`;
     if (!state.candidates.length) {
       appendExploreRecovery(list);
       return;
     }
-    state.candidates.forEach((candidate, index) => {
-      const id = candidateId(candidate, index);
+    if (!candidates.length) {
+      list.append(emptyState('No matches in this view', 'No topic has that social-evidence state', 'Choose All social evidence to restore every raw search candidate.', true));
+      return;
+    }
+    const topBar = el('div', 'selection-bar selection-bar-top');
+    topBar.id = 'selection-bar';
+    list.append(topBar);
+    candidates.forEach((candidate, index) => {
+      const sourceIndex = state.candidates.indexOf(candidate);
+      const id = candidateId(candidate, sourceIndex);
       const row = el('article', `data-row trend-result-row${state.selectedCandidate === candidate ? ' selected' : ''}`);
       const growth = candidate.growth_pct ?? candidate.growth;
       const statusDisplay = publicPostStatus(candidate);
@@ -734,21 +1054,49 @@
       const open = el('button', 'trend-result-open');
       open.type = 'button';
       open.setAttribute('aria-pressed', String(state.selectedCandidate === candidate));
-      append(open, el('span', 'row-title', candidateName(candidate)), el('span', 'row-copy', candidate.categories || candidate.category || candidate.conv_summary || candidate.description || 'No category returned'), el('span', 'row-meta', `${vol != null ? count(vol) + ' searches' : 'Search volume unavailable'} · ${growth == null ? 'Growth unavailable' : `${growth}% growth`} · ${statusDisplay}`));
-      open.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, index); });
+      const age = searchAge(candidate);
+      const searchMeta = [
+        age,
+        vol != null ? `${count(vol)} searches` : 'Search volume unavailable',
+        growth == null ? 'Growth unavailable' : `${growth}% growth`,
+      ].filter(Boolean).join(' · ');
+      const checked = String(candidate.gate_status || 'not_checked').toLowerCase() !== 'not_checked';
+      const socialMeta = checked
+        ? `${candidate.gate_platforms || 'No matching platform'} · ${candidate.gate_total_items ?? 'Unknown'} public item(s) · ${candidate.gate_total_engagement ?? 'Unknown'} observed engagement`
+        : 'Platforms not checked · Items not checked · Engagement not checked';
+      append(open,
+        el('span', 'candidate-rank mono', `#${index + 1}`),
+        el('span', 'row-title', candidateName(candidate)),
+        el('span', 'row-copy', candidate.categories || candidate.category || 'No category returned'),
+        el('span', 'row-meta search-meta', searchMeta),
+        el('span', 'row-meta social-meta', `${socialMeta} · ${statusDisplay}`),
+      );
+      open.addEventListener('click', () => { state.selectedCandidate = candidate; renderExploreResults(); renderCandidateDetail(candidate, sourceIndex); });
       append(row, select, open); list.append(row);
     });
-    const bar = el('div', 'selection-bar'); bar.id = 'selection-bar'; list.append(bar); renderSelectionBar();
+    const bottomBar = el('div', 'selection-bar selection-bar-bottom');
+    list.append(bottomBar);
+    renderSelectionBar();
   }
 
   function renderSelectionBar() {
-    const bar = $('#selection-bar'); if (!bar) return;
-    bar.replaceChildren(el('span', 'mono', `${state.selectedForPlan.size} selected`));
-    const plan = el('button', 'primary', 'Research these topics');
-    plan.id = 'create-plan-btn';
-    plan.disabled = !state.selectedForPlan.size || ['planned', 'running'].includes(state.researchRunStatus);
-    plan.addEventListener('click', createResearchPlan);
-    bar.append(plan);
+    const bars = $$('.selection-bar', $('#explore-results')); if (!bars.length) return;
+    const selectedPlatforms = selectedResearchPlatforms('trend');
+    bars.forEach((bar, index) => {
+      bar.replaceChildren();
+      append(bar,
+        el('span', 'mono', `${state.selectedForPlan.size} selected`),
+        el('span', 'selection-sources', selectedPlatforms.length
+          ? `Sources to attempt: ${selectedPlatforms.join(', ')}`
+          : 'Choose at least one research source above.'),
+      );
+      const plan = el('button', 'primary', 'Research these topics');
+      if (index === 0) plan.id = 'create-plan-btn';
+      plan.dataset.idleLabel = 'Research these topics';
+      plan.disabled = !state.selectedForPlan.size || !selectedPlatforms.length || ['planned', 'running'].includes(state.researchRunStatus);
+      plan.addEventListener('click', event => createResearchPlan(event));
+      bar.append(plan);
+    });
   }
 
   const BLOCKED_SOURCE_SUFFIXES = ['.example', '.invalid', '.localhost', '.local', '.internal', '.home', '.lan', '.test', '.onion'];
@@ -843,6 +1191,21 @@
     parent.append(section);
   }
 
+  function engagementMetrics(item) {
+    const nested = item?.engagement || item?.engagement_metrics || item?.raw_counts || item?.observation?.engagement;
+    const engagement = nested && typeof nested === 'object' ? nested : item;
+    const labels = {
+      views: 'views', likes: 'likes', comments: 'comments', shares: 'shares',
+      reposts: 'reposts', saves: 'saves', collects: 'collects', score: 'score',
+    };
+    return Object.entries(labels).flatMap(([key, label]) => {
+      if (!Object.prototype.hasOwnProperty.call(engagement || {}, key)) return [];
+      const metricValue = engagement[key];
+      if (metricValue === null || metricValue === undefined) return [`${label} unavailable`];
+      return [`${count(metricValue)} ${label}`];
+    });
+  }
+
   function addEvidenceSection(parent, evidence) {
     const section = el('section', 'data-section evidence-section');
     section.append(el('h3', '', 'Evidence records'));
@@ -857,6 +1220,8 @@
       const metadata = [item.platform, item.object_type, fmtDate(item.published_at)]
         .filter(value => value && value !== 'Unknown').join(' · ');
       if (metadata) record.append(el('p', 'evidence-meta', metadata));
+      const observed = engagementMetrics(item);
+      if (observed.length) record.append(el('p', 'evidence-engagement mono', `Observed engagement: ${observed.join(' · ')}`));
       if (item.id) record.append(el('code', 'evidence-id', item.id));
       if (safeUrl(item.url)) {
         const link = document.createElement('a');
@@ -961,8 +1326,13 @@
       append(stats,
         el('dt', '', 'Search volume'), el('dd', '', count(candidate.search_volume ?? candidate.volume)),
         el('dt', '', 'Growth'), el('dd', '', growth == null ? 'Unknown' : `${growth}%`),
+        el('dt', '', 'Search age'), el('dd', '', searchAge(candidate) || 'Not available'),
         el('dt', '', 'Category'), el('dd', '', value(candidate.categories || candidate.category)),
         el('dt', '', 'Country'), el('dd', '', scanCountry),
+        el('dt', '', 'Public-post platforms'), el('dd', '', value(candidate.gate_platforms)),
+        el('dt', '', 'Public items'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_items)),
+        el('dt', '', 'Observed engagement'), el('dd', '', (candidate.gate_status || 'not_checked') === 'not_checked' ? 'Not checked' : count(candidate.gate_total_engagement)),
+        el('dt', '', 'Evidence status'), el('dd', '', publicPostStatus(candidate)),
       );
       detail.append(stats);
     }
@@ -988,10 +1358,8 @@
         if (spark) chartBox.append(spark);
         const lo = Math.min(...values), hi = Math.max(...values);
         const recent = values.slice(-4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
-        const early = values.slice(0, 4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
-        const velocity = early > 0 ? Math.round(((recent - early) / early) * 100) : 0;
-        const velText = velocity > 0 ? `${velocity}% accelerating` : velocity < 0 ? `${Math.abs(velocity)}% cooling` : 'Steady';
-        chartBox.append(el('p', 'muted small', `Range ${lo}\u2013${hi} (0\u2013100 scale) · ${velText}`));
+        const earlier = values.slice(0, 4).reduce((a, b) => a + b, 0) / Math.min(4, values.length);
+        chartBox.append(el('p', 'muted small', `Range ${lo}\u2013${hi} (0\u2013100 scale) · Earlier four-point average ${Math.round(earlier)} · Recent four-point average ${Math.round(recent)}. These are comparable segments of the displayed seven-day search series.`));
         enrichDiv.append(chartBox);
       }
 
@@ -1017,12 +1385,18 @@
     }
   }
 
-  async function createResearchPlan(event, { autoStart = false } = {}) {
+  async function createResearchPlan(event, { autoStart = true } = {}) {
     if (!state.selectedForPlan.size) return;
     if (state.selectedForPlan.size > 5) {
       showError('Use no more than five topics in one research brief.');
       return;
     }
+    const selectedPlatforms = selectedResearchPlatforms('trend');
+    if (!selectedPlatforms.length) {
+      showError('Select at least one research source to attempt.');
+      return;
+    }
+    clearError();
     const requestEpoch = state.workspaceEpoch;
     const requestWorkspace = state.workspace;
     if (state.researchRunId) {
@@ -1041,41 +1415,58 @@
         return;
       }
     }
-    if (event?.currentTarget) event.currentTarget.disabled = true;
+    const actionButton = event?.currentTarget || null;
+    if (actionButton) {
+      actionButton.dataset.idleLabel = actionButton.dataset.idleLabel || 'Research these topics';
+      actionButton.disabled = true;
+      actionButton.textContent = 'Creating and starting...';
+    }
     const chosen = state.candidates.filter((candidate, index) => state.selectedForPlan.has(candidateId(candidate, index)));
     const topicCount = chosen.length;
+    const candidates = chosen.map(candidate => ({
+      ...candidate,
+      platforms: selectedPlatforms,
+      search_market_geo: state.trendScanGeo,
+      search_market_name: state.trendScanCountry,
+      search_observed_at: candidate.discovered_at || new Date().toISOString(),
+    }));
     const budget = { root_probe_candidates: topicCount, deep_read_candidates: topicCount, horizontal_llm_candidates: topicCount, threads_per_platform: 2, comments_per_thread: 20, max_thread_depth: 2, optional_enrichments: 0 };
     const selectedLens = state.lenses.find(lens => lens.id === $('#explore-lens').value);
     const lensDepth = selectedLens?.latest_version?.compiled_requirements?.required_depth || null;
-    const payload = { workspace_id: requestWorkspace, name: `Trend research · ${chosen.map(candidateName).slice(0, 3).join(', ')}`, lens_preset_id: 'horizontal-explorer', source_discovery_run_id: state.discoveryRunId, candidates: chosen, required_depth: 'horizontal_analysis', lens_required_depth: lensDepth, lens: selectedLens ? { id: selectedLens.id, version: selectedLens.latest_version?.version || selectedLens.latest_version_number, required_depth: lensDepth } : null, budget };
+    const payload = {
+      workspace_id: requestWorkspace,
+      name: `Trend research · ${chosen.map(candidateName).slice(0, 3).join(', ')}`,
+      lens_preset_id: 'horizontal-explorer',
+      source_discovery_run_id: state.discoveryRunId,
+      candidates,
+      required_depth: 'horizontal_analysis',
+      lens_required_depth: lensDepth,
+      lens: selectedLens ? { id: selectedLens.id, version: selectedLens.latest_version?.version || selectedLens.latest_version_number, required_depth: lensDepth } : null,
+      budget,
+    };
     try {
       const run = await api('/discovery/research-runs', { method: 'POST', body: JSON.stringify(payload) });
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
-      (run.plan?.candidates || []).forEach(planned => {
-        const original = chosen.find(candidate => candidateId(candidate, 0) === planned.candidate_id);
-        if (original) original._plannedId = planned.candidate_id;
-      });
       rememberResearchRun(run.id || run.run_id);
+      activeResearchRun = run;
       state.researchRunStatus = run.status || 'planned';
-      toast(`Saved ${chosen.length} topic(s) for research`);
+      toast(`Saved ${chosen.length} topic(s); starting research now`);
       renderSelectionBar();
+      renderResearchProgress(run);
       renderFindings();
-      if (state.selectedCandidate) renderCandidateDetail(state.selectedCandidate, state.candidates.indexOf(state.selectedCandidate));
-      const preview = $('#explore-preview');
-      preview.replaceChildren();
-      const statusText = el('div', 'notice', `Ready to research ${chosen.length} topic(s). Click "Start research" to read conversations and extract what people are saying.`);
-      const execBtn = el('button', 'primary', 'Start research');
-      execBtn.id = 'execute-run-btn';
-      execBtn.addEventListener('click', executeResearchRun);
-      const findBtn = el('button', 'quiet', 'View results');
-      findBtn.id = 'load-findings-btn';
-      findBtn.addEventListener('click', () => loadFindings());
-      append(preview, statusText, execBtn, findBtn);
-      if (autoStart) await executeResearchRun();
+      if (autoStart) await executeResearchRun({
+        button: actionButton,
+        runId: run.id || run.run_id,
+        requestEpoch,
+        requestWorkspace,
+      });
     } catch (error) {
       if (requestEpoch !== state.workspaceEpoch || requestWorkspace !== state.workspace) return;
       showError(error.message);
-      if (event?.currentTarget) event.currentTarget.disabled = false;
+      if (actionButton) {
+        actionButton.disabled = false;
+        actionButton.textContent = actionButton.dataset.idleLabel;
+      }
     }
   }
 
@@ -1087,27 +1478,47 @@
     } catch (error) { showError(error.message); }
   }
 
-  async function executeResearchRun() {
-    if (!state.researchRunId) return;
-    const btn = $('#execute-run-btn');
-    if (!btn) return;
-    btn.disabled = true; btn.textContent = 'Starting research...';
-    const preview = $('#explore-preview');
-    const progress = el('div', 'notice', 'Starting the persisted research run. You may leave this view after it begins.');
-    preview.append(progress);
+  async function executeResearchRun({
+    button = null,
+    runId = state.researchRunId,
+    requestEpoch = state.workspaceEpoch,
+    requestWorkspace = state.workspace,
+  } = {}) {
+    if (!runId) return;
+    const isStale = () => (
+      requestEpoch !== state.workspaceEpoch
+      || requestWorkspace !== state.workspace
+      || state.researchRunId !== runId
+    );
+    if (isStale()) return;
+    clearError();
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Starting research...';
+    }
+    const preview = $('#research-progress');
+    const startingRun = {
+      ...(activeResearchRun || {}),
+      id: runId,
+      status: 'running',
+      started_at: activeResearchRun?.started_at || new Date().toISOString(),
+    };
+    activeResearchRun = startingRun;
+    state.researchRunStatus = 'running';
+    renderResearchProgress(startingRun, preview);
     try {
-      await api(`/discovery/research-runs/${enc(state.researchRunId)}/execute`, { method: 'POST' });
-      progress.textContent = 'Research is running in the background. Its status and findings remain available after reload.';
-      await pollResearchRun(state.researchRunId, { button: btn, preview: progress });
-      if (['complete', 'partial'].includes(state.researchRunStatus)) {
-        const viewFindings = el('button', 'primary', 'View results');
-        viewFindings.addEventListener('click', () => { showView('findings'); loadResearchHistory(); });
-        preview.append(viewFindings);
-      }
+      await api(`/discovery/research-runs/${enc(runId)}/execute`, { method: 'POST' });
+      if (isStale()) return;
+      await pollResearchRun(runId, { button, preview });
     } catch (error) {
+      if (isStale()) return;
       showError(error.message);
-      btn.disabled = false; btn.textContent = 'Start research';
-      progress.textContent = `Failed to start: ${error.message}`;
+      if (button) {
+        button.disabled = false;
+        button.textContent = button.dataset.idleLabel || 'Research these topics';
+      }
+      const notice = el('div', 'notice error', `Research could not be started: ${error.message}`);
+      preview.append(notice);
     }
   }
 
@@ -1133,6 +1544,44 @@
 
   let persistedFindings = [];
   let activeResearchRun = null;
+
+  async function restoreResearchProgress() {
+    const runId = state.researchRunId || localStorage.getItem(latestRunKey());
+    if (!runId) return null;
+    const requestEpoch = state.workspaceEpoch;
+    const requestWorkspace = state.workspace;
+    const selectedRunAtRequest = state.researchRunId;
+    try {
+      const run = await api(`/discovery/research-runs/${enc(runId)}`);
+      if (
+        requestEpoch !== state.workspaceEpoch
+        || requestWorkspace !== state.workspace
+        || state.researchRunId !== selectedRunAtRequest
+      ) return null;
+      if (run.workspace_id && run.workspace_id !== requestWorkspace) {
+        localStorage.removeItem(latestRunKey());
+        return null;
+      }
+      rememberResearchRun(run.id || runId);
+      activeResearchRun = run;
+      state.researchRunStatus = run.status;
+      renderResearchProgress(run);
+      renderSelectionBar();
+      if (run.status === 'running') pollResearchRun(run.id || runId).catch(error => showError(error.message));
+      return run;
+    } catch (error) {
+      if (
+        requestEpoch !== state.workspaceEpoch
+        || requestWorkspace !== state.workspace
+        || state.researchRunId !== selectedRunAtRequest
+      ) return null;
+      if (error.status === 404) {
+        localStorage.removeItem(latestRunKey());
+        return null;
+      }
+      throw error;
+    }
+  }
 
   function researchRunName(run) {
     const named = String(run.plan?.name || '').trim();
@@ -1203,6 +1652,7 @@
       if (requestEpoch !== state.workspaceEpoch || state.researchRunId !== runId) return [];
       persistedFindings = findingData.findings || [];
       activeResearchRun = run; state.researchRunStatus = run.status;
+      renderResearchProgress(run);
       if (!quiet && persistedFindings.length) toast(`${persistedFindings.length} saved result(s) loaded.`);
       renderFindings();
       return persistedFindings;
@@ -1225,6 +1675,11 @@
       .some(id => safeUrl(lookup.get(id)?.url));
   }
 
+  function evidenceCitationNumber(evidenceId, lookup) {
+    const index = [...lookup.keys()].indexOf(evidenceId);
+    return index >= 0 ? index + 1 : '?';
+  }
+
   function appendCitationLinks(parent, evidenceIds, lookup) {
     const links = [...new Set(Array.isArray(evidenceIds) ? evidenceIds : [])]
       .map(id => ({ id, record: lookup.get(id) }))
@@ -1232,8 +1687,8 @@
     if (!links.length) return;
     const row = el('div', 'citation-links');
     row.append(el('span', 'mono', 'Sources'));
-    links.forEach((item, index) => {
-      const link = el('a', 'source-link', `[${index + 1}] ${value(item.record.platform)}`);
+    links.forEach(item => {
+      const link = el('a', 'source-link', `[${evidenceCitationNumber(item.id, lookup)}] ${value(item.record.platform)}`);
       link.href = safeUrl(item.record.url);
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
@@ -1266,6 +1721,148 @@
     parent.append(section);
   }
 
+  function plannedCandidateForFinding(finding) {
+    const planned = (activeResearchRun?.plan?.candidates || []).find(item => {
+      const candidate = item.candidate || item;
+      return item.candidate_id === finding.candidate_id
+        || candidate.candidate_id === finding.candidate_id
+        || candidate.id === finding.candidate_id
+        || candidate.keyword === finding.topic;
+    });
+    return planned ? (planned.candidate || planned) : {};
+  }
+
+  function comparablePeriodsAvailable(analysis, candidate) {
+    if (analysis.comparable_periods === true || candidate.comparable_periods === true) return true;
+    const periods = analysis.comparable_periods || analysis.trajectory?.periods || candidate.comparable_periods;
+    return Array.isArray(periods) && periods.length >= 2;
+  }
+
+  function safeInterpretation(analysis, candidate) {
+    const interpretation = analysis.interpretation;
+    const copy = typeof interpretation === 'string'
+      ? interpretation
+      : interpretation?.summary || interpretation?.text || interpretation?.label || '';
+    if (!copy) return '';
+    const comparativeLabel = /\b(?:velocity|brewing|turning)\b/i;
+    if (comparativeLabel.test(copy) && !comparablePeriodsAvailable(analysis, candidate)) {
+      return 'Comparative change language was withheld because this run did not include comparable periods.';
+    }
+    return copy;
+  }
+
+  function findingStatusCopy(status) {
+    const labels = {
+      supported: 'Citation-backed conversation signals were extracted.',
+      insufficient_evidence: 'Conversation records were found, but they did not support a cited interpretation.',
+      sources_unavailable: 'The attempted sources were unavailable; this is a coverage gap, not a negative finding.',
+      complete: 'The finding completed with the evidence shown below.',
+      partial: 'The finding is partial; read the source receipts and limitations below.',
+    };
+    return labels[status] || `Evidence status: ${value(status)}.`;
+  }
+
+  function searchMomentumCopy(candidate) {
+    const parts = ['Google Trends Trending Now'];
+    const market = candidate.search_market_name || candidate.search_market_geo;
+    if (market) parts.push(`market: ${market}`);
+    const age = searchAge(candidate);
+    const growth = candidate.growth_pct ?? candidate.growth;
+    const searches = candidate.search_volume ?? candidate.volume;
+    if (age) parts.push(age.replace(/^Started/, 'Trending for approximately'));
+    if (growth != null) parts.push(`${growth}% search growth`);
+    if (searches != null) parts.push(`${count(searches)} searches`);
+    if (candidate.search_observed_at || candidate.discovered_at) {
+      parts.push(`observed ${fmtDate(candidate.search_observed_at || candidate.discovered_at)}`);
+    }
+    return parts.length > 1
+      ? `${parts.join(' · ')}. Search attention is a discovery signal, separate from conversation evidence.`
+      : 'No preserved search measurements were attached to this candidate.';
+  }
+
+  function renderSearchAttention(candidate) {
+    const copy = el('div', 'dimension-copy');
+    copy.append(el('p', '', searchMomentumCopy(candidate)));
+    const geo = String(candidate.search_market_geo || '').toUpperCase();
+    if (geo && /^[A-Z]{2}$/.test(geo)) {
+      const link = el('a', 'source-link', 'Open Google Trends market');
+      link.href = `https://trends.google.com/trending?geo=${enc(geo)}`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      copy.append(link);
+    }
+    return copy;
+  }
+
+  function socialTrajectoryCopy(analysis, candidate) {
+    if (!comparablePeriodsAvailable(analysis, candidate)) {
+      return 'Not established. One collection period cannot establish whether conversation is brewing, accelerating, or fading.';
+    }
+    const direction = analysis.trajectory?.direction || candidate.trajectory?.direction;
+    return direction
+      ? `Comparable collection periods report: ${value(direction)}. Review the cited period evidence before using this direction.`
+      : 'Comparable periods were collected, but no cited social-conversation direction was established.';
+  }
+
+  function signalKindGroups(signals) {
+    const groups = { behavior: [], commercial: [], negative: [], general: [] };
+    const behavior = new Set(['adoption', 'switching', 'behavior_change', 'workaround']);
+    const commercial = new Set(['purchase_trigger', 'desire', 'desired_outcome', 'unmet_need', 'request', 'comparison']);
+    const negative = new Set(['rejection', 'objection', 'pain_point', 'risk']);
+    (signals || []).forEach(signal => {
+      const kind = String(signal.kind || '').toLowerCase();
+      const target = negative.has(kind) ? groups.negative
+        : commercial.has(kind) ? groups.commercial
+          : behavior.has(kind) ? groups.behavior : groups.general;
+      if (kind && !target.includes(kind)) target.push(kind);
+    });
+    return groups;
+  }
+
+  function signalGroupCopy(kinds, emptyCopy) {
+    return kinds.length
+      ? `Citation-backed kinds: ${kinds.map(kind => kind.replaceAll('_', ' ')).join(', ')}.`
+      : emptyCopy;
+  }
+
+  function renderEvidenceSummary(analysis, finding) {
+    const candidate = plannedCandidateForFinding(finding);
+    const section = el('section', 'evidence-takeaway');
+    section.append(el('h4', '', 'What the evidence says'));
+    const status = analysis.status || finding.status;
+    section.append(el('p', 'takeaway-status', findingStatusCopy(status)));
+    const interpretation = safeInterpretation(analysis, candidate);
+    if (interpretation) section.append(el('p', 'takeaway-interpretation', interpretation));
+    const groups = signalKindGroups(analysis.signals || []);
+    const grid = el('div', 'evidence-dimensions');
+    const dimension = (label, copy) => {
+      const item = el('div', 'evidence-dimension');
+      item.append(el('strong', '', label));
+      if (copy instanceof Node) item.append(copy);
+      else item.append(el('p', '', copy));
+      grid.append(item);
+    };
+    dimension('Search attention (Google Trends)', renderSearchAttention(candidate));
+    dimension('Observed behavior', signalGroupCopy(groups.behavior, 'No citation-backed adoption, switching, behavior-change, or workaround signal was extracted.'));
+    dimension('Commercial intent', signalGroupCopy(groups.commercial, 'No citation-backed purchase, desire, request, need, or comparison signal was extracted.'));
+    dimension('Negative or rejection', signalGroupCopy(groups.negative, 'No citation-backed rejection, objection, pain-point, or risk signal was extracted.'));
+    dimension('General discussion', signalGroupCopy(groups.general, 'No other citation-backed discussion kind was extracted.'));
+    dimension('Social trajectory', socialTrajectoryCopy(analysis, candidate));
+    const coverage = analysis.coverage || {};
+    dimension('Coverage', [
+      coverage.deduplicated_records == null ? null : `${coverage.deduplicated_records} reviewed record(s)`,
+      coverage.independent_voices == null ? null : `${coverage.independent_voices} independent voice(s)`,
+      coverage.platform_count == null ? null : `${coverage.platform_count} platform(s)`,
+    ].filter(Boolean).join(' · ') || 'Coverage counts were not reported.');
+    const evidence = Array.isArray(analysis.evidence) ? analysis.evidence : [];
+    const withEngagement = evidence.filter(item => engagementMetrics(item).length).length;
+    dimension('Raw observed engagement', withEngagement
+      ? `${withEngagement} of ${evidence.length} evidence record(s) include raw engagement metrics. Read each observed count below; they do not measure change over time.`
+      : 'No per-record engagement metrics were returned. Missing counts are not treated as zero.');
+    section.append(grid);
+    return section;
+  }
+
   function renderFindings() {
     const content = $('#findings-content'); content.replaceChildren();
     if (persistedFindings.length) {
@@ -1284,19 +1881,20 @@
         const title = el('h3', '', finding.topic || finding.candidate_id);
         const badge = statusBadge(analysis.status || finding.status);
         const dl = el('dl', 'definition-list');
-        append(dl,
-          el('dt', '', 'Behavior type'), el('dd', '', value(analysis.behavior_type)),
-          el('dt', '', 'Direction'), el('dd', '', value(analysis.direction)),
-          el('dt', '', 'Independent voices'), el('dd', '', count(analysis.independent_voice_count)),
-        );
-        append(block, title, badge);
+        if (analysis.direction && analysis.direction !== 'unknown') {
+          append(dl, el('dt', '', 'Conversation polarity'), el('dd', '', value(analysis.direction)));
+        }
+        if (analysis.independent_voice_count != null) {
+          append(dl, el('dt', '', 'Independent voices'), el('dd', '', count(analysis.independent_voice_count)));
+        }
+        append(block, title, badge, renderEvidenceSummary(analysis, finding));
         if (analysis.summary && hasRenderableCitations(analysis.summary_evidence_ids, citationLookup)) {
           const summary = el('div', 'finding-summary');
           summary.append(el('p', '', analysis.summary));
           appendCitationLinks(summary, analysis.summary_evidence_ids, citationLookup);
           block.append(summary);
         }
-        block.append(dl);
+        if (dl.children.length) block.append(dl);
         const signals = [...(analysis.signals || [])]
           .filter(signal => hasRenderableCitations(signal.evidence_ids, citationLookup))
           .sort((left, right) => Number(preferredKinds.has(right.kind)) - Number(preferredKinds.has(left.kind)));
@@ -1332,7 +1930,7 @@
       return;
     }
     if (activeResearchRun?.status === 'running') {
-      content.append(emptyState('Research running', researchRunName(activeResearchRun), 'Collection and analysis are still active. This view will recover the durable run after reload.', true));
+      renderResearchProgress(activeResearchRun, content);
       return;
     }
     if (activeResearchRun?.status === 'error') {
@@ -1447,17 +2045,18 @@
   // Data-driven steps. Update this array as the product evolves.
   // The tour is manual only: nothing interrupts the first load.
   const tourSteps = [
-    { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'Welcome to Bounty', body: 'Bounty reads online conversations and returns cited findings. Two ways in: research a niche you can already name, or scan for emerging topics you did not know about.' },
-    { view: 'explore', target: '#scan-composer-title', placement: 'bottom', title: 'Compose a scan', body: 'Workflow A reads a known niche in depth — pain points, objections, workarounds, verbatim audience language. Workflow B scans live trends for unknown unknowns, useful for investing.' },
-    { view: 'explore', target: '#direct-topic', placement: 'bottom', title: 'Known topic, bounded read', body: 'Type a company, product, or question here. Bounty goes straight to reading conversations — no need to browse trends. This is the fastest way to research something specific.' },
-    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Unknown trends, live scan', body: 'Choose a country and keep the balanced topic mix unless you already have a focus. Search activity surfaces topics to investigate; it is not evidence by itself.' },
-    { view: 'explore', target: '#run-receipt-title', placement: 'bottom', title: 'Check the run receipt', body: 'The dark strip records what actually ran and what did not. Receipts, not estimates. Missing evidence stays missing.' },
-    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Candidate register', body: 'Scan results appear in this register. Select up to five topics and research them to read what people are actually saying.' },
-    { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Read the findings', body: 'Completed runs show their findings here: extracted signals with quotes, evidence records, coverage states, and honest limitations. If evidence is thin, Bounty says so.' },
+    { view: 'explore', target: '#explore-title', placement: 'bottom', title: 'One journey from discovery to evidence', body: 'Start with a topic you know or scan current search attention. Both routes lead into the same persisted research progress and cited findings.' },
+    { view: 'explore', target: '#known-research-title', placement: 'bottom', title: 'Research a known topic', body: 'Name up to five related topics, choose the public sources to attempt, and start. One action creates and immediately runs the durable brief.' },
+    { view: 'explore', target: '#direct-source-picker', placement: 'bottom', title: 'Choose attempted sources', body: 'Reddit, YouTube, Instagram, and TikTok are selected by default. Unavailable sources stay visible as gaps; selection never promises availability.' },
+    { view: 'explore', target: '#explore-form', placement: 'bottom', title: 'Scan live search attention', body: 'Choose a country and keep the category-balanced mix unless you have a focus. Choose Trends only or add bounded root public-post checks.' },
+    { view: 'explore', target: '#discovery-progress', placement: 'bottom', title: 'See active scope and elapsed time', body: 'The scan states what it is doing and how long it has run. It does not invent a completion percentage or arrival time.' },
+    { view: 'explore', target: '#explore-results', placement: 'right', title: 'Triage live topics', body: 'Review rank, search age, growth, volume, and plain public-post evidence. Sort or filter this view without changing the raw candidates.' },
+    { view: 'explore', target: '#research-progress', placement: 'bottom', title: 'Follow persisted research', body: 'After Research these topics, Bounty starts immediately and polls the saved run. Server-reported units appear when available; otherwise the running state stays honest.' },
+    { view: 'explore', target: '#saved-discoveries-title', placement: 'bottom', title: 'Return to saved discoveries', body: 'Earlier standing families live below the current journey. Their filters apply only to saved discoveries, never to the live topics above.' },
+    { view: 'findings', target: '#findings-title', placement: 'bottom', title: 'Interpret the findings', body: 'Each finding separates search momentum, conversation behavior, commercial or negative signals, raw engagement, coverage, citations, and limitations.' },
     { view: 'projects', target: '#projects-title', placement: 'bottom', title: 'Organize projects', body: 'Projects group research subjects and scope planned actions. Each subject can be monitored on a cadence.' },
-    { view: 'lenses', target: '#lenses-title', placement: 'bottom', title: 'Define evaluation lenses', body: 'Lenses are versioned criteria for reading findings in context. Investing, product research, and marketing can each have different lenses. Nothing about the core model is domain-specific.' },
-    { view: 'monitors', target: '#monitors-title', placement: 'bottom', title: 'Monitor subjects', body: 'Turn any subject into a recurring monitor. Bounty re-reads conversations on your schedule and flags what changed.' },
-    { view: 'usage', target: '#usage-title', placement: 'bottom', title: 'Track every call', body: 'Usage shows exact receipts: source calls, LLM calls, cache hits, tokens consumed. No estimates, no hidden costs. This is your audit trail.' },
+    { view: 'lenses', target: '#lenses-title', placement: 'bottom', title: 'Define evaluation lenses', body: 'Lenses are versioned criteria for reading findings in context. They reorder review without replacing canonical evidence.' },
+    { view: 'usage', target: '#usage-title', placement: 'bottom', title: 'Track completed work', body: 'Usage shows recorded source calls, analysis calls, cache hits, and tokens. Missing receipts stay missing instead of becoming estimates.' },
   ];
 
   function startTour() {
@@ -1592,7 +2191,9 @@
       $('#usage-run').value = '';
       $('#explore-results').replaceChildren(emptyState('No scan yet', 'Choose a country and find topics', 'Current search topics will appear here.'));
       $('#explore-detail').replaceChildren(emptyState('No selection', 'Select a topic', 'Search context and conversation-research actions appear here.'));
-      $('#explore-preview').replaceChildren();
+      $('#explore-preview').textContent = 'Not running. Choose a scope above and press Find topics.';
+      $('#explore-count').textContent = 'No search yet';
+      $('#research-progress').replaceChildren(emptyState('No active research', 'Choose what to research', 'Start a known-topic brief or select live topics above.'));
       const scanButton = $('#explore-form button[type=submit]');
       scanButton.disabled = false;
       scanButton.textContent = 'Find topics';
@@ -1604,6 +2205,9 @@
  $('#start-tour').addEventListener('click', startTour);
  $('#research-topic-btn').addEventListener('click', researchTopic);
  $('#direct-topic').addEventListener('keydown', event => { if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) { event.preventDefault(); researchTopic(); } });
+ $('#explore-sort').addEventListener('change', renderExploreResults);
+ $('#explore-social-filter').addEventListener('change', renderExploreResults);
+ $$('#trend-source-picker input[type="checkbox"]').forEach(input => input.addEventListener('change', renderSelectionBar));
  $('#refresh-families')?.addEventListener('click', loadGlobalExplore);
  $('#global-perspective')?.addEventListener('change', loadGlobalExplore);
  $('#global-stage')?.addEventListener('change', renderGlobalExplore);
@@ -1612,6 +2216,7 @@
  }
 
   bind();
+  window.setInterval(updateElapsedClocks, 1000);
   // Explore is the front door. The tour stays manual: nothing
   // interrupts the first load.
   const initial = location.hash.slice(1); showView(['projects','explore','findings','lenses','monitors','usage'].includes(initial) ? initial : 'explore');

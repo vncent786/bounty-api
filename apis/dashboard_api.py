@@ -1045,6 +1045,7 @@ async def _execute_research_run_background(
 
     heartbeat: asyncio.Task | None = None
     execution: asyncio.Task | None = None
+    latest_progress: dict[str, Any] | None = None
     try:
         if not store.renew_research_run_claim(run_id, claim_token):
             logger.warning("Research run %s started after its worker lease expired", run_id)
@@ -1055,6 +1056,7 @@ async def _execute_research_run_background(
         from social_scraper.discovery.handlers import build_handlers
         from social_scraper.discovery.staged_runner import StagedRunner
         from social_scraper.discovery.triage import (
+            ConversationAnalysis,
             all_sources_failed,
             prepare_conversation_prompt,
             source_failure_limitations,
@@ -1064,7 +1066,21 @@ async def _execute_research_run_background(
         handlers, collected = build_handlers(
             _get_broker(), plan, llm_call_fn=_llm_call,
         )
-        execution = asyncio.create_task(StagedRunner(handlers).run(run_id, plan))
+
+        def persist_progress(snapshot: Mapping[str, Any]) -> None:
+            nonlocal latest_progress
+            progress = dict(snapshot)
+            store.update_research_run(
+                run_id, status="running", result={"progress": progress},
+                claim_token=claim_token,
+            )
+            latest_progress = progress
+
+        execution = asyncio.create_task(
+            StagedRunner(
+                handlers, progress_recorder=persist_progress,
+            ).run(run_id, plan)
+        )
         done, _ = await asyncio.wait(
             {execution, heartbeat}, return_when=asyncio.FIRST_COMPLETED,
         )
@@ -1101,18 +1117,14 @@ async def _execute_research_run_background(
                     for item in prepared.evidence
                 ]
                 source_unavailable = not posts and all_sources_failed(source_health)
-                analysis = {
-                    "topic": topic,
-                    "status": (
+                analysis = ConversationAnalysis(
+                    topic=topic,
+                    status=(
                         "sources_unavailable" if source_unavailable
                         else "insufficient_evidence"
                     ),
-                    "summary": "",
-                    "summary_evidence_ids": [],
-                    "signals": [],
-                    "entities": [],
-                    "evidence": public_evidence,
-                    "coverage": {
+                    evidence=public_evidence,
+                    coverage={
                         "raw_records": len(posts),
                         "deduplicated_records": len(public_evidence),
                         "independent_voices": len({
@@ -1129,13 +1141,11 @@ async def _execute_research_run_background(
                         }),
                         "source_status": source_health,
                     },
-                    "limitations": [
+                    limitations=[
                         "This topic did not reach a completed interpretation; source records and collection gaps remain available.",
                         *source_failure_limitations(source_health),
                     ],
-                    "llm_error": "",
-                    "schema_version": "conversation-analysis/2",
-                }
+                ).to_dict()
             finding = store.save_findings(
                 run_id, cid, topic,
                 analysis.get("status", "unknown"), analysis,
@@ -1151,10 +1161,21 @@ async def _execute_research_run_background(
         final_status = "partial" if any(
             status == "failed" for status in stage_statuses
         ) else "complete"
+        if latest_progress is None or latest_progress.get("phase") != "finalizing":
+            raise RuntimeError("research stages finished without finalization progress")
+        final_progress = {
+            **latest_progress,
+            "phase": "complete",
+            "candidate_id": None,
+            "complete": True,
+            "percent": 100.0 if latest_progress.get("total_units") else None,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
         receipt = {
             "stages_executed": list(result.handler_results.keys()),
             "findings_count": len(findings_saved),
             "usage": [usage.to_dict() for usage in result.usages],
+            "progress": final_progress,
         }
         store.update_research_run(
             run_id, status=final_status, result=receipt, claim_token=claim_token,
@@ -1168,7 +1189,10 @@ async def _execute_research_run_background(
         raise
     except Exception as exc:
         logger.exception("Research run %s failed", run_id)
-        error_receipt = {"findings_count": len(store.list_findings(run_id))}
+        error_receipt = {
+            "findings_count": len(store.list_findings(run_id)),
+            **({"progress": latest_progress} if latest_progress is not None else {}),
+        }
         try:
             store.update_research_run(
                 run_id, status="error", error_category=str(exc)[:200],

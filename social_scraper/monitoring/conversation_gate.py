@@ -28,10 +28,11 @@ from typing import Optional
 
 logger = logging.getLogger(__name__)
 
-# Platforms to check in the gate. Priority order: fastest first.
-# YouTube and Reddit are HTTP-based (fast). TikTok/X/Instagram use
-# browser sessions (slower). We check all of them but stagger.
-GATE_PLATFORMS = ["youtube", "reddit", "tiktok"]
+# Platforms to check in the optional pre-research triage. Instagram and TikTok
+# lead because short-form consumer conversation is the highest-value early
+# screen here; YouTube and Reddit remain additive. Per-source failures stay
+# explicit and never remove the underlying Google Trends candidate.
+GATE_PLATFORMS = ["instagram", "tiktok", "youtube", "reddit"]
 
 # How many items to fetch per platform per keyword
 GATE_ITEM_COUNT = 10
@@ -252,11 +253,11 @@ async def gate_check_keyword(
         str(value.get("status") or "").lower()
         for value in platform_breakdown.values()
     }
-    failed_statuses = {"error", "failed", "blocked", "skipped"}
+    failed_statuses = {"error", "failed", "blocked", "skipped", "unavailable"}
     if platform_statuses and platform_statuses.issubset(failed_statuses):
         status = "failed"
         passed = None
-    elif platform_statuses & failed_statuses:
+    elif "partial" in platform_statuses or platform_statuses & failed_statuses:
         status = "partial"
         passed = None
     elif total_items == 0:
@@ -297,21 +298,25 @@ async def run_conversation_gate(
     Args:
         broker: SourceBroker instance with registered connectors.
         keywords: Candidate keywords from trending_now.
-        platforms: Social platforms to check (default: youtube, reddit, tiktok).
+        platforms: Social platforms to check (default: Instagram, TikTok, YouTube, Reddit).
         max_keywords: Maximum keywords to gate-check (bounds execution time).
-        concurrency: How many keywords to check simultaneously (default: 5).
+        concurrency: Keyword concurrency for stateless sources. Instagram forces 1.
         max_threads: Thread hydrations allowed per platform per keyword.
             ``0`` means root evidence only (root sweep mode).
     """
     keywords = keywords[:max_keywords]
     if platforms is None:
         platforms = GATE_PLATFORMS
+    # The authenticated Instagram connector shares one session and throttle.
+    # Serialize keyword batches whenever it is selected so root triage cannot
+    # burst concurrent requests through the same account.
+    effective_concurrency = 1 if "instagram" in platforms else max(1, concurrency)
 
     results: list[ConversationGateResult] = []
 
-    # Process in batches of `concurrency` to avoid hammering platforms
-    for i in range(0, len(keywords), concurrency):
-        batch = keywords[i : i + concurrency]
+    # Process in bounded batches to avoid hammering platform accounts.
+    for i in range(0, len(keywords), effective_concurrency):
+        batch = keywords[i : i + effective_concurrency]
         batch_tasks = [
             gate_check_keyword(broker, kw, platforms, max_threads_per_platform=max_threads)
             for kw in batch
@@ -320,7 +325,7 @@ async def run_conversation_gate(
         results.extend(batch_results)
 
         logger.info(
-            f"Conversation gate batch {i // concurrency + 1}: "
+            f"Conversation gate batch {i // effective_concurrency + 1}: "
             f"checked {len(batch)} keywords, "
             f"{sum(1 for r in batch_results if r.passed is True)} passed"
         )

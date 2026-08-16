@@ -27,7 +27,11 @@ from social_scraper.conversations.thread_reader import (
     ThreadRecord,
 )
 from social_scraper.discovery.scan_modes import ScanMode
-from social_scraper.monitoring.conversation_gate import gate_check_keyword
+from social_scraper.monitoring.conversation_gate import (
+    GATE_PLATFORMS as DEFAULT_GATE_PLATFORMS,
+    gate_check_keyword,
+    run_conversation_gate,
+)
 from social_scraper.monitoring.topdown import EmergingKeyword, TopDownDiscovery
 
 GATE_PLATFORMS = ["youtube", "reddit", "tiktok"]
@@ -41,6 +45,60 @@ ALL_KEYWORDS = [COMPLETE_KEYWORD, PARTIAL_KEYWORD, EMPTY_KEYWORD, FAILED_KEYWORD
 # Legacy names of the readable candidates (kept from the Phase 0
 # characterization so the flip is directly comparable).
 READABLE_KEYWORDS = [COMPLETE_KEYWORD, PARTIAL_KEYWORD]
+
+
+def test_default_root_triage_prioritizes_short_form_sources_without_dropping_broad_coverage():
+    assert DEFAULT_GATE_PLATFORMS[:2] == ["instagram", "tiktok"]
+    assert set(DEFAULT_GATE_PLATFORMS) == {"instagram", "tiktok", "youtube", "reddit"}
+
+
+def test_partial_source_coverage_never_becomes_an_empty_verdict():
+    class PartialBroker:
+        async def search(self, keyword, platforms=None, count=10):
+            platform = platforms[0]
+            return {
+                "items": [],
+                "source_health": [{"platform": platform, "status": "partial"}],
+                "platform_results": {platform: {"status": "partial"}},
+            }
+
+    result = asyncio.run(gate_check_keyword(
+        PartialBroker(), "partial topic",
+        platforms=["instagram", "tiktok"], max_threads_per_platform=0,
+    ))
+
+    assert result.status == "partial"
+    assert result.passed is None
+    assert result.total_items == 0
+
+
+def test_instagram_default_triage_serializes_keyword_batches():
+    class ConcurrencyBroker:
+        def __init__(self):
+            self.active_instagram = 0
+            self.max_active_instagram = 0
+
+        async def search(self, keyword, platforms=None, count=10):
+            platform = platforms[0]
+            if platform == "instagram":
+                self.active_instagram += 1
+                self.max_active_instagram = max(
+                    self.max_active_instagram, self.active_instagram,
+                )
+                await asyncio.sleep(0.01)
+                self.active_instagram -= 1
+            return {
+                "items": [],
+                "source_health": [{"platform": platform, "status": "complete"}],
+                "platform_results": {platform: {"status": "complete"}},
+            }
+
+    broker = ConcurrencyBroker()
+    asyncio.run(run_conversation_gate(
+        broker, ["one", "two", "three"], concurrency=5, max_threads=0,
+    ))
+
+    assert broker.max_active_instagram == 1
 
 
 class CountingBroker:

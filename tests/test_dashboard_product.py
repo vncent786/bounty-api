@@ -48,15 +48,17 @@ def test_dashboard_shell_contract_uses_product_assets_and_external_files():
     ))
     assert "Submit up to five related topics" in html
     assert "Topics, one per line (maximum 5)" in html
-    assert "Global Explore" in html
-    assert "What's changing" in html
-    assert "saved standing register" in html
+    assert "Discovery to evidence" in html
+    assert "Saved discoveries" in html
+    assert "saved discoveries only" in html
     assert "Perspective" in html
     assert all(marker in html for marker in (
         'id="family-grid"', 'id="family-detail"', 'id="global-stage"',
         'id="global-include-rejected"',
     ))
-    assert "Public-post checks" in html
+    assert "Social triage" in html
+    assert "Selected sources are attempted" in html
+    assert "Unavailable sources remain explicit" in html
     assert "Deep reads" not in html
     assert "sample" not in html.casefold()
     for forbidden in ("horizontal", "ontology", "candidate intelligence"):
@@ -86,18 +88,27 @@ def test_dashboard_shell_defaults_to_explore_behind_a_numbered_masthead():
         assert f'<span class="nav-no">{number:02d}</span>' in html
 
 
-def test_global_explore_visibly_organizes_composer_register_sheet_and_receipt():
+def test_explore_is_ordered_as_one_discovery_to_evidence_journey():
     html = get_dashboard_html().body.decode()
-    for label in ("Scan composer", "Candidate register", "Evidence sheet", "Run receipt"):
+    for label in ("Known-topic research", "Live trend scan", "Research progress", "Saved discoveries"):
         assert label in html, label
-    # Both co-primary workflows stay obvious at a glance.
-    assert "Workflow A · Known topic" in html
-    assert "Workflow B · Emerging trends" in html
-    assert "Bounded research brief" in html
-    assert "Live trend scan" in html
-    # The dark receipt keeps both status channels.
+    journey = [
+        html.index('id="explore-form"'),
+        html.index('id="discovery-progress"'),
+        html.index('id="live-topics-title"'),
+        html.index('id="research-progress-title"'),
+        html.index('id="saved-discoveries-title"'),
+    ]
+    assert journey == sorted(journey)
+    assert "Run receipt" not in html
+    assert 'id="run-receipt-title"' not in html
+    # Both entry routes stay obvious, while saved evidence is clearly later.
+    assert "Known topic" in html
+    assert "Emerging trends" in html
     assert 'id="global-explore-status"' in html
     assert 'id="explore-preview"' in html
+    assert "after this scan finishes" not in html
+    assert 'placeholder="Meta ads reporting&#10;Ad creative fatigue&#10;AI ad creative tools"' in html
 
 
 def _product_script():
@@ -155,7 +166,84 @@ def test_explore_copy_explains_scope_defaults_signals_and_missing_metrics():
     script = _product_script()
     assert "savedCountrySelect" in script
     assert "No saved topic families yet" in script
-    assert "Live topic-scan results appear in the separate register below" in script
+    assert "Live scan topics stay above in the current journey" in script
+
+
+def test_live_scan_scope_elapsed_and_ordering_are_explicit_without_fake_eta():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    assert "Google Trends only" in html
+    progress_region = html[html.index('id="discovery-progress"'):html.index('id="live-topics-title"')]
+    assert "Scan status" in progress_region
+    assert "Active scan" not in progress_region
+    assert "Trends plus social triage for up to 20 topics" in script
+    assert "Instagram, TikTok, YouTube, and Reddit" in html
+    assert "Category-balanced: newest first within category, then highest search growth. Search volume is not used." in html
+    assert all(label in html for label in (
+        "Category-balanced (default)", "Newest", "Fastest growth",
+        "Most searches", "Most social activity",
+    ))
+    assert all(label in html for label in (
+        "All social evidence", "Matching public posts", "Not checked or source gaps",
+    ))
+    scan = script[script.index("async function runExplore"):script.index("function candidateName")]
+    assert "formatElapsed" in scan
+    assert "elapsed-clock" in scan
+    assert "Estimated" not in scan
+    assert "ETA" not in scan
+    assert "%" not in scan
+    assert "status = 'active'" in scan
+    assert "Scan ended with partial source coverage" in scan
+    assert "Scan status unavailable" in scan
+    assert "status === 'complete' ? 'Scan complete' : 'Active scan'" not in scan
+    assert "endedAt" in scan
+
+
+def test_known_and_trend_research_offer_all_default_sources_and_copy_them_per_candidate():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    for scope in ("direct", "trend"):
+        for platform in ("reddit", "youtube", "instagram", "tiktok"):
+            marker = f'id="{scope}-source-{platform}"'
+            start = html.index(marker)
+            assert "checked" in html[start:html.index(">", start)]
+    assert html.count("Selected sources are attempted") >= 2
+    assert html.count("Unavailable sources remain explicit") >= 2
+    known = script[script.index("async function researchTopic"):script.index("const researchPolls")]
+    assert "selectedResearchPlatforms('direct')" in known
+    assert "platforms: selectedPlatforms" in known
+    trend = script[script.index("async function createResearchPlan"):script.index("async function promoteCandidate")]
+    assert "selectedResearchPlatforms('trend')" in trend
+    assert "platforms: selectedPlatforms" in trend
+
+
+def test_candidate_sort_and_social_filter_operate_on_copies_not_raw_candidates():
+    script = _product_script()
+    section = script[
+        script.index("function candidatesForDisplay"):
+        script.index("function renderExploreResults")
+    ]
+    assert "state.candidates.slice()" in section
+    assert "categoryBalancedCandidates" in section
+    assert "gate_total_engagement" in section
+    assert "matching" in section
+    assert "gaps" in section
+    assert "state.candidates.sort" not in section
+    assert "state.candidates = state.candidates.filter" not in script
+
+
+def test_candidate_rows_show_rank_age_search_and_root_check_evidence():
+    script = _product_script()
+    rows = script[
+        script.index("function renderExploreResults"):
+        script.index("function renderSelectionBar")
+    ]
+    for marker in (
+        "candidate-rank", "searchAge", "searches", "% growth",
+        "gate_platforms", "gate_total_items", "gate_total_engagement",
+        "publicPostStatus",
+    ):
+        assert marker in rows, marker
 
 
 def test_explore_lens_is_labeled_as_a_later_research_angle():
@@ -357,6 +445,8 @@ def test_rescan_clears_stale_topic_actions_and_rows_do_not_nest_controls():
     css = (Path(__file__).parents[1] / "public" / "dashboard.css").read_text(encoding="utf-8")
     assert ".trend-select {" in css
     assert "min-width: 52px; min-height: 52px;" in css
+    selection_css = css[css.index(".selection-bar {"):css.index("/* ── Tables")]
+    assert "position: sticky" not in selection_css
 
 
 def test_dashboard_script_avoids_iframe_hostile_scrolling_and_plans_real_depth():
@@ -410,18 +500,117 @@ def test_dashboard_poll_discards_results_from_stale_workspace_contexts():
       || state.researchRunId !== runId
     );""" in poll
     assert poll.count("if (isStale()) return") >= 4
+    assert "renderSelectionBar();" in poll
 
 
-def test_dashboard_findings_click_never_passes_the_event_as_the_run_id():
-    from pathlib import Path
+def test_explore_restores_remembered_progress_and_execute_captures_run_scope():
+    script = _product_script()
+    show = script[script.index("function showView"):script.index("function loading")]
+    assert "restoreResearchProgress()" in show
 
-    script = (Path(__file__).parents[1] / "public" / "dashboard.js").read_text(encoding="utf-8")
+    restore = script[
+        script.index("async function restoreResearchProgress"):
+        script.index("function researchRunName")
+    ]
+    assert "localStorage.getItem(latestRunKey())" in restore
+    assert "renderResearchProgress(run)" in restore
+    assert "pollResearchRun(run.id || runId)" in restore
+    assert "requestEpoch !== state.workspaceEpoch" in restore
+    assert "const selectedRunAtRequest = state.researchRunId" in restore
+    assert "state.researchRunId !== selectedRunAtRequest" in restore
+    assert "run.workspace_id !== requestWorkspace" in restore
+
+    execute = script[
+        script.index("async function executeResearchRun"):
+        script.index("async function startSavedResearchRun")
+    ]
+    assert "runId = state.researchRunId" in execute
+    assert "requestEpoch = state.workspaceEpoch" in execute
+    assert "requestWorkspace = state.workspace" in execute
+    assert "state.researchRunId !== runId" in execute
+    assert "await api(`/discovery/research-runs/${enc(runId)}/execute`" in execute
+    assert "await pollResearchRun(runId" in execute
+    assert execute.count("if (isStale()) return") >= 3
+    assert "/research-runs/${enc(state.researchRunId)}" not in execute
+
+
+def test_valid_research_retries_clear_errors_and_planned_runs_do_not_show_elapsed_age():
+    script = _product_script()
+    known = script[script.index("async function researchTopic"):script.index("const researchPolls")]
+    trend = script[script.index("async function createResearchPlan"):script.index("async function promoteCandidate")]
+    progress = script[script.index("function renderResearchProgress"):script.index("function pollResearchRun")]
+    assert "clearError();" in known
+    assert "clearError();" in trend
+    assert "run.status === 'planned' ? null : run.started_at" in progress
+    assert "run.started_at || run.created_at" not in progress
+    assert "Research planned" in progress
+
+
+def test_research_topics_create_and_start_the_persisted_run_in_one_action():
+    script = _product_script()
     plan = script[
         script.index("async function createResearchPlan"):
         script.index("async function promoteCandidate")
     ]
-    assert "findBtn.addEventListener('click', () => loadFindings());" in plan
-    assert "findBtn.addEventListener('click', loadFindings);" not in script
+    assert "{ autoStart = true }" in plan
+    assert "await executeResearchRun" in plan
+    assert "Click \"Start research\"" not in plan
+    assert "execute-run-btn" not in plan
+
+
+def test_research_progress_uses_server_units_percent_and_elapsed_or_an_honest_fallback():
+    html = get_dashboard_html().body.decode()
+    script = _product_script()
+    assert 'id="research-progress"' in html
+    progress = script[
+        script.index("function completedResearchDetails"):
+        script.index("function pollResearchRun")
+    ]
+    assert "run.result?.progress" in progress
+    assert "friendlyResearchPhase" in progress
+    assert "progress.completed_units" in progress
+    assert "progress.total_units" in progress
+    assert "progress.percent" in progress
+    assert "reported by the server" in progress
+    assert "formatElapsed" in progress
+    assert "The server has not reported unit progress" in progress
+    assert "No percent or arrival time is inferred" in progress
+    assert "completed-run-details" in progress
+    assert "Go to Findings" in progress
+
+
+def test_findings_lead_with_interpretable_evidence_and_raw_engagement():
+    script = _product_script()
+    findings = script[
+        script.index("function renderEvidenceSummary"):
+        script.index("async function loadLenses")
+    ]
+    for label in (
+        "What the evidence says", "Search attention (Google Trends)", "Observed behavior",
+        "Commercial intent", "Negative or rejection", "General discussion",
+        "Social trajectory", "Raw observed engagement",
+    ):
+        assert label in findings, label
+
+    assert "analysis.interpretation" in script
+    assert "analysis.status" in findings
+    assert "analysis.coverage" in findings
+    assert "engagement" in findings
+    assert "engagementMetrics" in script
+    evidence = script[
+        script.index("function addEvidenceSection"):
+        script.index("// ── Sparkline")
+    ]
+    assert "Observed engagement" in evidence
+    assert "metricValue === null" in script
+    assert "comparablePeriodsAvailable" in script
+    assert "Comparative change language was withheld" in script
+    assert "did not include comparable periods" in script
+    assert "One collection period cannot establish whether conversation is brewing" in script
+    assert "Google Trends Trending Now" in script
+    assert "trends.google.com/trending" in script
+    assert "evidenceCitationNumber" in script
+    assert "[${evidenceCitationNumber(item.id, lookup)}]" in script
 
 
 def test_dashboard_poll_continues_after_a_late_execute_conflict():
@@ -685,3 +874,18 @@ def test_global_explore_uses_persisted_families_and_records_actions(tmp_path, mo
         f"/dashboard/api/explore/families/{family['id']}/labels?workspace_id=default"
     ).json()
     assert [row["action_type"] for row in labels] == ["monitor", "dismiss"]
+
+
+def test_production_browser_runtime_is_pinned_and_unprivileged():
+    from pathlib import Path
+
+    root = Path(__file__).parents[1]
+    requirements = (root / "requirements.txt").read_text(encoding="utf-8")
+    dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+    assert "playwright==1.62.0" in requirements
+    assert "playwright-stealth==2.0.3" in requirements
+    assert "ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright" in dockerfile
+    assert "python -m playwright install --with-deps chromium" in dockerfile
+    assert "USER app" in dockerfile
+    assert "COPY --chown=app:app . ." in dockerfile
+    assert dockerfile.index("USER app") < dockerfile.index("CMD uvicorn")

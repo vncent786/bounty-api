@@ -48,87 +48,86 @@ DASHBOARD_HTML = """<!doctype html>
   <div id="global-error" class="notice error hidden" role="alert"></div>
 
   <section class="view active" id="view-explore" aria-labelledby="explore-title">
-    <header class="page-head"><div><p class="eyebrow">01 / Discovery desk</p><h1 id="explore-title">Global Explore</h1><p>Two ways in: research a niche you can already name, or scan for emerging conversations you did not know about.</p></div><button class="quiet" id="refresh-families">Refresh register</button></header>
+    <header class="page-head"><div><p class="eyebrow">01 / Discovery desk</p><h1 id="explore-title">Discovery to evidence</h1><p>Start with a topic you know or discover one from current search attention, then follow the same path into cited findings.</p></div></header>
 
-    <section class="zone" aria-labelledby="scan-composer-title">
-      <div class="zone-head"><h2 id="scan-composer-title"><span class="zone-no">01</span>Scan composer</h2><p class="zone-note">Explicit action only. Nothing runs until you press a button.</p></div>
-      <div class="composer-grid">
-        <div class="composer-half">
-          <p class="eyebrow">Workflow A · Known topic</p>
-          <h3>Bounded research brief</h3>
+    <section class="zone" aria-labelledby="known-research-title">
+      <div class="zone-head"><h2 id="known-research-title"><span class="zone-no">01</span>Known-topic research</h2><p class="zone-note">One action saves the brief and starts research.</p></div>
+      <div class="known-topic-layout">
+        <div>
+          <p class="eyebrow">Known topic</p>
+          <h3>Research a bounded niche</h3>
           <p class="composer-copy">Name the niche you want read — for example, Cairn buyer language — and get pain points, objections, workarounds, competitor mentions, and verbatim audience words with citations.</p>
-          <div class="research-brief-grid">
-            <label>Research brief<input id="direct-research-name" type="text" maxlength="160" required placeholder="e.g. Cairn buyer language"></label>
-            <label>Use case<select id="direct-preset"><option value="general-research">General research</option><option value="marketing-intelligence">Marketing intelligence</option><option value="product-opportunity">Product opportunities</option><option value="investing-social-arbitrage">Investing / social arbitrage</option></select></label>
-            <label class="research-topics">Topics, one per line (maximum 5)<textarea id="direct-topic" rows="4" aria-describedby="direct-topic-help" placeholder="Meta ads reporting\\nad creative fatigue\\nAI ad creative tools" autocomplete="off"></textarea></label>
-            <button class="primary" id="research-topic-btn">Start research</button>
-          </div>
-          <p class="form-help" id="direct-topic-help">Submit up to five related topics. Bounty saves the run, reads available conversations in the background, and preserves explicit source gaps.</p>
         </div>
-        <div class="composer-half">
-          <p class="eyebrow">Workflow B · Emerging trends</p>
-          <h3>Live trend scan</h3>
-          <p class="composer-copy">Use this when you do not yet know which topics matter. Search activity is a discovery signal, not evidence.</p>
-          <ol class="scan-instructions" aria-label="How to find topics">
-            <li><span>01</span><strong>Choose a country</strong><small>This sets the search market.</small></li>
-            <li><span>02</span><strong>Start balanced</strong><small>No growth number is required. Choose an area only when you already have a focus.</small></li>
-            <li><span>03</span><strong>Find, then research</strong><small>Select up to five useful topics, then press Research these topics for cited evidence.</small></li>
-          </ol>
-          <form id="explore-form" class="filter-bar">
-            <label>Country<select id="explore-geo" required><option value="US">United States</option></select><span class="control-help">Country controls which search market is scanned.</span></label>
-            <label>Topic area<select id="explore-cat-filter"><option value="">Balanced across all categories</option></select><span class="control-help">Recommended: leave this balanced. Choose one area only when you already have a focus.</span></label>
-            <input id="explore-volume" type="hidden" value="0">
-            <input id="explore-growth" type="hidden" value="0">
-            <input id="explore-age" type="hidden" value="0">
-            <label class="check"><input id="explore-verified" type="checkbox"><span>Also check for matching public posts<small>Optional. A failed post check never hides a search topic.</small></span></label>
-            <label>Conversation-research angle (used after you choose a topic)<select id="explore-lens"><option value="">No lens</option></select></label>
-            <p class="filter-note">Search activity is a discovery signal, not evidence. Missing metrics are shown as unavailable, not zero. Bounty does not ask you to guess a growth threshold.</p>
-            <button class="primary" type="submit">Find topics</button>
-          </form>
+        <div class="research-brief-grid">
+          <label>Research brief<input id="direct-research-name" type="text" maxlength="160" required placeholder="e.g. Cairn buyer language"></label>
+          <label>Use case<select id="direct-preset"><option value="general-research">General research</option><option value="marketing-intelligence">Marketing intelligence</option><option value="product-opportunity">Product opportunities</option><option value="investing-social-arbitrage">Investing / social arbitrage</option></select></label>
+          <label class="research-topics">Topics, one per line (maximum 5)<textarea id="direct-topic" rows="4" aria-describedby="direct-topic-help" placeholder="Meta ads reporting&#10;Ad creative fatigue&#10;AI ad creative tools" autocomplete="off"></textarea></label>
+          <fieldset class="source-picker research-topics" id="direct-source-picker"><legend>Sources to attempt</legend><div class="source-options"><label><input id="direct-source-reddit" type="checkbox" value="reddit" checked>Reddit</label><label><input id="direct-source-youtube" type="checkbox" value="youtube" checked>YouTube</label><label><input id="direct-source-instagram" type="checkbox" value="instagram" checked>Instagram</label><label><input id="direct-source-tiktok" type="checkbox" value="tiktok" checked>TikTok</label></div><p>Selected sources are attempted. Unavailable sources remain explicit in findings and source receipts.</p></fieldset>
+          <button class="primary" id="research-topic-btn" type="button">Start research</button>
         </div>
       </div>
+      <p class="form-help" id="direct-topic-help">Submit up to five related topics. Bounty creates and immediately starts one persisted run, then preserves explicit source gaps.</p>
     </section>
 
-    <section class="zone zone-receipt" aria-labelledby="run-receipt-title">
-      <div class="zone-head"><h2 id="run-receipt-title"><span class="zone-no">02</span>Run receipt</h2><p class="zone-note">What actually ran, in plain terms. Missing evidence stays missing.</p></div>
-      <div class="receipt-block">
-        <div class="receipt-row"><span class="receipt-label">Persisted evidence</span><p id="global-explore-status" class="receipt-text">Loading persisted topic families. This view does not start a new collection run.</p></div>
-        <div class="receipt-row"><span class="receipt-label">Live run</span><div id="explore-preview" class="receipt-text">Type a topic above to start researching, or choose a country and find topics drawing search attention.</div></div>
+    <section class="zone" aria-labelledby="live-scan-title">
+      <div class="zone-head"><h2 id="live-scan-title"><span class="zone-no">02</span>Live trend scan</h2><p class="zone-note">Explicit action only. Search attention is not a finding.</p></div>
+      <p class="eyebrow">Emerging trends</p>
+      <p class="composer-copy">Use this when you do not yet know which topics matter. Choose Google Trends only, or add root-post triage for up to 20 category-balanced topics across Instagram, TikTok, YouTube, and Reddit.</p>
+      <ol class="scan-instructions" aria-label="How to find topics">
+        <li><span>01</span><strong>Choose a country</strong><small>This sets the search market.</small></li>
+        <li><span>02</span><strong>Start balanced</strong><small>No growth number is required. Choose an area only when you already have a focus.</small></li>
+        <li><span>03</span><strong>Find, then research</strong><small>Select up to five useful topics, then press Research these topics for cited evidence.</small></li>
+      </ol>
+      <form id="explore-form" class="filter-bar">
+        <label>Country<select id="explore-geo" required><option value="US">United States</option></select><span class="control-help">Country controls which search market is scanned.</span></label>
+        <label>Topic area<select id="explore-cat-filter"><option value="">Balanced across all categories</option></select><span class="control-help">Recommended: leave this balanced. Choose one area only when you already have a focus.</span></label>
+        <input id="explore-volume" type="hidden" value="0">
+        <input id="explore-growth" type="hidden" value="0">
+        <input id="explore-age" type="hidden" value="0">
+        <label class="check"><input id="explore-verified" type="checkbox"><span>Also check for matching public posts<small>Optional. A failed post check never hides a search topic.</small></span></label>
+        <p class="filter-note">Search activity is a discovery signal, not evidence. Missing metrics are shown as unavailable, not zero. Bounty does not ask you to guess a growth threshold.</p>
+        <button class="primary" type="submit">Find topics</button>
+      </form>
+
+      <div id="discovery-progress" class="journey-progress" aria-live="polite">
+        <p class="eyebrow">Scan status</p>
+        <div id="explore-preview">Not running. Choose a scope above and press Find topics.</div>
+      </div>
+
+      <section class="live-topics" aria-labelledby="live-topics-title">
+        <div class="register-block-head"><h3 id="live-topics-title">Live topics found</h3><span id="explore-count" class="mono muted">No search yet</span></div>
+        <p class="ordering-copy">Category-balanced: newest first within category, then highest search growth. Search volume is not used.</p>
+        <div class="result-controls">
+          <label>Sort topics<select id="explore-sort"><option value="balanced">Category-balanced (default)</option><option value="newest">Newest</option><option value="growth">Fastest growth</option><option value="searches">Most searches</option><option value="social">Most social activity</option></select></label>
+          <label>Social evidence<select id="explore-social-filter"><option value="all">All social evidence</option><option value="matching">Matching public posts</option><option value="gaps">Not checked or source gaps</option></select></label>
+          <label>Conversation-research angle (used after you choose a topic)<select id="explore-lens"><option value="">No lens</option></select></label>
+          <fieldset class="source-picker" id="trend-source-picker"><legend>Research sources to attempt</legend><div class="source-options"><label><input id="trend-source-reddit" type="checkbox" value="reddit" checked>Reddit</label><label><input id="trend-source-youtube" type="checkbox" value="youtube" checked>YouTube</label><label><input id="trend-source-instagram" type="checkbox" value="instagram" checked>Instagram</label><label><input id="trend-source-tiktok" type="checkbox" value="tiktok" checked>TikTok</label></div><p>Selected sources are attempted after Research these topics. Unavailable sources remain explicit in findings and source receipts.</p></fieldset>
+        </div>
+        <div id="explore-results" class="row-list" aria-live="polite"><div class="empty compact"><h3>No topics yet</h3><p>Choose a country and topic area, then press Find topics above.</p></div></div>
+        <section id="explore-detail" class="detail-pane evidence-sheet-pane"><div class="empty compact"><p class="eyebrow">Search signal</p><h2>Select a topic</h2><p>Inspect its search signal and related queries. Public evidence appears only after a research run.</p></div></section>
+      </section>
+    </section>
+
+    <section class="zone" aria-labelledby="research-progress-title">
+      <div class="zone-head"><h2 id="research-progress-title"><span class="zone-no">03</span>Research progress</h2><p class="zone-note">Durable after navigation or reload.</p></div>
+      <div id="research-progress" class="research-progress" aria-live="polite"><div class="empty compact"><p class="eyebrow">No active research</p><h2>Choose what to research</h2><p>Start a known-topic brief or select live topics above. Progress and elapsed time will appear here.</p></div></div>
+    </section>
+
+    <section class="zone saved-discoveries" aria-labelledby="saved-discoveries-title">
+      <div class="zone-head"><h2 id="saved-discoveries-title"><span class="zone-no">04</span>Saved discoveries</h2><p class="zone-note">Separate from the current scan.</p></div>
+      <div class="saved-discoveries-head"><div><h3 id="changing-title">Saved topic families</h3><p class="section-copy">Standing topic families from earlier discovery work. The filters in this section affect saved discoveries only; they never change the live topics above.</p></div><button class="quiet" id="refresh-families">Refresh saved discoveries</button></div>
+      <section class="global-controls" aria-label="Saved discoveries filters">
+        <label>Perspective<select id="global-perspective"><option value="">All evidence</option></select></label>
+        <label>Stage<select id="global-stage"><option value="">All stages</option><option value="emerging">Emerging</option><option value="confirming">Confirming</option><option value="established">Established</option><option value="event_spike">Event spike</option><option value="cooling">Cooling</option><option value="observed">Observed</option><option value="unclear">Unclear</option></select></label>
+        <label>Saved-family country<select id="global-geo"><option value="">All countries</option><option value="GLOBAL">Global / multi-country</option></select></label>
+        <label class="check"><input id="global-include-rejected" type="checkbox">Include rejected or unclear</label>
+      </section>
+      <p id="global-explore-status" class="saved-status" aria-live="polite">Loading persisted topic families. This does not start a new collection run.</p>
+      <div class="saved-layout">
+        <section><div class="register-block-head"><h3>Saved families</h3><span id="family-count" class="mono muted">Not loaded</span></div><div id="family-grid" class="family-grid" aria-live="polite"><div class="empty bordered"><p class="eyebrow">Loading</p><h2>Checking persisted evidence</h2><p>No live sources are being called.</p></div></div></section>
+        <aside id="family-detail" class="family-detail" aria-live="polite"><div class="empty"><p class="eyebrow">Saved evidence</p><h2>Select a topic family</h2><p>Open a saved family to inspect its evidence, coverage, and limitations.</p></div></aside>
       </div>
     </section>
-
-    <div class="register-layout">
-      <section class="zone zone-flush" aria-labelledby="candidate-register-title">
-        <div class="zone-head"><h2 id="candidate-register-title"><span class="zone-no">03</span>Candidate register</h2><p class="zone-note">Persisted families first, then live scan results.</p></div>
-        <div class="register-block">
-          <div class="register-block-head"><h3 id="changing-title">Global Explore — What's changing</h3><span id="family-count" class="mono muted">Not loaded</span></div>
-          <p class="section-copy">This is the saved standing register, separate from the live topic scan below. Recommendations preserve source coverage, route reasons, trajectory periods, and rejected families.</p>
-          <section class="global-controls" aria-label="Global Explore controls">
-            <label>Perspective<select id="global-perspective"><option value="">All evidence</option></select></label>
-            <label>Stage<select id="global-stage"><option value="">All stages</option><option value="emerging">Emerging</option><option value="confirming">Confirming</option><option value="established">Established</option><option value="event_spike">Event spike</option><option value="cooling">Cooling</option><option value="observed">Observed</option><option value="unclear">Unclear</option></select></label>
-            <label>Saved-family country<select id="global-geo"><option value="">All countries</option><option value="GLOBAL">Global / multi-country</option></select></label>
-            <label class="check"><input id="global-include-rejected" type="checkbox">Include rejected or unclear</label>
-          </section>
-          <div id="family-grid" class="family-grid" aria-live="polite"><div class="empty bordered"><p class="eyebrow">Loading</p><h2>Checking persisted evidence</h2><p>No live sources are being called.</p></div></div>
-        </div>
-        <div class="register-block">
-          <div class="register-block-head"><h3>Trend scan results</h3><span id="explore-count" class="mono muted">No search yet</span></div>
-          <div id="explore-results" class="row-list" aria-live="polite"><div class="empty compact"><h3>No topics yet</h3><p>Choose a country and topic area, then press Find topics above.</p></div></div>
-        </div>
-      </section>
-
-      <section class="zone zone-flush" aria-labelledby="evidence-sheet-title">
-        <div class="zone-head"><h2 id="evidence-sheet-title"><span class="zone-no">04</span>Evidence sheet</h2><p class="zone-note">Open a register entry to read its evidence.</p></div>
-        <div class="register-block">
-          <div class="register-block-head"><h3>Topic family evidence</h3></div>
-          <aside id="family-detail" class="family-detail" aria-live="polite"><div class="empty"><p class="eyebrow">Evidence</p><h2>Select a topic family</h2><p>Open a family to inspect member terms, trajectory, corroboration, propagation, coverage, and limitations.</p></div></aside>
-        </div>
-        <div class="register-block">
-          <div class="register-block-head"><h3>Scan result evidence</h3></div>
-          <section id="explore-detail" class="detail-pane evidence-sheet-pane"><div class="empty"><p class="eyebrow">Search signal</p><h2>Select a topic</h2><p>Inspect its search signal and related queries. Public evidence appears only after a separate research run.</p></div></section>
-        </div>
-      </section>
-    </div>
   </section>
 
   <section class="view" id="view-projects" aria-labelledby="projects-title">
@@ -165,7 +164,7 @@ DASHBOARD_HTML = """<!doctype html>
 <dialog id="project-dialog"><form id="project-form"><header><p class="eyebrow">New scope</p><h2>Create project</h2></header><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="3"></textarea></label><label>Default region<input name="default_geo" maxlength="2" placeholder="US"></label><label>First subject (optional)<input name="subject" maxlength="120"></label><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Create project</button></div></form></dialog>
 <dialog id="subject-dialog"><form id="subject-form"><header><p class="eyebrow">Research target</p><h2>Add subject</h2></header><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="3"></textarea></label><label>Region<input name="geo" maxlength="2" placeholder="Project default"></label><label>Lens<select name="lens_id"><option value="">No lens</option></select></label><label>Cadence (minutes)<input name="cadence_minutes" type="number" min="1" value="10080"></label><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Add subject</button></div></form></dialog>
 <dialog id="lens-dialog"><form id="lens-form"><header><p class="eyebrow">Versioned definition</p><h2 id="lens-dialog-title">Create lens</h2></header><input type="hidden" name="lens_id"><label>Name<input name="name" required maxlength="120"></label><label>Description<textarea name="description" rows="2"></textarea></label><label>Specification (JSON)<textarea class="mono" name="spec" rows="12" required spellcheck="false">{"objective":"Find unmet needs","criteria":[{"criterion_id":"unmet_need","label":"Unmet need","feature_key":"unmet_need","mode":"display","weight":0,"missing_policy":"keep_unknown"}]}</textarea></label><p class="form-help">Start with a valid unmet-need criterion or replace it with registered criteria. Saving an edit creates a new immutable version. Definition changes do not run research.</p><div class="dialog-actions"><button type="button" class="quiet" data-close>Cancel</button><button class="primary" type="submit">Save lens</button></div></form></dialog>
-<dialog id="confirm-dialog"><form method="dialog"><header><p class="eyebrow">Live source check</p><h2>Find these topics?</h2></header><div id="confirm-copy" class="prose"></div><div class="limit-grid"><div><span>Returned topics</span><strong>Up to 50</strong></div><div><span>Public-post checks</span><strong>Up to 20 when selected</strong></div></div><p class="form-help">The scan reads the current Google Trends window for the selected country. Optional public-post checks inspect root posts only. They do not read threads or create findings.</p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button value="confirm" class="primary">Find topics</button></div></form></dialog>
+<dialog id="confirm-dialog"><form method="dialog"><header><p class="eyebrow">Live source check</p><h2>Find these topics?</h2></header><div id="confirm-copy" class="prose"></div><div class="limit-grid"><div><span>Returned topics</span><strong>Up to 50</strong></div><div><span>Social triage</span><strong>Up to 20 topics when selected</strong></div></div><p class="form-help">The scan reads the current Google Trends window for the selected country. Optional public-post triage inspects root posts across Instagram, TikTok, YouTube, and Reddit. It does not read threads or create findings, and source failures remain explicit.</p><div class="dialog-actions"><button value="cancel" class="quiet">Cancel</button><button value="confirm" class="primary">Find topics</button></div></form></dialog>
 <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
 </body></html>"""
 

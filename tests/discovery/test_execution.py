@@ -292,6 +292,92 @@ def test_horizontal_extraction_handler_with_mock_llm():
     asyncio.run(_run())
 
 
+def test_horizontal_extraction_keeps_engagement_in_prompt_and_findings(tmp_path):
+    from social_scraper.discovery.handlers import make_horizontal_extraction_handler
+
+    async def _run():
+        url = "https://www.youtube.com/watch?v=v1&utm_source=kept"
+        provenance = {
+            "connector": "youtube_free",
+            "query": "test",
+            "engagement_sources": {"views": "view_count"},
+        }
+        engagement = {
+            "views": 0,
+            "likes": 4,
+            "comments": None,
+            "shares": 2,
+            "collects": 1,
+            "upvotes": None,
+            "replies": 0,
+            "reposts": None,
+            "bookmarks": 3,
+            "creator_followers": 100,
+        }
+        collected = {
+            "c1:deep": [{
+                "platform": "youtube", "external_id": "v1", "url": url,
+                "text": "I bought this after seeing it demonstrated.",
+                "provenance": provenance, "engagement": engagement,
+            }],
+            "c1:health": [],
+        }
+        sent = []
+
+        async def mock_llm(_system, user):
+            sent.append(json.loads(user))
+            return json.dumps({
+                "summary": "",
+                "summary_evidence_ids": [],
+                "signals": [{
+                    "kind": "adoption",
+                    "claim": "A cited author reports buying the product.",
+                    "polarity": "positive",
+                    "evidence_ids": ["youtube:post:v1"],
+                }],
+                "entities": [],
+                "limitations": [],
+            })
+
+        handler = make_horizontal_extraction_handler(
+            plan={"effective_budget": {}}, collected=collected,
+            llm_call_fn=mock_llm,
+        )
+        result = await handler(
+            {"candidate_id": "c1", "keyword": "test"}, {},
+        )
+
+        prompt_record = sent[0]["evidence_records"][0]
+        finding_record = collected["c1:findings"]["evidence"][0]
+        returned_record = result.candidates[0]["_findings"]["evidence"][0]
+        assert prompt_record["engagement"] == engagement
+        assert finding_record["engagement"] == engagement
+        assert returned_record["engagement"] == engagement
+        assert prompt_record["url"] == finding_record["url"] == url
+        assert prompt_record["provenance"] == finding_record["provenance"] == provenance
+        assert collected["c1:findings"]["interpretation"]["conversation_state"] == (
+            "observed_behavior"
+        )
+
+        store = DiscoveryStore(tmp_path / "engagement-findings.db")
+        run = store.create_research_run(
+            workspace_id="ws1", requested_budget={}, effective_budget={},
+            plan={"candidates": []}, status="planned",
+        )
+        claim_token = store.claim_research_run(run["id"])
+        assert claim_token is not None
+        store.save_findings(
+            run["id"], "c1", "test", "supported", collected["c1:findings"],
+            claim_token=claim_token,
+        )
+        persisted_record = store.list_findings(run["id"])[0]["analysis"]["evidence"][0]
+        assert persisted_record["engagement"] == engagement
+        assert persisted_record["url"] == url
+        assert persisted_record["provenance"] == provenance
+
+    asyncio.run(_run())
+
+
 def test_horizontal_extraction_receipt_matches_exact_prepared_prompt():
     from social_scraper.discovery.handlers import make_horizontal_extraction_handler
     from social_scraper.discovery.triage import prepare_conversation_prompt
@@ -588,6 +674,73 @@ def test_staged_runner_receipt_from_live_handlers_is_nonzero_and_exact():
     asyncio.run(_run())
 
 
+def test_staged_runner_reports_truthful_unit_progress():
+    async def _run():
+        snapshots = []
+
+        async def handler(_candidate, _context):
+            return StageHandlerResult(records_returned=1)
+
+        async def record_progress(snapshot):
+            await asyncio.sleep(0)
+            snapshots.append(dict(snapshot))
+
+        plan = {
+            "effective_budget": {
+                "root_probe_candidates": 2,
+                "deep_read_candidates": 1,
+            },
+            "candidates": [
+                {
+                    "candidate_id": "c1",
+                    "candidate": {"keyword": "one"},
+                    "stages": {
+                        "root_probe": "planned",
+                        "deep_read": "planned",
+                    },
+                },
+                {
+                    "candidate_id": "c2",
+                    "candidate": {"keyword": "two"},
+                    "stages": {
+                        "root_probe": "planned",
+                        "deep_read": "budget_exhausted",
+                    },
+                },
+            ],
+        }
+
+        await StagedRunner(
+            {"root_probe": handler, "deep_read": handler},
+            progress_recorder=record_progress,
+        ).run("progress-run", plan)
+
+        assert [
+            (
+                item["phase"], item["candidate_id"],
+                item["completed_units"], item["total_units"],
+                item["phase_completed"], item["phase_total"],
+                item["complete"], item["percent"],
+            )
+            for item in snapshots
+        ] == [
+            ("starting", None, 0, 3, 0, 0, False, 0.0),
+            ("root_probe", None, 0, 3, 0, 2, False, 0.0),
+            ("root_probe", "c1", 1, 3, 1, 2, False, 33.33),
+            ("root_probe", "c2", 2, 3, 2, 2, False, 66.67),
+            ("deep_read", None, 2, 3, 0, 1, False, 66.67),
+            ("deep_read", "c1", 3, 3, 1, 1, False, 100.0),
+            ("finalizing", None, 3, 3, 0, 0, False, 100.0),
+        ]
+        assert all(item["estimated_remaining_seconds"] is None for item in snapshots)
+        assert all(
+            datetime.fromisoformat(item["updated_at"]).tzinfo is not None
+            for item in snapshots
+        )
+
+    asyncio.run(_run())
+
+
 def test_handler_chain_persists_source_gap_when_collection_returns_no_evidence():
     from social_scraper.discovery.handlers import build_handlers
 
@@ -756,10 +909,19 @@ def test_background_worker_persists_findings_and_terminal_status(tmp_path, monke
         usages = []
 
     class FakeRunner:
-        def __init__(self, _handlers):
-            pass
+        def __init__(self, _handlers, progress_recorder=None):
+            self.progress_recorder = progress_recorder
 
         async def run(self, _run_id, _plan):
+            if self.progress_recorder:
+                self.progress_recorder({
+                    "phase": "finalizing", "candidate_id": None,
+                    "completed_units": 0, "total_units": 0,
+                    "phase_completed": 0, "phase_total": 0,
+                    "complete": False, "percent": None,
+                    "estimated_remaining_seconds": None,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                })
             return FakeResult()
 
     monkeypatch.setattr(runner_module, "StagedRunner", FakeRunner)
@@ -796,6 +958,179 @@ def test_background_worker_persists_findings_and_terminal_status(tmp_path, monke
     assert findings[0]["analysis"]["evidence"][0]["url"].startswith("https://")
 
 
+def test_background_worker_persists_claim_guarded_progress(tmp_path, monkeypatch):
+    import apis.dashboard_api as dashboard_api
+    import social_scraper.discovery.handlers as handlers_module
+
+    store = DiscoveryStore(tmp_path / "worker-progress.db")
+    monkeypatch.setattr(dashboard_api, "_discovery_store", store)
+    monkeypatch.setattr(dashboard_api, "_get_broker", lambda: object())
+    handler_started = asyncio.Event()
+    allow_completion = asyncio.Event()
+
+    async def root_handler(_candidate, _context):
+        handler_started.set()
+        await allow_completion.wait()
+        return StageHandlerResult(records_returned=1)
+
+    monkeypatch.setattr(
+        handlers_module, "build_handlers",
+        lambda *_args, **_kwargs: ({"root_probe": root_handler}, {}),
+    )
+    plan = {
+        "effective_budget": {"root_probe_candidates": 1},
+        "candidates": [{
+            "candidate_id": "c1",
+            "candidate": {"keyword": "durable progress"},
+            "stages": {"root_probe": "planned"},
+        }],
+    }
+    run = store.create_research_run(
+        workspace_id="ws1", requested_budget={}, effective_budget={},
+        plan=plan, status="planned",
+    )
+    claim_token = store.claim_research_run(run["id"])
+    assert claim_token is not None
+
+    update_calls = []
+    real_update = store.update_research_run
+
+    def record_update(*args, **kwargs):
+        update_calls.append((args, kwargs))
+        return real_update(*args, **kwargs)
+
+    monkeypatch.setattr(store, "update_research_run", record_update)
+
+    async def execute_and_poll():
+        task = asyncio.create_task(
+            dashboard_api._execute_research_run_background(run["id"], claim_token)
+        )
+        await handler_started.wait()
+        running = store.get_research_run(run["id"])
+        allow_completion.set()
+        return await task, running
+
+    result, running = asyncio.run(execute_and_poll())
+
+    assert running["status"] == "running"
+    assert running["result"]["progress"]["phase"] == "root_probe"
+    assert running["result"]["progress"]["completed_units"] == 0
+    assert running["result"]["progress"]["total_units"] == 1
+
+    progress_updates = [
+        kwargs["result"]["progress"]
+        for _args, kwargs in update_calls
+        if kwargs.get("status") == "running"
+    ]
+    assert [snapshot["phase"] for snapshot in progress_updates] == [
+        "starting", "root_probe", "root_probe", "finalizing",
+    ]
+    assert all(
+        kwargs["claim_token"] == claim_token
+        for _args, kwargs in update_calls
+        if kwargs.get("status") == "running"
+    )
+    assert progress_updates[2]["candidate_id"] == "c1"
+    assert progress_updates[2]["completed_units"] == 1
+
+    persisted = store.get_research_run(run["id"])
+    assert result["status"] == "complete"
+    assert persisted["status"] == "complete"
+    assert progress_updates[-1]["phase"] == "finalizing"
+    assert progress_updates[-1]["complete"] is False
+    assert persisted["result"]["progress"]["phase"] == "complete"
+    assert persisted["result"]["progress"]["complete"] is True
+    assert persisted["result"]["progress"]["percent"] == 100.0
+    assert persisted["result"]["progress"]["estimated_remaining_seconds"] is None
+
+
+def test_background_worker_fallback_finding_uses_v3_conservative_interpretation(tmp_path, monkeypatch):
+    import apis.dashboard_api as dashboard_api
+    import social_scraper.discovery.handlers as handlers_module
+
+    store = DiscoveryStore(tmp_path / "fallback-v3.db")
+    monkeypatch.setattr(dashboard_api, "_discovery_store", store)
+    monkeypatch.setattr(dashboard_api, "_get_broker", lambda: object())
+
+    async def root_handler(_candidate, _context):
+        return StageHandlerResult(records_returned=0)
+
+    monkeypatch.setattr(
+        handlers_module, "build_handlers",
+        lambda *_args, **_kwargs: ({"root_probe": root_handler}, {}),
+    )
+    plan = {
+        "effective_budget": {"root_probe_candidates": 1},
+        "candidates": [{
+            "candidate_id": "c1",
+            "candidate": {"keyword": "bounded fallback"},
+            "stages": {"root_probe": "planned"},
+        }],
+    }
+    run = store.create_research_run(
+        workspace_id="ws1", requested_budget={}, effective_budget={},
+        plan=plan, status="planned",
+    )
+    claim_token = store.claim_research_run(run["id"])
+    result = asyncio.run(
+        dashboard_api._execute_research_run_background(run["id"], claim_token)
+    )
+
+    assert result["status"] == "complete"
+    finding = store.list_findings(run["id"])[0]["analysis"]
+    assert finding["schema_version"] == "conversation-analysis/3"
+    assert finding["interpretation"]["conversation_state"] == "insufficient_evidence"
+    assert any(
+        "comparable collection periods" in limitation
+        for limitation in finding["interpretation"]["limitations"]
+    )
+
+
+def test_finding_persistence_failure_never_marks_progress_complete(tmp_path, monkeypatch):
+    import apis.dashboard_api as dashboard_api
+    import social_scraper.discovery.handlers as handlers_module
+
+    store = DiscoveryStore(tmp_path / "persistence-failure.db")
+    monkeypatch.setattr(dashboard_api, "_discovery_store", store)
+    monkeypatch.setattr(dashboard_api, "_get_broker", lambda: object())
+
+    async def root_handler(_candidate, _context):
+        return StageHandlerResult(records_returned=0)
+
+    monkeypatch.setattr(
+        handlers_module, "build_handlers",
+        lambda *_args, **_kwargs: ({"root_probe": root_handler}, {}),
+    )
+    plan = {
+        "effective_budget": {"root_probe_candidates": 1},
+        "candidates": [{
+            "candidate_id": "c1",
+            "candidate": {"keyword": "persistence failure"},
+            "stages": {"root_probe": "planned"},
+        }],
+    }
+    run = store.create_research_run(
+        workspace_id="ws1", requested_budget={}, effective_budget={},
+        plan=plan, status="planned",
+    )
+    claim_token = store.claim_research_run(run["id"])
+
+    def fail_save(*_args, **_kwargs):
+        raise sqlite3.OperationalError("forced finding persistence failure")
+
+    monkeypatch.setattr(store, "save_findings", fail_save)
+    result = asyncio.run(
+        dashboard_api._execute_research_run_background(run["id"], claim_token)
+    )
+
+    assert result["status"] == "error"
+    persisted = store.get_research_run(run["id"])
+    assert persisted["status"] == "error"
+    progress = persisted["result"]["progress"]
+    assert progress["phase"] == "finalizing"
+    assert progress["complete"] is False
+
+
 def test_transient_heartbeat_failure_cancels_research_execution(tmp_path, monkeypatch):
     import apis.dashboard_api as dashboard_api
     import social_scraper.discovery.handlers as handlers_module
@@ -812,7 +1147,7 @@ def test_transient_heartbeat_failure_cancels_research_execution(tmp_path, monkey
     cancelled = asyncio.Event()
 
     class BlockingRunner:
-        def __init__(self, _handlers):
+        def __init__(self, _handlers, progress_recorder=None):
             pass
 
         async def run(self, _run_id, _plan):

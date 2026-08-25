@@ -1,8 +1,8 @@
 # Bounty Current State
 
-**Last updated:** 2026-08-16
+**Last updated:** 2026-08-25
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
-**Current product phase:** Investing Release A implemented: `/dashboard` is the global persisted Breaking Now Radar; `/dashboard/classic` preserves the horizontal workbench and receives prefilled investigation topics. Central scheduler sweeps all supported markets; customer reads never call upstream sources. Building Quietly, multi-channel discovery, information coverage, and filing-backed materiality remain gated later phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`.
+**Current product phase:** Investing Radar now has two live discovery starts: category-balanced global Google search attention and a citation-backed Social conversations lane collected centrally from Reddit, YouTube, TikTok, Instagram, and X with explicit source gaps. `/dashboard/classic` preserves the horizontal workbench and receives prefilled investigation topics. Customer reads never call upstream sources. Building Quietly, broader non-Google channels, information coverage, and filing-backed materiality remain gated later phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`; Social Pulse release contract: `.hermes/plans/2026-08-25_204921-social-pulse-investing-discovery.md`.
 
 ## What Bounty is
 

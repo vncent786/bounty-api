@@ -10,6 +10,11 @@ from .storage import (
     normalize_keyword,
 )
 from .sweep import GlobalRadarSweep, fetch_topdown_candidates
+from .social_pulse import (
+    SocialPulseCollector,
+    SocialPulseStore,
+    extract_social_candidates,
+)
 
 __all__ = [
     "GlobalRadarSweep",
@@ -19,6 +24,9 @@ __all__ = [
     "RadarConflictError",
     "RadarNotFoundError",
     "RadarValidationError",
+    "SocialPulseCollector",
+    "SocialPulseStore",
+    "extract_social_candidates",
     "fetch_topdown_candidates",
     "normalize_keyword",
 ]

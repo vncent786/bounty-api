@@ -457,6 +457,14 @@ select {
 }
 
 .lane-status.development { border-color: var(--rule); color: var(--ink-55); }
+.lane-coverage { margin: 10px 0 0; color: var(--ink-55); font: 500 0.68rem / 1.5 var(--mono); }
+.social-lane { padding-top: 2px; }
+.social-summary { max-width: 820px; margin: 0 0 18px; color: var(--ink-70); font-size: 0.94rem; line-height: 1.6; }
+.social-reason { margin: 0; font-size: 0.9rem; line-height: 1.55; }
+.social-evidence { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--rule-faint); }
+.social-evidence-list { display: grid; margin: 10px 0 0; padding: 0; gap: 8px; list-style: none; }
+.social-evidence-list li { display: grid; grid-template-columns: 88px minmax(0, 1fr); align-items: start; gap: 12px; color: var(--ink-70); font-size: 0.8rem; line-height: 1.5; }
+.social-evidence-list .source-link { font-weight: 600; }
 .signal-list { min-width: 0; }
 
 .signal-row {

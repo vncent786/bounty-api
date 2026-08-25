@@ -35,6 +35,7 @@ _workspace_service = None
 _engine = None
 _research_tasks: dict[str, asyncio.Task] = {}
 _investing_store = None
+_social_pulse_store = None
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
 
@@ -221,6 +222,14 @@ def _get_investing_store():
         from social_scraper.investing import InvestingRadarStore
         _investing_store = InvestingRadarStore(_discovery_db_path())
     return _investing_store
+
+
+def _get_social_pulse_store():
+    global _social_pulse_store
+    if _social_pulse_store is None:
+        from social_scraper.investing.social_pulse import SocialPulseStore
+        _social_pulse_store = SocialPulseStore(_discovery_db_path())
+    return _social_pulse_store
 
 
 def _public_investing_sweep(run: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -448,6 +457,12 @@ async def get_investing_radar(
             "source": "Google Trends Trending Now",
         },
     }
+
+
+@router.get("/investing/social-pulse")
+async def get_investing_social_pulse():
+    """Read the latest persisted social-first discovery output."""
+    return _get_social_pulse_store().public_payload()
 
 
 @router.get("/investing/radar/runs/{sweep_id}")

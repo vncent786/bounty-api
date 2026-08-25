@@ -384,6 +384,8 @@ Missing:
 
 ### Phase 2B: Add independent non-Google discovery channels
 
+**Status (2026-08-25):** Social Pulse first slice implemented with centrally scheduled Reddit, YouTube, TikTok, Instagram, and X discovery probes; immutable evidence, citation-gated candidate extraction, explicit source gaps, and a peer Social conversations UI lane. Broader Wikimedia/GDELT/GitHub adapters remain future gates.
+
 **Objective:** Broaden unknown-unknown discovery without turning the first release into a connector zoo.
 
 **Files:**

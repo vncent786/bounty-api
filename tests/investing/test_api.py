@@ -3,11 +3,15 @@ from fastapi.testclient import TestClient
 
 from apis import dashboard_api
 from social_scraper.investing import InvestingRadarStore
+from social_scraper.investing.social_pulse import SocialPulseStore
 
 
 def _client(tmp_path, monkeypatch):
-    store = InvestingRadarStore(tmp_path / "investing-api.db")
+    path = tmp_path / "investing-api.db"
+    store = InvestingRadarStore(path)
+    social_store = SocialPulseStore(path)
     monkeypatch.setattr(dashboard_api, "_investing_store", store)
+    monkeypatch.setattr(dashboard_api, "_social_pulse_store", social_store)
     monkeypatch.setenv("BOUNTY_ENV", "development")
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
@@ -160,6 +164,18 @@ def test_customer_api_cannot_trigger_upstream_refresh(tmp_path, monkeypatch):
     client, _store = _client(tmp_path, monkeypatch)
     response = client.post("/dashboard/api/investing/radar/refresh")
     assert response.status_code == 404
+
+
+def test_social_pulse_api_is_persisted_read_only(tmp_path, monkeypatch):
+    client, _store = _client(tmp_path, monkeypatch)
+
+    response = client.get("/dashboard/api/investing/social-pulse")
+    forbidden = client.post("/dashboard/api/investing/social-pulse/refresh")
+
+    assert response.status_code == 200
+    assert response.json()["items"] == []
+    assert response.json()["coverage"]["summary"] == "No social collection has completed yet"
+    assert forbidden.status_code == 404
 
 
 def test_missing_radar_entities_return_404(tmp_path, monkeypatch):

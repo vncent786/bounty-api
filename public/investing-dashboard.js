@@ -3,6 +3,7 @@
 
   const TOKEN_KEY = 'bounty.apiToken';
   const RADAR_URL = '/dashboard/api/investing/radar';
+  const SOCIAL_PULSE_URL = '/dashboard/api/investing/social-pulse';
   const DEFAULT_RADAR_URL = '/dashboard/api/investing/radar?limit=40&country=&category=';
   const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -266,6 +267,124 @@
     return article;
   }
 
+  function platformLabel(value) {
+    const labels = { reddit: 'Reddit', youtube: 'YouTube', tiktok: 'TikTok', instagram: 'Instagram', x: 'X' };
+    return labels[String(value || '').toLowerCase()] || String(value || 'Unknown source');
+  }
+
+  function supportLabel(value) {
+    const labels = {
+      cross_platform: 'Cross-platform',
+      repeated_voices: 'Repeated voices',
+      single_source_early: 'Single-source early lead',
+    };
+    return labels[value] || 'Support not classified';
+  }
+
+  function socialSignalRow(item, index) {
+    const article = element('article', 'signal-row social-signal-row');
+    const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
+    rank.setAttribute('aria-hidden', 'true');
+    const body = element('div', 'signal-body');
+    const heading = element('div', 'signal-heading');
+    const title = element('h3', '', item?.label || 'Subject not reported');
+    const investigate = element('a', 'investigate-link', 'Investigate');
+    investigate.href = classicTopicUrl(item?.label || '');
+    investigate.setAttribute('aria-label', `Investigate ${item?.label || 'this subject'} in Classic Bounty`);
+    append(heading, title, investigate);
+
+    const taxonomy = element('p', 'taxonomy');
+    taxonomy.textContent = `${String(item?.behaviour_type || 'other').replaceAll('_', ' ')}  /  ${supportLabel(item?.support_type)}  /  ${readableList(asArray(item?.platforms).map(platformLabel))}`;
+    const summary = element('p', 'social-summary', item?.summary || 'No social summary was returned.');
+    const reasons = element('div', 'signal-reasons');
+    append(
+      reasons,
+      element('p', 'field-label', 'Why consider it'),
+      element('p', 'social-reason', item?.why_investigate || 'The extraction did not provide an investigation reason.'),
+    );
+
+    const metrics = element('dl', 'signal-metrics social-metrics');
+    append(
+      metrics,
+      metric('Independent voices', formatInteger(item?.voice_count)),
+      metric('Platforms', formatInteger(item?.platform_count)),
+      metric('Evidence records', formatInteger(asArray(item?.evidence).length)),
+    );
+
+    const evidence = element('div', 'social-evidence');
+    evidence.append(element('p', 'field-label', 'Source evidence'));
+    const list = element('ul', 'social-evidence-list');
+    asArray(item?.evidence).slice(0, 5).forEach(record => {
+      const row = element('li');
+      const link = element('a', 'source-link', platformLabel(record?.platform));
+      link.href = record?.url || '#';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
+      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      list.append(row);
+    });
+    if (!list.children.length) list.append(element('li', 'not-reported', 'No openable source evidence was returned.'));
+    evidence.append(list);
+
+    append(body, heading, taxonomy, summary, reasons, metrics, evidence);
+    append(article, rank, body);
+    return article;
+  }
+
+  function socialCoverageText(coverage) {
+    if (!coverage || typeof coverage !== 'object') return 'Social coverage not reported';
+    const sources = asArray(coverage.sources);
+    const prefix = coverage.displaying_previous_data ? 'Showing previous supported pulse · ' : '';
+    if (!sources.length) return `${prefix}${coverage.summary || 'No social sources checked'}`;
+    const details = sources.map(source => `${platformLabel(source.platform)}: ${String(source.status || 'unknown').replaceAll('_', ' ')}`);
+    return `${prefix}${coverage.summary || 'Social sources checked'} · ${details.join(' · ')}`;
+  }
+
+  function renderSocialPulse(payload) {
+    const safePayload = payload && typeof payload === 'object' ? payload : {};
+    const items = asArray(safePayload.items);
+    const list = $('#social-list');
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
+    $('#social-coverage').textContent = socialCoverageText(safePayload.coverage);
+    const dataRun = safePayload.data_run;
+    const attempt = safePayload.last_attempt;
+    if (attempt?.status === 'analysis_unavailable') {
+      $('#social-status').textContent = 'Analysis unavailable';
+    } else if (dataRun) {
+      const dataStamp = formatTimestamp(dataRun.completed_at || dataRun.started_at);
+      $('#social-status').textContent = attempt && attempt.id !== dataRun.id
+        ? `Earlier supported pulse · ${dataStamp}`
+        : `Persisted social pulse · ${dataStamp}`;
+    } else {
+      $('#social-status').textContent = 'Awaiting first supported pulse';
+    }
+    if (!items.length) {
+      list.append(statePanel(
+        attempt?.status === 'analysis_unavailable' ? 'Analysis unavailable' : 'No supported leads yet',
+        attempt?.status === 'analysis_unavailable' ? 'Social records could not be interpreted' : 'The first social discovery run has not produced a supported subject',
+        'Source gaps and empty results remain visible above. Collection runs centrally and this page never invents social leads.',
+        attempt?.status === 'analysis_unavailable' ? 'failed-state' : 'empty-state',
+      ));
+      return;
+    }
+    items.slice(0, 12).forEach((item, index) => list.append(socialSignalRow(item, index)));
+  }
+
+  async function loadSocialPulse() {
+    const list = $('#social-list');
+    list.setAttribute('aria-busy', 'true');
+    try {
+      renderSocialPulse(await api(SOCIAL_PULSE_URL));
+    } catch (error) {
+      list.setAttribute('aria-busy', 'false');
+      list.replaceChildren(statePanel('Failed', 'Social Pulse unavailable', error.message, 'failed-state'));
+      $('#social-status').textContent = 'Unavailable';
+      $('#social-coverage').textContent = 'Social coverage unavailable';
+    }
+  }
+
   function quietLaneItems(payload) {
     const direct = payload?.building_quietly;
     const nested = payload?.lanes?.building_quietly;
@@ -443,7 +562,7 @@
     const button = $('#reload-radar');
     button.disabled = true;
     try {
-      await loadRadar();
+      await Promise.all([loadRadar(), loadSocialPulse()]);
       toast('Persisted radar reloaded');
     } finally {
       button.disabled = false;
@@ -476,7 +595,7 @@
       if (entered.trim()) {
         sessionStorage.setItem(TOKEN_KEY, entered.trim());
         toast('API token saved for this tab');
-        loadRadar();
+        Promise.all([loadRadar(), loadSocialPulse()]);
       } else {
         sessionStorage.removeItem(TOKEN_KEY);
         toast('API token cleared');
@@ -494,7 +613,7 @@
     bindEvents();
     const requested = window.location.hash.slice(1);
     showView(['radar', 'research', 'monitors', 'usage'].includes(requested) ? requested : 'radar', false);
-    loadRadar();
+    Promise.all([loadRadar(), loadSocialPulse()]);
   }
 
   init();

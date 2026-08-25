@@ -98,10 +98,29 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
       </div>
 
       <div class="lane-stack">
-        <section class="signal-lane" aria-labelledby="breaking-title">
+        <section class="signal-lane social-lane" aria-labelledby="social-title">
           <header class="lane-head">
             <div>
               <p class="lane-number">Lane 01</p>
+              <h2 id="social-title">Social conversations</h2>
+              <p>Products, behaviours, shortages, switching and pain points discovered from public conversations before a topic is manually searched.</p>
+            </div>
+            <span class="lane-status" id="social-status">Checking persisted pulse</span>
+          </header>
+          <p class="lane-coverage" id="social-coverage">Social coverage pending</p>
+          <div class="signal-list" id="social-list" aria-live="polite" aria-busy="true">
+            <div class="state-panel loading-state">
+              <p class="eyebrow">Loading</p>
+              <h3>Checking the persisted Social Pulse</h3>
+              <p>Collection runs centrally. This page only reads saved evidence.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="signal-lane" aria-labelledby="breaking-title">
+          <header class="lane-head">
+            <div>
+              <p class="lane-number">Lane 02</p>
               <h2 id="breaking-title">Breaking now</h2>
               <p>Live and persisted signals with their source timestamps. Investigate before drawing a conclusion.</p>
             </div>
@@ -119,7 +138,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <section class="signal-lane building-lane" aria-labelledby="building-title">
           <header class="lane-head">
             <div>
-              <p class="lane-number">Lane 02</p>
+              <p class="lane-number">Lane 03</p>
               <h2 id="building-title">Building quietly</h2>
               <p>Slower-forming signals intended for longitudinal monitoring.</p>
             </div>

@@ -48,6 +48,8 @@ def test_radar_has_honest_two_lane_and_lifecycle_states_without_sample_signals()
     script = _script()
     combined = f"{html}\n{script}".casefold()
 
+    assert "Social conversations" in html
+    assert html.index("Social conversations") < html.index("Breaking now") < html.index("Building quietly")
     assert "Breaking now" in html
     assert "Live / persisted" in html
     assert "Building quietly" in html
@@ -78,10 +80,12 @@ def test_radar_filters_default_global_and_use_the_investing_api_contract():
     assert "query.set('limit', '40')" in script
     assert "query.set('country', state.country)" in script
     assert "query.set('category', state.category)" in script
+    assert "/dashboard/api/investing/social-pulse" in script
+    assert "/dashboard/api/investing/social-pulse/refresh" not in script
     assert "/dashboard/api/investing/radar/refresh" not in script
     assert "method: 'POST'" not in script
     assert 'id="reload-radar"' in html
-    assert "await loadRadar()" in script
+    assert "await Promise.all([loadRadar(), loadSocialPulse()])" in script
 
 
 def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_handoff():
@@ -110,6 +114,25 @@ def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_hand
     assert "Investigate" in script
     assert "/dashboard/classic?topic=${encodeURIComponent(String(keyword || ''))}" in script
     assert "window.location" not in script[script.index("function classicTopicUrl"):script.index("function showView")]
+    assert "innerHTML" not in script
+
+
+def test_social_pulse_renders_cited_investigation_leads_without_inner_html():
+    script = _script()
+
+    for field in (
+        "item?.label", "item?.behaviour_type", "item?.summary",
+        "item?.why_investigate", "item?.voice_count", "item?.platform_count",
+        "item?.support_type", "item?.evidence",
+    ):
+        assert field in script
+    assert "Source evidence" in script
+    assert "Independent voices" in script
+    assert "Single-source early lead" in script
+    assert "target = '_blank'" in script
+    assert "noopener noreferrer" in script
+    assert "socialSignalRow" in script
+    assert "renderSocialPulse" in script
     assert "innerHTML" not in script
 
 

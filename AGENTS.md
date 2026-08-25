@@ -42,7 +42,7 @@ Secrets live in `.env` locally (gitignored — **never commit, never paste conte
 
 ## What this is
 
-Bounty is now an investing-first social-arbitrage product. `/dashboard` is the persisted global Investing Radar; `/dashboard/classic` preserves the prior research/projects/findings/lenses workbench and receives prefilled topics from Radar investigations. The canonical conversation corpus, research runs, connectors, citations, workspaces, and lens contracts remain horizontal underneath so other verticals can return later. Release A centrally schedules Google Trending Now across all supported markets; customer reads never call upstream sources. Building Quietly, non-Google discovery channels, information-coverage analysis, and filing-backed materiality are later gated phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`.
+Bounty is now an investing-first social-arbitrage product. `/dashboard` has peer discovery starts: a category-balanced global Google search-attention Radar and a citation-backed Social conversations lane collected centrally from Reddit, YouTube, TikTok, Instagram, and X with exact source outcomes; `/dashboard/classic` preserves the prior research/projects/findings/lenses workbench and receives prefilled topics from either lane. The canonical conversation corpus, research runs, connectors, citations, workspaces, and lens contracts remain horizontal underneath so other verticals can return later. Customer reads never call upstream sources. Building Quietly, broader discovery channels, information-coverage analysis, and filing-backed materiality are later gated phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`.
 
 ## Canonical methodology: Buzzabout, not a Google Trends dashboard
 

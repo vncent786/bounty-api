@@ -1178,6 +1178,12 @@ def _hermetic_loop_patches(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(scheduler_mod, "_RADAR_SCHEDULER", None)
     monkeypatch.setattr(scheduler_mod, "_SCHEDULER_TASK", None)
+
+    async def no_additional_collectors():
+        return None
+
+    monkeypatch.setattr(scheduler_mod, "investing_radar_tick_once", no_additional_collectors)
+    monkeypatch.setattr(scheduler_mod, "social_pulse_tick_once", no_additional_collectors)
     return registry
 
 

@@ -41,6 +41,11 @@ INVESTING_RADAR_ENV_INTERVAL_MINUTES = "BOUNTY_INVESTING_RADAR_INTERVAL_MINUTES"
 _INVESTING_RADAR_INTERVAL_MINUTES = 360
 _INVESTING_RADAR_FAILED_RETRY_MINUTES = 30
 _INVESTING_RADAR_STALE_RUNNING_MINUTES = 120
+SOCIAL_PULSE_ENV_ENABLED = "BOUNTY_SOCIAL_PULSE_ENABLED"
+SOCIAL_PULSE_ENV_INTERVAL_MINUTES = "BOUNTY_SOCIAL_PULSE_INTERVAL_MINUTES"
+_SOCIAL_PULSE_INTERVAL_MINUTES = 720
+_SOCIAL_PULSE_FAILED_RETRY_MINUTES = 60
+_SOCIAL_PULSE_STALE_RUNNING_MINUTES = 180
 
 _RADAR_TRENDS_INTERVAL_MINUTES = 1440   # daily trends snapshot
 _RADAR_ROOT_INTERVAL_MINUTES = 10080    # weekly root sweep
@@ -668,6 +673,11 @@ async def _scheduler_loop():
         except Exception as e:
             logger.error(f"Investing Radar tick failed: {e}", exc_info=True)
 
+        try:
+            await social_pulse_tick_once()
+        except Exception as e:
+            logger.error(f"Social Pulse tick failed: {e}", exc_info=True)
+
         await asyncio.sleep(_CHECK_INTERVAL_SECONDS)
 
 
@@ -792,6 +802,68 @@ async def investing_radar_tick_once(
         return {"status": "running", "run_id": sweep_id, "started": False}
     result = await GlobalRadarSweep(store).run(sweep_id=sweep_id)
     return {"status": result["status"], "run_id": sweep_id, "started": True}
+
+
+async def social_pulse_tick_once(
+    *,
+    environ: Mapping[str, str] | None = None,
+    now: datetime | None = None,
+) -> dict | None:
+    """Run due social-first discovery centrally; dashboard reads stay cache-only."""
+    env = os.environ if environ is None else environ
+    if not _parse_bool_env(env, SOCIAL_PULSE_ENV_ENABLED, default=True):
+        return None
+    interval = _parse_positive_int_env(
+        env,
+        SOCIAL_PULSE_ENV_INTERVAL_MINUTES,
+        _SOCIAL_PULSE_INTERVAL_MINUTES,
+    )
+    current_time = now or datetime.now(timezone.utc)
+
+    from apis.dashboard_api import _get_social_pulse_store
+    from social_scraper.investing.social_pulse import (
+        SocialPulseCollector,
+        build_default_social_fetchers,
+    )
+
+    store = _get_social_pulse_store()
+    latest = store.latest_attempt()
+    if latest and latest["status"] == "running":
+        age = _age_minutes(latest.get("started_at"), current_time)
+        if age is None or age < _SOCIAL_PULSE_STALE_RUNNING_MINUTES:
+            return {"status": "running", "run_id": latest["id"], "started": False}
+        store.fail_stale_run(latest["id"], "stale_collector_recovered")
+        latest = None
+
+    if latest:
+        reference = latest.get("completed_at") or latest.get("started_at")
+        age = _age_minutes(reference, current_time)
+        retry_interval = (
+            _SOCIAL_PULSE_FAILED_RETRY_MINUTES
+            if latest["status"] in {"failed", "analysis_unavailable"}
+            else interval
+        )
+        if age is not None and age < retry_interval:
+            return {"status": "not_due", "run_id": latest["id"], "started": False}
+
+    run_id, created = store.create_run_if_idle()
+    if not created:
+        return {"status": "running", "run_id": run_id, "started": False}
+    try:
+        fetchers = await build_default_social_fetchers()
+        result = await SocialPulseCollector(store, fetchers).run(run_id=run_id)
+    except asyncio.CancelledError:
+        current = store.get_run(run_id)
+        if current and current["status"] == "running":
+            store.fail_stale_run(run_id, "collector_cancelled")
+        raise
+    except Exception as exc:
+        current = store.get_run(run_id)
+        if current and current["status"] == "running":
+            store.fail_stale_run(run_id, f"collector:{type(exc).__name__}")
+        logger.error("Social Pulse collection failed", exc_info=True)
+        return {"status": "failed", "run_id": run_id, "started": True}
+    return {"status": result["status"], "run_id": run_id, "started": True}
 
 
 # --- Lifecycle --------------------------------------------------------------

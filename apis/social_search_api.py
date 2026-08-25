@@ -21,6 +21,7 @@ from social_scraper.connectors.reddit_rss import RedditRSSConnector
 from social_scraper.connectors.reddit_search import RedditSearchConnector
 from social_scraper.connectors.tiktok_auth import TikTokAuthConnector
 from social_scraper.connectors.tiktok_playwright import TikTokPlaywrightConnector
+from social_scraper.connectors.x_official import XOfficialConnector
 from social_scraper.connectors.xhs_playwright import XHSPlaywrightConnector
 from social_scraper.connectors.youtube import YouTubeConnector
 
@@ -128,8 +129,15 @@ def build_default_broker(route_timeout_seconds=30.0):
     broker.register(TikTokPlaywrightConnector(), priority=20)
     broker.register(DouyinPlaywrightConnector())
     broker.register(XHSPlaywrightConnector())
-    if XConnector is not None:
-        broker.register(XConnector(), priority=10)
+    broker.register(XOfficialConnector(), priority=1)
+    # Cookie replay is an explicit local diagnostic only. It is never an
+    # automatic fallback because switching collection source breaks comparable
+    # historical windows.
+    if (
+        XConnector is not None
+        and os.getenv("BOUNTY_ENABLE_LEGACY_X_SCWEET", "") == "1"
+    ):
+        broker.register(XConnector(), priority=90)
     if InstagramConnector is not None:
         broker.register(InstagramConnector(), priority=10)
     return broker

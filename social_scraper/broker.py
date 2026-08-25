@@ -109,6 +109,9 @@ class SourceBroker:
                 "x_credentials_missing",
                 "x_login_failed",
                 "x_health_error",
+                "x_full_archive_disabled",
+                "x_partial_response",
+                "x_page_cap_reached",
                 "ig_rate_limited",
                 "ig_blocked",
                 "ig_error",
@@ -365,7 +368,13 @@ class SourceBroker:
                 "newest_source_observed_at": observed_values[-1] if observed_values else None,
             }
 
-        serialized_items.sort(key=engagement_score, reverse=True)
+        if sort == "latest":
+            serialized_items.sort(
+                key=lambda item: item.get("created_at") or "",
+                reverse=True,
+            )
+        else:
+            serialized_items.sort(key=engagement_score, reverse=True)
         response = {
             "query": keyword,
             "platforms": requested_platforms,

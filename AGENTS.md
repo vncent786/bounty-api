@@ -23,8 +23,8 @@ Nothing below requires you to request OAuth from anyone. Auth state already exis
 | YouTube | Free (yt-dlp based). No auth. | — |
 | TikTok | Authenticated session | Session state maintained by `scripts/tiktok_login_session.py`; env `TIKTOK_*` if set |
 | Instagram | Web-auth session | `BOUNTY_IG_USERNAME/PASSWORD/COOKIE_PATH`, `BOUNTY_IG_PROXY` |
-| X / Twitter | scweet state | `scweet_state.db` in repo root; `BOUNTY_X_AUTH_TOKEN`. Connector currently returns 0 results (known broken) |
-| LLM | OpenAI-compatible endpoint | `BOUNTY_LLM_PROVIDER/BASE_URL/API_KEY/MODEL` (falls back to `ZAI_API_KEY`); local dev can route through a Hermes adapter via `BOUNTY_HERMES_AGENT_PATH` |
+| X / Twitter | Official X API for production; Scweet cookie replay is diagnostic only | `BOUNTY_X_BEARER_TOKEN`; optional `BOUNTY_X_ENABLE_FULL_ARCHIVE=1`. Legacy `BOUNTY_X_AUTH_TOKEN`/`scweet_state.db` must not be in the production SLO |
+| LLM | xAI Responses API or explicitly configured OpenAI-compatible endpoint | Production Grok: `BOUNTY_LLM_PROVIDER=xai`, `XAI_API_KEY`, optional `XAI_BASE_URL/XAI_MODEL`. Generic adapter: `BOUNTY_LLM_BASE_URL/API_KEY/MODEL`. There is no Z.AI fallback. Local dev can route through a Hermes adapter via `BOUNTY_HERMES_AGENT_PATH` |
 | Brave (optional fallback) | API key | `BOUNTY_BRAVE_SEARCH_API_KEY` — optional, unset is fine |
 
 Secrets live in `.env` locally (gitignored — **never commit, never paste contents anywhere**) and in the Railway project's env settings. If an auth flow breaks, first check `.env` exists and Railway vars are set, then check the connector's health endpoint — do not default to "ask owner for OAuth keys." The Reddit developer API specifically **does not work** and is not needed; the mobile OAuth connector replaced it.
@@ -42,7 +42,7 @@ Secrets live in `.env` locally (gitignored — **never commit, never paste conte
 
 ## What this is
 
-Bounty's public Investor Radar is withdrawn while its signal methodology is rebuilt. `/dashboard` serves stable Classic Bounty; `/dashboard/investing-preview` is an internal preview only; Social Pulse scheduling defaults off. The next Radar must follow the recovered Camillo process: stable category and tradeable-brand scopes, comparable multi-cycle velocity, expanding independent breadth, specific consumer behavior, perennial-content rejection, L0-L2 information parity, citations, and an investigation question. Raw social titles, raw Google trends, one-off virality, and generic themes such as `AI` are internal evidence only and must never be customer-facing leads. The canonical evidence corpus, research runs, connectors, citations, workspaces, and lens contracts remain horizontal underneath. Rebuild plan: `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
+Bounty's public Investor Radar is withdrawn while its signal methodology is rebuilt. `/dashboard` serves stable Classic Bounty; `/dashboard/investing-preview` is an internal preview only; Social Pulse scheduling defaults off. The next Radar must follow the sourced Camillo process: stable category and global tradeable-brand scopes, comparable historical or forward velocity windows, expanding independent breadth, specific consumer behavior, perennial-content rejection, L0-L2 information parity, citations, and an investigation question. Historical backfill can produce day-one retrospective anomalies; forward monitoring establishes persistence and prospective validity. Discovery is not limited to options-enabled securities. Raw social titles, raw Google trends, one-off virality, and generic themes such as `AI` are internal evidence only and must never be customer-facing leads. Source notes: `references/camillo-information-arbitrage-methodology-2026-08.md`; rebuild plan: `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
 
 ## Canonical methodology: Buzzabout, not a Google Trends dashboard
 
@@ -139,6 +139,11 @@ Dashboard auth fails CLOSED (503) in production unless `BOUNTY_DASHBOARD_TOKEN` 
 | Var | Purpose |
 |---|---|
 | `BOUNTY_DASHBOARD_TOKEN` | Bearer token gating the dashboard API (production) |
+| `BOUNTY_X_BEARER_TOKEN` | Official X API bearer token for Recent/Full-Archive Search |
+| `BOUNTY_X_ENABLE_FULL_ARCHIVE` | Set to `1` only when the X project has paid full-archive access |
+| `BOUNTY_ENABLE_LEGACY_X_SCWEET` | Local diagnostic only; set `1` to register cookie replay after the official X route |
+| `XAI_API_KEY` | Paid xAI API key used when `BOUNTY_LLM_PROVIDER=xai` |
+| `XAI_BASE_URL` / `XAI_MODEL` | Optional xAI endpoint/model overrides; defaults are `https://api.x.ai/v1` and `grok-4.6` |
 | `BOUNTY_ENV` | `development` bypasses token gating locally |
 | `BOUNTY_PROXY_USERNAME` / `BOUNTY_PROXY_PASSWORD` | Proxy creds for Reddit connectors. NOTE: it's `BOUNTY_PROXY_*`, not `BOUNTY_REDDIT_PROXY_*` |
 | `BOUNTY_REDDIT_SUBREDDITS` | Optional default subreddit scope for arctic connector |
@@ -163,13 +168,13 @@ The developer OAuth API does NOT work (Reddit locked free tier). PullPush.io is 
 
 ## Known broken / missing (honest list)
 
-- **X connector (scweet):** returns 0 results. Not investigated yet.
+- **X connector (scweet):** not production-viable. The current local state exhausted its single-account daily eligibility and previously returned 0 results. Replace it with official X Recent/Full-Archive Search; keep Scweet out of the SLO path.
 - **x402 payment routes:** 503 by design, `BOUNTY_X402_ACTIVE` unset. Deferred.
 - **YouTube transcripts:** only metadata + comments collected, not spoken word. Biggest content gap per marketer feedback.
 - **Zone path gaps:** see "TWO pipelines" above. Reddit ~dead from zones, no thread depth, no dedup, no triage findings.
 - **Google interest_over_time rate limits (429):** trendspy `trending_now` is reliable; `interest_over_time` gets rate-limited under load. `/discover/trend-detail` degrades gracefully — chart shows error, related queries still load.
 - **Usage receipts:** FK on `discovery_stage_usage` references discovery_runs, not research_runs. Research-run usage returns in response body but doesn't persist to the stage-usage table.
-- **LLM in production:** local dev uses a temporary adapter. Production needs a real credential decision.
+- **LLM in production:** the code supports paid xAI/Grok via `BOUNTY_LLM_PROVIDER=xai`, but `XAI_API_KEY` is not provisioned locally. Z.AI is not a fallback.
 
 ## TackSense marketer audit (2026-08-11) — verified verdicts
 

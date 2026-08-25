@@ -4,7 +4,7 @@
 
 **Goal:** Make Bounty feel like a disciplined information-arbitrage desk: a very small number of specific, fresh behaviour shifts that are accelerating across comparable observations, remain poorly connected to the financial narrative, and are worth a bounded investigation.
 
-**Method sources recovered:** Vincent's prior Social Arbitrage Scanner v2 skill; Social Arbitrage Process SOP v2/v3; Social Arbitrage Velocity Tracking thread; 16-sector/188-brand universe; information-parity L0-L5 ladder; perennial-noise and materiality post-mortems. Original Chris Camillo EPUB/video attachments were not recoverable from current storage and should be reattached for quote-level fidelity.
+**Method sources:** Vincent's prior Social Arbitrage Scanner v2 skill; Social Arbitrage Process SOP v2/v3; Social Arbitrage Velocity Tracking thread; information-parity L0-L5 ladder; perennial-noise and materiality post-mortems; Chris Camillo's user-supplied *Laughing at Wall Street* PDF; and the 2025 My First Million interview at https://youtu.be/rdChG9FPs80. Canonical source notes: `references/camillo-information-arbitrage-methodology-2026-08.md`.
 
 ## Product promise
 
@@ -57,7 +57,7 @@ Each panel defines stable platform-native scopes: subreddits, YouTube query fami
 
 ### B. Reversed tradeable-universe monitoring
 
-Retain the prior optionable global brand/security universe as a second loop. It solves `interesting behaviour, no tradeable exposure`, but does not replace open discovery. Security mapping stays hidden until the behaviour and freshness gates pass.
+Maintain a global versioned product/brand/security relationship graph as a second loop. It includes listed equities, ADRs and other relevant tradeable exposures regardless of whether options exist. It solves `interesting behaviour, no tradeable exposure`, but does not replace open discovery. Security mapping stays hidden until the behaviour and freshness gates pass. Options, liquidity, borrow and implementation are downstream attributes, never discovery gates.
 
 ## Comparable collection
 
@@ -72,10 +72,20 @@ Retain the prior optionable global brand/security universe as a second loop. It 
 ### Sustainable source execution
 
 - Reddit: owned current mobile connector plus explicit community universe and canary.
-- YouTube: official API where feasible; yt-dlp only behind measured canary/fallback.
-- TikTok, Instagram and X: browser/session-bound collection runs on the Windows residential collector for internal alpha, not Railway cloud IPs.
-- SaaS beta requires official/licensed access or managed residential workers with seven-day canaries, session rotation and source-level SLAs.
-- Z.AI Coding Plan is development tooling, not a SaaS production inference backend. Use paid per-call API capacity or a measured local model for customer-facing synthesis.
+- YouTube: official Data API for canonical metadata/comments where feasible; yt-dlp only behind a measured fallback canary.
+- X: official Recent Search for incremental collection and Full-Archive Search for backfill/gap repair. Grok X Search is a discovery/corroboration sensor, not the canonical observation collector because it has no exhaustive pagination contract.
+- TikTok/Instagram internal alpha: managed provider jobs, initially Apify with Bright Data as a benchmark/fallback. Do not make Railway or a Windows browser session the production SLO.
+- TikTok/Instagram SaaS: negotiate authorized enterprise coverage where it fits and a managed-data contract for broad public organic gaps. Contract review must explicitly cover commercial derived analytics, retention, deletion, display and raw-data restrictions. No provider is assumed to grant resale rights merely because it returns records.
+- Grok synthesis: paid xAI Responses API over a fixed persisted evidence snapshot. Do not use Z.AI and do not let Grok live-search mutate the canonical evidence used for the main synthesis.
+- A failed model call leaves the cluster internal. Raw titles never become fallback leads.
+
+## Day-one retrospective detection
+
+Bounty does not require a blank three-week onboarding period when timestamped provider backfill is available.
+
+On day one, backfill comparable historical posts/comments, bucket them into fixed windows and compute the current anomaly against the topic's own source/query/geography baseline. A candidate may surface as **Retrospective anomaly** when the backfill supports onset, velocity, independent breadth, propagation concentration and information-parity checks.
+
+Forward collection is still required to establish post-detection persistence, acceleration/reversal, cohort spread, production reliability and prospective validity. When historical coverage is too shallow or incomparable, the UI must say **Building baseline** rather than infer velocity.
 
 ## Persistent topic clustering
 
@@ -89,7 +99,7 @@ Raw records are clustered into stable topic families before promotion.
 
 ## Velocity features
 
-No public velocity claim until at least three comparable collection cycles exist.
+No public velocity claim until at least three comparable windows exist. These windows may come from verified historical backfill or forward collection; the source and coverage must be disclosed.
 
 For each source/topic/scope:
 
@@ -105,9 +115,9 @@ For each source/topic/scope:
 
 Cold-start truth:
 
-- Cycles 1-2: baseline only
-- Cycle 3: first provisional flags
-- Cycles 4-5: first reliable persistence/acceleration judgments
+- With sufficient comparable backfill: day-one retrospective anomaly flags are allowed, explicitly labelled retrospective.
+- Without sufficient backfill: cycles 1-2 build the baseline; cycle 3 permits a provisional flag.
+- Prospective confirmation always requires observations collected after the first alert.
 
 ## Promotion gates
 
@@ -195,17 +205,20 @@ No raw post feed. No raw Google trend feed. No recommendation score.
 - DONE: experimental Investor Radar moved to `/dashboard/investing-preview`.
 - DONE: Railway Social Pulse collection disabled by default.
 
-### Phase 1: Source reliability and residential collector
+### Phase 1: Source reliability and managed collection
 
 - Build source canaries for all five social platforms.
-- Move TikTok/Instagram/X browser/session collection to the Windows residential worker for internal alpha.
+- Replace X/scweet with official X Recent/Full-Archive Search.
+- Pilot Apify and Bright Data on fixed TikTok/Instagram query, post and comment windows; compare completeness, latency, schema stability and cost.
+- Keep the working local TikTok/Instagram sessions as diagnostics only, not a production dependency.
 - Persist source health and comparable scope receipts.
 - Seven-day canary gate before any source can contribute to promotion.
 
-### Phase 2: Baseline burn-in
+### Phase 2: Historical backfill and baseline
 
 - Lock category panels and query versions.
-- Run weekly comparable snapshots.
+- Backfill historical windows where the provider supports them and record measured coverage.
+- Run scheduled comparable snapshots for all panels.
 - Keep all outputs internal.
 - Build topic clustering and inspect cluster purity manually.
 
@@ -227,7 +240,7 @@ No raw post feed. No raw Google trend feed. No recommendation score.
 Do not re-expose the Investor Radar until:
 
 - all contributing sources pass canaries,
-- at least three comparable cycles exist,
+- at least three comparable windows exist from verified backfill and/or forward collection,
 - generic mega-themes and perennial content are rejected,
 - raw-title fallback is impossible on the public path,
 - information parity is explicit,

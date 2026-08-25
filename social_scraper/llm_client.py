@@ -1,7 +1,10 @@
 """Shared LLM client for Bounty's enrichment and conversation analysis.
 
 Providers:
-- ``openai_compatible``: any OpenAI-compatible chat/completions API.
+- ``xai``: Grok through xAI's paid Responses API. This is the production
+  synthesis path for investor-facing research.
+- ``openai_compatible``: any explicitly configured OpenAI-compatible
+  chat/completions API. No provider-specific credential fallback is allowed.
 - ``codex_oauth``: temporary local-only adapter using the host's Hermes
   OpenAI Codex OAuth subscription through the Responses API.
 
@@ -71,6 +74,13 @@ async def call_llm(
             user_prompt,
             max_tokens,
         )
+    if provider == "xai":
+        return await _call_xai(
+            system_prompt,
+            user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
     if provider == "openai_compatible":
         return await _call_openai_compatible(
             system_prompt,
@@ -79,6 +89,73 @@ async def call_llm(
             temperature=temperature,
         )
     raise RuntimeError(f"unsupported_llm_provider: {provider}")
+
+
+async def _call_xai(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    """Call Grok through xAI's Responses API.
+
+    Collection is deliberately outside this call. Grok receives a fixed,
+    persisted evidence snapshot so a model or X-search outage cannot change the
+    underlying corpus or trigger a raw-title fallback.
+    """
+    import httpx
+
+    base_url = os.getenv("XAI_BASE_URL", "https://api.x.ai/v1").strip().rstrip("/")
+    api_key = os.getenv("XAI_API_KEY", "").strip()
+    model = os.getenv("XAI_MODEL", "grok-4.6").strip() or "grok-4.6"
+    if not api_key:
+        raise RuntimeError("xai_not_configured: set XAI_API_KEY")
+
+    timeout_seconds = float(os.getenv("BOUNTY_LLM_TIMEOUT_SECONDS", "300"))
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        response = await client.post(
+            f"{base_url}/responses",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "input": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": temperature,
+                "max_output_tokens": max_tokens,
+                "store": False,
+                "tools": [],
+                "tool_choice": "none",
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    if data.get("error"):
+        raise RuntimeError("xai_error_response")
+    if data.get("status") != "completed":
+        raise RuntimeError("xai_incomplete_response")
+
+    output_text = data.get("output_text")
+    if isinstance(output_text, str) and output_text.strip():
+        return output_text
+
+    parts = []
+    for item in data.get("output") or []:
+        if not isinstance(item, dict):
+            continue
+        for content in item.get("content") or []:
+            if not isinstance(content, dict):
+                continue
+            text = content.get("text")
+            if isinstance(text, str) and text.strip():
+                parts.append(text)
+    result = "\n".join(parts).strip()
+    if not result:
+        raise RuntimeError("xai_empty_response")
+    return result
 
 
 async def _call_openai_compatible(
@@ -91,10 +168,7 @@ async def _call_openai_compatible(
     import httpx
 
     base_url = os.getenv("BOUNTY_LLM_BASE_URL", "").strip().rstrip("/")
-    api_key = (
-        os.getenv("BOUNTY_LLM_API_KEY")
-        or os.getenv("ZAI_API_KEY", "")
-    ).strip()
+    api_key = os.getenv("BOUNTY_LLM_API_KEY", "").strip()
     model = os.getenv("BOUNTY_LLM_MODEL", "").strip()
     if not base_url or not api_key or not model:
         raise RuntimeError(

@@ -1421,12 +1421,22 @@ except ImportError as e:
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page():
-    """SaaS dashboard for zone monitoring and trend intelligence."""
+    """Investing-first social-arbitrage Radar."""
+    try:
+        from apis.investing_dashboard_page import get_investing_dashboard_html
+        return get_investing_dashboard_html()
+    except ImportError:
+        return HTMLResponse("<h1>Dashboard not available</h1>", status_code=503)
+
+
+@app.get("/dashboard/classic", response_class=HTMLResponse)
+async def classic_dashboard_page():
+    """Preserved horizontal Bounty research workbench."""
     try:
         from apis.dashboard_page import get_dashboard_html
         return get_dashboard_html()
     except ImportError:
-        return HTMLResponse("<h1>Dashboard not available</h1>", status_code=503)
+        return HTMLResponse("<h1>Classic dashboard not available</h1>", status_code=503)
 
 # ============================================================
 # Scheduler — background zone collection

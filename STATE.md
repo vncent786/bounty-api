@@ -1,8 +1,8 @@
 # Bounty Current State
 
-**Last updated:** 2026-08-11
+**Last updated:** 2026-08-16
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
-**Current product phase:** Live dashboard validation (deployed at bountyapi.com)
+**Current product phase:** Investing Release A implemented: `/dashboard` is the global persisted Breaking Now Radar; `/dashboard/classic` preserves the horizontal workbench and receives prefilled investigation topics. Central scheduler sweeps all supported markets; customer reads never call upstream sources. Building Quietly, multi-channel discovery, information coverage, and filing-backed materiality remain gated later phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`.
 
 ## What Bounty is
 

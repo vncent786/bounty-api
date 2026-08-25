@@ -42,7 +42,7 @@ Secrets live in `.env` locally (gitignored — **never commit, never paste conte
 
 ## What this is
 
-Bounty is a research system that turns online conversations into cited findings. Five-platform collection (YouTube, Reddit, TikTok, Instagram, X), Google Trends discovery for unknown-unknowns, LLM extraction of signals with citations. Users: investors, marketers, product teams. First workflow is investing; horizontality is architecture, not branding — never hardcode an investability filter.
+Bounty is now an investing-first social-arbitrage product. `/dashboard` is the persisted global Investing Radar; `/dashboard/classic` preserves the prior research/projects/findings/lenses workbench and receives prefilled topics from Radar investigations. The canonical conversation corpus, research runs, connectors, citations, workspaces, and lens contracts remain horizontal underneath so other verticals can return later. Release A centrally schedules Google Trending Now across all supported markets; customer reads never call upstream sources. Building Quietly, non-Google discovery channels, information-coverage analysis, and filing-backed materiality are later gated phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`.
 
 ## Canonical methodology: Buzzabout, not a Google Trends dashboard
 

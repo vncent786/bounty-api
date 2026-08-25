@@ -2239,6 +2239,8 @@
  }
 
   bind();
+  const inboundTopic = new URLSearchParams(window.location.search).get('topic');
+  if (inboundTopic) $('#direct-topic').value = inboundTopic.slice(0, 120);
   window.setInterval(updateElapsedClocks, 1000);
   // Explore is the front door. The tour stays manual: nothing
   // interrupts the first load.

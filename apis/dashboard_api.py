@@ -34,6 +34,7 @@ _workspace_store = None
 _workspace_service = None
 _engine = None
 _research_tasks: dict[str, asyncio.Task] = {}
+_investing_store = None
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
 
@@ -214,6 +215,68 @@ def _get_discovery_store():
     return _discovery_store
 
 
+def _get_investing_store():
+    global _investing_store
+    if _investing_store is None:
+        from social_scraper.investing import InvestingRadarStore
+        _investing_store = InvestingRadarStore(_discovery_db_path())
+    return _investing_store
+
+
+def _public_investing_sweep(run: Mapping[str, Any] | None) -> dict[str, Any] | None:
+    if not run:
+        return None
+    fields = (
+        "id", "started_at", "completed_at", "status", "total_markets",
+        "recorded_markets", "complete_markets", "empty_markets", "failed_markets",
+        "candidate_observations", "unique_candidates", "unattempted_markets",
+    )
+    return {field: run.get(field) for field in fields}
+
+
+def _public_radar_item(item: Mapping[str, Any]) -> dict[str, Any]:
+    from social_scraper.monitoring.topdown import TRENDING_NOW_COUNTRIES
+
+    country_names = dict(TRENDING_NOW_COUNTRIES)
+    observations = list(item.get("observations") or [])
+    representative = min(
+        observations,
+        key=lambda observation: (observation.get("market_rank") or 10**9, observation.get("country") or ""),
+        default={},
+    )
+    country_codes = list(item.get("countries") or [])
+    reasons: list[str] = []
+    if len(country_codes) > 1:
+        reasons.append(f"Appeared in {len(country_codes)} markets in the latest global sweep")
+    elif country_codes:
+        reasons.append(f"Appeared in {country_names.get(country_codes[0], country_codes[0])}")
+    if representative.get("market_rank"):
+        reasons.append(
+            f"Ranked #{representative['market_rank']} in "
+            f"{country_names.get(representative.get('country'), representative.get('country'))} current searches"
+        )
+    if representative.get("growth_pct") is not None:
+        reasons.append(f"Source-reported search growth: {representative['growth_pct']:g}%")
+
+    return {
+        "id": item.get("candidate_id") or item.get("id"),
+        "keyword": item.get("keyword") or item.get("display_keyword"),
+        "lane": "breaking_now",
+        "categories": list(item.get("categories") or []),
+        "countries": [
+            {"code": code, "name": country_names.get(code, code)} for code in country_codes
+        ],
+        "reasons": reasons,
+        "search_volume": representative.get("search_volume"),
+        "growth_pct": representative.get("growth_pct"),
+        "started_hours_ago": representative.get("started_hours_ago"),
+        "latest_observed_at": item.get("observed_at") or item.get("last_seen_at"),
+        "source": "Google Trends Trending Now",
+        "market_count": len(country_codes),
+        "metric_scope_country": representative.get("country"),
+    }
+
+
 def _get_lens_store():
     global _lens_store
     if _lens_store is None:
@@ -323,6 +386,81 @@ def _check_auth(authorization: Optional[str] = Header(None)):
 # Register authentication as a FastAPI dependency before routes are added. This
 # preserves open development mode while resolving Authorization from requests.
 router.dependencies.append(Depends(_check_auth))
+
+
+def _investing_run_or_404(sweep_id: str) -> dict[str, Any]:
+    run = _get_investing_store().get_sweep(sweep_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Radar refresh was not found")
+    return run
+
+
+@router.get("/investing/radar")
+async def get_investing_radar(
+    limit: int = Query(100, ge=1, le=500),
+    country: str = Query(""),
+    category: str = Query(""),
+):
+    from social_scraper.monitoring.topdown import (
+        TREND_CATEGORY_NAMES,
+        TRENDING_NOW_COUNTRIES,
+    )
+
+    store = _get_investing_store()
+    raw_items = store.list_radar(
+        limit=limit,
+        country=country.strip().upper() or None,
+        category=category.strip() or None,
+    )
+    items = [_public_radar_item(item) for item in raw_items]
+    latest = store.latest_sweep()
+    data_sweep = store.latest_data_sweep()
+    data_observed_at = max(
+        (item["latest_observed_at"] for item in items if item.get("latest_observed_at")),
+        default=None,
+    )
+    if latest:
+        coverage_summary = (
+            f"{latest['recorded_markets']} of {latest['total_markets']} markets checked"
+        )
+        if latest["failed_markets"]:
+            coverage_summary += f"; {latest['failed_markets']} unavailable"
+        if data_sweep and data_sweep["id"] != latest["id"]:
+            coverage_summary += "; displaying the most recent successful data"
+        coverage_summary += f"; {len(items)} signals shown"
+    else:
+        coverage_summary = "No global source sweep has completed yet"
+
+    return {
+        "items": items,
+        "breaking_now": items,
+        "building_quietly": [],
+        "last_sweep": _public_investing_sweep(latest),
+        "data_sweep": _public_investing_sweep(data_sweep),
+        "data_observed_at": data_observed_at,
+        "coverage": {
+            "summary": coverage_summary,
+            "item_count": len(items),
+            "country_options": [
+                {"code": code, "name": name} for code, name in TRENDING_NOW_COUNTRIES
+            ],
+            "category_options": list(TREND_CATEGORY_NAMES),
+            "source": "Google Trends Trending Now",
+        },
+    }
+
+
+@router.get("/investing/radar/runs/{sweep_id}")
+async def get_investing_radar_run(sweep_id: str):
+    return {"run": _public_investing_sweep(_investing_run_or_404(sweep_id))}
+
+
+@router.get("/investing/radar/candidates/{candidate_id}")
+async def get_investing_radar_candidate(candidate_id: int):
+    candidate = _get_investing_store().get_candidate(candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Radar signal was not found")
+    return _public_radar_item(candidate)
 
 
 # ── Zone CRUD ──────────────────────────────────────────────

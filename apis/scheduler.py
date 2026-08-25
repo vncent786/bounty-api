@@ -35,6 +35,12 @@ RADAR_ENV_ROOT_INTERVAL = "BOUNTY_RADAR_ROOT_INTERVAL_MINUTES"
 RADAR_ENV_ROOT_MAX_CANDIDATES = "BOUNTY_RADAR_ROOT_MAX_CANDIDATES"
 RADAR_ENV_LEASE_MINUTES = "BOUNTY_RADAR_LEASE_MINUTES"
 RADAR_ENV_CLAIM_LIMIT = "BOUNTY_RADAR_CLAIM_LIMIT"
+INVESTING_RADAR_ENV_ENABLED = "BOUNTY_INVESTING_RADAR_ENABLED"
+INVESTING_RADAR_ENV_INTERVAL_MINUTES = "BOUNTY_INVESTING_RADAR_INTERVAL_MINUTES"
+
+_INVESTING_RADAR_INTERVAL_MINUTES = 360
+_INVESTING_RADAR_FAILED_RETRY_MINUTES = 30
+_INVESTING_RADAR_STALE_RUNNING_MINUTES = 120
 
 _RADAR_TRENDS_INTERVAL_MINUTES = 1440   # daily trends snapshot
 _RADAR_ROOT_INTERVAL_MINUTES = 10080    # weekly root sweep
@@ -92,6 +98,23 @@ def _parse_radar_enabled(environ: Mapping[str, str]) -> bool:
         f"{RADAR_ENV_ENABLED} must be one of true/false, 1/0, yes/no, on/off; "
         f"got {raw!r}"
     )
+
+
+def _parse_bool_env(
+    environ: Mapping[str, str],
+    name: str,
+    *,
+    default: bool,
+) -> bool:
+    raw = environ.get(name)
+    if raw is None:
+        return default
+    value = str(raw).strip().casefold()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(f"{name} must be one of true/false, 1/0, yes/no, on/off")
 
 
 @dataclass(frozen=True)
@@ -638,6 +661,13 @@ async def _scheduler_loop():
         except Exception as e:
             logger.error(f"Radar scheduler tick failed: {e}", exc_info=True)
 
+        # Investing Radar collection is central and scheduled. Dashboard reads
+        # persisted data only and never trigger upstream collection.
+        try:
+            await investing_radar_tick_once()
+        except Exception as e:
+            logger.error(f"Investing Radar tick failed: {e}", exc_info=True)
+
         await asyncio.sleep(_CHECK_INTERVAL_SECONDS)
 
 
@@ -697,6 +727,71 @@ async def radar_tick_once() -> dict | None:
         logger.debug("Radar scheduler disabled (BOUNTY_RADAR_ENABLED)")
         return None
     return await scheduler.tick()
+
+
+def _age_minutes(timestamp: str | None, now: datetime) -> float | None:
+    if not timestamp:
+        return None
+    text = str(timestamp)
+    if text.endswith("Z"):
+        text = text[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return max(0.0, (now - parsed.astimezone(timezone.utc)).total_seconds() / 60.0)
+
+
+async def investing_radar_tick_once(
+    *,
+    environ: Mapping[str, str] | None = None,
+    now: datetime | None = None,
+) -> dict | None:
+    """Centrally refresh the persisted global investing Radar when due."""
+    env = os.environ if environ is None else environ
+    if not _parse_bool_env(env, INVESTING_RADAR_ENV_ENABLED, default=True):
+        return None
+    interval = _parse_positive_int_env(
+        env,
+        INVESTING_RADAR_ENV_INTERVAL_MINUTES,
+        _INVESTING_RADAR_INTERVAL_MINUTES,
+    )
+    current_time = now or datetime.now(timezone.utc)
+
+    from apis.dashboard_api import _get_investing_store
+    from social_scraper.investing import GlobalRadarSweep
+    from social_scraper.monitoring.topdown import TRENDING_NOW_COUNTRIES
+
+    store = _get_investing_store()
+    latest = store.latest_sweep()
+    if latest and latest["status"] == "running":
+        age = _age_minutes(latest.get("started_at"), current_time)
+        if age is None or age < _INVESTING_RADAR_STALE_RUNNING_MINUTES:
+            return {"status": "running", "run_id": latest["id"], "started": False}
+        store.finalize_sweep(latest["id"], completed_at=current_time)
+        latest = None
+
+    if latest:
+        reference = latest.get("completed_at") or latest.get("started_at")
+        age = _age_minutes(reference, current_time)
+        retry_interval = (
+            _INVESTING_RADAR_FAILED_RETRY_MINUTES
+            if latest["status"] == "failed"
+            else interval
+        )
+        if age is not None and age < retry_interval:
+            return {"status": "not_due", "run_id": latest["id"], "started": False}
+
+    sweep_id, created = store.create_sweep_if_idle(
+        len(TRENDING_NOW_COUNTRIES),
+        started_at=current_time,
+    )
+    if not created:
+        return {"status": "running", "run_id": sweep_id, "started": False}
+    result = await GlobalRadarSweep(store).run(sweep_id=sweep_id)
+    return {"status": result["status"], "run_id": sweep_id, "started": True}
 
 
 # --- Lifecycle --------------------------------------------------------------

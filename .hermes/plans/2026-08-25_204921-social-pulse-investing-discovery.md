@@ -1,5 +1,7 @@
 # Social Pulse Investing Discovery Release
 
+> **SUPERSEDED:** This release failed the investor-quality bar. It exposed raw/source-native leads without comparable velocity, freshness or information-parity gates. Public Social Pulse is withdrawn. Use `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
+
 > **For Hermes:** Implement the smallest verified social-first discovery loop. Do not broaden into every platform feature or long-horizon analytics during this release.
 
 **Goal:** Let an investor begin with emerging social conversations, see a short citation-backed list of subjects worth considering, and hand any subject to Classic Bounty for deeper research.

@@ -1,5 +1,7 @@
 # Bounty Investing Social-Arbitrage Pivot Implementation Plan
 
+> **SUPERSEDED FOR PUBLIC RADAR RELEASE:** The first live Radar failed the investor-quality bar by exposing raw post titles, generic mega-themes, and one-off search trends. Public Radar is withdrawn. Use `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md` for all current work.
+
 > **For Hermes:** Use the software-engineering lifecycle and subagent-driven development to implement this plan task by task. Stop at every release gate. Do not start UI work until the relevant data gate passes.
 
 **Goal:** Turn Bounty into a global investing social-arbitrage radar that discovers unusual search and social behaviour, explains why each lead surfaced, and lets the user run a cited investigation, while retaining the horizontal evidence engine for future verticals.

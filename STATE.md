@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-25
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
-**Current product phase:** Investing Radar now has two live discovery starts: category-balanced global Google search attention and a citation-backed Social conversations lane collected centrally from Reddit, YouTube, TikTok, Instagram, and X with explicit source gaps. `/dashboard/classic` preserves the horizontal workbench and receives prefilled investigation topics. Customer reads never call upstream sources. Building Quietly, broader non-Google channels, information coverage, and filing-backed materiality remain gated later phases in `.hermes/plans/2026-08-16-vertical-pivot-building-quietly.md`; Social Pulse release contract: `.hermes/plans/2026-08-25_204921-social-pulse-investing-discovery.md`.
+**Current product phase:** Investor Radar public preview withdrawn after Vincent's quality review. `/dashboard` is restored to stable Classic Bounty; `/dashboard/investing-preview` is private/internal; Social Pulse collection is disabled by default. Rebuild follows the recovered Camillo process: stable category/brand scopes → comparable multi-cycle velocity and breadth → specific behavior gate → perennial-content rejection → L0-L2 information-parity gate → cited investigation. Raw posts, raw Google trends, and generic mega-themes never become customer leads. Canonical plan: `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
 
 ## What Bounty is
 

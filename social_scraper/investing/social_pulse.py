@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import dataclasses
 import json
+import re
 import sqlite3
 import uuid
 from contextlib import contextmanager
@@ -110,11 +111,81 @@ def _parse_model_json(raw: str) -> dict[str, Any]:
     return parsed
 
 
+def _fallback_behaviour(text: str) -> str:
+    value = text.casefold()
+    rules = (
+        ("shortage", ("sold out", "out of stock", "can't find", "cannot find", "restock")),
+        ("switching", ("switched to", "switching to", "replaced my", "moved from")),
+        ("purchase", ("i bought", "we bought", "purchased", "ordered", "buying")),
+        ("rejection", ("banned", "bans ", "ban ", "boycott", "opposition", "objecting", "stopped using")),
+        ("price_change", ("discount", "% off", "price increase", "price hike", "cheaper")),
+        ("pain_point", ("problem", "issue", "doesn't work", "not working", "struggling", "pain", "acne")),
+        ("adoption", ("started using", "now use", "installed", "new treatment", "adopting")),
+        ("workaround", ("workaround", "hack", "temporary fix", "instead of")),
+    )
+    for behaviour, phrases in rules:
+        if any(phrase in value for phrase in phrases):
+            return behaviour
+    return "other"
+
+
+def _deterministic_fallback_candidates(
+    evidence: Sequence[Mapping[str, Any]], max_candidates: int
+) -> list[dict[str, Any]]:
+    """Return source-native leads when optional LLM synthesis is unavailable."""
+    grouped: dict[str, list[dict[str, Any]]] = {platform: [] for platform in SOCIAL_PLATFORMS}
+    for item in evidence:
+        grouped.setdefault(str(item.get("platform")), []).append(dict(item))
+    ordered: list[dict[str, Any]] = []
+    while len(ordered) < max_candidates and any(grouped.values()):
+        for platform in SOCIAL_PLATFORMS:
+            values = grouped.get(platform) or []
+            if values and len(ordered) < max_candidates:
+                ordered.append(values.pop(0))
+    candidates = []
+    seen: set[str] = set()
+    for item in ordered:
+        text = re.sub(r"\s+", " ", str(item.get("text") or "")).strip()
+        if not text:
+            continue
+        first_sentence = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)[0]
+        label = first_sentence[:157].rstrip(" ,;:-")
+        if len(first_sentence) > 157:
+            label += "..."
+        key = label.casefold()
+        if not label or key in seen:
+            continue
+        platform = str(item.get("platform") or "unknown")
+        metrics = {
+            field: int(item[field]) for field in ("views", "likes", "comments", "shares")
+            if item.get(field) is not None
+        }
+        metric_copy = ", ".join(f"{name}={value:,}" for name, value in metrics.items())
+        candidates.append({
+            "label": label,
+            "behaviour_type": _fallback_behaviour(text),
+            "summary": text[:500],
+            "why_investigate": (
+                f"Source-native {platform} lead retained without model synthesis"
+                + (f"; observed {metric_copy}." if metric_copy else ".")
+            ),
+            "evidence_ids": [str(item["id"])],
+            "voice_count": 1,
+            "platform_count": 1,
+            "platforms": [platform],
+            "support_type": "single_source_early",
+            "engagement_by_platform": {platform: metrics},
+            "extraction_mode": "deterministic_fallback",
+        })
+        seen.add(key)
+    return candidates
+
+
 async def extract_social_candidates(
     evidence: Sequence[Mapping[str, Any]],
     *,
     llm_call_fn: Callable[[str, str], Awaitable[str]] | None = None,
-    max_candidates: int = 12,
+    max_candidates: int = 8,
 ) -> dict[str, Any]:
     usable = [dict(item) for item in evidence if item.get("id") and item.get("url")]
     if not usable:
@@ -124,11 +195,21 @@ async def extract_social_candidates(
             "limitations": ["No citable social records were collected."],
             "error_category": None,
         }
+
+    def fallback(error_category: str, limitation: str) -> dict[str, Any]:
+        candidates = _deterministic_fallback_candidates(usable, max_candidates)
+        return {
+            "status": "supported_fallback" if candidates else "analysis_unavailable",
+            "candidates": candidates,
+            "limitations": [limitation],
+            "error_category": error_category,
+        }
+
     if llm_call_fn is None:
         from social_scraper.llm_client import call_llm
 
         async def llm_call_fn(system: str, user: str) -> str:
-            return await call_llm(system, user, max_tokens=2200, temperature=0.0)
+            return await call_llm(system, user, max_tokens=4000, temperature=0.0)
 
     alias_to_id: dict[str, str] = {}
     model_records = []
@@ -150,25 +231,31 @@ async def extract_social_candidates(
     try:
         raw = await llm_call_fn(
             _SYSTEM_PROMPT,
-            _json({"schema_version": SOCIAL_PULSE_SCHEMA_VERSION, "records": model_records}),
+            _json({
+                "schema_version": SOCIAL_PULSE_SCHEMA_VERSION,
+                "max_candidates": max_candidates,
+                "records": model_records,
+            }),
         )
+    except Exception:
+        return fallback(
+            "provider_error",
+            "Model synthesis was unavailable; showing source-native leads without cross-record clustering.",
+        )
+    try:
         parsed = _parse_model_json(raw)
     except Exception:
-        return {
-            "status": "analysis_unavailable",
-            "candidates": [],
-            "limitations": ["Social records were collected but candidate extraction was unavailable."],
-            "error_category": "provider_or_parse_error",
-        }
+        return fallback(
+            "parse_error",
+            "Model output could not be parsed; showing source-native leads without cross-record clustering.",
+        )
 
     raw_candidates = parsed.get("candidates")
     if not isinstance(raw_candidates, list):
-        return {
-            "status": "analysis_unavailable",
-            "candidates": [],
-            "limitations": ["Candidate extraction returned an invalid schema."],
-            "error_category": "schema_error",
-        }
+        return fallback(
+            "schema_error",
+            "Model output had an invalid schema; showing source-native leads without cross-record clustering.",
+        )
 
     accepted = []
     seen_labels: set[str] = set()

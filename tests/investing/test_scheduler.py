@@ -162,11 +162,18 @@ def test_social_pulse_scheduler_marks_cancelled_run_failed(tmp_path, monkeypatch
     assert store.latest_attempt()["analysis_error_category"] == "collector_cancelled"
 
 
-def test_social_pulse_scheduler_skips_recent_attempt(tmp_path, monkeypatch):
+def test_social_pulse_scheduler_skips_recent_successful_attempt(tmp_path, monkeypatch):
     now = datetime.now(timezone.utc)
     store = SocialPulseStore(tmp_path / "social-scheduler.db")
     run_id = store.create_run()
-    store.fail_stale_run(run_id, "controlled")
+    for platform in ("reddit", "youtube", "tiktok", "instagram", "x"):
+        store.record_source(run_id, platform, status="empty")
+    store.complete_run(run_id, {
+        "status": "insufficient_evidence",
+        "candidates": [],
+        "limitations": [],
+        "error_category": None,
+    })
     monkeypatch.setattr(dashboard_api, "_get_social_pulse_store", lambda: store)
 
     result = asyncio.run(scheduler.social_pulse_tick_once(environ={}, now=now))

@@ -133,6 +133,8 @@ def test_social_pulse_renders_cited_investigation_leads_without_inner_html():
     assert "noopener noreferrer" in script
     assert "socialSignalRow" in script
     assert "renderSocialPulse" in script
+    assert "deterministic_fallback" in script
+    assert "Source leads · synthesis unavailable" in script
     assert "innerHTML" not in script
 
 

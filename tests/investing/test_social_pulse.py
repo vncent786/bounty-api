@@ -112,17 +112,21 @@ def test_extraction_rejects_unknown_citations_and_computes_support():
     assert "1 uncitable" in result["limitations"][0]
 
 
-def test_extraction_failure_is_analysis_unavailable_not_empty_signal():
-    evidence = [{**_item("reddit", "r1", "People are changing products", "a"), "id": "id1", "observed_at": "2026-08-25T11:00:00Z", "views": None, "shares": None}]
+def test_extraction_failure_returns_cited_source_native_fallback():
+    evidence = [{**_item("reddit", "r1", "I bought a new cooling mat", "a", likes=12, comments=3), "id": "id1", "observed_at": "2026-08-25T11:00:00Z", "views": None, "shares": None}]
 
     async def broken(_system, _user):
         raise RuntimeError("provider down")
 
     result = asyncio.run(extract_social_candidates(evidence, llm_call_fn=broken))
 
-    assert result["status"] == "analysis_unavailable"
-    assert result["error_category"] == "provider_or_parse_error"
-    assert result["candidates"] == []
+    assert result["status"] == "supported_fallback"
+    assert result["error_category"] == "provider_error"
+    assert len(result["candidates"]) == 1
+    assert result["candidates"][0]["evidence_ids"] == ["id1"]
+    assert result["candidates"][0]["behaviour_type"] == "purchase"
+    assert result["candidates"][0]["extraction_mode"] == "deterministic_fallback"
+    assert "without cross-record clustering" in result["limitations"][0]
 
 
 def test_collector_persists_all_source_outcomes_and_public_citations(tmp_path):

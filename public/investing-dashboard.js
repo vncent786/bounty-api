@@ -350,7 +350,11 @@
     $('#social-coverage').textContent = socialCoverageText(safePayload.coverage);
     const dataRun = safePayload.data_run;
     const attempt = safePayload.last_attempt;
-    if (attempt?.status === 'analysis_unavailable') {
+    const fallbackMode = items.some(item => item?.extraction_mode === 'deterministic_fallback');
+    if (fallbackMode) {
+      $('#social-status').textContent = 'Source leads · synthesis unavailable';
+      $('#social-coverage').textContent = `Model synthesis unavailable; showing source-native leads · ${$('#social-coverage').textContent}`;
+    } else if (attempt?.status === 'analysis_unavailable') {
       $('#social-status').textContent = 'Analysis unavailable';
     } else if (dataRun) {
       const dataStamp = formatTimestamp(dataRun.completed_at || dataRun.started_at);

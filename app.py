@@ -1421,10 +1421,10 @@ except ImportError as e:
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page():
-    """Investing-first social-arbitrage Radar."""
+    """Stable Classic Bounty workbench while Investor Radar is rebuilt."""
     try:
-        from apis.investing_dashboard_page import get_investing_dashboard_html
-        return get_investing_dashboard_html()
+        from apis.dashboard_page import get_dashboard_html
+        return get_dashboard_html()
     except ImportError:
         return HTMLResponse("<h1>Dashboard not available</h1>", status_code=503)
 
@@ -1432,11 +1432,17 @@ async def dashboard_page():
 @app.get("/dashboard/classic", response_class=HTMLResponse)
 async def classic_dashboard_page():
     """Preserved horizontal Bounty research workbench."""
+    return await dashboard_page()
+
+
+@app.get("/dashboard/investing-preview", response_class=HTMLResponse)
+async def investing_preview_page():
+    """Private preview surface; not the default customer experience."""
     try:
-        from apis.dashboard_page import get_dashboard_html
-        return get_dashboard_html()
+        from apis.investing_dashboard_page import get_investing_dashboard_html
+        return get_investing_dashboard_html()
     except ImportError:
-        return HTMLResponse("<h1>Classic dashboard not available</h1>", status_code=503)
+        return HTMLResponse("<h1>Investing preview not available</h1>", status_code=503)
 
 # ============================================================
 # Scheduler — background zone collection

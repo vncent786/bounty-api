@@ -157,14 +157,22 @@ def test_auth_and_accessibility_contract_mirror_classic_dashboard():
     assert 'aria-busy="true"' in html
 
 
-def test_app_wires_investing_default_and_preserves_classic_route():
+def test_app_restores_classic_default_and_keeps_investing_preview_private():
     app_source = (ROOT / "app.py").read_text(encoding="utf-8")
     classic_script = (ROOT / "public" / "dashboard.js").read_text(encoding="utf-8")
 
-    assert '@app.get("/dashboard", response_class=HTMLResponse)' in app_source
-    assert "get_investing_dashboard_html" in app_source
+    dashboard_block = app_source[
+        app_source.index('@app.get("/dashboard", response_class=HTMLResponse)'):
+        app_source.index('@app.get("/dashboard/classic", response_class=HTMLResponse)')
+    ]
+    preview_block = app_source[
+        app_source.index('@app.get("/dashboard/investing-preview", response_class=HTMLResponse)'):
+        app_source.index('# ============================================================', app_source.index('@app.get("/dashboard/investing-preview"'))
+    ]
+    assert "get_dashboard_html" in dashboard_block
+    assert "get_investing_dashboard_html" not in dashboard_block
+    assert "get_investing_dashboard_html" in preview_block
     assert '@app.get("/dashboard/classic", response_class=HTMLResponse)' in app_source
-    assert "get_dashboard_html" in app_source
     assert "new URLSearchParams(window.location.search).get('topic')" in classic_script
     assert "$('#direct-topic').value = inboundTopic.slice(0, 120)" in classic_script
 

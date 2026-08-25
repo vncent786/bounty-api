@@ -811,7 +811,7 @@ async def social_pulse_tick_once(
 ) -> dict | None:
     """Run due social-first discovery centrally; dashboard reads stay cache-only."""
     env = os.environ if environ is None else environ
-    if not _parse_bool_env(env, SOCIAL_PULSE_ENV_ENABLED, default=True):
+    if not _parse_bool_env(env, SOCIAL_PULSE_ENV_ENABLED, default=False):
         return None
     interval = _parse_positive_int_env(
         env,

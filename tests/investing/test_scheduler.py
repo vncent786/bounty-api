@@ -87,6 +87,15 @@ def test_stale_running_sweep_is_closed_before_replacement(tmp_path, monkeypatch)
     assert result["started"] is True
 
 
+def test_social_pulse_scheduler_defaults_off_until_quality_gate(monkeypatch):
+    monkeypatch.setattr(
+        dashboard_api,
+        "_get_social_pulse_store",
+        lambda: (_ for _ in ()).throw(AssertionError("store should not be touched")),
+    )
+    assert asyncio.run(scheduler.social_pulse_tick_once(environ={})) is None
+
+
 def test_social_pulse_scheduler_can_be_disabled(monkeypatch):
     monkeypatch.setattr(
         dashboard_api,
@@ -124,7 +133,9 @@ def test_social_pulse_scheduler_runs_central_collector_when_due(tmp_path, monkey
     monkeypatch.setattr(pulse_module, "build_default_social_fetchers", fake_build)
     monkeypatch.setattr(pulse_module, "SocialPulseCollector", FakeCollector)
 
-    result = asyncio.run(scheduler.social_pulse_tick_once(environ={}, now=now))
+    result = asyncio.run(scheduler.social_pulse_tick_once(
+        environ={scheduler.SOCIAL_PULSE_ENV_ENABLED: "true"}, now=now
+    ))
 
     assert result["started"] is True
     assert result["status"] == "failed"
@@ -151,7 +162,9 @@ def test_social_pulse_scheduler_marks_cancelled_run_failed(tmp_path, monkeypatch
     monkeypatch.setattr(pulse_module, "SocialPulseCollector", BlockingCollector)
 
     async def scenario():
-        task = asyncio.create_task(scheduler.social_pulse_tick_once(environ={}))
+        task = asyncio.create_task(scheduler.social_pulse_tick_once(
+            environ={scheduler.SOCIAL_PULSE_ENV_ENABLED: "true"}
+        ))
         await asyncio.sleep(0.02)
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -176,6 +189,8 @@ def test_social_pulse_scheduler_skips_recent_successful_attempt(tmp_path, monkey
     })
     monkeypatch.setattr(dashboard_api, "_get_social_pulse_store", lambda: store)
 
-    result = asyncio.run(scheduler.social_pulse_tick_once(environ={}, now=now))
+    result = asyncio.run(scheduler.social_pulse_tick_once(
+        environ={scheduler.SOCIAL_PULSE_ENV_ENABLED: "true"}, now=now
+    ))
 
     assert result == {"status": "not_due", "run_id": run_id, "started": False}

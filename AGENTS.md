@@ -21,9 +21,9 @@ Nothing below requires you to request OAuth from anyone. Auth state already exis
 |---|---|---|
 | Reddit (mobile OAuth) | Device-ID token mimicking Reddit's Android app. **No user OAuth, no developer API keys.** | Self-acquired at runtime; optional `BOUNTY_REDDIT_DEVICE_STATE` for persistence. Works without proxy; `BOUNTY_PROXY_USERNAME/PASSWORD/SERVER` if needed |
 | YouTube | Free (yt-dlp based). No auth. | — |
-| TikTok | Authenticated session | Session state maintained by `scripts/tiktok_login_session.py`; env `TIKTOK_*` if set |
-| Instagram | Web-auth session | `BOUNTY_IG_USERNAME/PASSWORD/COOKIE_PATH`, `BOUNTY_IG_PROXY` |
-| X / Twitter | Official X API for production; Scweet cookie replay is diagnostic only | `BOUNTY_X_BEARER_TOKEN`; optional `BOUNTY_X_ENABLE_FULL_ARCHIVE=1`. Legacy `BOUNTY_X_AUTH_TOKEN`/`scweet_state.db` must not be in the production SLO |
+| TikTok | Owned authenticated Chrome worker | Persistent `.browser_profiles/tiktok_real`, proxy extension, sticky `BOUNTY_PROXY_*` residential egress. Search and bounded root/reply collection work locally; serialize profile use and do not run from Railway IPs |
+| Instagram | Owned web-auth worker | Stored browser cookies at `BOUNTY_IG_COOKIE_PATH` or `data/ig_cookies.json`, direct session-origin IP. Keyword GraphQL search plus bounded root/child comments; `BOUNTY_IG_PROXY` only when it matches the session origin |
+| X / Twitter | Owned authenticated web GraphQL primary; official API optional | Owned worker: `BOUNTY_X_AUTH_TOKEN`, `BOUNTY_X_SCWEET_DB`, conservative `BOUNTY_X_DAILY_*` budgets. Optional official fallback: `BOUNTY_X_BEARER_TOKEN` and `BOUNTY_X_ENABLE_FULL_ARCHIVE=1` |
 | LLM | xAI Responses API or explicitly configured OpenAI-compatible endpoint | Production Grok: `BOUNTY_LLM_PROVIDER=xai`, `XAI_API_KEY`, optional `XAI_BASE_URL/XAI_MODEL`. Generic adapter: `BOUNTY_LLM_BASE_URL/API_KEY/MODEL`. There is no Z.AI fallback. Local dev can route through a Hermes adapter via `BOUNTY_HERMES_AGENT_PATH` |
 | Brave (optional fallback) | API key | `BOUNTY_BRAVE_SEARCH_API_KEY` — optional, unset is fine |
 
@@ -141,7 +141,10 @@ Dashboard auth fails CLOSED (503) in production unless `BOUNTY_DASHBOARD_TOKEN` 
 | `BOUNTY_DASHBOARD_TOKEN` | Bearer token gating the dashboard API (production) |
 | `BOUNTY_X_BEARER_TOKEN` | Official X API bearer token for Recent/Full-Archive Search |
 | `BOUNTY_X_ENABLE_FULL_ARCHIVE` | Set to `1` only when the X project has paid full-archive access |
-| `BOUNTY_ENABLE_LEGACY_X_SCWEET` | Local diagnostic only; set `1` to register cookie replay after the official X route |
+| `BOUNTY_OWNED_SOCIAL_WORKER` | Set `1` only on the residential collection worker; production API/Railway defaults to no browser/session connectors |
+| `BOUNTY_X_AUTH_TOKEN` | Owned X account auth cookie used by Scweet web GraphQL |
+| `BOUNTY_X_SCWEET_DB` | Owned X account/cooldown state path; use an ignored runtime database |
+| `BOUNTY_X_DAILY_REQUEST_LIMIT` / `BOUNTY_X_DAILY_TWEETS_LIMIT` | Hard per-account budgets; defaults 100 pages and 3,000 posts/day |
 | `XAI_API_KEY` | Paid xAI API key used when `BOUNTY_LLM_PROVIDER=xai` |
 | `XAI_BASE_URL` / `XAI_MODEL` | Optional xAI endpoint/model overrides; defaults are `https://api.x.ai/v1` and `grok-4.6` |
 | `BOUNTY_ENV` | `development` bypasses token gating locally |
@@ -168,7 +171,9 @@ The developer OAuth API does NOT work (Reddit locked free tier). PullPush.io is 
 
 ## Known broken / missing (honest list)
 
-- **X connector (scweet):** not production-viable. The current local state exhausted its single-account daily eligibility and previously returned 0 results. Replace it with official X Recent/Full-Archive Search; keep Scweet out of the SLO path.
+- **Owned X worker:** web GraphQL keyword/date search, engagement, raw payloads, and `conversation_id` reply reconstruction are live-verified. It remains ranked/bounded rather than a guaranteed firehose; session refresh, second-account failover, multi-day canaries, and the worker-to-Railway ingestion handoff are not complete.
+- **X official API:** retained as an optional paid fallback/audit adapter; `BOUNTY_X_BEARER_TOKEN` is not provisioned locally.
+- **Owned TikTok/Instagram worker:** live search, comments, and replies work on the Windows residential host. The signed ingestion handoff, automatic/manual re-auth alerting, second-worker failover, and seven-day canary are not built yet; do not imply an external SLA.
 - **x402 payment routes:** 503 by design, `BOUNTY_X402_ACTIVE` unset. Deferred.
 - **YouTube transcripts:** only metadata + comments collected, not spoken word. Biggest content gap per marketer feedback.
 - **Zone path gaps:** see "TWO pipelines" above. Reddit ~dead from zones, no thread depth, no dedup, no triage findings.
@@ -180,7 +185,7 @@ The developer OAuth API does NOT work (Reddit locked free tier). PullPush.io is 
 
 Independent agent tested the nofap zone. Verdicts after code inspection:
 1. "Reddit nearly dead from zones" — TRUE (root cause: zone path passes no subreddit scope)
-2. "No comment depth" — PARTIAL (Reddit/YouTube implement fetch_thread correctly and research-runs uses it; TikTok/IG/X don't implement it; zones never call it)
+2. "No comment depth" — PARTIAL at audit time. Reddit/YouTube already worked; owned TikTok/Instagram and official X depth were added later. Zones still never call `fetch_thread`.
 3. "Duplicates" — TRUE (no dedup in zone path)
 4. "No structured analysis" — PARTIAL (research-runs path HAS it; zones don't)
 

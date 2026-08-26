@@ -73,9 +73,10 @@ Maintain a global versioned product/brand/security relationship graph as a secon
 
 - Reddit: owned current mobile connector plus explicit community universe and canary.
 - YouTube: official Data API for canonical metadata/comments where feasible; yt-dlp only behind a measured fallback canary.
-- X: official Recent Search for incremental collection and Full-Archive Search for backfill/gap repair. Grok X Search is a discovery/corroboration sensor, not the canonical observation collector because it has no exhaustive pagination contract.
-- TikTok/Instagram internal alpha: managed provider jobs, initially Apify with Bright Data as a benchmark/fallback. Do not make Railway or a Windows browser session the production SLO.
-- TikTok/Instagram SaaS: negotiate authorized enterprise coverage where it fits and a managed-data contract for broad public organic gaps. Contract review must explicitly cover commercial derived analytics, retention, deletion, display and raw-data restrictions. No provider is assumed to grant resale rights merely because it returns records.
+- X: Bounty's owned authenticated web-GraphQL collector is the primary low-cost route. Scweet handles SearchTimeline, client-transaction IDs, cookies, account cooldowns, date-bounded search, public engagement metrics, and `conversation_id` reply reconstruction. Run it only on the owned worker with conservative daily/page limits. The official X API is an optional paid fallback/audit route, not an economics-critical dependency. Grok X Search remains discovery/corroboration only.
+- TikTok: Bounty's owned authenticated Chrome collector runs from the Windows residential worker using the persistent `tiktok_real` profile, sticky Geonode egress, browser-generated signatures/tokens, API-response interception, and DOM fallback. It supports keyword search plus bounded root comments and replies. Serialize profile use, monitor session health, and never run it from Railway datacenter IPs.
+- Instagram: Bounty's owned collector uses stored browser cookies on the session's originating residential IP. The authenticated keyword-search page yields GraphQL media records; the web comment and child-comment endpoints provide bounded thread depth. Hashtag `web_info` remains a fallback, not the definition of keyword search.
+- SaaS execution: one or more owned residential workers collect centrally and push immutable observations to Bounty. Customer reads hit only persisted data. Add profile backup, manual re-auth alerts, low-rate queues, account isolation, daily canaries, and a second owned worker before promising an external SLA. Apify and Bright Data are not dependencies.
 - Grok synthesis: paid xAI Responses API over a fixed persisted evidence snapshot. Do not use Z.AI and do not let Grok live-search mutate the canonical evidence used for the main synthesis.
 - A failed model call leaves the cluster internal. Raw titles never become fallback leads.
 
@@ -205,12 +206,14 @@ No raw post feed. No raw Google trend feed. No recommendation score.
 - DONE: experimental Investor Radar moved to `/dashboard/investing-preview`.
 - DONE: Railway Social Pulse collection disabled by default.
 
-### Phase 1: Source reliability and managed collection
+### Phase 1: Source reliability and owned residential collection
 
 - Build source canaries for all five social platforms.
-- Replace X/scweet with official X Recent/Full-Archive Search.
-- Pilot Apify and Bright Data on fixed TikTok/Instagram query, post and comment windows; compare completeness, latency, schema stability and cost.
-- Keep the working local TikTok/Instagram sessions as diagnostics only, not a production dependency.
+- Fortify owned X web GraphQL with account health, session refresh, fixed query slices, reply-depth canaries, account budgets, and a second owned account before an external SLA. Retain the official X adapter only as an optional fallback/audit route.
+- Run TikTok and Instagram from the owned Windows residential worker, never Railway egress.
+- Persist and monitor search, root-comment, reply, session-expiry, challenge, latency and truncation outcomes independently.
+- Add a signed ingestion handoff so the residential worker writes immutable observations while Railway remains the read/API plane.
+- Add a second owned profile/worker only after the first passes the canary; no third-party scraping API dependency.
 - Persist source health and comparable scope receipts.
 - Seven-day canary gate before any source can contribute to promotion.
 

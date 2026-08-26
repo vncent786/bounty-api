@@ -19,11 +19,15 @@ social_scraper_audit_*.json
 tiktok_screenshots/
 account_factory/deep_probe_screenshots/
 .browser_profiles/
+/scweet_state.db
+/scweet_state.db-shm
+/scweet_state.db-wal
 
 # Runtime social collection databases
 /data/*.db
 /data/*.db-shm
 /data/*.db-wal
+/data/*.lock
 /data/reddit_mobile_device.json
 /data/ig_cookies.json
 /data/*cookies*

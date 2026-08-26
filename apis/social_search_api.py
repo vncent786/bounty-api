@@ -111,6 +111,11 @@ def _configured_reddit_subreddits():
     ]
 
 
+def _owned_social_worker_enabled() -> bool:
+    configured = os.getenv("BOUNTY_OWNED_SOCIAL_WORKER", "")
+    return configured.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def build_default_broker(route_timeout_seconds=30.0):
     broker = SourceBroker(route_timeout_seconds=route_timeout_seconds)
     # Reddit: mobile owned (best, requires subreddit scope), arctic (fallback, scoped),
@@ -125,21 +130,18 @@ def build_default_broker(route_timeout_seconds=30.0):
     if reddit_search_key:
         broker.register(RedditSearchConnector(api_key=reddit_search_key), priority=30)
     broker.register(YouTubeConnector())
-    broker.register(TikTokAuthConnector(), priority=10)
-    broker.register(TikTokPlaywrightConnector(), priority=20)
-    broker.register(DouyinPlaywrightConnector())
-    broker.register(XHSPlaywrightConnector())
-    broker.register(XOfficialConnector(), priority=1)
-    # Cookie replay is an explicit local diagnostic only. It is never an
-    # automatic fallback because switching collection source breaks comparable
-    # historical windows.
-    if (
-        XConnector is not None
-        and os.getenv("BOUNTY_ENABLE_LEGACY_X_SCWEET", "") == "1"
-    ):
-        broker.register(XConnector(), priority=90)
-    if InstagramConnector is not None:
-        broker.register(InstagramConnector(), priority=10)
+    owned_worker = _owned_social_worker_enabled()
+    if owned_worker:
+        broker.register(TikTokAuthConnector(), priority=10)
+        broker.register(TikTokPlaywrightConnector(), priority=20)
+        broker.register(DouyinPlaywrightConnector())
+        broker.register(XHSPlaywrightConnector())
+        if XConnector is not None and os.getenv("BOUNTY_X_AUTH_TOKEN", "").strip():
+            broker.register(XConnector(), priority=1)
+        if InstagramConnector is not None:
+            broker.register(InstagramConnector(), priority=10)
+    if os.getenv("BOUNTY_X_BEARER_TOKEN", "").strip():
+        broker.register(XOfficialConnector(), priority=20)
     return broker
 
 

@@ -16,6 +16,7 @@ from typing import Optional
 import httpx
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
+from social_scraper.conversations.thread_reader import ThreadFetchResult, ThreadRecord
 
 
 _RECENT_ENDPOINT = "/2/tweets/search/recent"
@@ -135,6 +136,10 @@ class XOfficialConnector(BaseConnector):
                 "source_kind": "official_x_api",
                 "edit_history_post_ids": list(edit_history),
                 "conversation_id": tweet.get("conversation_id"),
+                "author_id": tweet.get("author_id"),
+                "in_reply_to_user_id": tweet.get("in_reply_to_user_id"),
+                "referenced_tweets": tweet.get("referenced_tweets") or [],
+                "public_metrics": dict(public_metrics),
             },
         )
 
@@ -180,7 +185,7 @@ class XOfficialConnector(BaseConnector):
         params = {
             "query": keyword,
             "max_results": max(10, min(target_count, 100)),
-            "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,entities,attachments,conversation_id,edit_history_tweet_ids",
+            "tweet.fields": "id,text,author_id,created_at,public_metrics,lang,entities,attachments,conversation_id,in_reply_to_user_id,referenced_tweets,edit_history_tweet_ids",
             "expansions": "author_id,attachments.media_keys",
             "user.fields": "id,name,username,public_metrics",
             "media.fields": "media_key,type,url,preview_image_url,public_metrics",
@@ -200,6 +205,7 @@ class XOfficialConnector(BaseConnector):
         page_count = 0
         next_token = None
         last_result_count = 0
+        local_page_truncated = False
         max_pages = max(1, int(os.getenv("BOUNTY_X_MAX_PAGES", "100")))
 
         try:
@@ -250,13 +256,16 @@ class XOfficialConnector(BaseConnector):
                         str(item.get("media_key")): item
                         for item in includes.get("media") or []
                     }
-                    for tweet in payload.get("data") or []:
+                    page_entries = payload.get("data") or []
+                    for entry_index, tweet in enumerate(page_entries):
                         item = self._parse_item(tweet, users, media)
                         if item is None or item.post_id in seen_ids:
                             continue
                         seen_ids.add(item.post_id)
                         items.append(item)
                         if len(items) >= target_count:
+                            if entry_index < len(page_entries) - 1:
+                                local_page_truncated = True
                             break
                     meta = payload.get("meta") or {}
                     last_result_count = meta.get("result_count") or 0
@@ -285,8 +294,9 @@ class XOfficialConnector(BaseConnector):
             "time_filter": time_filter or "recent_default",
             "last_page_result_count": last_result_count,
             "pages_completed": page_count,
-            "window_exhausted": not bool(next_token),
+            "window_exhausted": not bool(next_token) and not local_page_truncated,
             "requested_limit_reached": len(items) >= target_count,
+            "local_page_truncated": local_page_truncated,
             "page_cap_reached": page_cap_reached,
             "payload_error_count": len(payload_errors),
             "requested_region": region or None,
@@ -309,6 +319,166 @@ class XOfficialConnector(BaseConnector):
                 coverage=coverage,
             ),
             raw_records=raw_records,
+        )
+
+    async def fetch_thread(
+        self, post: SocialItem, max_comments: int, max_depth: int
+    ) -> ThreadFetchResult:
+        route = "x_official_conversation_search"
+        if post.platform != "x" or not post.post_id:
+            return ThreadFetchResult(
+                platform="x",
+                root_post_external_id=post.post_id or "unknown",
+                status="error",
+                attempted_route=route,
+                error_category="invalid_x_post",
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+        if max_comments <= 0 or max_depth <= 0:
+            return ThreadFetchResult(
+                platform="x",
+                root_post_external_id=post.post_id,
+                status="empty",
+                attempted_route=route,
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+
+        time_filter = "week"
+        if post.created_at:
+            try:
+                created = datetime.fromisoformat(post.created_at.replace("Z", "+00:00"))
+                age = datetime.now(timezone.utc) - created
+                if age > timedelta(days=7) and os.getenv(
+                    "BOUNTY_X_ENABLE_FULL_ARCHIVE", ""
+                ) != "1":
+                    return ThreadFetchResult(
+                        platform="x",
+                        root_post_external_id=post.post_id,
+                        status="unavailable",
+                        attempted_route=route,
+                        error_category="x_full_archive_required",
+                        max_comments=max_comments,
+                        max_depth=max_depth,
+                        limitations=(
+                            "The root post predates Recent Search; full-archive access is required to reconstruct its replies.",
+                        ),
+                    )
+                if age > timedelta(days=30):
+                    time_filter = "halfyear"
+                elif age > timedelta(days=7):
+                    time_filter = "month"
+            except (TypeError, ValueError):
+                pass
+        result = await self.search(
+            f"conversation_id:{post.post_id}",
+            count=max_comments + 1,
+            time_filter=time_filter,
+            sort="hot",
+        )
+        replies = [item for item in result.items if item.post_id != post.post_id]
+        if not replies and result.health.status == "error":
+            return ThreadFetchResult(
+                platform="x",
+                root_post_external_id=post.post_id,
+                status="unavailable",
+                attempted_route=route,
+                error_category=result.health.error or "x_replies_unavailable",
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+
+        parent_by_id = {}
+        by_id = {item.post_id: item for item in replies}
+        for item in replies:
+            parent_id = ""
+            for reference in item.raw.get("referenced_tweets") or []:
+                if reference.get("type") == "replied_to" and reference.get("id"):
+                    parent_id = str(reference["id"])
+                    break
+            parent_by_id[item.post_id] = parent_id
+
+        depth_cache = {}
+
+        def reply_depth(item_id, visiting=None):
+            if item_id in depth_cache:
+                return depth_cache[item_id]
+            visiting = set(visiting or ())
+            if item_id in visiting:
+                depth_cache[item_id] = None
+                return None
+            visiting.add(item_id)
+            parent_id = parent_by_id.get(item_id, "")
+            if parent_id == post.post_id:
+                depth = 1
+            elif parent_id in by_id:
+                parent_depth = reply_depth(parent_id, visiting)
+                depth = None if parent_depth is None else 1 + parent_depth
+            else:
+                depth = None
+            depth_cache[item_id] = depth
+            return depth
+
+        records = []
+        unknown_depth = False
+        for item in replies:
+            depth = reply_depth(item.post_id)
+            if depth is None:
+                unknown_depth = True
+                continue
+            if depth > max_depth or len(records) >= max_comments:
+                continue
+            parent_id = parent_by_id.get(item.post_id, "")
+            records.append(ThreadRecord(
+                platform="x",
+                external_id=item.post_id,
+                record_type="comment" if depth == 1 else "reply",
+                parent_external_id=parent_id,
+                root_post_external_id=post.post_id,
+                depth=depth,
+                text=item.text,
+                author_external_id=str(item.raw.get("author_id") or "") or None,
+                author_username=item.author_username or None,
+                url=item.url or None,
+                published_at=item.created_at,
+                likes=item.likes,
+                raw=item.raw,
+            ))
+
+        reported_total = post.comments if isinstance(post.comments, int) else None
+        window_exhausted = bool(result.health.coverage.get("window_exhausted"))
+        direct_replies = len([record for record in records if record.depth == 1])
+        unknown_total = reported_total is None
+        truncated = (
+            unknown_total
+            or unknown_depth
+            or not window_exhausted
+            or len(replies) > len(records)
+            or len(records) >= max_comments
+            or (reported_total is not None and reported_total > direct_replies)
+        )
+        status = (
+            "empty"
+            if not records and reported_total == 0 and not truncated
+            else "partial" if truncated else "complete"
+        )
+        return ThreadFetchResult(
+            platform="x",
+            root_post_external_id=post.post_id,
+            status=status,
+            records=tuple(records),
+            truncated=truncated,
+            attempted_route=route,
+            error_category=(
+                result.health.error if result.health.status == "partial" else None
+            ),
+            platform_reported_total=reported_total,
+            max_comments=max_comments,
+            max_depth=max_depth,
+            limitations=(
+                "X replies are Posts found by conversation_id; deleted, protected, withheld, or unindexed replies remain unavailable.",
+            ),
         )
 
     async def health_check(self) -> SourceHealth:

@@ -145,6 +145,7 @@ async def _check_platform(
                         "text": record.text,
                         "created_at": record.published_at,
                         "engagement": {"likes": record.likes},
+                        "raw": dict(record.raw),
                         "provenance": {
                             "connector": result.attempted_route,
                             "query": keyword,

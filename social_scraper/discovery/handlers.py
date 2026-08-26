@@ -292,6 +292,7 @@ async def make_deep_read_handler(
                             "published_at": record.published_at,
                             "created_at": record.published_at,
                             "engagement": {"likes": record.likes},
+                            "raw": dict(record.raw),
                             "provenance": {
                                 "connector": thread_result.attempted_route,
                                 "query": keyword,

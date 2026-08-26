@@ -37,13 +37,23 @@ class XConnector(BaseConnector):
     connector_name = "x_scweet"
     manages_timeout = True
 
-    def __init__(self):
+    def __init__(self, *, sleep_fn=None, clock=None):
         self._client = None
+        self._sleep = sleep_fn or asyncio.sleep
+        self._clock = clock or time.time
+        self._daily_request_limit = 300
 
     @staticmethod
     def _env_int(name: str, default: int) -> int:
         try:
             return max(1, int(os.getenv(name, str(default))))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _env_float(name: str, default: float) -> float:
+        try:
+            return max(0.0, float(os.getenv(name, str(default))))
         except (TypeError, ValueError):
             return default
 
@@ -67,11 +77,14 @@ class XConnector(BaseConnector):
 
         db_path = self._db_path()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
+        self._daily_request_limit = self._env_int(
+            "BOUNTY_X_DAILY_REQUEST_LIMIT", 300
+        )
         config = ScweetConfig(
             db_path=db_path,
             proxy=os.getenv("BOUNTY_X_PROXY", "").strip() or None,
             concurrency=1,
-            daily_requests_limit=self._env_int("BOUNTY_X_DAILY_REQUEST_LIMIT", 100),
+            daily_requests_limit=self._daily_request_limit,
             daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 3000),
             requests_per_min=self._env_int("BOUNTY_X_REQUESTS_PER_MIN", 5),
             min_delay_s=float(os.getenv("BOUNTY_X_MIN_DELAY_SECONDS", "3")),
@@ -115,6 +128,52 @@ class XConnector(BaseConnector):
             return "x_transaction_id_failed"
         return "x_error"
 
+    def _cooldown_wait_seconds(
+        self,
+        client,
+        error_code: str,
+        *,
+        already_waited: float,
+    ) -> float | None:
+        if error_code not in {"x_rate_limited", "x_account_pool_unavailable"}:
+            return None
+        max_wait = self._env_float("BOUNTY_X_MAX_WAIT_SECONDS", 20 * 60)
+        remaining_wait = max_wait - already_waited
+        if remaining_wait <= 0:
+            return None
+        try:
+            accounts = client.db.list_accounts(
+                limit=200,
+                include_cookies=False,
+                reveal_secrets=False,
+            )
+        except Exception:
+            accounts = []
+        active = [
+            account for account in accounts
+            if int(account.get("status") or 0) == 1
+            and int(account.get("daily_requests") or 0) < self._daily_request_limit
+        ]
+        if accounts and not active:
+            return None
+        now = float(self._clock())
+        future = [
+            float(account.get("available_til") or 0.0)
+            for account in active
+            if float(account.get("available_til") or 0.0) > now
+        ]
+        if future:
+            wait_seconds = max(1.0, min(future) - now + 1.0)
+        elif active and any(account.get("busy") for account in active):
+            wait_seconds = 5.0
+        else:
+            wait_seconds = self._env_float(
+                "BOUNTY_X_RETRY_DEFAULT_SECONDS", 2 * 60
+            )
+        if wait_seconds > remaining_wait:
+            return None
+        return float(wait_seconds)
+
     async def search(
         self,
         keyword: str,
@@ -141,31 +200,61 @@ class XConnector(BaseConnector):
         since, until = self._time_bounds(time_filter)
         display_type = "Latest" if sort == "latest" else "Top"
         lock_path = Path(f"{self._db_path()}.lock")
-        try:
-            def run_search():
-                return client.search(
-                    keyword,
-                    since=since,
-                    until=until,
-                    display_type=display_type,
-                    limit=count,
-                )
+        retry_count = 0
+        waited_seconds = 0.0
+        max_retry_attempts = self._env_int("BOUNTY_X_MAX_RETRY_ATTEMPTS", 4)
+        while True:
+            try:
+                def run_search():
+                    return client.search(
+                        keyword,
+                        since=since,
+                        until=until,
+                        display_type=display_type,
+                        limit=count,
+                        # Restart the bounded query after cooldown. Scweet's cursor
+                        # resume returns only later pages, which would omit records
+                        # collected by a failed prior attempt from this call's result.
+                        resume=False,
+                    )
 
-            async with AsyncFileLock(lock_path):
-                raw_tweets = await asyncio.to_thread(run_search)
-        except Exception as exc:
-            return ConnectorResult(
-                items=[],
-                health=SourceHealth(
-                    platform="x",
-                    connector=self.connector_name,
-                    status="error",
-                    items_requested=count,
-                    latency_ms=int((time.time() - start) * 1000),
-                    error=self._error_code(exc),
-                    coverage={"route": "x_web_graphql_scweet"},
-                ),
-            )
+                async with AsyncFileLock(lock_path):
+                    raw_tweets = await asyncio.to_thread(run_search)
+                break
+            except Exception as exc:
+                error_code = self._error_code(exc)
+                wait_seconds = self._cooldown_wait_seconds(
+                    client,
+                    error_code,
+                    already_waited=waited_seconds,
+                )
+                if retry_count >= max_retry_attempts or wait_seconds is None:
+                    return ConnectorResult(
+                        items=[],
+                        health=SourceHealth(
+                            platform="x",
+                            connector=self.connector_name,
+                            status="error",
+                            items_requested=count,
+                            latency_ms=int((time.time() - start) * 1000),
+                            error=error_code,
+                            coverage={
+                                "route": "x_web_graphql_scweet",
+                                "retry_count": retry_count,
+                                "waited_seconds": waited_seconds,
+                                "retried_after_cooldown": retry_count > 0,
+                            },
+                        ),
+                    )
+                retry_count += 1
+                waited_seconds += wait_seconds
+                logger.info(
+                    "X collector cooling down for %.1fs before retry %s/%s",
+                    wait_seconds,
+                    retry_count,
+                    max_retry_attempts,
+                )
+                await self._sleep(wait_seconds)
 
         items = []
         for tweet_data in raw_tweets:
@@ -192,6 +281,9 @@ class XConnector(BaseConnector):
                     "provider_returned": len(raw_tweets),
                     "requested_limit_reached": requested_limit_reached,
                     "region_filter_applied": False,
+                    "retry_count": retry_count,
+                    "waited_seconds": waited_seconds,
+                    "retried_after_cooldown": retry_count > 0,
                 },
             ),
             raw_records=[{

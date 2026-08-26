@@ -64,7 +64,7 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     ))
 
     assert len(result.items) == 5
-    assert captured["config"]["daily_requests_limit"] == 100
+    assert captured["config"]["daily_requests_limit"] == 300
     assert captured["config"]["requests_per_min"] == 5
     assert captured["config"]["concurrency"] == 1
     assert captured["client"]["db_path"] == str(tmp_path / "state.db")
@@ -77,6 +77,105 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     assert result.items[0].bookmarks == 4
     assert result.items[0].raw["legacy"]["quote_count"] == 1
     assert result.raw_records[0]["payload"]["tweets"]
+
+
+def test_owned_x_waits_for_temporary_cooldown_and_restarts_bounded_query(monkeypatch, tmp_path):
+    captured = {"search": [], "waits": []}
+
+    class FakeConfig:
+        def __init__(self, **kwargs):
+            captured["config"] = kwargs
+
+    class FakeDB:
+        def list_accounts(self, **_kwargs):
+            return [{
+                "status": 1,
+                "available_til": 104.0,
+                "daily_requests": 20,
+                "cooldown_reason": "rate_limit",
+                "busy": False,
+            }]
+
+    class CoolingScweet:
+        def __init__(self, **_kwargs):
+            self.db = FakeDB()
+
+        def search(self, _query, **kwargs):
+            captured["search"].append(kwargs)
+            if len(captured["search"]) == 1:
+                raise RuntimeError("No eligible accounts (total=1, cooldown=1)")
+            return [_tweet("resumed")]
+
+    async def fake_sleep(seconds):
+        captured["waits"].append(seconds)
+
+    monkeypatch.setattr(x_graphql, "ScweetConfig", FakeConfig)
+    monkeypatch.setattr(x_graphql, "Scweet", CoolingScweet)
+    monkeypatch.setattr(x_graphql, "SCWEET_AVAILABLE", True)
+    monkeypatch.setenv("BOUNTY_X_AUTH_TOKEN", "secret")
+    monkeypatch.setenv("BOUNTY_X_SCWEET_DB", str(tmp_path / "state.db"))
+    monkeypatch.delenv("BOUNTY_X_DAILY_REQUEST_LIMIT", raising=False)
+
+    result = asyncio.run(XConnector(
+        sleep_fn=fake_sleep,
+        clock=lambda: 100.0,
+    ).search("running shoes", count=5, time_filter="week", sort="latest"))
+
+    assert [call["resume"] for call in captured["search"]] == [False, False]
+    assert captured["waits"] == [5.0]
+    assert result.health.status == "ok"
+    assert result.health.coverage["retry_count"] == 1
+    assert result.health.coverage["waited_seconds"] == 5.0
+    assert result.health.coverage["retried_after_cooldown"] is True
+
+
+def test_owned_x_daily_safety_cap_fails_without_a_retry_loop(monkeypatch, tmp_path):
+    captured = {"calls": 0, "waits": []}
+
+    class FakeConfig:
+        def __init__(self, **_kwargs):
+            pass
+
+    class FakeDB:
+        def list_accounts(self, **_kwargs):
+            return [{
+                "status": 1,
+                "available_til": 0.0,
+                "daily_requests": 300,
+                "cooldown_reason": None,
+                "busy": False,
+            }]
+
+    class ExhaustedScweet:
+        def __init__(self, **_kwargs):
+            self.db = FakeDB()
+
+        def search(self, _query, **_kwargs):
+            captured["calls"] += 1
+            raise RuntimeError(
+                "AccountPoolExhausted: No eligible accounts (total=1, daily_limit=1)"
+            )
+
+    async def fake_sleep(seconds):
+        captured["waits"].append(seconds)
+
+    monkeypatch.setattr(x_graphql, "ScweetConfig", FakeConfig)
+    monkeypatch.setattr(x_graphql, "Scweet", ExhaustedScweet)
+    monkeypatch.setattr(x_graphql, "SCWEET_AVAILABLE", True)
+    monkeypatch.setenv("BOUNTY_X_AUTH_TOKEN", "secret")
+    monkeypatch.setenv("BOUNTY_X_SCWEET_DB", str(tmp_path / "state.db"))
+    monkeypatch.delenv("BOUNTY_X_DAILY_REQUEST_LIMIT", raising=False)
+
+    result = asyncio.run(XConnector(
+        sleep_fn=fake_sleep,
+        clock=lambda: 100.0,
+    ).search("running shoes", count=5, time_filter="week", sort="latest"))
+
+    assert captured["calls"] == 1
+    assert captured["waits"] == []
+    assert result.health.status == "error"
+    assert result.health.error == "x_daily_budget_exhausted"
+    assert result.health.coverage["retry_count"] == 0
 
 
 def test_owned_x_successful_empty_search_is_complete_not_unavailable(monkeypatch, tmp_path):

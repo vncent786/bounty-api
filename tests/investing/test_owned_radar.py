@@ -29,6 +29,11 @@ class FakeX:
         )
 
 
+class NoDiscoveryBroker:
+    async def search(self, **_kwargs):
+        raise AssertionError("wide discovery must remain X-only")
+
+
 class FakeBroker:
     async def search(self, *, keyword, platforms, count, time_filter, sort):
         platform = platforms[0]
@@ -68,13 +73,13 @@ def test_owned_collector_builds_four_comparable_x_windows():
     assert len(result["evidence"]) == 4
 
 
-def test_owned_discovery_preserves_platform_source_receipts():
-    collector = OwnedRadarCollector(broker=FakeBroker(), x_connector=FakeX())
+def test_owned_discovery_is_x_first_and_defers_other_sources_until_shortlist():
+    collector = OwnedRadarCollector(broker=NoDiscoveryBroker(), x_connector=FakeX())
     result = asyncio.run(collector.collect_discovery(DEFAULT_PANELS[0]))
-    assert {source["platform"] for source in result["sources"]} == {
-        "x", "tiktok", "instagram", "reddit", "youtube",
-    }
-    assert len(result["evidence"]) == 5
+    assert {source["platform"] for source in result["sources"]} == {"x"}
+    assert len(result["sources"]) == 4
+    assert len(result["evidence"]) == 4
+    assert len(collector.x_connector.queries) == 4
 
 
 def test_owned_corroboration_includes_reddit_with_source_receipts():

@@ -1,4 +1,5 @@
 import asyncio
+import json
 import sqlite3
 
 import pytest
@@ -13,7 +14,38 @@ from social_scraper.investing.private_radar import (
 )
 
 
-def _evidence(eid, text, author, platform="x", panel_id="beauty"):
+def test_default_panels_cover_the_full_camillo_consumer_universe():
+    assert [panel.panel_id for panel in DEFAULT_PANELS] == [
+        "automobiles",
+        "airlines",
+        "hotels_travel",
+        "restaurants_qsr",
+        "food_beverage",
+        "beauty_skincare",
+        "fashion_apparel",
+        "luxury",
+        "retail",
+        "consumer_technology",
+        "streaming",
+        "telecom",
+        "fintech_payments",
+        "fitness_wearables",
+        "pets",
+        "household_cleaning",
+    ]
+    assert len({panel.x_query for panel in DEFAULT_PANELS}) == 16
+    assert sum(len(panel.x_query_slices) for panel in DEFAULT_PANELS) == 64
+    assert len({query for panel in DEFAULT_PANELS for query in panel.x_query_slices}) == 64
+    for panel in DEFAULT_PANELS:
+        assert len(panel.x_query_slices) == 4
+        assert '"switched to"' in panel.x_query
+        assert '"sold out"' in panel.x_query
+        assert '"stopped buying"' in panel.x_query
+        assert all("-filter:retweets" in query for query in panel.x_query_slices)
+        assert panel.search_term
+
+
+def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare"):
     return {
         "id": eid,
         "panel_id": panel_id,
@@ -59,7 +91,7 @@ class FakeCollector:
 async def _llm(_system, user):
     assert PANEL_VERSION in user
     return '''{"candidates":[{
-      "panel_id":"beauty",
+      "panel_id":"beauty_skincare",
       "label":"Silicone air fryer liners replacing paper liners",
       "behaviour_type":"switching",
       "anchor_terms":["silicone air fryer liner"],
@@ -68,7 +100,7 @@ async def _llm(_system, user):
       "why_investigate":"The checked sample shows recent switching behavior.",
       "contradiction":"Some users report worse crisping.",
       "invalidation":"Reject if later samples show one promotion or fast reversal.",
-      "evidence_ids":["beauty-e1","beauty-e2","beauty-e3"]
+      "evidence_ids":["beauty_skincare-e1","beauty_skincare-e2","beauty_skincare-e3"]
     }],"limitations":[]}'''
 
 
@@ -121,6 +153,35 @@ def test_private_radar_store_exposes_only_supported_qualified_candidates(tmp_pat
     assert payload["data_scan"]["candidate_count"] == 1
 
 
+def test_public_payload_discloses_bounded_x_funnel_scope_and_caps(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle((DEFAULT_PANELS[0],))
+    sources = []
+    for index in range(4):
+        sources.append({
+            "panel_id": DEFAULT_PANELS[0].panel_id,
+            "platform": "x",
+            "query_index": index,
+            "status": "complete",
+            "count": 30 if index < 3 else 12,
+            "error_category": None,
+            "coverage": {"requested_limit_reached": index < 3},
+        })
+    store.complete_scan(run_id, [], limitations=[], sources=sources)
+
+    payload = store.public_payload()
+
+    assert payload["coverage"]["initial_funnel"] == {
+        "panel_count": 1,
+        "query_scopes": 4,
+        "complete_scopes": 4,
+        "capped_scopes": 3,
+        "reported_records": 102,
+    }
+    assert "X discovery checked 4/4 query scopes" in payload["coverage"]["summary"]
+    assert "3 reached the per-query sample limit" in payload["coverage"]["summary"]
+
+
 def test_unknown_candidate_coverage_cannot_be_reported_as_an_empty_cycle(tmp_path):
     store = PrivateRadarStore(tmp_path / "radar.db")
     run_id, _ = store.create_scan_if_idle()
@@ -144,14 +205,14 @@ def test_proposals_drop_broad_panel_terms_but_keep_specific_anchors():
             "half-caff",
             "I switched to half caff coffee and it worked",
             "a",
-            panel_id="food_qsr",
+            panel_id="food_beverage",
         ),
-        "panel_id": "food_qsr",
+        "panel_id": "food_beverage",
     }]
 
     async def model(_system, _user):
         return '''{"candidates":[{
-          "panel_id":"food_qsr",
+          "panel_id":"food_beverage",
           "label":"Half caff coffee step-down",
           "behaviour_type":"switching",
           "anchor_terms":["half caff","coffee"],
@@ -166,10 +227,57 @@ def test_proposals_drop_broad_panel_terms_but_keep_specific_anchors():
     proposals, _ = asyncio.run(propose_candidates(
         evidence,
         llm_call_fn=model,
-        panels=(DEFAULT_PANELS[1],),
+        panels=(DEFAULT_PANELS[4],),
     ))
 
     assert proposals[0]["anchor_terms"] == ["half caff"]
+
+
+def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
+    evidence = []
+    for panel in DEFAULT_PANELS:
+        for index in range(20):
+            evidence.append(_evidence(
+                f"{panel.panel_id}-{index}",
+                f"I switched to specific {panel.panel_id} product {index}",
+                f"author-{panel.panel_id}-{index}",
+                panel_id=panel.panel_id,
+            ))
+
+    async def model(_system, user):
+        payload = json.loads(user)
+        counts = {}
+        for record in payload["records"]:
+            counts[record["panel_id"]] = counts.get(record["panel_id"], 0) + 1
+        assert len(payload["records"]) == 192
+        assert set(counts) == {panel.panel_id for panel in DEFAULT_PANELS}
+        assert set(counts.values()) == {12}
+        candidates = []
+        for panel in DEFAULT_PANELS[:6]:
+            candidates.append({
+                "panel_id": panel.panel_id,
+                "label": f"Specific {panel.panel_id} product switch",
+                "behaviour_type": "switching",
+                "anchor_terms": [f"specific {panel.panel_id} product"],
+                "summary": f"People switched to a specific {panel.panel_id} product.",
+                "economic_mechanism": "Product substitution may alter category mix.",
+                "why_investigate": "Check independent adoption and persistence.",
+                "contradiction": "The checked records may be isolated.",
+                "invalidation": "Reject if independent adoption does not broaden.",
+                "evidence_ids": [f"{panel.panel_id}-0"],
+            })
+        return json.dumps({"candidates": candidates, "limitations": []})
+
+    proposals, _ = asyncio.run(propose_candidates(
+        evidence,
+        llm_call_fn=model,
+        panels=DEFAULT_PANELS,
+    ))
+
+    assert len(proposals) == 4
+    assert [value["panel_id"] for value in proposals] == [
+        panel.panel_id for panel in DEFAULT_PANELS[:4]
+    ]
 
 
 def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
@@ -205,7 +313,7 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
 
     async def model(_system, _user):
         return '''{"candidates":[{
-          "panel_id":"beauty",
+          "panel_id":"beauty_skincare",
           "label":"Specific reusable liner switch",
           "behaviour_type":"switching",
           "anchor_terms":["specific reusable liner"],
@@ -221,7 +329,7 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
     scanner = PrivateRadarScanner(
         PrivateRadarStore(tmp_path / "radar.db"),
         collector,
-        panels=(DEFAULT_PANELS[0],),
+        panels=(DEFAULT_PANELS[5],),
         llm_call_fn=model,
     )
 
@@ -290,6 +398,53 @@ def test_unavailable_sources_are_a_failure_not_an_empty_cycle(tmp_path):
     assert result["status"] == "failed"
     assert result["error_category"] == "PrivateRadarCoverageUnavailable"
     assert store.public_payload()["items"] == []
+
+
+def test_partial_initial_funnel_is_incomplete_even_when_some_evidence_arrived(tmp_path):
+    class MixedCollector:
+        async def collect_discovery(self, panel):
+            return {
+                "evidence": [
+                    _evidence(
+                        "one-result",
+                        "I switched to a specific product",
+                        "one-author",
+                        panel_id=panel.panel_id,
+                    )
+                ],
+                "sources": [
+                    {
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "status": "complete",
+                        "count": 1,
+                        "error_category": None,
+                    },
+                    {
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "status": "failed",
+                        "count": 0,
+                        "error_category": "x_rate_limited",
+                    },
+                ],
+            }
+
+    async def must_not_run(*_args):
+        raise AssertionError("model must not run on an incomplete initial funnel")
+
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    scanner = PrivateRadarScanner(
+        store,
+        MixedCollector(),
+        panels=(DEFAULT_PANELS[0],),
+        llm_call_fn=must_not_run,
+    )
+
+    result = asyncio.run(scanner.run())
+
+    assert result["status"] == "failed"
+    assert result["error_category"] == "PrivateRadarCoverageUnavailable"
 
 
 def test_healthy_empty_sources_are_an_honest_empty_cycle(tmp_path):

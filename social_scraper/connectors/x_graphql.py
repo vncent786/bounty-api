@@ -85,7 +85,7 @@ class XConnector(BaseConnector):
             proxy=os.getenv("BOUNTY_X_PROXY", "").strip() or None,
             concurrency=1,
             daily_requests_limit=self._daily_request_limit,
-            daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 3000),
+            daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 4000),
             requests_per_min=self._env_int("BOUNTY_X_REQUESTS_PER_MIN", 5),
             min_delay_s=float(os.getenv("BOUNTY_X_MIN_DELAY_SECONDS", "3")),
             max_account_switches=0,

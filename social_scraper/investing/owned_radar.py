@@ -166,32 +166,28 @@ class OwnedRadarCollector:
     async def collect_discovery(self, panel: Panel):
         evidence = []
         sources = []
-        x_result = await self.x_connector.search(
-            panel.x_query, count=30, time_filter="week", sort="latest"
-        )
-        for item in x_result.items:
-            normalized = _normalise_item(
-                item.to_dict(), panel_id=panel.panel_id,
-                window_key="current", query=panel.x_query,
+        queries = panel.x_query_slices or (panel.x_query,)
+        for query_index, query in enumerate(queries):
+            x_result = await self.x_connector.search(
+                query, count=30, time_filter="week", sort="latest"
             )
-            if normalized:
-                evidence.append(normalized)
-        sources.append({
-            "panel_id": panel.panel_id,
-            "platform": "x",
-            "status": _x_source_status(x_result),
-            "count": len(x_result.items),
-            "error_category": x_result.health.error,
-            "coverage": x_result.health.coverage,
-        })
-        for platform in ("tiktok", "instagram", "reddit", "youtube"):
-            result = await self._broker_search(
-                panel, platform, panel.search_term, count=8,
-                time_filter="month" if platform == "youtube" else "week",
-                sort="latest", hydrate=True,
-            )
-            evidence.extend(result["evidence"])
-            sources.append(result["source"])
+            for item in x_result.items:
+                normalized = _normalise_item(
+                    item.to_dict(), panel_id=panel.panel_id,
+                    window_key="current", query=query,
+                )
+                if normalized:
+                    evidence.append(normalized)
+            sources.append({
+                "panel_id": panel.panel_id,
+                "platform": "x",
+                "query_index": query_index,
+                "query": query,
+                "status": _x_source_status(x_result),
+                "count": len(x_result.items),
+                "error_category": x_result.health.error,
+                "coverage": x_result.health.coverage,
+            })
         deduped = {item["id"]: item for item in evidence}
         return {"evidence": list(deduped.values()), "sources": sources}
 

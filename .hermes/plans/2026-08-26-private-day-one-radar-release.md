@@ -13,9 +13,9 @@ No raw post titles or generic trend rows are shown as leads.
 
 ## Included
 
-1. Four versioned Camillo consumer panels.
-2. Owned X web-GraphQL current discovery plus four comparable exact-anchor historical windows.
-3. Current TikTok, Instagram, Reddit, and YouTube corroboration for shortlisted anchors.
+1. Sixteen versioned Camillo consumer panels covering automobiles, travel, food, beauty, apparel, luxury, retail, technology, subscriptions, telecom, payments, fitness, pets, and household.
+2. Four bounded owned-X web-GraphQL behavior-query slices per panel (64 fixed query scopes total), followed by four comparable exact-anchor historical windows only for candidates that survive cheap evidence checks.
+3. Current TikTok, Instagram, Reddit, and YouTube corroboration only for the four strongest shortlisted anchors.
 4. Stable evidence IDs, immutable source records, source-health receipts, and persisted scan state.
 5. Fail-closed qualification:
    - specific topic and behavior;
@@ -33,9 +33,9 @@ No raw post titles or generic trend rows are shown as leads.
 - Options-only discovery.
 - Filing-backed materiality and verified ticker mapping.
 - Public Radar reactivation.
-- All sixteen panels.
 - Multi-tenant billing or remote worker ingestion.
 - Claims of exhaustive social or sell-side coverage.
+- Claims that ranked X web search is a full firehose or "almost unlimited"; every cycle remains a bounded, query-defined sample with caps and source receipts.
 
 ## Acceptance checks
 

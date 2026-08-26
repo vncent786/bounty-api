@@ -17,8 +17,10 @@ from typing import Any, Awaitable, Callable, Iterator, Mapping, Sequence
 from social_scraper.investing.qualification import is_specific_anchor, qualify_candidate
 
 
-PANEL_VERSION = "camillo-private-panels/1"
+PANEL_VERSION = "camillo-private-panels/3"
 SCAN_SCHEMA_VERSION = "private-investing-radar/1"
+MAX_DISCOVERY_RECORDS_PER_PANEL = 12
+MAX_SHORTLIST_CANDIDATES = 4
 
 
 @dataclasses.dataclass(frozen=True)
@@ -27,37 +29,121 @@ class Panel:
     name: str
     x_query: str
     search_term: str
+    x_query_slices: tuple[str, ...] = ()
+
+
+_BEHAVIOR_QUERY = (
+    '("switched to" OR "started using" OR "stopped using" OR "stopped buying" '
+    'OR "I bought" OR "ordered" OR "returned it" OR "sold out" '
+    'OR "out of stock" OR "can\'t find" OR "price increase" '
+    'OR "more expensive" OR "workaround")'
+)
+_BEHAVIOR_QUERY_SLICES = (
+    '("switched to" OR "started using" OR "I bought" OR "ordered")',
+    '("stopped using" OR "stopped buying" OR "returned it" OR "price increase" OR "more expensive")',
+    '("sold out" OR "out of stock" OR "can\'t find" OR "restock")',
+    '("doesn\'t work" OR "not working" OR "problem" OR "issue" OR "workaround" OR "temporary fix")',
+)
+
+
+def _panel(panel_id: str, name: str, scope: str, search_term: str) -> Panel:
+    return Panel(
+        panel_id,
+        name,
+        f"{_BEHAVIOR_QUERY} ({scope}) -filter:retweets",
+        search_term,
+        tuple(
+            f"{behavior_query} ({scope}) -filter:retweets"
+            for behavior_query in _BEHAVIOR_QUERY_SLICES
+        ),
+    )
 
 
 DEFAULT_PANELS = (
-    Panel(
-        "beauty",
-        "Beauty and skincare",
-        '("switched to" OR "stopped using" OR "sold out" OR "can\'t find") (skincare OR makeup OR haircare OR beauty) -filter:retweets',
-        "skincare products people switched to",
+    _panel(
+        "automobiles", "Automobiles",
+        "car OR cars OR vehicle OR vehicles OR EV OR SUV OR dealership",
+        "cars vehicles people switched to or stopped buying",
     ),
-    Panel(
-        "food_qsr",
-        "Food, beverage and restaurants",
-        '("switched to" OR "stopped buying" OR "sold out" OR "can\'t find") (restaurant OR snack OR drink OR grocery OR coffee) -filter:retweets',
+    _panel(
+        "airlines", "Airlines",
+        "airline OR airlines OR flight OR flights OR baggage OR airport",
+        "airlines flights people switched to or stopped using",
+    ),
+    _panel(
+        "hotels_travel", "Hotels and travel",
+        "hotel OR hotels OR resort OR travel OR booking OR vacation",
+        "hotels travel services people switched to",
+    ),
+    _panel(
+        "restaurants_qsr", "Restaurants and quick service",
+        '"fast food" OR restaurant OR restaurants OR delivery OR takeout OR cafe',
+        "restaurants delivery people switched to or stopped buying",
+    ),
+    _panel(
+        "food_beverage", "Food and beverage",
+        "snack OR snacks OR drink OR drinks OR grocery OR cereal OR soda OR coffee",
         "food drink products people switched to",
     ),
-    Panel(
-        "consumer_tech",
-        "Consumer technology and wearables",
-        '("switched to" OR "stopped using" OR "sold out" OR "can\'t find") (headphones OR wearable OR smartwatch OR device OR app) -filter:retweets',
+    _panel(
+        "beauty_skincare", "Beauty and skincare",
+        "skincare OR makeup OR haircare OR beauty OR fragrance",
+        "skincare beauty products people switched to",
+    ),
+    _panel(
+        "fashion_apparel", "Fashion and apparel",
+        "apparel OR clothing OR shoes OR sneakers OR handbag OR fashion",
+        "fashion apparel products people switched to",
+    ),
+    _panel(
+        "luxury", "Luxury goods",
+        '"luxury bag" OR watch OR watches OR jewelry OR fragrance OR designer',
+        "luxury products people switched to or stopped buying",
+    ),
+    _panel(
+        "retail", "Retail",
+        "retailer OR store OR shopping OR membership OR warehouse",
+        "retailers stores people switched to or stopped using",
+    ),
+    _panel(
+        "consumer_technology", "Consumer technology",
+        "headphones OR wearable OR smartwatch OR device OR gadget OR app",
         "consumer technology people switched to",
     ),
-    Panel(
-        "retail_household",
-        "Retail, household and pets",
-        '("switched to" OR "stopped buying" OR "sold out" OR "can\'t find") (shoes OR apparel OR cleaning OR pet OR household) -filter:retweets',
-        "household retail products people switched to",
+    _panel(
+        "streaming", "Streaming and subscriptions",
+        'streaming OR subscription OR Netflix OR "Disney Plus" OR Spotify OR YouTube',
+        "streaming subscriptions people switched to or cancelled",
+    ),
+    _panel(
+        "telecom", "Telecom and connectivity",
+        'carrier OR "mobile plan" OR broadband OR "internet provider" OR telecom',
+        "mobile broadband providers people switched to",
+    ),
+    _panel(
+        "fintech_payments", "Fintech and payments",
+        '"payment app" OR "bank app" OR "credit card" OR wallet OR "buy now pay later"',
+        "payments banking products people switched to",
+    ),
+    _panel(
+        "fitness_wearables", "Fitness and wearables",
+        '"fitness tracker" OR smartwatch OR gym OR "workout app" OR wearable',
+        "fitness wearables people started or stopped using",
+    ),
+    _panel(
+        "pets", "Pets",
+        '"pet food" OR "dog food" OR "cat food" OR veterinary OR "pet insurance"',
+        "pet products services people switched to",
+    ),
+    _panel(
+        "household_cleaning", "Household and cleaning",
+        "cleaning OR detergent OR appliance OR cookware OR household",
+        "household cleaning products people switched to",
     ),
 )
 
 
-_SYSTEM_PROMPT = """Propose specific information-arbitrage candidates from the supplied current social evidence. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
+_SYSTEM_PROMPT = """Rank and return at most four strongest specific information-arbitrage candidates from the supplied current social evidence. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
 
 
 def _utc_iso(value: datetime | str | None = None) -> str:
@@ -454,14 +540,44 @@ class PrivateRadarStore:
                 continue
             linked = [evidence[eid] for eid in decision.get("evidence_ids", [])]
             items.append({**decision, "evidence": linked})
+        initial_sources = [
+            source for source in data_scan["sources"]
+            if source.get("platform") == "x"
+            and source.get("query_index") is not None
+            and source.get("window_key") is None
+        ]
+        funnel = {
+            "panel_count": len({source.get("panel_id") for source in initial_sources}),
+            "query_scopes": len(initial_sources),
+            "complete_scopes": sum(
+                source.get("status") == "complete" for source in initial_sources
+            ),
+            "capped_scopes": sum(
+                bool((source.get("coverage") or {}).get("requested_limit_reached"))
+                for source in initial_sources
+            ),
+            "reported_records": sum(int(source.get("count") or 0) for source in initial_sources),
+        }
+        coverage_summary = (
+            f"{len(items)} qualified leads from {data_scan['evidence_count']} stored evidence records"
+        )
+        if funnel["query_scopes"]:
+            coverage_summary += (
+                f"; X discovery checked {funnel['complete_scopes']}/{funnel['query_scopes']} query scopes"
+            )
+            if funnel["capped_scopes"]:
+                coverage_summary += (
+                    f"; {funnel['capped_scopes']} reached the per-query sample limit"
+                )
         return {
             "items": items,
             "last_attempt": self._public_scan(attempt),
             "data_scan": self._public_scan(data_scan),
             "displaying_previous_data": bool(attempt and data_scan and attempt["id"] != data_scan["id"]),
             "coverage": {
-                "summary": f"{len(items)} qualified leads from {data_scan['evidence_count']} stored evidence records",
+                "summary": coverage_summary,
                 "sources": data_scan["sources"],
+                "initial_funnel": funnel,
             },
         }
 
@@ -489,7 +605,20 @@ async def propose_candidates(
     balanced_records = []
     for panel in panels:
         panel_records = [item for item in records if item.get("panel_id") == panel.panel_id]
-        balanced_records.extend(panel_records[:30])
+        by_query: dict[str, list[dict[str, Any]]] = {}
+        for item in panel_records:
+            by_query.setdefault(str(item.get("query") or ""), []).append(item)
+        selected = []
+        per_query = max(1, MAX_DISCOVERY_RECORDS_PER_PANEL // max(1, len(by_query)))
+        for query_records in by_query.values():
+            selected.extend(query_records[:per_query])
+        selected_ids = {str(item.get("id")) for item in selected}
+        if len(selected) < MAX_DISCOVERY_RECORDS_PER_PANEL:
+            selected.extend(
+                item for item in panel_records
+                if str(item.get("id")) not in selected_ids
+            )
+        balanced_records.extend(selected[:MAX_DISCOVERY_RECORDS_PER_PANEL])
     payload = {
         "schema_version": SCAN_SCHEMA_VERSION,
         "panel_version": PANEL_VERSION,
@@ -505,7 +634,7 @@ async def propose_candidates(
     panel_ids = {panel.panel_id for panel in panels}
     accepted = []
     seen_panels = set()
-    for raw in parsed["candidates"][:8]:
+    for raw in parsed["candidates"][:MAX_SHORTLIST_CANDIDATES]:
         if not isinstance(raw, Mapping):
             continue
         value = dict(raw)
@@ -578,11 +707,9 @@ class PrivateRadarScanner:
             source_states = {
                 str(source.get("status") or "failed") for source in sources
             }
-            if not current_evidence and (
-                not source_states or source_states != {"complete"}
-            ):
+            if not source_states or source_states != {"complete"}:
                 raise PrivateRadarCoverageUnavailable(
-                    "current social sources were unavailable or incomplete"
+                    "initial social discovery sources were unavailable or incomplete"
                 )
             if self.llm_call_fn is None:
                 from social_scraper.llm_client import call_llm

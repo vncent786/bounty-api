@@ -1,4 +1,4 @@
-"""Low-rate scoped Reddit discovery through combined Atom feeds.
+"""Low-rate Reddit discovery through global search and scoped Atom feeds.
 
 RSS is a discovery ledger, not an engagement source. It provides canonical post
 identity and feed timestamps but no score or comment-count observations.
@@ -14,7 +14,7 @@ import weakref
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from typing import Callable, Optional
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 
 import httpx
 from bs4 import BeautifulSoup
@@ -112,7 +112,9 @@ def parse_reddit_atom(
             continue
         match = POST_PATH_RE.fullmatch(urlsplit(canonical).path)
         path_subreddit, path_post_id = match.group(1), match.group(2).lower()
-        if path_post_id != post_id or path_subreddit.lower() not in allowed:
+        if path_post_id != post_id or (
+            allowed and path_subreddit.lower() not in allowed
+        ):
             continue
         if post_id in seen:
             continue
@@ -180,7 +182,7 @@ def _httpx_proxy_url():
 class RedditRSSConnector(BaseConnector):
     platform = "reddit"
     connector_name = "reddit_atom_scoped"
-    requires_options = True
+    requires_options = False
 
     def __init__(self, fetch_feed: Optional[Callable] = None, max_subreddits=5, clock=None):
         self.fetch_feed = fetch_feed
@@ -188,6 +190,8 @@ class RedditRSSConnector(BaseConnector):
         self.clock = clock or (lambda: datetime.now(timezone.utc))
 
     def can_handle_options(self, options):
+        if not options:
+            return True
         requested = options.get("subreddits") if isinstance(options, dict) else None
         return (
             isinstance(requested, list)
@@ -198,6 +202,19 @@ class RedditRSSConnector(BaseConnector):
     @staticmethod
     def _feed_url(subreddits):
         return f"https://www.reddit.com/r/{'+'.join(subreddits)}/new/.rss"
+
+    @staticmethod
+    def _search_url(keyword, time_filter):
+        params = {"q": str(keyword), "sort": "new"}
+        period = {
+            "1day": "day",
+            "week": "week",
+            "month": "month",
+            "halfyear": "year",
+        }.get(time_filter)
+        if period:
+            params["t"] = period
+        return f"https://www.reddit.com/search.rss?{urlencode(params)}"
 
     async def _fetch(self, url):
         if self.fetch_feed:
@@ -290,15 +307,60 @@ class RedditRSSConnector(BaseConnector):
         )
 
     async def search(self, keyword, count=20, time_filter="", sort="", region=""):
+        started = time.monotonic()
+        url = self._search_url(keyword, time_filter)
+        coverage = {
+            "kind": "global_atom_search",
+            "global_query": True,
+            "global_coverage": False,
+            "window_limited": True,
+            "engagement_available": False,
+            "source_kind": "feed",
+        }
+        raw_records = []
+        if time_filter not in {"", "1day", "week", "month", "halfyear"}:
+            items, error = [], "unsupported_time_filter"
+        elif sort not in {"", "latest"}:
+            items, error = [], "unsupported_sort"
+        else:
+            try:
+                payload = await self._fetch(url)
+                lookback = {
+                    "1day": timedelta(days=1),
+                    "week": timedelta(days=7),
+                    "month": timedelta(days=30),
+                    "halfyear": timedelta(days=180),
+                }.get(time_filter)
+                cutoff = self.clock() - lookback if lookback else None
+                items = parse_reddit_atom(
+                    payload, [], keyword, count, cutoff=cutoff
+                )
+                raw_records = [{
+                    "source_id": url,
+                    "payload_format": "bytes_base64",
+                    "payload": base64.b64encode(payload).decode("ascii"),
+                }]
+                coverage["observed_subreddits"] = sorted({
+                    item.raw["subreddit"] for item in items
+                }, key=str.lower)
+                error = None
+            except RedditRSSRateLimitError:
+                items, error = [], "reddit_rss_rate_limited"
+            except Exception:
+                items, error = [], "reddit_rss_unavailable"
         return ConnectorResult(
-            items=[],
+            items=items,
             health=SourceHealth(
                 platform=self.platform,
                 connector=self.connector_name,
-                status="skipped",
+                status="ok" if items else ("error" if error else "partial"),
+                items_returned=len(items),
                 items_requested=count,
-                error="missing_subreddit_scope",
+                latency_ms=int((time.monotonic() - started) * 1000),
+                error=error,
+                coverage=coverage,
             ),
+            raw_records=raw_records,
         )
 
     async def health_check(self):

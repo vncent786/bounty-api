@@ -180,7 +180,7 @@ class XConnector(BaseConnector):
             health=SourceHealth(
                 platform="x",
                 connector=self.connector_name,
-                status="ok" if items else "partial",
+                status="ok",
                 items_returned=len(items),
                 items_requested=count,
                 latency_ms=int((time.time() - start) * 1000),

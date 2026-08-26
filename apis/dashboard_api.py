@@ -36,6 +36,8 @@ _engine = None
 _research_tasks: dict[str, asyncio.Task] = {}
 _investing_store = None
 _social_pulse_store = None
+_private_radar_store = None
+_private_radar_tasks: dict[str, asyncio.Task] = {}
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
 
@@ -230,6 +232,17 @@ def _get_social_pulse_store():
         from social_scraper.investing.social_pulse import SocialPulseStore
         _social_pulse_store = SocialPulseStore(_discovery_db_path())
     return _social_pulse_store
+
+
+def _get_private_radar_store():
+    global _private_radar_store
+    if _private_radar_store is None:
+        from social_scraper.investing.private_radar import PrivateRadarStore
+        configured = os.getenv("BOUNTY_PRIVATE_RADAR_DB", "").strip()
+        path = Path(configured) if configured else _discovery_db_path()
+        _private_radar_store = PrivateRadarStore(path)
+    return _private_radar_store
+
 
 
 def _public_investing_sweep(run: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -463,6 +476,69 @@ async def get_investing_radar(
 async def get_investing_social_pulse():
     """Read the latest persisted social-first discovery output."""
     return _get_social_pulse_store().public_payload()
+
+
+def _owned_private_scan_allowed() -> bool:
+    enabled = os.getenv("BOUNTY_OWNED_SOCIAL_WORKER", "").strip().lower()
+    if enabled not in {"1", "true", "yes", "on"}:
+        return False
+    return not any(os.getenv(name) for name in (
+        "RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"
+    ))
+
+
+async def _run_private_radar_scan(run_id: str):
+    store = _get_private_radar_store()
+    try:
+        from social_scraper.investing.owned_radar import build_private_scanner
+
+        await build_private_scanner(store).run(run_id=run_id)
+    except asyncio.CancelledError:
+        current = store.get_scan(run_id)
+        if current and current["status"] == "running":
+            store.fail_scan(run_id, "cancelled")
+        raise
+    except Exception as exc:
+        logger.error("Private Radar scan failed: %s", exc, exc_info=True)
+        current = store.get_scan(run_id)
+        if current and current["status"] == "running":
+            store.fail_scan(run_id, type(exc).__name__)
+    finally:
+        _private_radar_tasks.pop(run_id, None)
+
+
+@router.get("/investing/private-radar")
+async def get_private_investing_radar():
+    """Read qualified persisted private Radar output only."""
+    return _get_private_radar_store().public_payload()
+
+
+@router.post("/investing/private-radar/scans", status_code=202)
+async def start_private_investing_scan():
+    if not _owned_private_scan_allowed():
+        raise HTTPException(
+            status_code=503,
+            detail="Private scans run only on the owned residential worker",
+        )
+    store = _get_private_radar_store()
+    run_id, created = store.create_scan_if_idle()
+    if created:
+        task = asyncio.create_task(_run_private_radar_scan(run_id))
+        _private_radar_tasks[run_id] = task
+    scan = store.get_scan(run_id)
+    return {
+        "run_id": run_id,
+        "status": scan["status"] if scan else "running",
+        "started": created,
+    }
+
+
+@router.get("/investing/private-radar/scans/{run_id}")
+async def get_private_investing_scan(run_id: str):
+    scan = _get_private_radar_store().get_scan(run_id)
+    if not scan:
+        raise HTTPException(status_code=404, detail="Private Radar scan was not found")
+    return {"scan": scan}
 
 
 @router.get("/investing/radar/runs/{sweep_id}")

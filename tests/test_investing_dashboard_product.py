@@ -43,49 +43,40 @@ def test_investing_shell_keeps_classic_bounty_prominent_and_explains_what_remain
     assert "topic pre-filled" in html
 
 
-def test_radar_has_honest_two_lane_and_lifecycle_states_without_sample_signals():
+def test_private_radar_has_qualified_only_and_honest_lifecycle_states_without_samples():
     html = get_investing_dashboard_html().body.decode()
     script = _script()
     combined = f"{html}\n{script}".casefold()
 
-    assert "Social conversations" in html
-    assert html.index("Social conversations") < html.index("Breaking now") < html.index("Building quietly")
-    assert "Breaking now" in html
-    assert "Live / persisted" in html
-    assert "Building quietly" in html
-    assert "In development" in html
-    assert "until the API returns persisted data" in html
+    assert "Qualified investment leads" in html
+    assert "Run private scan" in html
+    assert "Raw social posts and generic trends are never displayed as leads." in html
+    assert 'class="signal-lane hidden" aria-labelledby="breaking-title"' in html
+    assert 'class="signal-lane building-lane hidden"' in html
 
-    for state_label in ("Loading", "Empty", "Failed", "Stale radar"):
+    for state_label in ("Scanning", "No qualified leads", "Failed"):
         assert state_label.casefold() in combined
 
-    # The shell starts with state copy only; signal rows are created exclusively
-    # from API items and no demonstration topic is embedded in the assets.
     assert '<article class="signal-row"' not in html
-    assert "sample" not in combined
     assert "synthetic" not in combined
     assert "mock signal" not in combined
     assert "demo signal" not in combined
     assert "const items = [" not in script
 
 
-def test_radar_filters_default_global_and_use_the_investing_api_contract():
+def test_private_radar_uses_manual_scan_and_persisted_read_contract():
     html = get_investing_dashboard_html().body.decode()
     script = _script()
 
-    assert '<option value="">Global — all markets</option>' in html
-    assert '<option value="">All categories</option>' in html
-    assert 'id="clear-filters"' in html
-    assert "/dashboard/api/investing/radar?limit=40&country=&category=" in script
-    assert "query.set('limit', '40')" in script
-    assert "query.set('country', state.country)" in script
-    assert "query.set('category', state.category)" in script
-    assert "/dashboard/api/investing/social-pulse" in script
-    assert "/dashboard/api/investing/social-pulse/refresh" not in script
-    assert "/dashboard/api/investing/radar/refresh" not in script
-    assert "method: 'POST'" not in script
     assert 'id="reload-radar"' in html
-    assert "await Promise.all([loadRadar(), loadSocialPulse()])" in script
+    assert "const PRIVATE_RADAR_URL = '/dashboard/api/investing/private-radar'" in script
+    assert "const PRIVATE_SCAN_URL = '/dashboard/api/investing/private-radar/scans'" in script
+    assert "api(PRIVATE_SCAN_URL, { method: 'POST' })" in script
+    assert "loadPrivateRadar();" in script
+    init_block = script[script.index("function init()") : script.index("init();", script.index("function init()"))]
+    assert "loadPrivateRadar()" in init_block
+    assert "loadRadar()" not in init_block
+    assert "loadSocialPulse()" not in init_block
 
 
 def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_handoff():
@@ -117,24 +108,23 @@ def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_hand
     assert "innerHTML" not in script
 
 
-def test_social_pulse_renders_cited_investigation_leads_without_inner_html():
+def test_private_radar_renders_qualified_cited_leads_without_inner_html():
     script = _script()
 
     for field in (
         "item?.label", "item?.behaviour_type", "item?.summary",
-        "item?.why_investigate", "item?.voice_count", "item?.platform_count",
-        "item?.support_type", "item?.evidence",
+        "item?.economic_mechanism", "item?.why_investigate",
+        "item?.contradiction", "item?.invalidation", "item?.voice_count",
+        "item?.parity", "item?.windows", "item?.evidence",
     ):
         assert field in script
     assert "Source evidence" in script
     assert "Independent voices" in script
-    assert "Single-source early lead" in script
+    assert "Retrospective anomaly" in script
     assert "target = '_blank'" in script
     assert "noopener noreferrer" in script
-    assert "socialSignalRow" in script
-    assert "renderSocialPulse" in script
-    assert "deterministic_fallback" in script
-    assert "Source leads · synthesis unavailable" in script
+    assert "privateRadarRow" in script
+    assert "renderPrivateRadar" in script
     assert "innerHTML" not in script
 
 

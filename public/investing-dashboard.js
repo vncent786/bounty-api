@@ -4,6 +4,8 @@
   const TOKEN_KEY = 'bounty.apiToken';
   const RADAR_URL = '/dashboard/api/investing/radar';
   const SOCIAL_PULSE_URL = '/dashboard/api/investing/social-pulse';
+  const PRIVATE_RADAR_URL = '/dashboard/api/investing/private-radar';
+  const PRIVATE_SCAN_URL = '/dashboard/api/investing/private-radar/scans';
   const DEFAULT_RADAR_URL = '/dashboard/api/investing/radar?limit=40&country=&category=';
   const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -11,6 +13,7 @@
     country: '',
     category: '',
     lastPayload: null,
+    pollingRunId: null,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -332,6 +335,164 @@
     return article;
   }
 
+  function privateRadarRow(item, index) {
+    const article = element('article', 'signal-row social-signal-row');
+    article.dataset.signalId = String(item?.candidate_id || '');
+    const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
+    const body = element('div', 'signal-body');
+    const heading = element('div', 'signal-heading');
+    const title = element('h3', '', item?.label || 'Qualified subject');
+    const investigate = element('a', 'investigate-link', 'Investigate');
+    investigate.href = classicTopicUrl(item?.label || '');
+    append(heading, title, investigate);
+
+    const parity = item?.parity?.level || 'Unknown parity';
+    const taxonomy = element('p', 'taxonomy');
+    taxonomy.textContent = `Retrospective anomaly  /  ${String(item?.behaviour_type || '').replaceAll('_', ' ')}  /  ${parity}  /  ${readableList(asArray(item?.platforms).map(platformLabel))}`;
+    const summary = element('p', 'social-summary', `Hypothesis: ${item?.summary || 'No hypothesis reported.'}`);
+
+    const details = element('div', 'signal-reasons');
+    const fields = [
+      ['Possible economic mechanism', item?.economic_mechanism],
+      ['Question to investigate', item?.why_investigate],
+      ['Counterevidence to check', item?.contradiction],
+      ['Invalidation test', item?.invalidation],
+    ];
+    fields.forEach(([label, value]) => {
+      append(details, element('p', 'field-label', label), element('p', 'social-reason', value || 'Not reported'));
+    });
+
+    const currentWindow = asArray(item?.windows).find(window => window?.window_key === 'current') || {};
+    const metrics = element('dl', 'signal-metrics social-metrics');
+    append(
+      metrics,
+      metric('Independent voices', formatInteger(item?.voice_count)),
+      metric('Platforms', formatInteger(asArray(item?.platforms).length)),
+      metric('Current X sample', formatInteger(currentWindow?.result_count)),
+      metric('Evidence records', formatInteger(asArray(item?.evidence).length)),
+    );
+
+    const evidence = element('div', 'social-evidence');
+    evidence.append(element('p', 'field-label', 'Source evidence'));
+    const list = element('ul', 'social-evidence-list');
+    asArray(item?.evidence).slice(0, 8).forEach(record => {
+      const row = element('li');
+      const link = element('a', 'source-link', platformLabel(record?.platform));
+      link.href = record?.url || '#';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
+      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      list.append(row);
+    });
+    evidence.append(list);
+    append(body, heading, taxonomy, summary, details, metrics, evidence);
+    append(article, rank, body);
+    return article;
+  }
+
+  function privateCoverageText(payload) {
+    const coverage = payload?.coverage || {};
+    const prefix = payload?.displaying_previous_data ? 'Showing earlier qualified data · ' : '';
+    return `${prefix}${coverage.summary || 'No private scan coverage reported'}`;
+  }
+
+  function renderPrivateRadar(payload) {
+    const safe = payload && typeof payload === 'object' ? payload : {};
+    const items = asArray(safe.items);
+    const attempt = safe.last_attempt;
+    const dataScan = safe.data_scan;
+    const list = $('#social-list');
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
+    $('#social-coverage').textContent = privateCoverageText(safe);
+    $('#coverage-status').textContent = privateCoverageText(safe);
+    $('#sweep-status').textContent = attempt
+      ? `${String(attempt.status || 'unknown').replaceAll('_', ' ')} · ${formatTimestamp(attempt.completed_at || attempt.started_at)}`
+      : 'No private scan yet';
+    $('#stale-notice').classList.add('hidden');
+
+    if (attempt?.status === 'running') {
+      $('#social-status').textContent = `${String(attempt.stage || 'running').replaceAll('_', ' ')} · ${formatInteger(attempt.progress)}%`;
+    } else if (attempt?.status === 'failed') {
+      $('#social-status').textContent = 'Latest scan failed';
+    } else if (dataScan?.status === 'no_qualified_leads') {
+      $('#social-status').textContent = 'No qualified leads';
+    } else if (dataScan) {
+      $('#social-status').textContent = `Qualified scan · ${formatTimestamp(dataScan.completed_at || dataScan.started_at)}`;
+    } else {
+      $('#social-status').textContent = 'Awaiting first private scan';
+    }
+
+    if (!items.length) {
+      const running = attempt?.status === 'running';
+      list.append(statePanel(
+        running ? 'Scanning' : attempt?.status === 'failed' ? 'Failed' : 'No qualified leads',
+        running ? 'Owned sources are being checked' : attempt?.status === 'failed' ? 'The latest scan did not complete' : 'Nothing passed every investment gate',
+        running
+          ? 'Historical windows, behavior evidence, breadth, citations, and information parity are checked before anything appears.'
+          : 'An empty result is valid. Raw posts and generic trends are not used as filler.',
+        running ? 'loading-state' : attempt?.status === 'failed' ? 'failed-state' : 'empty-state',
+      ));
+      return;
+    }
+    items.forEach((item, index) => list.append(privateRadarRow(item, index)));
+  }
+
+  async function loadPrivateRadar() {
+    const list = $('#social-list');
+    list.setAttribute('aria-busy', 'true');
+    try {
+      const payload = await api(PRIVATE_RADAR_URL);
+      renderPrivateRadar(payload);
+      if (payload?.last_attempt?.status === 'running') pollPrivateScan(payload.last_attempt.id);
+      return payload;
+    } catch (error) {
+      list.setAttribute('aria-busy', 'false');
+      list.replaceChildren(statePanel('Failed', 'Private Radar unavailable', error.message, 'failed-state'));
+      showError(`Private Radar could not be loaded: ${error.message}`);
+      return null;
+    }
+  }
+
+  async function pollPrivateScan(runId) {
+    if (!runId || state.pollingRunId === runId) return;
+    state.pollingRunId = runId;
+    try {
+      for (let attempt = 0; attempt < 600; attempt += 1) {
+        const payload = await api(`${PRIVATE_SCAN_URL}/${encodeURIComponent(runId)}`);
+        const scan = payload?.scan || {};
+        $('#social-status').textContent = `${String(scan.stage || scan.status || 'running').replaceAll('_', ' ')} · ${formatInteger(scan.progress)}%`;
+        if (scan.status !== 'running') {
+          await loadPrivateRadar();
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 3000));
+      }
+      showError('Private scan is still running. Reload later to check persisted progress.');
+    } catch (error) {
+      showError(`Private scan status failed: ${error.message}`);
+    } finally {
+      state.pollingRunId = null;
+      $('#reload-radar').disabled = false;
+    }
+  }
+
+  async function startPrivateScan() {
+    const button = $('#reload-radar');
+    button.disabled = true;
+    clearError();
+    try {
+      const response = await api(PRIVATE_SCAN_URL, { method: 'POST' });
+      toast(response.started ? 'Private scan started' : 'Existing private scan resumed');
+      await loadPrivateRadar();
+      pollPrivateScan(response.run_id);
+    } catch (error) {
+      button.disabled = false;
+      showError(`Private scan could not start: ${error.message}`);
+    }
+  }
+
   function socialCoverageText(coverage) {
     if (!coverage || typeof coverage !== 'object') return 'Social coverage not reported';
     const sources = asArray(coverage.sources);
@@ -591,7 +752,7 @@
       loadRadar();
     });
 
-    $('#reload-radar').addEventListener('click', reloadRadar);
+    $('#reload-radar').addEventListener('click', startPrivateScan);
 
     $('#set-token').addEventListener('click', () => {
       const entered = window.prompt('API bearer token. Leave blank to clear this tab’s token.', getToken());
@@ -599,7 +760,7 @@
       if (entered.trim()) {
         sessionStorage.setItem(TOKEN_KEY, entered.trim());
         toast('API token saved for this tab');
-        Promise.all([loadRadar(), loadSocialPulse()]);
+        loadPrivateRadar();
       } else {
         sessionStorage.removeItem(TOKEN_KEY);
         toast('API token cleared');
@@ -617,7 +778,7 @@
     bindEvents();
     const requested = window.location.hash.slice(1);
     showView(['radar', 'research', 'monitors', 'usage'].includes(requested) ? requested : 'radar', false);
-    Promise.all([loadRadar(), loadSocialPulse()]);
+    loadPrivateRadar();
   }
 
   init();

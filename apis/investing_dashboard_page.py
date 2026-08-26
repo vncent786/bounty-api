@@ -58,14 +58,14 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
     <section class="view active" id="view-radar" aria-labelledby="radar-title">
       <header class="page-head">
         <div>
-          <p class="eyebrow">01 / Global signal desk</p>
-          <h1 id="radar-title">See what is moving before it becomes consensus.</h1>
-          <p>A persisted, global radar for unusual search attention. Signals are starting points for investment research, not recommendations.</p>
+          <p class="eyebrow">01 / Private information-arbitrage desk</p>
+          <h1 id="radar-title">Find specific behavior shifts before they become consensus.</h1>
+          <p>Run an owned-source scan. Only candidates that pass historical, behavior, breadth, citation, and information-parity checks appear here.</p>
         </div>
-        <button class="primary-action" id="reload-radar" type="button">Reload radar</button>
+        <button class="primary-action" id="reload-radar" type="button">Run private scan</button>
       </header>
 
-      <section class="radar-controls" aria-labelledby="scope-title">
+      <section class="radar-controls hidden" aria-labelledby="scope-title">
         <div class="control-intro">
           <p class="eyebrow">Scope</p>
           <h2 id="scope-title">Global by default</h2>
@@ -88,7 +88,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
       </section>
 
       <section class="radar-receipt" aria-label="Radar source receipt">
-        <div><span>Last source sweep</span><strong id="sweep-status">Checking persisted radar…</strong></div>
+        <div><span>Last private scan</span><strong id="sweep-status">Checking persisted Radar…</strong></div>
         <div><span>Coverage</span><strong id="coverage-status">Coverage pending</strong></div>
       </section>
 
@@ -102,22 +102,22 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
           <header class="lane-head">
             <div>
               <p class="lane-number">Lane 01</p>
-              <h2 id="social-title">Social conversations</h2>
-              <p>Products, behaviours, shortages, switching and pain points discovered from public conversations before a topic is manually searched.</p>
+              <h2 id="social-title">Qualified investment leads</h2>
+              <p>Specific retrospective anomalies with concrete behavior, independent voices, openable evidence, and an explicit invalidation test.</p>
             </div>
-            <span class="lane-status" id="social-status">Checking persisted pulse</span>
+            <span class="lane-status" id="social-status">Checking persisted private scan</span>
           </header>
           <p class="lane-coverage" id="social-coverage">Social coverage pending</p>
           <div class="signal-list" id="social-list" aria-live="polite" aria-busy="true">
             <div class="state-panel loading-state">
               <p class="eyebrow">Loading</p>
-              <h3>Checking the persisted Social Pulse</h3>
-              <p>Collection runs centrally. This page only reads saved evidence.</p>
+              <h3>Checking qualified private Radar output</h3>
+              <p>Raw social posts and generic trends are never displayed as leads.</p>
             </div>
           </div>
         </section>
 
-        <section class="signal-lane" aria-labelledby="breaking-title">
+        <section class="signal-lane hidden" aria-labelledby="breaking-title">
           <header class="lane-head">
             <div>
               <p class="lane-number">Lane 02</p>
@@ -135,7 +135,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
           </div>
         </section>
 
-        <section class="signal-lane building-lane" aria-labelledby="building-title">
+        <section class="signal-lane building-lane hidden" aria-labelledby="building-title">
           <header class="lane-head">
             <div>
               <p class="lane-number">Lane 03</p>

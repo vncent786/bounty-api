@@ -79,6 +79,35 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     assert result.raw_records[0]["payload"]["tweets"]
 
 
+def test_owned_x_successful_empty_search_is_complete_not_unavailable(monkeypatch, tmp_path):
+    class FakeConfig:
+        def __init__(self, **_kwargs):
+            pass
+
+    class EmptyScweet:
+        def __init__(self, **_kwargs):
+            pass
+
+        def search(self, _query, **_kwargs):
+            return []
+
+    monkeypatch.setattr(x_graphql, "ScweetConfig", FakeConfig)
+    monkeypatch.setattr(x_graphql, "Scweet", EmptyScweet)
+    monkeypatch.setattr(x_graphql, "SCWEET_AVAILABLE", True)
+    monkeypatch.setenv("BOUNTY_X_AUTH_TOKEN", "secret")
+    monkeypatch.setenv("BOUNTY_X_SCWEET_DB", str(tmp_path / "state.db"))
+
+    result = asyncio.run(XConnector().search(
+        '"new product phrase"', count=5, time_filter="week", sort="latest"
+    ))
+
+    assert result.items == []
+    assert result.health.status == "ok"
+    assert result.health.error is None
+    assert result.health.coverage["provider_returned"] == 0
+    assert result.health.coverage["requested_limit_reached"] is False
+
+
 def test_owned_x_thread_reconstructs_replies_and_skips_unknown_parent(monkeypatch):
     connector = XConnector()
     root = SocialItem(

@@ -1,0 +1,690 @@
+"""Private, fail-closed day-one information-arbitrage Radar."""
+
+from __future__ import annotations
+
+import asyncio
+import dataclasses
+import hashlib
+import json
+import re
+import sqlite3
+import uuid
+from contextlib import contextmanager, suppress
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Awaitable, Callable, Iterator, Mapping, Sequence
+
+from social_scraper.investing.qualification import is_specific_anchor, qualify_candidate
+
+
+PANEL_VERSION = "camillo-private-panels/1"
+SCAN_SCHEMA_VERSION = "private-investing-radar/1"
+
+
+@dataclasses.dataclass(frozen=True)
+class Panel:
+    panel_id: str
+    name: str
+    x_query: str
+    search_term: str
+
+
+DEFAULT_PANELS = (
+    Panel(
+        "beauty",
+        "Beauty and skincare",
+        '("switched to" OR "stopped using" OR "sold out" OR "can\'t find") (skincare OR makeup OR haircare OR beauty) -filter:retweets',
+        "skincare products people switched to",
+    ),
+    Panel(
+        "food_qsr",
+        "Food, beverage and restaurants",
+        '("switched to" OR "stopped buying" OR "sold out" OR "can\'t find") (restaurant OR snack OR drink OR grocery OR coffee) -filter:retweets',
+        "food drink products people switched to",
+    ),
+    Panel(
+        "consumer_tech",
+        "Consumer technology and wearables",
+        '("switched to" OR "stopped using" OR "sold out" OR "can\'t find") (headphones OR wearable OR smartwatch OR device OR app) -filter:retweets',
+        "consumer technology people switched to",
+    ),
+    Panel(
+        "retail_household",
+        "Retail, household and pets",
+        '("switched to" OR "stopped buying" OR "sold out" OR "can\'t find") (shoes OR apparel OR cleaning OR pet OR household) -filter:retweets',
+        "household retail products people switched to",
+    ),
+)
+
+
+_SYSTEM_PROMPT = """Propose specific information-arbitrage candidates from the supplied current social evidence. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
+
+
+def _utc_iso(value: datetime | str | None = None) -> str:
+    if value is None:
+        parsed = datetime.now(timezone.utc)
+    elif isinstance(value, datetime):
+        parsed = value
+    else:
+        text = str(value).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(text)
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).isoformat()
+
+
+def _json(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def stable_evidence_id(item: Mapping[str, Any]) -> str:
+    material = _json([
+        "private-radar-evidence/1",
+        str(item.get("panel_id") or ""),
+        str(item.get("platform") or ""),
+        str(item.get("external_id") or ""),
+        str(item.get("url") or ""),
+        str(item.get("created_at") or ""),
+        str(item.get("text") or "")[:1000],
+    ])
+    return hashlib.sha256(material.encode("utf-8")).hexdigest()[:32]
+
+
+class PrivateRadarError(RuntimeError):
+    pass
+
+
+class PrivateRadarCoverageUnavailable(PrivateRadarError):
+    pass
+
+
+REQUIRED_QUALIFICATION_GATES = {
+    "specificity", "behavior", "anomaly", "breadth", "parity", "investigability"
+}
+
+
+def is_supported_qualified(
+    decision: Mapping[str, Any], available_evidence_ids: set[str] | None = None
+) -> bool:
+    if decision.get("qualification_status") != "qualified" or not decision.get("candidate_id"):
+        return False
+    evidence_ids = {str(value) for value in decision.get("evidence_ids") or []}
+    if len(evidence_ids) < 2:
+        return False
+    if available_evidence_ids is not None and not evidence_ids.issubset(available_evidence_ids):
+        return False
+    gates = decision.get("gates")
+    if not isinstance(gates, Mapping) or not REQUIRED_QUALIFICATION_GATES.issubset(gates):
+        return False
+    return all(gates[name].get("passed") is True for name in REQUIRED_QUALIFICATION_GATES)
+
+
+class PrivateRadarStore:
+    def __init__(
+        self,
+        db_path: str | Path,
+        *,
+        stale_scan_after_seconds: float = 3 * 60,
+    ):
+        self.db_path = str(db_path)
+        self.stale_scan_after_seconds = max(0.001, float(stale_scan_after_seconds))
+        Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+        self.ensure_schema()
+
+    def _connect(self):
+        connection = sqlite3.connect(self.db_path, timeout=15, check_same_thread=False)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys=ON")
+        connection.execute("PRAGMA busy_timeout=15000")
+        connection.execute("PRAGMA journal_mode=WAL")
+        return connection
+
+    @contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        connection = self._connect()
+        try:
+            connection.execute("BEGIN IMMEDIATE")
+            yield connection
+            connection.commit()
+        except Exception:
+            connection.rollback()
+            raise
+        finally:
+            connection.close()
+
+    def ensure_schema(self):
+        with self._connect() as connection:
+            connection.executescript("""
+            CREATE TABLE IF NOT EXISTS private_radar_scans (
+                id TEXT PRIMARY KEY,
+                started_at TEXT NOT NULL,
+                heartbeat_at TEXT,
+                completed_at TEXT,
+                status TEXT NOT NULL CHECK(status IN (
+                    'running','complete','no_qualified_leads','failed'
+                )),
+                stage TEXT NOT NULL,
+                progress INTEGER NOT NULL DEFAULT 0,
+                panel_version TEXT NOT NULL,
+                requested_panels_json TEXT NOT NULL,
+                evidence_count INTEGER NOT NULL DEFAULT 0,
+                candidate_count INTEGER NOT NULL DEFAULT 0,
+                decisions_json TEXT NOT NULL DEFAULT '[]',
+                limitations_json TEXT NOT NULL DEFAULT '[]',
+                sources_json TEXT NOT NULL DEFAULT '[]',
+                error_category TEXT
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_private_radar_one_running
+                ON private_radar_scans(status) WHERE status='running';
+            CREATE TABLE IF NOT EXISTS private_radar_evidence (
+                run_id TEXT NOT NULL REFERENCES private_radar_scans(id),
+                id TEXT NOT NULL,
+                panel_id TEXT NOT NULL,
+                platform TEXT NOT NULL,
+                external_id TEXT,
+                url TEXT NOT NULL,
+                author TEXT,
+                text TEXT NOT NULL,
+                created_at TEXT,
+                observed_at TEXT NOT NULL,
+                window_key TEXT,
+                query TEXT,
+                raw_json TEXT NOT NULL,
+                PRIMARY KEY(run_id,id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_private_radar_evidence_run
+                ON private_radar_evidence(run_id,panel_id,window_key,id);
+            CREATE TRIGGER IF NOT EXISTS private_radar_evidence_no_update
+            BEFORE UPDATE ON private_radar_evidence BEGIN
+                SELECT RAISE(ABORT,'private radar evidence is immutable');
+            END;
+            CREATE TRIGGER IF NOT EXISTS private_radar_evidence_no_delete
+            BEFORE DELETE ON private_radar_evidence BEGIN
+                SELECT RAISE(ABORT,'private radar evidence is immutable');
+            END;
+            """)
+            columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(private_radar_scans)")
+            }
+            if "heartbeat_at" not in columns:
+                connection.execute(
+                    "ALTER TABLE private_radar_scans ADD COLUMN heartbeat_at TEXT"
+                )
+            connection.execute(
+                """UPDATE private_radar_scans
+                   SET heartbeat_at=started_at
+                   WHERE heartbeat_at IS NULL OR heartbeat_at=''"""
+            )
+            connection.commit()
+
+    def create_scan_if_idle(self, panels: Sequence[Panel] | None = None) -> tuple[str, bool]:
+        selected = list(panels or DEFAULT_PANELS)
+        with self._transaction() as connection:
+            running = connection.execute(
+                """SELECT id,started_at,heartbeat_at
+                   FROM private_radar_scans WHERE status='running' LIMIT 1"""
+            ).fetchone()
+            if running:
+                heartbeat = datetime.fromisoformat(
+                    str(running["heartbeat_at"] or running["started_at"]).replace("Z", "+00:00")
+                )
+                if heartbeat.tzinfo is None:
+                    heartbeat = heartbeat.replace(tzinfo=timezone.utc)
+                age_seconds = (
+                    datetime.now(timezone.utc) - heartbeat.astimezone(timezone.utc)
+                ).total_seconds()
+                if age_seconds <= self.stale_scan_after_seconds:
+                    return str(running["id"]), False
+                connection.execute(
+                    """UPDATE private_radar_scans SET completed_at=?,status='failed',
+                       stage='failed',error_category='stale_scan_recovered'
+                       WHERE id=? AND status='running'""",
+                    (_utc_iso(), running["id"]),
+                )
+            run_id = uuid.uuid4().hex
+            now = _utc_iso()
+            connection.execute(
+                """INSERT INTO private_radar_scans
+                   (id,started_at,heartbeat_at,status,stage,progress,panel_version,requested_panels_json)
+                   VALUES (?,?,?,'running','starting',0,?,?)""",
+                (
+                    run_id,
+                    now,
+                    now,
+                    PANEL_VERSION,
+                    _json([panel.panel_id for panel in selected]),
+                ),
+            )
+        return run_id, True
+
+    def update_progress(
+        self, run_id: str, *, stage: str, progress: int,
+        sources: Sequence[Mapping[str, Any]] | None = None,
+    ):
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE private_radar_scans SET stage=?,progress=?,heartbeat_at=?,
+                   sources_json=COALESCE(?,sources_json) WHERE id=? AND status='running'""",
+                (
+                    str(stage),
+                    max(0, min(100, int(progress))),
+                    _utc_iso(),
+                    _json(list(sources)) if sources is not None else None,
+                    run_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise PrivateRadarError("private radar scan is missing or finalized")
+
+    def heartbeat_scan(self, run_id: str) -> bool:
+        """Renew an active scan without reviving a terminal or reclaimed row."""
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE private_radar_scans SET heartbeat_at=?
+                   WHERE id=? AND status='running'""",
+                (_utc_iso(), run_id),
+            )
+            return cursor.rowcount == 1
+
+    def add_evidence(self, run_id: str, evidence: Sequence[Mapping[str, Any]]):
+        with self._transaction() as connection:
+            run = connection.execute(
+                "SELECT status FROM private_radar_scans WHERE id=?", (run_id,)
+            ).fetchone()
+            if not run or run["status"] != "running":
+                raise PrivateRadarError("private radar scan is missing or finalized")
+            for source in evidence:
+                item = dict(source)
+                item_id = str(item.get("id") or stable_evidence_id(item))
+                url = str(item.get("url") or "").strip()
+                text = str(item.get("text") or "").strip()
+                if not url.startswith(("http://", "https://")) or not text:
+                    continue
+                connection.execute(
+                    """INSERT OR IGNORE INTO private_radar_evidence
+                       (run_id,id,panel_id,platform,external_id,url,author,text,created_at,
+                        observed_at,window_key,query,raw_json)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        run_id, item_id, str(item.get("panel_id") or "unknown"),
+                        str(item.get("platform") or "unknown"), item.get("external_id"),
+                        url, item.get("author"), text[:6000], item.get("created_at"),
+                        str(item.get("observed_at") or _utc_iso()), item.get("window_key"),
+                        item.get("query"), _json(item),
+                    ),
+                )
+            cursor = connection.execute(
+                """UPDATE private_radar_scans SET heartbeat_at=?,evidence_count=(
+                   SELECT COUNT(*) FROM private_radar_evidence WHERE run_id=?)
+                   WHERE id=? AND status='running'""",
+                (_utc_iso(), run_id, run_id),
+            )
+            if cursor.rowcount != 1:
+                raise PrivateRadarError("private radar scan is missing or finalized")
+
+    def evidence_for_run(self, run_id: str) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """SELECT id,panel_id,platform,external_id,url,author,text,created_at,
+                          observed_at,window_key,query
+                   FROM private_radar_evidence WHERE run_id=? ORDER BY rowid""",
+                (run_id,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def complete_scan(
+        self, run_id: str, decisions: Sequence[Mapping[str, Any]], *,
+        limitations: Sequence[str], sources: Sequence[Mapping[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        values = [dict(value) for value in decisions]
+        with self._transaction() as connection:
+            available_evidence_ids = {
+                str(row["id"])
+                for row in connection.execute(
+                    "SELECT id FROM private_radar_evidence WHERE run_id=?", (run_id,)
+                ).fetchall()
+            }
+            qualified = [
+                value
+                for value in values
+                if is_supported_qualified(value, available_evidence_ids)
+            ]
+            has_incomplete_coverage = any(
+                value.get("qualification_status") == "unknown_due_to_coverage"
+                for value in values
+            )
+            if qualified:
+                final_status, final_stage, error_category = "complete", "complete", None
+            elif has_incomplete_coverage:
+                final_status, final_stage, error_category = (
+                    "failed", "failed", "coverage_incomplete"
+                )
+            else:
+                final_status, final_stage, error_category = (
+                    "no_qualified_leads", "complete", None
+                )
+            cursor = connection.execute(
+                """UPDATE private_radar_scans SET completed_at=?,status=?,stage=?,
+                   progress=100,candidate_count=?,decisions_json=?,limitations_json=?,
+                   sources_json=COALESCE(?,sources_json),error_category=?
+                   WHERE id=? AND status='running'""",
+                (
+                    _utc_iso(), final_status, final_stage, len(qualified), _json(values),
+                    _json(list(limitations)), _json(list(sources)) if sources is not None else None,
+                    error_category, run_id,
+                ),
+            )
+            if cursor.rowcount != 1:
+                raise PrivateRadarError("private radar scan is missing or finalized")
+        return self.get_scan(run_id)
+
+    def fail_scan(self, run_id: str, error_category: str) -> dict[str, Any]:
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                """UPDATE private_radar_scans SET completed_at=?,status='failed',stage='failed',
+                   error_category=? WHERE id=? AND status='running'""",
+                (_utc_iso(), str(error_category), run_id),
+            )
+            if cursor.rowcount != 1:
+                existing = connection.execute(
+                    "SELECT id FROM private_radar_scans WHERE id=?", (run_id,)
+                ).fetchone()
+                if not existing:
+                    raise PrivateRadarError("private radar scan is missing")
+        result = self.get_scan(run_id)
+        if result is None:  # Defensive: the row cannot disappear inside the transaction.
+            raise PrivateRadarError("private radar scan is missing")
+        return result
+
+    def get_scan(self, run_id: str) -> dict[str, Any] | None:
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT * FROM private_radar_scans WHERE id=?", (run_id,)
+            ).fetchone()
+        if not row:
+            return None
+        result = dict(row)
+        for key in ("requested_panels", "decisions", "limitations", "sources"):
+            result[key] = json.loads(result.pop(f"{key}_json"))
+        return result
+
+    def latest_attempt(self):
+        with self._connect() as connection:
+            row = connection.execute(
+                "SELECT id FROM private_radar_scans ORDER BY rowid DESC LIMIT 1"
+            ).fetchone()
+        return self.get_scan(row["id"]) if row else None
+
+    def latest_qualified_scan(self):
+        with self._connect() as connection:
+            row = connection.execute(
+                """SELECT id FROM private_radar_scans
+                   WHERE status='complete' AND candidate_count>0 ORDER BY rowid DESC LIMIT 1"""
+            ).fetchone()
+        return self.get_scan(row["id"]) if row else None
+
+    @staticmethod
+    def _public_scan(scan):
+        if not scan:
+            return None
+        return {key: scan.get(key) for key in (
+            "id", "started_at", "completed_at", "status", "stage", "progress",
+            "panel_version", "evidence_count", "candidate_count", "error_category",
+        )}
+
+    def public_payload(self) -> dict[str, Any]:
+        attempt = self.latest_attempt()
+        if attempt and attempt["status"] == "no_qualified_leads":
+            data_scan = attempt
+        elif attempt and attempt["status"] in {"running", "failed"}:
+            data_scan = self.latest_qualified_scan()
+        else:
+            data_scan = attempt
+        if not data_scan:
+            return {
+                "items": [], "last_attempt": self._public_scan(attempt), "data_scan": None,
+                "displaying_previous_data": False,
+                "coverage": {"summary": "No private investment scan has completed yet", "sources": []},
+            }
+        evidence = {item["id"]: item for item in self.evidence_for_run(data_scan["id"])}
+        items = []
+        for decision in data_scan["decisions"]:
+            if not is_supported_qualified(decision, set(evidence)):
+                continue
+            linked = [evidence[eid] for eid in decision.get("evidence_ids", [])]
+            items.append({**decision, "evidence": linked})
+        return {
+            "items": items,
+            "last_attempt": self._public_scan(attempt),
+            "data_scan": self._public_scan(data_scan),
+            "displaying_previous_data": bool(attempt and data_scan and attempt["id"] != data_scan["id"]),
+            "coverage": {
+                "summary": f"{len(items)} qualified leads from {data_scan['evidence_count']} stored evidence records",
+                "sources": data_scan["sources"],
+            },
+        }
+
+
+def _parse_model_json(raw: str) -> dict[str, Any]:
+    text = str(raw or "").strip()
+    if text.startswith("```"):
+        text = text.split("\n", 1)[1] if "\n" in text else text[3:]
+        if text.rstrip().endswith("```"):
+            text = text.rstrip()[:-3]
+    value = json.loads(text.strip())
+    if not isinstance(value, dict) or not isinstance(value.get("candidates"), list):
+        raise PrivateRadarError("private radar model output is invalid")
+    return value
+
+
+async def propose_candidates(
+    evidence: Sequence[Mapping[str, Any]], *,
+    llm_call_fn: Callable[[str, str], Awaitable[str]],
+    panels: Sequence[Panel],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    records = [dict(item) for item in evidence]
+    if not records:
+        return [], ["No citable current social evidence was collected."]
+    balanced_records = []
+    for panel in panels:
+        panel_records = [item for item in records if item.get("panel_id") == panel.panel_id]
+        balanced_records.extend(panel_records[:30])
+    payload = {
+        "schema_version": SCAN_SCHEMA_VERSION,
+        "panel_version": PANEL_VERSION,
+        "panels": [dataclasses.asdict(panel) for panel in panels],
+        "records": [{
+            "id": item.get("id"), "panel_id": item.get("panel_id"),
+            "platform": item.get("platform"), "author": item.get("author"),
+            "text": str(item.get("text") or "")[:1200], "created_at": item.get("created_at"),
+        } for item in balanced_records],
+    }
+    parsed = _parse_model_json(await llm_call_fn(_SYSTEM_PROMPT, _json(payload)))
+    known_ids = {str(item.get("id")) for item in records}
+    panel_ids = {panel.panel_id for panel in panels}
+    accepted = []
+    seen_panels = set()
+    for raw in parsed["candidates"][:8]:
+        if not isinstance(raw, Mapping):
+            continue
+        value = dict(raw)
+        ids = list(dict.fromkeys(str(eid) for eid in value.get("evidence_ids") or []))
+        anchors = [
+            str(anchor).strip()
+            for anchor in value.get("anchor_terms") or []
+            if str(anchor).strip() and is_specific_anchor(anchor)
+        ]
+        if (
+            value.get("panel_id") not in panel_ids
+            or value.get("panel_id") in seen_panels
+            or not str(value.get("label") or "").strip()
+            or not ids or any(eid not in known_ids for eid in ids) or not anchors
+        ):
+            continue
+        value["evidence_ids"] = ids
+        value["anchor_terms"] = anchors[:5]
+        accepted.append(value)
+        seen_panels.add(value["panel_id"])
+    limitations = [str(item)[:300] for item in parsed.get("limitations") or [] if isinstance(item, str)]
+    return accepted, limitations
+
+
+class PrivateRadarScanner:
+    def __init__(
+        self,
+        store: PrivateRadarStore,
+        collector,
+        *,
+        panels: Sequence[Panel] | None = None,
+        llm_call_fn: Callable[[str, str], Awaitable[str]] | None = None,
+        news_check_fn: Callable[[str, Sequence[str]], Awaitable[dict[str, Any]]] | None = None,
+        heartbeat_interval_seconds: float = 30.0,
+    ):
+        self.store = store
+        self.collector = collector
+        self.panels = tuple(panels or DEFAULT_PANELS)
+        self.llm_call_fn = llm_call_fn
+        self.news_check_fn = news_check_fn
+        self.heartbeat_interval_seconds = max(
+            0.001, float(heartbeat_interval_seconds)
+        )
+
+    async def _heartbeat_loop(self, run_id: str) -> None:
+        while True:
+            await asyncio.sleep(self.heartbeat_interval_seconds)
+            if not self.store.heartbeat_scan(run_id):
+                return
+
+    async def run(self, *, run_id: str | None = None):
+        if run_id is None:
+            run_id, created = self.store.create_scan_if_idle(self.panels)
+            if not created:
+                return self.store.get_scan(run_id)
+        heartbeat_task = asyncio.create_task(self._heartbeat_loop(run_id))
+        sources = []
+        limitations = []
+        try:
+            self.store.update_progress(run_id, stage="collecting_current_evidence", progress=5)
+            for index, panel in enumerate(self.panels):
+                result = await self.collector.collect_discovery(panel)
+                self.store.add_evidence(run_id, result.get("evidence") or [])
+                sources.extend(result.get("sources") or [])
+                self.store.update_progress(
+                    run_id, stage=f"collecting_{panel.panel_id}",
+                    progress=10 + int(30 * (index + 1) / len(self.panels)), sources=sources,
+                )
+            current_evidence = self.store.evidence_for_run(run_id)
+            source_states = {
+                str(source.get("status") or "failed") for source in sources
+            }
+            if not current_evidence and (
+                not source_states or source_states != {"complete"}
+            ):
+                raise PrivateRadarCoverageUnavailable(
+                    "current social sources were unavailable or incomplete"
+                )
+            if self.llm_call_fn is None:
+                from social_scraper.llm_client import call_llm
+
+                async def model(system, user):
+                    return await call_llm(system, user, max_tokens=5000, temperature=0.0)
+            else:
+                model = self.llm_call_fn
+            proposals, model_limitations = await propose_candidates(
+                current_evidence, llm_call_fn=model, panels=self.panels
+            )
+            limitations.extend(model_limitations)
+            self.store.update_progress(run_id, stage="checking_history_and_coverage", progress=50)
+            panel_by_id = {panel.panel_id: panel for panel in self.panels}
+            decisions = []
+            for index, proposal in enumerate(proposals):
+                panel = panel_by_id[proposal["panel_id"]]
+                corroboration = await self.collector.collect_corroboration(
+                    panel, proposal["anchor_terms"]
+                )
+                self.store.add_evidence(run_id, corroboration.get("evidence") or [])
+                sources.extend(corroboration.get("sources") or [])
+                all_evidence = self.store.evidence_for_run(run_id)
+                anchors = [
+                    " ".join(re.sub(r"[^a-z0-9]+", " ", term.casefold()).split())
+                    for term in proposal["anchor_terms"]
+                ]
+                evidence_ids = set(proposal["evidence_ids"])
+                for item in all_evidence:
+                    if item.get("panel_id") != proposal["panel_id"]:
+                        continue
+                    text = " ".join(
+                        re.sub(
+                            r"[^a-z0-9]+",
+                            " ",
+                            str(item.get("text") or "").casefold(),
+                        ).split()
+                    )
+                    if any(anchor and anchor in text for anchor in anchors):
+                        evidence_ids.add(item["id"])
+                proposal = {**proposal, "evidence_ids": sorted(evidence_ids)}
+                candidate_evidence = [
+                    item for item in all_evidence
+                    if item["id"] in evidence_ids
+                    and item.get("window_key") in {None, "current"}
+                ]
+                preliminary = qualify_candidate(
+                    proposal,
+                    evidence=candidate_evidence,
+                    windows=[],
+                    parity={
+                        "level": "unknown",
+                        "status": "not_checked_before_history",
+                        "articles": [],
+                    },
+                )
+                preflight_gates = (
+                    "specificity", "behavior", "breadth", "investigability"
+                )
+                if any(
+                    preliminary["gates"][name]["state"] == "fail"
+                    for name in preflight_gates
+                ):
+                    decisions.append(preliminary)
+                else:
+                    historical = await self.collector.collect_windows(
+                        panel, proposal["anchor_terms"]
+                    )
+                    self.store.add_evidence(
+                        run_id, historical.get("evidence") or []
+                    )
+                    sources.extend(historical.get("sources") or [])
+                    if self.news_check_fn is None:
+                        parity = {
+                            "level": "unknown",
+                            "status": "not_checked",
+                            "articles": [],
+                        }
+                    else:
+                        parity = await self.news_check_fn(
+                            proposal["label"], proposal["anchor_terms"]
+                        )
+                    decisions.append(qualify_candidate(
+                        proposal,
+                        evidence=candidate_evidence,
+                        windows=historical.get("windows") or [],
+                        parity=parity,
+                    ))
+                self.store.update_progress(
+                    run_id, stage="qualifying_candidates",
+                    progress=55 + int(40 * (index + 1) / max(1, len(proposals))),
+                    sources=sources,
+                )
+            return self.store.complete_scan(
+                run_id, decisions, limitations=limitations, sources=sources
+            )
+        except asyncio.CancelledError:
+            self.store.fail_scan(run_id, "cancelled")
+            raise
+        except Exception as exc:
+            return self.store.fail_scan(run_id, type(exc).__name__)
+        finally:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task

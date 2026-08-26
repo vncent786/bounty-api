@@ -3,6 +3,7 @@ from fastapi.testclient import TestClient
 
 from apis import dashboard_api
 from social_scraper.investing import InvestingRadarStore
+from social_scraper.investing.private_radar import PrivateRadarStore
 from social_scraper.investing.social_pulse import SocialPulseStore
 
 
@@ -10,8 +11,10 @@ def _client(tmp_path, monkeypatch):
     path = tmp_path / "investing-api.db"
     store = InvestingRadarStore(path)
     social_store = SocialPulseStore(path)
+    private_store = PrivateRadarStore(path)
     monkeypatch.setattr(dashboard_api, "_investing_store", store)
     monkeypatch.setattr(dashboard_api, "_social_pulse_store", social_store)
+    monkeypatch.setattr(dashboard_api, "_private_radar_store", private_store)
     monkeypatch.setenv("BOUNTY_ENV", "development")
     monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
@@ -183,3 +186,78 @@ def test_missing_radar_entities_return_404(tmp_path, monkeypatch):
 
     assert client.get("/dashboard/api/investing/radar/runs/missing").status_code == 404
     assert client.get("/dashboard/api/investing/radar/candidates/999").status_code == 404
+
+
+def test_private_radar_get_is_persisted_and_qualified_only(tmp_path, monkeypatch):
+    client, _store = _client(tmp_path, monkeypatch)
+    private_store = dashboard_api._private_radar_store
+    run_id, _ = private_store.create_scan_if_idle()
+    private_store.add_evidence(run_id, [{
+        "id": "e1",
+        "panel_id": "beauty",
+        "platform": "x",
+        "external_id": "e1",
+        "url": "https://x.com/example/status/1",
+        "author": "a",
+        "text": "I switched to a specific product",
+        "observed_at": "2026-08-26T00:00:00Z",
+    }, {
+        "id": "e2",
+        "panel_id": "beauty",
+        "platform": "reddit",
+        "external_id": "e2",
+        "url": "https://reddit.com/r/example/comments/e2",
+        "author": "b",
+        "text": "We switched to the same specific product",
+        "observed_at": "2026-08-26T00:00:00Z",
+    }])
+    passing_gates = {
+        name: {"state": "pass", "passed": True, "reason": "fixture", "metrics": {}}
+        for name in (
+            "specificity", "behavior", "anomaly", "breadth", "parity", "investigability"
+        )
+    }
+    private_store.complete_scan(run_id, [{
+        "candidate_id": "q", "qualification_status": "qualified",
+        "label": "Qualified shift", "evidence_ids": ["e1", "e2"],
+        "gates": passing_gates,
+    }, {
+        "candidate_id": "r", "qualification_status": "not_qualified",
+        "label": "Rejected noise", "evidence_ids": [],
+    }], limitations=[])
+
+    payload = client.get("/dashboard/api/investing/private-radar").json()
+    assert [item["label"] for item in payload["items"]] == ["Qualified shift"]
+
+
+def test_private_scan_requires_owned_worker_and_refuses_railway(tmp_path, monkeypatch):
+    client, _store = _client(tmp_path, monkeypatch)
+    monkeypatch.delenv("BOUNTY_OWNED_SOCIAL_WORKER", raising=False)
+    assert client.post("/dashboard/api/investing/private-radar/scans").status_code == 503
+
+    monkeypatch.setenv("BOUNTY_OWNED_SOCIAL_WORKER", "1")
+    monkeypatch.setenv("RAILWAY_PROJECT_ID", "railway")
+    assert client.post("/dashboard/api/investing/private-radar/scans").status_code == 503
+
+
+def test_private_scan_starts_one_background_run(tmp_path, monkeypatch):
+    client, _store = _client(tmp_path, monkeypatch)
+    monkeypatch.setenv("BOUNTY_OWNED_SOCIAL_WORKER", "1")
+    for name in ("RAILWAY_ENVIRONMENT", "RAILWAY_PROJECT_ID", "RAILWAY_SERVICE_ID"):
+        monkeypatch.delenv(name, raising=False)
+
+    async def fake_run(run_id):
+        store = dashboard_api._private_radar_store
+        current = store.get_scan(run_id)
+        if current and current["status"] == "running":
+            store.complete_scan(run_id, [], limitations=[])
+
+    monkeypatch.setattr(dashboard_api, "_run_private_radar_scan", fake_run)
+    response = client.post("/dashboard/api/investing/private-radar/scans")
+    assert response.status_code == 202
+    body = response.json()
+    assert body["started"] is True
+    assert body["run_id"]
+    assert client.get(
+        f"/dashboard/api/investing/private-radar/scans/{body['run_id']}"
+    ).status_code == 200

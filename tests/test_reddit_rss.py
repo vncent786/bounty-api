@@ -49,6 +49,32 @@ def test_atom_parser_preserves_canonical_identity_without_fabricating_metrics():
     assert items[1].raw["source_timestamp_kind"] == "atom_updated_only"
 
 
+def test_atom_global_search_accepts_any_real_subreddit_without_fabricating_scope():
+    urls = []
+
+    def fake_fetch(url):
+        urls.append(url)
+        return ATOM
+
+    connector = RedditRSSConnector(
+        fetch_feed=fake_fetch,
+        clock=lambda: datetime(2026, 8, 10, 4, 0, tzinfo=timezone.utc),
+    )
+    result = asyncio.run(connector.search(
+        "earnings", count=10, time_filter="month", sort="latest"
+    ))
+
+    assert len(result.items) == 3
+    assert urls[0].startswith("https://www.reddit.com/search.rss?")
+    assert "q=earnings" in urls[0]
+    assert "sort=new" in urls[0]
+    assert "t=month" in urls[0]
+    assert result.health.status == "ok"
+    assert result.health.coverage["kind"] == "global_atom_search"
+    assert result.health.coverage["global_query"] is True
+    assert result.health.coverage["global_coverage"] is False
+
+
 def test_atom_connector_uses_one_combined_scoped_request_and_reports_window_limits():
     urls = []
 

@@ -53,6 +53,20 @@ _SUMMARY_STOPWORDS = {
     "a", "an", "and", "as", "at", "for", "from", "in", "into", "of", "on",
     "or", "the", "their", "this", "to", "with",
 }
+_NEWS_REPORTING = re.compile(
+    r"(?:^|\b)(breaking|news roundup|daily news|newsletter|according to|regulator(?:s)?|"
+    r"ordered by|recall(?:ed)?|reported by|news report|issued its|million vehicles)(?:\b|:)",
+    re.IGNORECASE,
+)
+_FIRSTHAND_VOICE = re.compile(
+    r"\b(i|i ve|ive|i m|im|my|me|we|we ve|our|ours)\b",
+    re.IGNORECASE,
+)
+_CREATOR_ACTION = re.compile(
+    r"^(?:part\s+\d+\s+of\s+)?(?:replacing|cancelling|canceling|switching|"
+    r"trying|started|stopped|bought|ordered)\b",
+    re.IGNORECASE,
+)
 
 
 def _norm(value: Any) -> str:
@@ -177,6 +191,49 @@ def _summary_supports_anchor(summary: Any, anchors: Sequence[str]) -> bool:
     return False
 
 
+def _safe_metric(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _engagement_state(item: Mapping[str, Any]) -> tuple[bool, bool, dict[str, int | None]]:
+    raw = item.get("engagement") if isinstance(item.get("engagement"), Mapping) else {}
+    metrics = {
+        name: _safe_metric(raw.get(name))
+        for name in (
+            "views", "likes", "comments", "shares", "collects", "upvotes",
+            "replies", "reposts", "bookmarks",
+        )
+    }
+    known = any(value is not None for value in metrics.values())
+    interactions = sum(
+        metrics[name] or 0
+        for name in ("likes", "comments", "shares", "collects", "upvotes", "replies", "bookmarks")
+    )
+    engaged = (
+        (metrics["comments"] or 0) + (metrics["replies"] or 0) >= 2
+        or interactions >= 10
+        or (metrics["views"] or 0) >= 1000
+    )
+    return known, engaged, metrics
+
+
+def _evidence_kind(item: Mapping[str, Any], behaviour: str) -> str:
+    text = str(item.get("text") or "").strip()
+    normalized = _norm(text)
+    if _NEWS_REPORTING.search(text):
+        return "reportage"
+    if _FIRSTHAND_VOICE.search(normalized):
+        return "firsthand"
+    if behaviour in {"purchase", "adoption", "switching", "rejection"} and _CREATOR_ACTION.search(normalized):
+        return "firsthand"
+    return "observation"
+
+
 def _gate(state: str, reason: str, metrics: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return {
         "state": state,
@@ -242,8 +299,8 @@ def qualify_candidate(
         )
     ]
     behavior_authors = {
-        f"{item.get('platform')}:{item.get('author')}"
-        for item in behavior_records if item.get("author")
+        _norm(item.get("author"))
+        for item in behavior_records if _norm(item.get("author"))
     }
     behavior_ok = behaviour in ALLOWED_BEHAVIOURS and len(behavior_records) >= 2 and len(behavior_authors) >= 2
     behavior_gate = _gate(
@@ -253,9 +310,64 @@ def qualify_candidate(
         {"behaviour_type": behaviour, "records": len(behavior_records), "authors": len(behavior_authors)},
     )
 
+    evidence_kinds = {
+        str(item["id"]): _evidence_kind(item, behaviour)
+        for item in cited
+    }
+    firsthand_records = [
+        item for item in behavior_records
+        if evidence_kinds.get(str(item.get("id"))) == "firsthand"
+    ]
+    firsthand_authors = {
+        _norm(item.get("author"))
+        for item in firsthand_records if _norm(item.get("author"))
+    }
+    firsthand_platforms = {
+        str(item.get("platform") or "unknown") for item in firsthand_records
+    }
+    engagement_by_id = {}
+    known_engagement_records = 0
+    engaged_records = 0
+    for item in firsthand_records:
+        known, engaged, metrics = _engagement_state(item)
+        engagement_by_id[str(item["id"])] = metrics
+        known_engagement_records += int(known)
+        engaged_records += int(engaged)
+    reportage_records = sum(kind == "reportage" for kind in evidence_kinds.values())
+    quality_ok = (
+        len(firsthand_authors) >= 3
+        and len(firsthand_records) >= 3
+        and known_engagement_records >= 2
+        and engaged_records >= 1
+        and (len(firsthand_platforms) >= 2 or engaged_records >= 2)
+    )
+    if quality_ok:
+        quality_reason = "At least three independent firsthand voices have usable engagement or cross-platform support."
+    elif reportage_records >= max(1, len(firsthand_records)):
+        quality_reason = "Matched citations are dominated by reporting or commentary, not firsthand behavior."
+    elif len(firsthand_authors) < 3:
+        quality_reason = "Fewer than three independent firsthand voices support this behavior."
+    elif known_engagement_records < 2:
+        quality_reason = "Engagement was not captured for enough firsthand sources to judge whether the behavior is spreading."
+    else:
+        quality_reason = "The firsthand observations lack cross-platform breadth or visible engagement."
+    evidence_quality = _gate(
+        "pass" if quality_ok else "fail",
+        quality_reason,
+        {
+            "firsthand_records": len(firsthand_records),
+            "firsthand_authors": len(firsthand_authors),
+            "firsthand_platforms": len(firsthand_platforms),
+            "known_engagement_records": known_engagement_records,
+            "engaged_records": engaged_records,
+            "reportage_records": reportage_records,
+            "proof_evidence_ids": [str(item["id"]) for item in firsthand_records],
+        },
+    )
+
     authors = {
-        f"{item.get('platform')}:{item.get('author')}"
-        for item in cited if item.get("author")
+        _norm(item.get("author"))
+        for item in cited if _norm(item.get("author"))
     }
     platforms = {str(item.get("platform")) for item in cited}
     roots = {
@@ -358,6 +470,7 @@ def qualify_candidate(
     gates = {
         "specificity": specificity,
         "behavior": behavior_gate,
+        "evidence_quality": evidence_quality,
         "anomaly": anomaly,
         "breadth": breadth,
         "parity": parity_gate,
@@ -384,6 +497,8 @@ def qualify_candidate(
         "contradiction": str(proposal.get("contradiction") or "").strip(),
         "invalidation": str(proposal.get("invalidation") or "").strip(),
         "evidence_ids": [item["id"] for item in cited],
+        "evidence_kinds": evidence_kinds,
+        "engagement_by_id": engagement_by_id,
         "citation_filter": {
             "requested": len(requested_cited),
             "relevant": len(cited),

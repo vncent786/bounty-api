@@ -21,6 +21,7 @@ from social_scraper.investing.private_radar import (
     PrivateRadarStore,
     stable_evidence_id,
 )
+from social_scraper.investing.trajectory import collect_search_trajectory
 
 
 FINANCIAL_SOURCES = (
@@ -56,6 +57,26 @@ def _x_source_status(result) -> str:
     return "partial" if result.items else "failed"
 
 
+def _metric(value: Any) -> int | None:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return max(0, int(value))
+    except (TypeError, ValueError):
+        return None
+
+
+def _normalise_engagement(value: Mapping[str, Any] | None) -> dict[str, int | None]:
+    source = value if isinstance(value, Mapping) else {}
+    return {
+        name: _metric(source.get(name))
+        for name in (
+            "views", "likes", "comments", "shares", "collects", "upvotes",
+            "replies", "reposts", "bookmarks",
+        )
+    }
+
+
 def _normalise_item(
     item: Mapping[str, Any], *, panel_id: str, window_key: str, query: str,
 ) -> dict[str, Any] | None:
@@ -76,6 +97,7 @@ def _normalise_item(
         "url": url,
         "author": author_name or None,
         "text": text[:6000],
+        "engagement": _normalise_engagement(value.get("engagement")),
         "created_at": value.get("created_at") or value.get("published_at"),
         "observed_at": _utc_iso(),
         "window_key": window_key,
@@ -93,6 +115,7 @@ def _thread_evidence(record, *, panel_id: str, query: str) -> dict[str, Any] | N
         "url": record.url,
         "author": record.author_username,
         "text": record.text,
+        "engagement": _normalise_engagement({"likes": record.likes}),
         "created_at": record.published_at,
         "observed_at": _utc_iso(),
         "window_key": "current",
@@ -295,6 +318,10 @@ class OwnedRadarCollector:
         return {"evidence": list(deduped.values()), "sources": sources}
 
 
+async def check_search_trajectory(query: str) -> dict[str, Any]:
+    return await asyncio.to_thread(collect_search_trajectory, query)
+
+
 async def check_news_parity(label: str, anchors: Sequence[str]) -> dict[str, Any]:
     query = " OR ".join(f'"{str(anchor).replace(chr(34), "")}"' for anchor in anchors[:3]) or label
     url = GOOGLE_NEWS_RSS.format(query=quote(query))
@@ -341,4 +368,5 @@ def build_private_scanner(store: PrivateRadarStore):
         OwnedRadarCollector(),
         panels=DEFAULT_PANELS,
         news_check_fn=check_news_parity,
+        trajectory_check_fn=check_search_trajectory,
     )

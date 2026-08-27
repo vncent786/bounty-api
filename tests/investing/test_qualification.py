@@ -1,7 +1,7 @@
 from social_scraper.investing.qualification import qualify_candidate
 
 
-def _evidence(eid, author, text, platform="x"):
+def _evidence(eid, author, text, platform="x", engagement=None):
     return {
         "id": eid,
         "external_id": eid,
@@ -9,6 +9,9 @@ def _evidence(eid, author, text, platform="x"):
         "author": author,
         "text": text,
         "url": f"https://example.com/{eid}",
+        "engagement": engagement if engagement is not None else {
+            "views": 1000, "likes": 20, "comments": 5, "shares": 1,
+        },
     }
 
 
@@ -54,7 +57,7 @@ def test_candidate_qualifies_only_when_every_gate_passes():
     evidence = [
         _evidence("e1", "a", "I switched to a silicone air fryer liner"),
         _evidence("e2", "b", "We switched to silicone air fryer liners", "instagram"),
-        _evidence("e3", "c", "Bought another silicone air fryer liner", "youtube"),
+        _evidence("e3", "c", "I switched to another silicone air fryer liner", "youtube"),
     ]
     result = qualify_candidate(
         _proposal(), evidence=evidence, windows=_windows(),
@@ -176,7 +179,7 @@ def test_capped_or_missing_history_is_unknown_not_anomaly():
     evidence = [
         _evidence("e1", "a", "I switched to a silicone air fryer liner"),
         _evidence("e2", "b", "We switched to silicone air fryer liners", "instagram"),
-        _evidence("e3", "c", "Bought another silicone air fryer liner", "youtube"),
+        _evidence("e3", "c", "I switched to another silicone air fryer liner", "youtube"),
     ]
     result = qualify_candidate(
         _proposal(), evidence=evidence, windows=_windows(capped=True),
@@ -205,7 +208,7 @@ def test_financial_coverage_or_single_voice_rejects_candidate():
     assert result["gates"]["parity"]["passed"] is False
 
 
-def test_natural_switching_language_and_single_platform_can_pass_current_evidence():
+def test_two_creator_posts_on_one_platform_are_not_enough_to_prove_a_trend():
     evidence = [
         _evidence(
             "e1",
@@ -239,8 +242,10 @@ def test_natural_switching_language_and_single_platform_can_pass_current_evidenc
     assert result["gates"]["behavior"]["metrics"]["authors"] == 2
     assert result["gates"]["breadth"]["state"] == "pass"
     assert result["gates"]["breadth"]["metrics"]["cross_platform"] is False
+    assert result["gates"]["evidence_quality"]["state"] == "fail"
+    assert result["gates"]["evidence_quality"]["metrics"]["firsthand_authors"] == 2
     assert result["gates"]["investigability"]["state"] == "pass"
-    assert result["qualification_status"] == "qualified"
+    assert result["qualification_status"] == "not_qualified"
 
 
 def test_home_gym_causal_language_counts_as_switching_behavior():
@@ -308,6 +313,125 @@ def test_pain_language_can_follow_a_specific_anchor_without_ending_the_clause():
 
     assert result["gates"]["behavior"]["metrics"]["records"] == 2
     assert result["gates"]["behavior"]["state"] == "pass"
+
+
+def test_news_and_recall_reporting_do_not_count_as_firsthand_behavior():
+    evidence = [
+        _evidence(
+            "e1", "news-a",
+            "BREAKING: Tesla recall ordered because hidden door releases are hard to find after a crash.",
+            "x",
+        ),
+        _evidence(
+            "e2", "news-b",
+            "According to regulators, hidden door releases are a safety issue after a crash.",
+            "youtube",
+        ),
+        _evidence(
+            "e3", "news-c",
+            "Daily news roundup: Tesla recalled vehicles over hidden door releases after a crash.",
+            "x",
+        ),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Tesla hidden door release post-crash pain",
+            behaviour_type="pain_point",
+            anchor_terms=["hidden door releases", "after a crash"],
+            summary="Reports say hidden door releases are difficult to find after a crash.",
+            evidence_ids=["e1", "e2", "e3"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    quality = result["gates"]["evidence_quality"]
+    assert quality["state"] == "fail"
+    assert quality["metrics"]["firsthand_authors"] == 0
+    assert quality["metrics"]["reportage_records"] == 3
+    assert result["qualification_status"] == "not_qualified"
+
+
+def test_firsthand_order_language_is_not_misclassified_as_news():
+    evidence = [
+        _evidence("e1", "a", "I ordered an acme travel mug", "x"),
+        _evidence("e2", "b", "We ordered the acme travel mug", "instagram"),
+        _evidence("e3", "c", "I ordered another acme travel mug", "youtube"),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Acme travel mug purchases",
+            behaviour_type="purchase",
+            anchor_terms=["acme travel mug"],
+            summary="People describe ordering an acme travel mug.",
+            evidence_ids=["e1", "e2", "e3"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["evidence_quality"]["state"] == "pass"
+    assert result["gates"]["evidence_quality"]["metrics"]["reportage_records"] == 0
+
+
+def test_same_handle_across_platforms_does_not_become_three_independent_voices():
+    evidence = [
+        _evidence("e1", "same_creator", "I switched to a silicone air fryer liner", "x"),
+        _evidence("e2", "same_creator", "I switched to silicone air fryer liners", "instagram"),
+        _evidence("e3", "same_creator", "I switched to another silicone air fryer liner", "youtube"),
+    ]
+    result = qualify_candidate(
+        _proposal(),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["metrics"]["authors"] == 1
+    assert result["gates"]["evidence_quality"]["metrics"]["firsthand_authors"] == 1
+    assert result["qualification_status"] == "not_qualified"
+
+
+def test_three_cross_platform_but_unengaged_posts_still_fail_quality():
+    low = {"views": 40, "likes": 1, "comments": 0, "shares": 0}
+    evidence = [
+        _evidence("e1", "a", "I switched to a silicone air fryer liner", "x", low),
+        _evidence("e2", "b", "We switched to silicone air fryer liners", "instagram", low),
+        _evidence("e3", "c", "I switched to another silicone air fryer liner", "youtube", low),
+    ]
+    result = qualify_candidate(
+        _proposal(),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    quality = result["gates"]["evidence_quality"]
+    assert quality["state"] == "fail"
+    assert quality["metrics"]["known_engagement_records"] == 3
+    assert quality["metrics"]["engaged_records"] == 0
+
+
+def test_three_firsthand_engaged_voices_can_pass_evidence_quality():
+    evidence = [
+        _evidence("e1", "a", "I switched to a silicone air fryer liner", "x"),
+        _evidence("e2", "b", "We switched to silicone air fryer liners", "instagram"),
+        _evidence("e3", "c", "I switched to another silicone air fryer liner", "youtube"),
+    ]
+    result = qualify_candidate(
+        _proposal(),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    quality = result["gates"]["evidence_quality"]
+    assert quality["state"] == "pass"
+    assert quality["metrics"]["firsthand_authors"] == 3
+    assert quality["metrics"]["engaged_records"] == 3
+    assert result["qualification_status"] == "qualified"
 
 
 def test_negated_pain_language_does_not_count_as_behavior_support():

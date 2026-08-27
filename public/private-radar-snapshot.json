@@ -2,153 +2,34 @@
   "items": [],
   "review_items": [
     {
-      "candidate_id": "073a81cbae8493b178bb89a3",
-      "panel_id": "fitness_wearables",
-      "qualification_status": "unknown_due_to_coverage",
-      "label": "Gym membership cancellation pain pushing home gym adoption",
+      "candidate_id": "1f2343f6192f865593bc2eac",
+      "panel_id": "telecom",
+      "qualification_status": "not_qualified",
+      "label": "T-Mobile plan increase prompting provider checks",
       "behaviour_type": "switching",
       "anchor_terms": [
-        "bought a home dumbbell set and a bench",
-        "trying to cancel the membership",
-        "true home gym"
+        "T-Mobile",
+        "plan increase",
+        "switched providers"
       ],
-      "summary": "Independent X users describe abandoning gym attendance after buying home equipment, with one explicitly citing hellish gym membership cancellation and another saying they haven't been to the gym since buying a home dumbbell set and bench.",
-      "economic_mechanism": "Friction in cancelling memberships plus upfront equipment purchases can shift workouts from recurring gym spend to home-equipment usage.",
-      "why_investigate": "Specific behavior appears twice from separate authors with a concrete trigger and substitute product, even though it is currently single-platform rather than cross-platform.",
-      "contradiction": "A separate TikTok item questions tracker accuracy, but does not reinforce home-gym switching; the broader panel mixes wearables and gyms.",
-      "invalidation": "Invalid if these posts are atypical anecdotes and not part of wider cancellation-driven migration to home setups.",
+      "summary": "A TikTok explicitly asks T-Mobile users whether they switched providers because a plan increase started that day, indicating a concrete switching prompt tied to bill changes.",
+      "economic_mechanism": "Carrier price increases can raise churn, comparison shopping, and migration to lower-cost plans or rival networks.",
+      "why_investigate": "This is a specific provider-plus-trigger combination with direct switching language, even though current support is single-platform.",
+      "contradiction": "No corroborating post from another platform in the supplied evidence confirms actual switching volume.",
+      "invalidation": "Invalidate if billing changes were narrow, temporary, reversed, or produced little measurable search/churn activity.",
       "evidence_ids": [
-        "43a1e90bd9af2dd27fe07cfc793f61b5",
-        "de07f2d5c36f0b8e503a40a08d68d952"
+        "b895aee5607e4a476221c2a7c8837fa8"
       ],
+      "evidence_kinds": {
+        "b895aee5607e4a476221c2a7c8837fa8": "observation"
+      },
+      "engagement_by_id": {},
       "citation_filter": {
-        "requested": 2,
-        "relevant": 2,
+        "requested": 1,
+        "relevant": 1,
         "dropped": 0
       },
-      "voice_count": 2,
-      "platforms": [
-        "x"
-      ],
-      "gates": {
-        "specificity": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
-          "metrics": {
-            "anchor_terms": [
-              "bought a home dumbbell set and a bench",
-              "trying to cancel the membership",
-              "true home gym"
-            ]
-          }
-        },
-        "behavior": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Concrete behavior appears in at least two independent cited voices.",
-          "metrics": {
-            "behaviour_type": "switching",
-            "records": 2,
-            "authors": 2
-          }
-        },
-        "anomaly": {
-          "state": "unknown",
-          "passed": null,
-          "reason": "Comparable uncapped historical windows are unavailable.",
-          "metrics": {
-            "current_count": 0,
-            "prior_counts": []
-          }
-        },
-        "breadth": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent.",
-          "metrics": {
-            "authors": 2,
-            "roots": 2,
-            "platforms": 1,
-            "cross_platform": false,
-            "largest_copy_group": 1
-          }
-        },
-        "parity": {
-          "state": "unknown",
-          "passed": null,
-          "reason": "Information parity could not be checked.",
-          "metrics": {
-            "level": "unknown"
-          }
-        },
-        "investigability": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
-          "metrics": {}
-        }
-      },
-      "parity": {
-        "articles": [],
-        "level": "unknown",
-        "status": "not_checked_before_history"
-      },
-      "windows": [],
-      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
-      "inferred_panel_id": "fitness_wearables",
-      "review_status": "needs_history",
-      "blocking_reasons": [
-        "Comparable uncapped historical windows are unavailable.",
-        "Information parity could not be checked."
-      ],
-      "caveats": [
-        "Independent voices were found on one platform only."
-      ],
-      "evidence": [
-        {
-          "id": "43a1e90bd9af2dd27fe07cfc793f61b5",
-          "platform": "x",
-          "url": "https://x.com/tonydangerHOU/status/2090854046152167635",
-          "author": "tonydangerHOU",
-          "text": "I signed up for a gym once in my life. It was fucking HELL trying to cancel the membership. I bought the equipment I need and now have a true home gym. \n\n#NeverAgain",
-          "created_at": "Fri Aug 21 17:30:25 +0000 2026"
-        },
-        {
-          "id": "de07f2d5c36f0b8e503a40a08d68d952",
-          "platform": "x",
-          "url": "https://x.com/Dickson_SEO/status/2090872791885099227",
-          "author": "Dickson_SEO",
-          "text": "I haven't been to the gym ever since I bought a home dumbbell set and a bench",
-          "created_at": "Fri Aug 21 18:44:54 +0000 2026"
-        }
-      ]
-    },
-    {
-      "candidate_id": "9043af115855967605d20306",
-      "panel_id": "streaming",
-      "qualification_status": "unknown_due_to_coverage",
-      "label": "Replacing streaming services with physical media",
-      "behaviour_type": "switching",
-      "anchor_terms": [
-        "replacing streaming services with physical media",
-        "Cancelling Netflix to buy DVD's"
-      ],
-      "summary": "TikTok posts show explicit consumer switching away from subscriptions/streaming toward DVDs and Blu-rays, including one creator documenting replacement of streaming services with physical media and another recapping cancelling Netflix to buy DVDs.",
-      "economic_mechanism": "Subscription fatigue or catalog instability can push some users toward one-time ownership purchases instead of recurring digital access.",
-      "why_investigate": "Clear cross-platform behavioral switch with exact anchors around physical media replacing streaming, not just sentiment about content quality.",
-      "contradiction": "The evidence appears creator-led and may reflect niche enthusiast behavior rather than broad household switching.",
-      "invalidation": "Invalid if follow-up shows these are isolated content formats for engagement rather than genuine sustained purchase substitution.",
-      "evidence_ids": [
-        "3aaa6e71c57e147ed479db93c75e8365",
-        "e79cbc920db7763bcb3f99d6b9c56430"
-      ],
-      "citation_filter": {
-        "requested": 2,
-        "relevant": 2,
-        "dropped": 0
-      },
-      "voice_count": 2,
+      "voice_count": 1,
       "platforms": [
         "tiktok"
       ],
@@ -159,19 +40,2005 @@
           "reason": "Specific product/behaviour anchor is supported by cited evidence.",
           "metrics": {
             "anchor_terms": [
-              "replacing streaming services with physical media",
-              "Cancelling Netflix to buy DVD's"
+              "T-Mobile",
+              "plan increase",
+              "switched providers"
             ]
           }
         },
         "behavior": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Concrete behavior appears in at least two independent cited voices.",
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
           "metrics": {
             "behaviour_type": "switching",
-            "records": 2,
-            "authors": 2
+            "records": 0,
+            "authors": 0
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": "HTTPError",
+        "geo": "",
+        "normalized": true,
+        "points": [],
+        "query": "T-Mobile increase",
+        "source": "Google Trends",
+        "status": "failed",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "needs_more_evidence",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior.",
+        "Evidence is too concentrated in one voice, root, or copied text."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "b895aee5607e4a476221c2a7c8837fa8",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@junglacat/video/7662157609612365086",
+          "source_url": "https://www.tiktok.com/@junglacat/video/7662157609612365086",
+          "author": "junglacat",
+          "text": "T-Mobile users have you switched providers?! The plan increase starts today so make sure you check your bill online. #greenscreen ##tmobile##verizon##boost##cellphone",
+          "created_at": "2026-07-13T23:25:02+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 93,
+            "likes": 489,
+            "replies": null,
+            "reposts": null,
+            "shares": 121,
+            "upvotes": null,
+            "views": 21600
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "7d15488a6045213a64f43c10",
+      "panel_id": "consumer_technology",
+      "qualification_status": "not_qualified",
+      "label": "TikTok uploads forever pending drove stop-using/switch to Instagram",
+      "behaviour_type": "switching",
+      "anchor_terms": [
+        "stopped using TikTok",
+        "forever pending",
+        "support ticket",
+        "stuck to Instagram"
+      ],
+      "summary": "An X user says TikTok uploads were pending for over two weeks, leading them to stop using TikTok and stick to Instagram instead.",
+      "economic_mechanism": "Persistent creator-side upload failures can push posting activity and audience-building effort toward competing platforms.",
+      "why_investigate": "This is a direct switching account with a clear product problem and named destination platform, albeit from a single author on one platform.",
+      "contradiction": "Could be an isolated account issue rather than a broader creator migration driver.",
+      "invalidation": "Invalidate if outage reports are absent and creator search/discussion around pending uploads remains flat.",
+      "evidence_ids": [
+        "466a3eb2ceaec6375f2e35b91b18e12f"
+      ],
+      "evidence_kinds": {
+        "466a3eb2ceaec6375f2e35b91b18e12f": "firsthand"
+      },
+      "engagement_by_id": {},
+      "citation_filter": {
+        "requested": 1,
+        "relevant": 1,
+        "dropped": 0
+      },
+      "voice_count": 1,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "stopped using TikTok",
+              "forever pending",
+              "support ticket",
+              "stuck to Instagram"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "switching",
+            "records": 0,
+            "authors": 0
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 1,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 0
+          },
+          {
+            "date": "2026-05-28",
+            "value": 0
+          },
+          {
+            "date": "2026-05-29",
+            "value": 0
+          },
+          {
+            "date": "2026-05-30",
+            "value": 0
+          },
+          {
+            "date": "2026-05-31",
+            "value": 0
+          },
+          {
+            "date": "2026-06-01",
+            "value": 0
+          },
+          {
+            "date": "2026-06-02",
+            "value": 0
+          },
+          {
+            "date": "2026-06-03",
+            "value": 0
+          },
+          {
+            "date": "2026-06-04",
+            "value": 0
+          },
+          {
+            "date": "2026-06-05",
+            "value": 0
+          },
+          {
+            "date": "2026-06-06",
+            "value": 0
+          },
+          {
+            "date": "2026-06-07",
+            "value": 0
+          },
+          {
+            "date": "2026-06-08",
+            "value": 0
+          },
+          {
+            "date": "2026-06-09",
+            "value": 0
+          },
+          {
+            "date": "2026-06-10",
+            "value": 0
+          },
+          {
+            "date": "2026-06-11",
+            "value": 0
+          },
+          {
+            "date": "2026-06-12",
+            "value": 0
+          },
+          {
+            "date": "2026-06-13",
+            "value": 0
+          },
+          {
+            "date": "2026-06-14",
+            "value": 0
+          },
+          {
+            "date": "2026-06-15",
+            "value": 0
+          },
+          {
+            "date": "2026-06-16",
+            "value": 0
+          },
+          {
+            "date": "2026-06-17",
+            "value": 0
+          },
+          {
+            "date": "2026-06-18",
+            "value": 0
+          },
+          {
+            "date": "2026-06-19",
+            "value": 0
+          },
+          {
+            "date": "2026-06-20",
+            "value": 0
+          },
+          {
+            "date": "2026-06-21",
+            "value": 0
+          },
+          {
+            "date": "2026-06-22",
+            "value": 100
+          },
+          {
+            "date": "2026-06-23",
+            "value": 0
+          },
+          {
+            "date": "2026-06-24",
+            "value": 0
+          },
+          {
+            "date": "2026-06-25",
+            "value": 0
+          },
+          {
+            "date": "2026-06-26",
+            "value": 0
+          },
+          {
+            "date": "2026-06-27",
+            "value": 0
+          },
+          {
+            "date": "2026-06-28",
+            "value": 0
+          },
+          {
+            "date": "2026-06-29",
+            "value": 0
+          },
+          {
+            "date": "2026-06-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-01",
+            "value": 0
+          },
+          {
+            "date": "2026-07-02",
+            "value": 0
+          },
+          {
+            "date": "2026-07-03",
+            "value": 0
+          },
+          {
+            "date": "2026-07-04",
+            "value": 0
+          },
+          {
+            "date": "2026-07-05",
+            "value": 0
+          },
+          {
+            "date": "2026-07-06",
+            "value": 0
+          },
+          {
+            "date": "2026-07-07",
+            "value": 0
+          },
+          {
+            "date": "2026-07-08",
+            "value": 0
+          },
+          {
+            "date": "2026-07-09",
+            "value": 0
+          },
+          {
+            "date": "2026-07-10",
+            "value": 0
+          },
+          {
+            "date": "2026-07-11",
+            "value": 0
+          },
+          {
+            "date": "2026-07-12",
+            "value": 0
+          },
+          {
+            "date": "2026-07-13",
+            "value": 0
+          },
+          {
+            "date": "2026-07-14",
+            "value": 0
+          },
+          {
+            "date": "2026-07-15",
+            "value": 0
+          },
+          {
+            "date": "2026-07-16",
+            "value": 0
+          },
+          {
+            "date": "2026-07-17",
+            "value": 0
+          },
+          {
+            "date": "2026-07-18",
+            "value": 0
+          },
+          {
+            "date": "2026-07-19",
+            "value": 0
+          },
+          {
+            "date": "2026-07-20",
+            "value": 0
+          },
+          {
+            "date": "2026-07-21",
+            "value": 0
+          },
+          {
+            "date": "2026-07-22",
+            "value": 0
+          },
+          {
+            "date": "2026-07-23",
+            "value": 0
+          },
+          {
+            "date": "2026-07-24",
+            "value": 0
+          },
+          {
+            "date": "2026-07-25",
+            "value": 0
+          },
+          {
+            "date": "2026-07-26",
+            "value": 0
+          },
+          {
+            "date": "2026-07-27",
+            "value": 0
+          },
+          {
+            "date": "2026-07-28",
+            "value": 0
+          },
+          {
+            "date": "2026-07-29",
+            "value": 0
+          },
+          {
+            "date": "2026-07-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-31",
+            "value": 0
+          },
+          {
+            "date": "2026-08-01",
+            "value": 0
+          },
+          {
+            "date": "2026-08-02",
+            "value": 0
+          },
+          {
+            "date": "2026-08-03",
+            "value": 0
+          },
+          {
+            "date": "2026-08-04",
+            "value": 0
+          },
+          {
+            "date": "2026-08-05",
+            "value": 0
+          },
+          {
+            "date": "2026-08-06",
+            "value": 0
+          },
+          {
+            "date": "2026-08-07",
+            "value": 0
+          },
+          {
+            "date": "2026-08-08",
+            "value": 0
+          },
+          {
+            "date": "2026-08-09",
+            "value": 0
+          },
+          {
+            "date": "2026-08-10",
+            "value": 0
+          },
+          {
+            "date": "2026-08-11",
+            "value": 0
+          },
+          {
+            "date": "2026-08-12",
+            "value": 0
+          },
+          {
+            "date": "2026-08-13",
+            "value": 0
+          },
+          {
+            "date": "2026-08-14",
+            "value": 0
+          },
+          {
+            "date": "2026-08-15",
+            "value": 0
+          },
+          {
+            "date": "2026-08-16",
+            "value": 0
+          },
+          {
+            "date": "2026-08-17",
+            "value": 0
+          },
+          {
+            "date": "2026-08-18",
+            "value": 0
+          },
+          {
+            "date": "2026-08-19",
+            "value": 0
+          },
+          {
+            "date": "2026-08-20",
+            "value": 0
+          },
+          {
+            "date": "2026-08-21",
+            "value": 0
+          },
+          {
+            "date": "2026-08-22",
+            "value": 0
+          },
+          {
+            "date": "2026-08-23",
+            "value": 0
+          },
+          {
+            "date": "2026-08-24",
+            "value": 0
+          },
+          {
+            "date": "2026-08-25",
+            "value": 0
+          },
+          {
+            "date": "2026-08-26",
+            "value": 0
+          },
+          {
+            "date": "2026-08-27",
+            "value": 0
+          }
+        ],
+        "query": "TikTok pending upload",
+        "source": "Google Trends",
+        "status": "insufficient_search_volume",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "needs_more_evidence",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior.",
+        "Evidence is too concentrated in one voice, root, or copied text."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "466a3eb2ceaec6375f2e35b91b18e12f",
+          "platform": "x",
+          "url": "https://platform.twitter.com/embed/Tweet.html?dnt=true&id=2090861153987469525",
+          "source_url": "https://x.com/Primly_EN/status/2090861153987469525",
+          "author": "Primly_EN",
+          "text": "tbh I stopped using TikTok because there was a moment where my uploads (that didn't break tos whatsoever) were forever pending and when I opened a support ticket, they tried saying that \"part of the servers were down\".. that was 2+ weeks so I just stuck to Instagram because I find it better with views than TikTok.\n\nMaybe I don't understand how TikTok works, but yeah - 2 weeks of videos pending that either never got uploaded or go uploaded drastically out of order really pushed me away from the a",
+          "created_at": "Fri Aug 21 17:58:40 +0000 2026",
+          "engagement": {
+            "bookmarks": 0,
+            "collects": null,
+            "comments": 0,
+            "likes": 0,
+            "replies": null,
+            "reposts": 0,
+            "shares": 0,
+            "upvotes": null,
+            "views": 50
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "45f051f80e53236d363b45d0",
+      "panel_id": "fitness_wearables",
+      "qualification_status": "not_qualified",
+      "label": "WHOOP 5.0 stop-using signal",
+      "behaviour_type": "rejection",
+      "anchor_terms": [
+        "WHOOP 5.0",
+        "stopped using it"
+      ],
+      "summary": "A YouTube post is explicitly framed around trying WHOOP 5.0 for a month and then stopping use, suggesting an investigable dissatisfaction/rejection pattern for that device/service.",
+      "economic_mechanism": "If trial users abandon a premium wearable subscription, retention weakens and potential buyers may defer adoption or seek alternatives.",
+      "why_investigate": "Specific product anchor and explicit post-trial rejection make it stronger than generic wearable commentary, though only single-platform here.",
+      "contradiction": "One creator review does not establish broad user behavior or cross-platform repetition.",
+      "invalidation": "Invalidate if broader public search/review patterns show stable adoption and the complaint is idiosyncratic.",
+      "evidence_ids": [
+        "1ae04cfc8261ce33ba682c1070f94541",
+        "1d1a5f5aaa45ff40e2c0c35a2144b6f6",
+        "22c6b3585303635852db344c9176090c",
+        "2e993400e84d155839c710f674445f3f",
+        "3decc60f4e32ff72eab83d44a3681ca7",
+        "6e420dd00fd7ae8cad18c1eac3fb402e",
+        "b5a73bfdf296fb91db2a320de63b7de7",
+        "c98466981fff2e08404d5e9e554032af",
+        "d9ec900c729d21a0445fc593bdde7e94",
+        "dda1f23773da7858f89b8cf00452b206",
+        "e248980770d9d78aeee4281530a12b13"
+      ],
+      "evidence_kinds": {
+        "1ae04cfc8261ce33ba682c1070f94541": "observation",
+        "1d1a5f5aaa45ff40e2c0c35a2144b6f6": "firsthand",
+        "22c6b3585303635852db344c9176090c": "observation",
+        "2e993400e84d155839c710f674445f3f": "firsthand",
+        "3decc60f4e32ff72eab83d44a3681ca7": "observation",
+        "6e420dd00fd7ae8cad18c1eac3fb402e": "firsthand",
+        "b5a73bfdf296fb91db2a320de63b7de7": "firsthand",
+        "c98466981fff2e08404d5e9e554032af": "observation",
+        "d9ec900c729d21a0445fc593bdde7e94": "firsthand",
+        "dda1f23773da7858f89b8cf00452b206": "firsthand",
+        "e248980770d9d78aeee4281530a12b13": "firsthand"
+      },
+      "engagement_by_id": {
+        "d9ec900c729d21a0445fc593bdde7e94": {
+          "views": 1444,
+          "likes": 16,
+          "comments": 23,
+          "shares": null,
+          "collects": null,
+          "upvotes": null,
+          "replies": null,
+          "reposts": null,
+          "bookmarks": null
+        }
+      },
+      "citation_filter": {
+        "requested": 11,
+        "relevant": 11,
+        "dropped": 0
+      },
+      "voice_count": 11,
+      "platforms": [
+        "reddit",
+        "tiktok",
+        "youtube"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "WHOOP 5.0",
+              "stopped using it"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "rejection",
+            "records": 1,
+            "authors": 1
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 1,
+            "firsthand_authors": 1,
+            "firsthand_platforms": 1,
+            "known_engagement_records": 1,
+            "engaged_records": 1,
+            "reportage_records": 0,
+            "proof_evidence_ids": [
+              "d9ec900c729d21a0445fc593bdde7e94"
+            ]
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Evidence contains independent roots and voices across multiple platforms.",
+          "metrics": {
+            "authors": 11,
+            "roots": 11,
+            "platforms": 3,
+            "cross_platform": true,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 93,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 59
+          },
+          {
+            "date": "2026-05-28",
+            "value": 71
+          },
+          {
+            "date": "2026-05-29",
+            "value": 70
+          },
+          {
+            "date": "2026-05-30",
+            "value": 75
+          },
+          {
+            "date": "2026-05-31",
+            "value": 100
+          },
+          {
+            "date": "2026-06-01",
+            "value": 79
+          },
+          {
+            "date": "2026-06-02",
+            "value": 66
+          },
+          {
+            "date": "2026-06-03",
+            "value": 65
+          },
+          {
+            "date": "2026-06-04",
+            "value": 70
+          },
+          {
+            "date": "2026-06-05",
+            "value": 63
+          },
+          {
+            "date": "2026-06-06",
+            "value": 69
+          },
+          {
+            "date": "2026-06-07",
+            "value": 73
+          },
+          {
+            "date": "2026-06-08",
+            "value": 73
+          },
+          {
+            "date": "2026-06-09",
+            "value": 61
+          },
+          {
+            "date": "2026-06-10",
+            "value": 73
+          },
+          {
+            "date": "2026-06-11",
+            "value": 59
+          },
+          {
+            "date": "2026-06-12",
+            "value": 62
+          },
+          {
+            "date": "2026-06-13",
+            "value": 77
+          },
+          {
+            "date": "2026-06-14",
+            "value": 72
+          },
+          {
+            "date": "2026-06-15",
+            "value": 70
+          },
+          {
+            "date": "2026-06-16",
+            "value": 59
+          },
+          {
+            "date": "2026-06-17",
+            "value": 57
+          },
+          {
+            "date": "2026-06-18",
+            "value": 60
+          },
+          {
+            "date": "2026-06-19",
+            "value": 54
+          },
+          {
+            "date": "2026-06-20",
+            "value": 61
+          },
+          {
+            "date": "2026-06-21",
+            "value": 76
+          },
+          {
+            "date": "2026-06-22",
+            "value": 55
+          },
+          {
+            "date": "2026-06-23",
+            "value": 67
+          },
+          {
+            "date": "2026-06-24",
+            "value": 78
+          },
+          {
+            "date": "2026-06-25",
+            "value": 71
+          },
+          {
+            "date": "2026-06-26",
+            "value": 60
+          },
+          {
+            "date": "2026-06-27",
+            "value": 61
+          },
+          {
+            "date": "2026-06-28",
+            "value": 65
+          },
+          {
+            "date": "2026-06-29",
+            "value": 53
+          },
+          {
+            "date": "2026-06-30",
+            "value": 47
+          },
+          {
+            "date": "2026-07-01",
+            "value": 47
+          },
+          {
+            "date": "2026-07-02",
+            "value": 53
+          },
+          {
+            "date": "2026-07-03",
+            "value": 52
+          },
+          {
+            "date": "2026-07-04",
+            "value": 64
+          },
+          {
+            "date": "2026-07-05",
+            "value": 63
+          },
+          {
+            "date": "2026-07-06",
+            "value": 50
+          },
+          {
+            "date": "2026-07-07",
+            "value": 48
+          },
+          {
+            "date": "2026-07-08",
+            "value": 59
+          },
+          {
+            "date": "2026-07-09",
+            "value": 53
+          },
+          {
+            "date": "2026-07-10",
+            "value": 36
+          },
+          {
+            "date": "2026-07-11",
+            "value": 38
+          },
+          {
+            "date": "2026-07-12",
+            "value": 41
+          },
+          {
+            "date": "2026-07-13",
+            "value": 40
+          },
+          {
+            "date": "2026-07-14",
+            "value": 39
+          },
+          {
+            "date": "2026-07-15",
+            "value": 35
+          },
+          {
+            "date": "2026-07-16",
+            "value": 31
+          },
+          {
+            "date": "2026-07-17",
+            "value": 30
+          },
+          {
+            "date": "2026-07-18",
+            "value": 33
+          },
+          {
+            "date": "2026-07-19",
+            "value": 57
+          },
+          {
+            "date": "2026-07-20",
+            "value": 31
+          },
+          {
+            "date": "2026-07-21",
+            "value": 37
+          },
+          {
+            "date": "2026-07-22",
+            "value": 41
+          },
+          {
+            "date": "2026-07-23",
+            "value": 39
+          },
+          {
+            "date": "2026-07-24",
+            "value": 39
+          },
+          {
+            "date": "2026-07-25",
+            "value": 40
+          },
+          {
+            "date": "2026-07-26",
+            "value": 44
+          },
+          {
+            "date": "2026-07-27",
+            "value": 39
+          },
+          {
+            "date": "2026-07-28",
+            "value": 37
+          },
+          {
+            "date": "2026-07-29",
+            "value": 31
+          },
+          {
+            "date": "2026-07-30",
+            "value": 35
+          },
+          {
+            "date": "2026-07-31",
+            "value": 33
+          },
+          {
+            "date": "2026-08-01",
+            "value": 40
+          },
+          {
+            "date": "2026-08-02",
+            "value": 42
+          },
+          {
+            "date": "2026-08-03",
+            "value": 32
+          },
+          {
+            "date": "2026-08-04",
+            "value": 39
+          },
+          {
+            "date": "2026-08-05",
+            "value": 29
+          },
+          {
+            "date": "2026-08-06",
+            "value": 32
+          },
+          {
+            "date": "2026-08-07",
+            "value": 35
+          },
+          {
+            "date": "2026-08-08",
+            "value": 50
+          },
+          {
+            "date": "2026-08-09",
+            "value": 66
+          },
+          {
+            "date": "2026-08-10",
+            "value": 56
+          },
+          {
+            "date": "2026-08-11",
+            "value": 51
+          },
+          {
+            "date": "2026-08-12",
+            "value": 50
+          },
+          {
+            "date": "2026-08-13",
+            "value": 33
+          },
+          {
+            "date": "2026-08-14",
+            "value": 49
+          },
+          {
+            "date": "2026-08-15",
+            "value": 52
+          },
+          {
+            "date": "2026-08-16",
+            "value": 51
+          },
+          {
+            "date": "2026-08-17",
+            "value": 51
+          },
+          {
+            "date": "2026-08-18",
+            "value": 48
+          },
+          {
+            "date": "2026-08-19",
+            "value": 46
+          },
+          {
+            "date": "2026-08-20",
+            "value": 45
+          },
+          {
+            "date": "2026-08-21",
+            "value": 39
+          },
+          {
+            "date": "2026-08-22",
+            "value": 39
+          },
+          {
+            "date": "2026-08-23",
+            "value": 42
+          },
+          {
+            "date": "2026-08-24",
+            "value": 38
+          },
+          {
+            "date": "2026-08-25",
+            "value": 44
+          },
+          {
+            "date": "2026-08-26",
+            "value": 40
+          },
+          {
+            "date": "2026-08-27",
+            "value": 38
+          }
+        ],
+        "query": "WHOOP 5.0",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "needs_more_evidence",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "1ae04cfc8261ce33ba682c1070f94541",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@bens_watches/video/7511491513705057579",
+          "source_url": "https://www.tiktok.com/@bens_watches/video/7511491513705057579",
+          "author": "bens_watches",
+          "text": "Whoop 5.0 - One Month Review",
+          "created_at": "2025-06-02T23:03:53+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 22,
+            "likes": 1481,
+            "replies": null,
+            "reposts": null,
+            "shares": 58,
+            "upvotes": null,
+            "views": 118100
+          }
+        },
+        {
+          "id": "1d1a5f5aaa45ff40e2c0c35a2144b6f6",
+          "platform": "reddit",
+          "url": "https://www.reddit.com/r/Whoop_IN_Marketplace/comments/1vzvxaw/biceps_strap_for_whoop_50_rs933_shipping/",
+          "source_url": "https://www.reddit.com/r/Whoop_IN_Marketplace/comments/1vzvxaw/biceps_strap_for_whoop_50_rs933_shipping/",
+          "author": "justgaming759",
+          "text": "Biceps strap for whoop 5.0 - Rs.933+ shipping\n\nHey guys! I bought 2 compatible WHOOP 5.0 bicep straps from Alibaba and received them about 2 weeks ago. I’m using the cream-colored one, so I have the black one unused and available. Selling it for ₹933 + shipping — exactly half of what I paid (₹1,866). Please note: this is a counterfeit/aftermarket strap, NOT an original WHOOP product. I can share the Alibaba invoice for transparency. Black strap is unused. Photos attached. DM if interested! Also ",
+          "created_at": "2026-08-27T14:42:50+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": null,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        },
+        {
+          "id": "22c6b3585303635852db344c9176090c",
+          "platform": "youtube",
+          "url": "https://www.youtube.com/watch?v=NfFSz-dSLd8",
+          "source_url": "https://www.youtube.com/watch?v=NfFSz-dSLd8",
+          "author": "VPNpro",
+          "text": "Hume Band 2.0 vs WHOOP 5.0 | Which Smart Band Actually Understands Your Body Better?",
+          "created_at": "2026-08-07T00:00:00+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 7,
+            "likes": 1456,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": 14959
+          }
+        },
+        {
+          "id": "2e993400e84d155839c710f674445f3f",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@will.mov/video/7608745667963407629",
+          "source_url": "https://www.tiktok.com/@will.mov/video/7608745667963407629",
+          "author": "will.mov",
+          "text": "100 Days Later with the WHOOP 5.0 - I think I get it now 👀  #whoop #applewatch #techtok",
+          "created_at": "2026-02-20T00:59:34+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 74,
+            "likes": 16600,
+            "replies": null,
+            "reposts": null,
+            "shares": 899,
+            "upvotes": null,
+            "views": 401600
+          }
+        },
+        {
+          "id": "3decc60f4e32ff72eab83d44a3681ca7",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/i18n/share/comment/7646270923364565793",
+          "source_url": "https://www.tiktok.com/i18n/share/comment/7646270923364565793",
+          "author": "cvvp111",
+          "text": "Can u use whoop 5.0 charger to whoop 4.0 pls answer if u know",
+          "created_at": "2026-06-01T03:58:11+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": 1,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        },
+        {
+          "id": "6e420dd00fd7ae8cad18c1eac3fb402e",
+          "platform": "reddit",
+          "url": "https://www.reddit.com/r/whoop/comments/1vzde1q/should_i_get_on_the_whoop_train/",
+          "source_url": "https://www.reddit.com/r/whoop/comments/1vzde1q/should_i_get_on_the_whoop_train/",
+          "author": "DRice555666",
+          "text": "Should I get on the Whoop train ?\n\nHave been thinking about getting a Whoop 5.0 to help me get into shape. Just curious if it’s worth it ? submitted by /u/DRice555666 to r/whoop [link] [comments]",
+          "created_at": "2026-08-26T23:29:27+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": null,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        },
+        {
+          "id": "b5a73bfdf296fb91db2a320de63b7de7",
+          "platform": "reddit",
+          "url": "https://www.reddit.com/r/ReadyMeals/comments/1vzdscw/tempo_refusing_to_honor_whoop_promo_even_though/",
+          "source_url": "https://www.reddit.com/r/ReadyMeals/comments/1vzdscw/tempo_refusing_to_honor_whoop_promo_even_though/",
+          "author": "kelvintiger",
+          "text": "Tempo refusing to honor WHOOP promo even though it said it was successfully applied?\n\nHey all, wondering if anyone else has run into this. I signed up for Tempo because of the WHOOP promo they were running. It was supposed to be 60% off the first box, 15% off the box 4 and 5, and then a free WHOOP 5.0 + 1 year Peak membership after the third order. When I signed up, the site literally showed: Luckily I took a screenshot. After my first box came, I noticed the discount showing for my second box d",
+          "created_at": "2026-08-26T23:47:00+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": null,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        },
+        {
+          "id": "c98466981fff2e08404d5e9e554032af",
+          "platform": "reddit",
+          "url": "https://www.reddit.com/r/WhoopFitness/comments/1vzv1c5/looking_for_a_whoop_50/",
+          "source_url": "https://www.reddit.com/r/WhoopFitness/comments/1vzv1c5/looking_for_a_whoop_50/",
+          "author": "Double_Contract8563",
+          "text": "Looking for a Whoop 5.0\n\nsubmitted by /u/Double_Contract8563 to r/WhoopFitness [link] [comments]",
+          "created_at": "2026-08-27T14:08:59+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": null,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        },
+        {
+          "id": "d9ec900c729d21a0445fc593bdde7e94",
+          "platform": "youtube",
+          "url": "https://www.youtube.com/watch?v=sMjVQJSHCNU",
+          "source_url": "https://www.youtube.com/watch?v=sMjVQJSHCNU",
+          "author": "Log to Life",
+          "text": "I Tried WHOOP 5.0 for a Month: Here's Why I Stopped Using It",
+          "created_at": "2026-08-22T00:00:00+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 23,
+            "likes": 16,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": 1444
+          }
+        },
+        {
+          "id": "dda1f23773da7858f89b8cf00452b206",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@peakset__/video/7508671658069167382",
+          "source_url": "https://www.tiktok.com/@peakset__/video/7508671658069167382",
+          "author": "peakset__",
+          "text": "Comparing the new Whoop 5.0 to the 4.0 I used the last year 📅 Did it look better for you?  #WHOOP #FitnessTracker #GymTok #UnboxingVideo #SleepTracking #recoverytools",
+          "created_at": "2025-05-26T08:41:03+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 184,
+            "likes": 13200,
+            "replies": null,
+            "reposts": null,
+            "shares": 1706,
+            "upvotes": null,
+            "views": 985400
+          }
+        },
+        {
+          "id": "e248980770d9d78aeee4281530a12b13",
+          "platform": "reddit",
+          "url": "https://www.reddit.com/r/whoop/comments/1vzvdds/is_it_possible_start_monthly_using_a_used_whoop/",
+          "source_url": "https://www.reddit.com/r/whoop/comments/1vzvdds/is_it_possible_start_monthly_using_a_used_whoop/",
+          "author": "Sorry-Muscle7527",
+          "text": "is it possible start monthly using a used whoop?\n\nmy friend gave me his old whoop 5.0 and was thinking if i can start monthly i dont want to start annually honestly submitted by /u/Sorry-Muscle7527 to r/whoop [link] [comments]",
+          "created_at": "2026-08-27T14:21:50+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": null,
+            "likes": null,
+            "replies": null,
+            "reposts": null,
+            "shares": null,
+            "upvotes": null,
+            "views": null
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "b9d9d34a6010fc7f74ac71c3",
+      "panel_id": "streaming",
+      "qualification_status": "not_qualified",
+      "label": "rotate streaming services to avoid subscription stacking",
+      "behaviour_type": "workaround",
+      "anchor_terms": [
+        "rotate streaming services",
+        "subscription stacking",
+        "cancel",
+        "switch"
+      ],
+      "summary": "TikTok advice describes a cost-control workaround: subscribe to one or two services, watch, cancel, and rotate instead of accumulating many subscriptions.",
+      "economic_mechanism": "Consumers managing spend by rotating services can reduce average paid months per service and concentrate demand around tentpole content windows.",
+      "why_investigate": "This is a concrete consumer workaround with explicit behavior change, not broad anti-streaming sentiment.",
+      "contradiction": "The supplied evidence is advisory rather than firsthand proof of many users actually executing the rotation behavior now.",
+      "invalidation": "Invalidate if public interest/searches do not rise or if evidence shows users continue stacking despite awareness of the tactic.",
+      "evidence_ids": [
+        "dab0837cb80a28eb3e5bd586d1ddaa3b"
+      ],
+      "evidence_kinds": {
+        "dab0837cb80a28eb3e5bd586d1ddaa3b": "observation"
+      },
+      "engagement_by_id": {},
+      "citation_filter": {
+        "requested": 1,
+        "relevant": 1,
+        "dropped": 0
+      },
+      "voice_count": 1,
+      "platforms": [
+        "tiktok"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "rotate streaming services",
+              "subscription stacking",
+              "cancel",
+              "switch"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "workaround",
+            "records": 0,
+            "authors": 0
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 25,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 0
+          },
+          {
+            "date": "2026-05-28",
+            "value": 0
+          },
+          {
+            "date": "2026-05-29",
+            "value": 0
+          },
+          {
+            "date": "2026-05-30",
+            "value": 0
+          },
+          {
+            "date": "2026-05-31",
+            "value": 88
+          },
+          {
+            "date": "2026-06-01",
+            "value": 0
+          },
+          {
+            "date": "2026-06-02",
+            "value": 0
+          },
+          {
+            "date": "2026-06-03",
+            "value": 0
+          },
+          {
+            "date": "2026-06-04",
+            "value": 0
+          },
+          {
+            "date": "2026-06-05",
+            "value": 0
+          },
+          {
+            "date": "2026-06-06",
+            "value": 0
+          },
+          {
+            "date": "2026-06-07",
+            "value": 0
+          },
+          {
+            "date": "2026-06-08",
+            "value": 61
+          },
+          {
+            "date": "2026-06-09",
+            "value": 67
+          },
+          {
+            "date": "2026-06-10",
+            "value": 0
+          },
+          {
+            "date": "2026-06-11",
+            "value": 63
+          },
+          {
+            "date": "2026-06-12",
+            "value": 0
+          },
+          {
+            "date": "2026-06-13",
+            "value": 0
+          },
+          {
+            "date": "2026-06-14",
+            "value": 0
+          },
+          {
+            "date": "2026-06-15",
+            "value": 100
+          },
+          {
+            "date": "2026-06-16",
+            "value": 0
+          },
+          {
+            "date": "2026-06-17",
+            "value": 0
+          },
+          {
+            "date": "2026-06-18",
+            "value": 0
+          },
+          {
+            "date": "2026-06-19",
+            "value": 65
+          },
+          {
+            "date": "2026-06-20",
+            "value": 0
+          },
+          {
+            "date": "2026-06-21",
+            "value": 0
+          },
+          {
+            "date": "2026-06-22",
+            "value": 0
+          },
+          {
+            "date": "2026-06-23",
+            "value": 0
+          },
+          {
+            "date": "2026-06-24",
+            "value": 0
+          },
+          {
+            "date": "2026-06-25",
+            "value": 0
+          },
+          {
+            "date": "2026-06-26",
+            "value": 0
+          },
+          {
+            "date": "2026-06-27",
+            "value": 0
+          },
+          {
+            "date": "2026-06-28",
+            "value": 0
+          },
+          {
+            "date": "2026-06-29",
+            "value": 0
+          },
+          {
+            "date": "2026-06-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-01",
+            "value": 59
+          },
+          {
+            "date": "2026-07-02",
+            "value": 0
+          },
+          {
+            "date": "2026-07-03",
+            "value": 0
+          },
+          {
+            "date": "2026-07-04",
+            "value": 63
+          },
+          {
+            "date": "2026-07-05",
+            "value": 0
+          },
+          {
+            "date": "2026-07-06",
+            "value": 0
+          },
+          {
+            "date": "2026-07-07",
+            "value": 0
+          },
+          {
+            "date": "2026-07-08",
+            "value": 0
+          },
+          {
+            "date": "2026-07-09",
+            "value": 0
+          },
+          {
+            "date": "2026-07-10",
+            "value": 0
+          },
+          {
+            "date": "2026-07-11",
+            "value": 0
+          },
+          {
+            "date": "2026-07-12",
+            "value": 0
+          },
+          {
+            "date": "2026-07-13",
+            "value": 0
+          },
+          {
+            "date": "2026-07-14",
+            "value": 0
+          },
+          {
+            "date": "2026-07-15",
+            "value": 0
+          },
+          {
+            "date": "2026-07-16",
+            "value": 0
+          },
+          {
+            "date": "2026-07-17",
+            "value": 67
+          },
+          {
+            "date": "2026-07-18",
+            "value": 0
+          },
+          {
+            "date": "2026-07-19",
+            "value": 0
+          },
+          {
+            "date": "2026-07-20",
+            "value": 0
+          },
+          {
+            "date": "2026-07-21",
+            "value": 0
+          },
+          {
+            "date": "2026-07-22",
+            "value": 0
+          },
+          {
+            "date": "2026-07-23",
+            "value": 0
+          },
+          {
+            "date": "2026-07-24",
+            "value": 0
+          },
+          {
+            "date": "2026-07-25",
+            "value": 0
+          },
+          {
+            "date": "2026-07-26",
+            "value": 90
+          },
+          {
+            "date": "2026-07-27",
+            "value": 0
+          },
+          {
+            "date": "2026-07-28",
+            "value": 0
+          },
+          {
+            "date": "2026-07-29",
+            "value": 0
+          },
+          {
+            "date": "2026-07-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-31",
+            "value": 0
+          },
+          {
+            "date": "2026-08-01",
+            "value": 0
+          },
+          {
+            "date": "2026-08-02",
+            "value": 0
+          },
+          {
+            "date": "2026-08-03",
+            "value": 0
+          },
+          {
+            "date": "2026-08-04",
+            "value": 0
+          },
+          {
+            "date": "2026-08-05",
+            "value": 0
+          },
+          {
+            "date": "2026-08-06",
+            "value": 0
+          },
+          {
+            "date": "2026-08-07",
+            "value": 79
+          },
+          {
+            "date": "2026-08-08",
+            "value": 0
+          },
+          {
+            "date": "2026-08-09",
+            "value": 0
+          },
+          {
+            "date": "2026-08-10",
+            "value": 0
+          },
+          {
+            "date": "2026-08-11",
+            "value": 0
+          },
+          {
+            "date": "2026-08-12",
+            "value": 0
+          },
+          {
+            "date": "2026-08-13",
+            "value": 6
+          },
+          {
+            "date": "2026-08-14",
+            "value": 9
+          },
+          {
+            "date": "2026-08-15",
+            "value": 14
+          },
+          {
+            "date": "2026-08-16",
+            "value": 12
+          },
+          {
+            "date": "2026-08-17",
+            "value": 7
+          },
+          {
+            "date": "2026-08-18",
+            "value": 4
+          },
+          {
+            "date": "2026-08-19",
+            "value": 10
+          },
+          {
+            "date": "2026-08-20",
+            "value": 5
+          },
+          {
+            "date": "2026-08-21",
+            "value": 5
+          },
+          {
+            "date": "2026-08-22",
+            "value": 6
+          },
+          {
+            "date": "2026-08-23",
+            "value": 9
+          },
+          {
+            "date": "2026-08-24",
+            "value": 0
+          },
+          {
+            "date": "2026-08-25",
+            "value": 11
+          },
+          {
+            "date": "2026-08-26",
+            "value": 4
+          },
+          {
+            "date": "2026-08-27",
+            "value": 7
+          }
+        ],
+        "query": "rotate streaming",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "needs_more_evidence",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior.",
+        "Evidence is too concentrated in one voice, root, or copied text."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "dab0837cb80a28eb3e5bd586d1ddaa3b",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@theargentgroup/video/7623203153512500494",
+          "source_url": "https://www.tiktok.com/@theargentgroup/video/7623203153512500494",
+          "author": "theargentgroup",
+          "text": "Most people canceled cable to save money… then signed up for 5 streaming services and ended up paying the same — or more. The real cost of streaming is subscription stacking. One service seems cheap, but when you add Netflix, Disney+, Hulu, HBO Max, Prime Video, Apple TV, and others, you’re looking at $70–$130 per month. That’s basically a cable bill again. Smart money tip: rotate streaming services. Subscribe to one or two, watch what you want, cancel, and switch. Entertainment is a subscriptio",
+          "created_at": "2026-03-31T00:01:57+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 23,
+            "likes": 208,
+            "replies": null,
+            "reposts": null,
+            "shares": 53,
+            "upvotes": null,
+            "views": 55900
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "c35370a26b734f2d65fc6323",
+      "panel_id": "pets",
+      "qualification_status": "not_qualified",
+      "label": "stopped buying grain-based dog food",
+      "behaviour_type": "switching",
+      "anchor_terms": [
+        "stopped buying grain-based dog food",
+        "make my own dog food"
+      ],
+      "summary": "Two independent X users describe changing dog-feeding behavior: one stopped buying grain-based dog food and another has made homemade dog food for years despite higher cost.",
+      "economic_mechanism": "Owner trust concerns can shift spend away from standard formulations toward premium, specialty, or homemade feeding approaches.",
+      "why_investigate": "This is one of the few cases with independent authors describing the same specific behavior anchor within supplied evidence.",
+      "contradiction": "The evidence does not prove a new trend; homemade or grain-avoidant dog feeding is also a longstanding niche behavior.",
+      "invalidation": "Invalidate if broader search/review activity shows no recent movement and the posts are simply perennial preference statements.",
+      "evidence_ids": [
+        "05d5d2a77cc4d12fac47bf399b4aa95e",
+        "9bd3fb635f80d73d14535affb50cac1e"
+      ],
+      "evidence_kinds": {
+        "05d5d2a77cc4d12fac47bf399b4aa95e": "firsthand",
+        "9bd3fb635f80d73d14535affb50cac1e": "firsthand"
+      },
+      "engagement_by_id": {},
+      "citation_filter": {
+        "requested": 2,
+        "relevant": 2,
+        "dropped": 0
+      },
+      "voice_count": 2,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "stopped buying grain-based dog food",
+              "make my own dog food"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "switching",
+            "records": 0,
+            "authors": 0
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
           }
         },
         "anomaly": {
@@ -217,232 +2084,471 @@
       },
       "windows": [],
       "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
-      "inferred_panel_id": "streaming",
-      "review_status": "needs_history",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 93,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 81
+          },
+          {
+            "date": "2026-05-28",
+            "value": 83
+          },
+          {
+            "date": "2026-05-29",
+            "value": 82
+          },
+          {
+            "date": "2026-05-30",
+            "value": 93
+          },
+          {
+            "date": "2026-05-31",
+            "value": 100
+          },
+          {
+            "date": "2026-06-01",
+            "value": 73
+          },
+          {
+            "date": "2026-06-02",
+            "value": 81
+          },
+          {
+            "date": "2026-06-03",
+            "value": 100
+          },
+          {
+            "date": "2026-06-04",
+            "value": 86
+          },
+          {
+            "date": "2026-06-05",
+            "value": 90
+          },
+          {
+            "date": "2026-06-06",
+            "value": 85
+          },
+          {
+            "date": "2026-06-07",
+            "value": 67
+          },
+          {
+            "date": "2026-06-08",
+            "value": 59
+          },
+          {
+            "date": "2026-06-09",
+            "value": 70
+          },
+          {
+            "date": "2026-06-10",
+            "value": 65
+          },
+          {
+            "date": "2026-06-11",
+            "value": 63
+          },
+          {
+            "date": "2026-06-12",
+            "value": 61
+          },
+          {
+            "date": "2026-06-13",
+            "value": 58
+          },
+          {
+            "date": "2026-06-14",
+            "value": 60
+          },
+          {
+            "date": "2026-06-15",
+            "value": 64
+          },
+          {
+            "date": "2026-06-16",
+            "value": 53
+          },
+          {
+            "date": "2026-06-17",
+            "value": 52
+          },
+          {
+            "date": "2026-06-18",
+            "value": 58
+          },
+          {
+            "date": "2026-06-19",
+            "value": 53
+          },
+          {
+            "date": "2026-06-20",
+            "value": 62
+          },
+          {
+            "date": "2026-06-21",
+            "value": 73
+          },
+          {
+            "date": "2026-06-22",
+            "value": 57
+          },
+          {
+            "date": "2026-06-23",
+            "value": 74
+          },
+          {
+            "date": "2026-06-24",
+            "value": 63
+          },
+          {
+            "date": "2026-06-25",
+            "value": 72
+          },
+          {
+            "date": "2026-06-26",
+            "value": 31
+          },
+          {
+            "date": "2026-06-27",
+            "value": 38
+          },
+          {
+            "date": "2026-06-28",
+            "value": 34
+          },
+          {
+            "date": "2026-06-29",
+            "value": 31
+          },
+          {
+            "date": "2026-06-30",
+            "value": 28
+          },
+          {
+            "date": "2026-07-01",
+            "value": 31
+          },
+          {
+            "date": "2026-07-02",
+            "value": 28
+          },
+          {
+            "date": "2026-07-03",
+            "value": 24
+          },
+          {
+            "date": "2026-07-04",
+            "value": 29
+          },
+          {
+            "date": "2026-07-05",
+            "value": 37
+          },
+          {
+            "date": "2026-07-06",
+            "value": 27
+          },
+          {
+            "date": "2026-07-07",
+            "value": 40
+          },
+          {
+            "date": "2026-07-08",
+            "value": 36
+          },
+          {
+            "date": "2026-07-09",
+            "value": 28
+          },
+          {
+            "date": "2026-07-10",
+            "value": 21
+          },
+          {
+            "date": "2026-07-11",
+            "value": 18
+          },
+          {
+            "date": "2026-07-12",
+            "value": 26
+          },
+          {
+            "date": "2026-07-13",
+            "value": 19
+          },
+          {
+            "date": "2026-07-14",
+            "value": 20
+          },
+          {
+            "date": "2026-07-15",
+            "value": 18
+          },
+          {
+            "date": "2026-07-16",
+            "value": 19
+          },
+          {
+            "date": "2026-07-17",
+            "value": 15
+          },
+          {
+            "date": "2026-07-18",
+            "value": 20
+          },
+          {
+            "date": "2026-07-19",
+            "value": 68
+          },
+          {
+            "date": "2026-07-20",
+            "value": 26
+          },
+          {
+            "date": "2026-07-21",
+            "value": 21
+          },
+          {
+            "date": "2026-07-22",
+            "value": 17
+          },
+          {
+            "date": "2026-07-23",
+            "value": 17
+          },
+          {
+            "date": "2026-07-24",
+            "value": 18
+          },
+          {
+            "date": "2026-07-25",
+            "value": 19
+          },
+          {
+            "date": "2026-07-26",
+            "value": 23
+          },
+          {
+            "date": "2026-07-27",
+            "value": 23
+          },
+          {
+            "date": "2026-07-28",
+            "value": 18
+          },
+          {
+            "date": "2026-07-29",
+            "value": 26
+          },
+          {
+            "date": "2026-07-30",
+            "value": 16
+          },
+          {
+            "date": "2026-07-31",
+            "value": 22
+          },
+          {
+            "date": "2026-08-01",
+            "value": 24
+          },
+          {
+            "date": "2026-08-02",
+            "value": 29
+          },
+          {
+            "date": "2026-08-03",
+            "value": 20
+          },
+          {
+            "date": "2026-08-04",
+            "value": 22
+          },
+          {
+            "date": "2026-08-05",
+            "value": 24
+          },
+          {
+            "date": "2026-08-06",
+            "value": 22
+          },
+          {
+            "date": "2026-08-07",
+            "value": 20
+          },
+          {
+            "date": "2026-08-08",
+            "value": 23
+          },
+          {
+            "date": "2026-08-09",
+            "value": 29
+          },
+          {
+            "date": "2026-08-10",
+            "value": 26
+          },
+          {
+            "date": "2026-08-11",
+            "value": 21
+          },
+          {
+            "date": "2026-08-12",
+            "value": 20
+          },
+          {
+            "date": "2026-08-13",
+            "value": 16
+          },
+          {
+            "date": "2026-08-14",
+            "value": 19
+          },
+          {
+            "date": "2026-08-15",
+            "value": 22
+          },
+          {
+            "date": "2026-08-16",
+            "value": 23
+          },
+          {
+            "date": "2026-08-17",
+            "value": 21
+          },
+          {
+            "date": "2026-08-18",
+            "value": 20
+          },
+          {
+            "date": "2026-08-19",
+            "value": 21
+          },
+          {
+            "date": "2026-08-20",
+            "value": 22
+          },
+          {
+            "date": "2026-08-21",
+            "value": 22
+          },
+          {
+            "date": "2026-08-22",
+            "value": 21
+          },
+          {
+            "date": "2026-08-23",
+            "value": 22
+          },
+          {
+            "date": "2026-08-24",
+            "value": 19
+          },
+          {
+            "date": "2026-08-25",
+            "value": 20
+          },
+          {
+            "date": "2026-08-26",
+            "value": 21
+          },
+          {
+            "date": "2026-08-27",
+            "value": 19
+          }
+        ],
+        "query": "grain free dog food",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "needs_more_evidence",
       "blocking_reasons": [
-        "Comparable uncapped historical windows are unavailable.",
-        "Information parity could not be checked."
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior."
       ],
       "caveats": [
         "Independent voices were found on one platform only."
       ],
       "evidence": [
         {
-          "id": "3aaa6e71c57e147ed479db93c75e8365",
-          "platform": "tiktok",
-          "url": "https://www.tiktok.com/@jamiec_1989/video/7650112438007876886",
-          "author": "jamiec_1989",
-          "text": "Part 5 of replacing streaming services with physical media. #bluray #dvd #physicalmedia #film #fyp",
-          "created_at": "2026-06-11T12:23:30+00:00"
+          "id": "05d5d2a77cc4d12fac47bf399b4aa95e",
+          "platform": "x",
+          "url": "https://platform.twitter.com/embed/Tweet.html?dnt=true&id=2090571031702364367",
+          "source_url": "https://x.com/JeffWoke/status/2090571031702364367",
+          "author": "JeffWoke",
+          "text": "@Ravious101 Disgusting. I buy best dog food I can find. What I've been buying for my Dane is a little over a hundred dollars for 23.5 lbs. Have had dogs all my life. I stopped buying grain-based dog food. I'm glad I did.",
+          "created_at": "Thu Aug 20 22:45:49 +0000 2026",
+          "engagement": {
+            "bookmarks": 0,
+            "collects": null,
+            "comments": 0,
+            "likes": 0,
+            "replies": null,
+            "reposts": 0,
+            "shares": 0,
+            "upvotes": null,
+            "views": 95
+          }
         },
         {
-          "id": "e79cbc920db7763bcb3f99d6b9c56430",
-          "platform": "tiktok",
-          "url": "https://www.tiktok.com/@thereelwatchers/video/7645398046536158486",
-          "author": "thereelwatchers",
-          "text": "Cancelling Netflix to buy DVD's Month 1-4 Recap",
-          "created_at": "2026-05-29T19:29:15+00:00"
+          "id": "9bd3fb635f80d73d14535affb50cac1e",
+          "platform": "x",
+          "url": "https://platform.twitter.com/embed/Tweet.html?dnt=true&id=2090582564603924900",
+          "source_url": "https://x.com/kbauer74/status/2090582564603924900",
+          "author": "kbauer74",
+          "text": "@Ravious101 I'm glad I made the choice years ago to make my own dog food. It's more expensive, but I have peace of mind that my dogs aren't eating crap. Sorry to hear that your dog was affected. 😢🥰",
+          "created_at": "Thu Aug 20 23:31:39 +0000 2026",
+          "engagement": {
+            "bookmarks": 0,
+            "collects": null,
+            "comments": 0,
+            "likes": 1,
+            "replies": null,
+            "reposts": 0,
+            "shares": 0,
+            "upvotes": null,
+            "views": 77
+          }
         }
       ]
     },
     {
-      "candidate_id": "248b2f33dcd272ea20b4e225",
-      "panel_id": "automobiles",
-      "qualification_status": "unknown_due_to_coverage",
-      "label": "Tesla hidden door releases recall and post-crash egress pain",
-      "behaviour_type": "pain_point",
-      "anchor_terms": [
-        "hidden door releases",
-        "can't find after a crash",
-        "recall",
-        "Tesla",
-        "Model 3"
-      ],
-      "summary": "Two independent X posts describe a large Tesla recall in China tied to hidden door releases that people cannot find after a crash, with one noting similar recalls from other automakers the same day.",
-      "economic_mechanism": "A safety-interface defect can drive recall costs and change buyer or regulator scrutiny around cabin/door hardware design and post-crash usability.",
-      "why_investigate": "Specific product/problem anchor repeated independently with concrete action already taken (recall), making it more actionable than generic EV sentiment.",
-      "contradiction": "Evidence is news/reporting rather than firsthand owner behavior, and one post expands the issue beyond Tesla to multiple automakers.",
-      "invalidation": "Invalid if subsequent recall details show the issue is isolated, mischaracterized, or not affecting real-world post-crash exit behavior.",
-      "evidence_ids": [
-        "7e418807d8b97802e4ccbb5f02a3d937",
-        "84dbbf2f31e3becb274ff336e69b676b",
-        "8a7f44ed04bc513c6fdec529cff9f1f1",
-        "8bbd7f4f68cb90f6ccbef5c8b68cb6f6",
-        "9532bf89abb985fbf5096c49322c97e4",
-        "9bc8ac05699fd35e6ef4809dfb595ce4",
-        "9f05ed15abe229a3585a9637124a9632"
-      ],
-      "citation_filter": {
-        "requested": 16,
-        "relevant": 7,
-        "dropped": 9
-      },
-      "voice_count": 6,
-      "platforms": [
-        "x"
-      ],
-      "gates": {
-        "specificity": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
-          "metrics": {
-            "anchor_terms": [
-              "hidden door releases",
-              "can't find after a crash",
-              "recall",
-              "Tesla",
-              "Model 3"
-            ]
-          }
-        },
-        "behavior": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Concrete behavior appears in at least two independent cited voices.",
-          "metrics": {
-            "behaviour_type": "pain_point",
-            "records": 5,
-            "authors": 4
-          }
-        },
-        "anomaly": {
-          "state": "unknown",
-          "passed": null,
-          "reason": "Comparable uncapped historical windows are unavailable.",
-          "metrics": {
-            "current_count": 0,
-            "prior_counts": []
-          }
-        },
-        "breadth": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent.",
-          "metrics": {
-            "authors": 6,
-            "roots": 7,
-            "platforms": 1,
-            "cross_platform": false,
-            "largest_copy_group": 1
-          }
-        },
-        "parity": {
-          "state": "unknown",
-          "passed": null,
-          "reason": "Information parity could not be checked.",
-          "metrics": {
-            "level": "unknown"
-          }
-        },
-        "investigability": {
-          "state": "pass",
-          "passed": true,
-          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
-          "metrics": {}
-        }
-      },
-      "parity": {
-        "articles": [],
-        "level": "unknown",
-        "status": "not_checked_before_history"
-      },
-      "windows": [],
-      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
-      "inferred_panel_id": "automobiles",
-      "review_status": "needs_history",
-      "blocking_reasons": [
-        "Comparable uncapped historical windows are unavailable.",
-        "Information parity could not be checked."
-      ],
-      "caveats": [
-        "9 cited records were removed because the text did not support the specific subject.",
-        "Independent voices were found on one platform only."
-      ],
-      "evidence": [
-        {
-          "id": "7e418807d8b97802e4ccbb5f02a3d937",
-          "platform": "x",
-          "url": "https://x.com/Laraib_Fatiima/status/2090875702942081104",
-          "author": "Laraib_Fatiima",
-          "text": "BREAKING: Tesla has issued its largest-ever product recall in mainland China, as Elon Musk’s firm pledges to fix a door-handle issue affecting nearly 3 million vehicles.\n\nThe company will call back a total of 2.98 million vehicles, including Shanghai-made Model 3s and Model Ys as well as other cars imported from the United States, according to a statement issued by China’s State Administration for Market Regulation on Friday.\n\nThis Tesla recall is part of a wider China-wide push affecting 4.3 mi",
-          "created_at": "Fri Aug 21 18:56:28 +0000 2026"
-        },
-        {
-          "id": "84dbbf2f31e3becb274ff336e69b676b",
-          "platform": "x",
-          "url": "https://x.com/CodingNoobie/status/2090868143376023686",
-          "author": "CodingNoobie",
-          "text": "DAILY TECH NEWS ROUNDUP 🚨\n\nEverything important that happened in tech during the last 24 hours:\n\nMicron is investing $10 billion over the next decade in a new Boise research hub focused on memory, compute, packaging, and semiconductor technologies for AI.\n\nSupermicro found no evidence current executives knew about the alleged Nvidia chip diversion to China but fired employees over export-control violations.\n\nCastelion raised $1 billion at a $13 billion valuation to scale hypersonic weapons and e",
-          "created_at": "Fri Aug 21 18:26:26 +0000 2026"
-        },
-        {
-          "id": "8a7f44ed04bc513c6fdec529cff9f1f1",
-          "platform": "x",
-          "url": "https://x.com/Unusual_Dami/status/2090808820356325825",
-          "author": "Unusual_Dami",
-          "text": "they recalled 3 million Teslas because people can't find the door handles in emergencies... man was really designing cars to trap you inside and calling it innovation\n\ngive me a 2008 Camry with door handles I can see over this futuristic coffin. if escaping your car needs a tutorial, that's not progress that's just bad design\n\nsame energy as phones without headphone jacks removing basic features and gaslighting us into thinking we're outdated for complaining",
-          "created_at": "Fri Aug 21 14:30:42 +0000 2026"
-        },
-        {
-          "id": "8bbd7f4f68cb90f6ccbef5c8b68cb6f6",
-          "platform": "x",
-          "url": "https://x.com/Neome_com/status/2090876886519865383",
-          "author": "Neome_com",
-          "text": "CRYPTO BREAKING NEWS: Only the latest. No repeats 💙 \n • BounceBit to Shut Down Standalone Blockchain and Move to BNB Chain After Exploit.\n • Brian Armstrong: Crypto Regulatory Clarity Coming by Mid-September.\n • Bitcoin Hits the $80,000 Mark – Will It Keep Rising? Analysts Issue a Warning.\n • Ripple handles $16 trillion in transactions, sets sights on more on-chain growth.\n • Nomura-Backed Laser Digital Wins Japan’s First Crypto Approval in Four Years.\n • XRP Market Outlook: Buyers Reclaim Momen",
-          "created_at": "Fri Aug 21 19:01:11 +0000 2026"
-        },
-        {
-          "id": "9532bf89abb985fbf5096c49322c97e4",
-          "platform": "x",
-          "url": "https://x.com/tldrnewsletter/status/2090878883147001990",
-          "author": "tldrnewsletter",
-          "text": "China's market regulator ordered Tesla to recall 2.98 million vehicles over emergency door releases it says are too hard to find after a crash, the largest recall in Tesla's history in any market. Tesla filed a second recall the same day covering 2.74 million Model 3 and Model Y cars, adding cabin-camera eye tracking to its driver monitoring system.",
-          "created_at": "Fri Aug 21 19:09:07 +0000 2026"
-        },
-        {
-          "id": "9bc8ac05699fd35e6ef4809dfb595ce4",
-          "platform": "x",
-          "url": "https://x.com/UnbiasedHdlns/status/2090877459029729497",
-          "author": "UnbiasedHdlns",
-          "text": "China just ordered Tesla to recall almost 3 million cars.\n\n- It's over hidden door releases people can't find after a crash.\n- Eight other automakers filed the same recall the same day, nearly 4.27 million cars total.\n- Bloomberg has tied at least 15 deaths to Tesla doors that wouldn't open after a crash.\n\nFacts. Not Spin.\n\nRead the full story: https://t.co/YHpDlPDjq3",
-          "created_at": "Fri Aug 21 19:03:27 +0000 2026"
-        },
-        {
-          "id": "9f05ed15abe229a3585a9637124a9632",
-          "platform": "x",
-          "url": "https://x.com/CodingNoobie/status/2090868291581681971",
-          "author": "CodingNoobie",
-          "text": "Detailed:\n\nMicron announced a $10 billion investment over the next decade to build Micron Research Labs in Boise, focused on next-generation memory, compute architectures, advanced packaging, and semiconductor manufacturing. The facility is expected to break ground in 2027 and targets technologies that could become critical infrastructure for future AI systems.\n\nSupermicro completed an independent investigation into the alleged diversion of Nvidia AI servers to China and said it found no evidenc",
-          "created_at": "Fri Aug 21 18:27:01 +0000 2026"
-        }
-      ]
-    },
-    {
-      "candidate_id": "c830aff3ec0dc08911133196",
+      "candidate_id": "88adf53f01bef01280231c75",
       "panel_id": "fashion_apparel",
       "qualification_status": "not_qualified",
-      "label": "St Michael x Aries green bag sold out early with tiny allocation",
+      "label": "St Michael x Aries green bag early sellout/allocation issue",
       "behaviour_type": "shortage",
       "anchor_terms": [
         "St Michael",
         "Aries",
         "green bag",
-        "put live early",
-        "instantly sold out"
+        "sold out",
+        "allocated"
       ],
-      "summary": "One detailed X post alleges the St Michael x Aries green bag was launched early, instantly sold out, and had only a very small number of units available, with store stock reportedly pre-allocated.",
-      "economic_mechanism": "Ultra-limited allocation and mistimed release can create artificial scarcity, resale activity, and distorted read-through on real demand.",
-      "why_investigate": "Highly specific product anchor with detailed mechanics around launch timing, allocation, and resale; strong investigable single-post signal even without cross-platform confirmation.",
-      "contradiction": "This is based on one author's synthesis of comments and website clues rather than direct multi-author confirmation.",
-      "invalidation": "Invalid if inventory was larger than alleged or if early sellout was caused mainly by technical errors or controlled influencer allocation unrelated to real demand.",
+      "summary": "An X post details that the heavily promoted St Michael x Aries green bag appeared to go live early, sold out instantly, and some store stock was reportedly pre-allocated, with only 16 bags sold online per a third-party site signal.",
+      "economic_mechanism": "Extreme scarcity or mismanaged allocation can create resale activity, frustrate would-be buyers, and distort demand signals around limited drops.",
+      "why_investigate": "This is highly specific, behavior-rich, and includes sellout plus secondary-market emergence, though evidence is currently single-source on one platform.",
+      "contradiction": "Could reflect a deliberately tiny promotional drop rather than broad demand or operational failure.",
+      "invalidation": "Invalidate if later evidence shows normal stock levels elsewhere, intentional seeding, or negligible follow-on demand.",
       "evidence_ids": [
         "e7df676c6813b7dbc5ce93263d93dcc7"
       ],
+      "evidence_kinds": {
+        "e7df676c6813b7dbc5ce93263d93dcc7": "observation"
+      },
+      "engagement_by_id": {},
       "citation_filter": {
-        "requested": 7,
+        "requested": 1,
         "relevant": 1,
-        "dropped": 6
+        "dropped": 0
       },
       "voice_count": 1,
       "platforms": [
@@ -458,8 +2564,8 @@
               "St Michael",
               "Aries",
               "green bag",
-              "put live early",
-              "instantly sold out"
+              "sold out",
+              "allocated"
             ]
           }
         },
@@ -471,6 +2577,20 @@
             "behaviour_type": "shortage",
             "records": 1,
             "authors": 1
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
           }
         },
         "anomaly": {
@@ -516,76 +2636,1526 @@
       },
       "windows": [],
       "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
-      "inferred_panel_id": "fashion_apparel",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 12,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 0
+          },
+          {
+            "date": "2026-05-28",
+            "value": 0
+          },
+          {
+            "date": "2026-05-29",
+            "value": 0
+          },
+          {
+            "date": "2026-05-30",
+            "value": 0
+          },
+          {
+            "date": "2026-05-31",
+            "value": 0
+          },
+          {
+            "date": "2026-06-01",
+            "value": 0
+          },
+          {
+            "date": "2026-06-02",
+            "value": 0
+          },
+          {
+            "date": "2026-06-03",
+            "value": 0
+          },
+          {
+            "date": "2026-06-04",
+            "value": 0
+          },
+          {
+            "date": "2026-06-05",
+            "value": 0
+          },
+          {
+            "date": "2026-06-06",
+            "value": 0
+          },
+          {
+            "date": "2026-06-07",
+            "value": 0
+          },
+          {
+            "date": "2026-06-08",
+            "value": 0
+          },
+          {
+            "date": "2026-06-09",
+            "value": 0
+          },
+          {
+            "date": "2026-06-10",
+            "value": 0
+          },
+          {
+            "date": "2026-06-11",
+            "value": 0
+          },
+          {
+            "date": "2026-06-12",
+            "value": 0
+          },
+          {
+            "date": "2026-06-13",
+            "value": 0
+          },
+          {
+            "date": "2026-06-14",
+            "value": 0
+          },
+          {
+            "date": "2026-06-15",
+            "value": 0
+          },
+          {
+            "date": "2026-06-16",
+            "value": 0
+          },
+          {
+            "date": "2026-06-17",
+            "value": 0
+          },
+          {
+            "date": "2026-06-18",
+            "value": 0
+          },
+          {
+            "date": "2026-06-19",
+            "value": 0
+          },
+          {
+            "date": "2026-06-20",
+            "value": 0
+          },
+          {
+            "date": "2026-06-21",
+            "value": 0
+          },
+          {
+            "date": "2026-06-22",
+            "value": 0
+          },
+          {
+            "date": "2026-06-23",
+            "value": 0
+          },
+          {
+            "date": "2026-06-24",
+            "value": 0
+          },
+          {
+            "date": "2026-06-25",
+            "value": 0
+          },
+          {
+            "date": "2026-06-26",
+            "value": 0
+          },
+          {
+            "date": "2026-06-27",
+            "value": 0
+          },
+          {
+            "date": "2026-06-28",
+            "value": 0
+          },
+          {
+            "date": "2026-06-29",
+            "value": 0
+          },
+          {
+            "date": "2026-06-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-01",
+            "value": 0
+          },
+          {
+            "date": "2026-07-02",
+            "value": 0
+          },
+          {
+            "date": "2026-07-03",
+            "value": 0
+          },
+          {
+            "date": "2026-07-04",
+            "value": 0
+          },
+          {
+            "date": "2026-07-05",
+            "value": 0
+          },
+          {
+            "date": "2026-07-06",
+            "value": 0
+          },
+          {
+            "date": "2026-07-07",
+            "value": 0
+          },
+          {
+            "date": "2026-07-08",
+            "value": 0
+          },
+          {
+            "date": "2026-07-09",
+            "value": 0
+          },
+          {
+            "date": "2026-07-10",
+            "value": 0
+          },
+          {
+            "date": "2026-07-11",
+            "value": 0
+          },
+          {
+            "date": "2026-07-12",
+            "value": 0
+          },
+          {
+            "date": "2026-07-13",
+            "value": 0
+          },
+          {
+            "date": "2026-07-14",
+            "value": 0
+          },
+          {
+            "date": "2026-07-15",
+            "value": 0
+          },
+          {
+            "date": "2026-07-16",
+            "value": 0
+          },
+          {
+            "date": "2026-07-17",
+            "value": 0
+          },
+          {
+            "date": "2026-07-18",
+            "value": 0
+          },
+          {
+            "date": "2026-07-19",
+            "value": 0
+          },
+          {
+            "date": "2026-07-20",
+            "value": 0
+          },
+          {
+            "date": "2026-07-21",
+            "value": 0
+          },
+          {
+            "date": "2026-07-22",
+            "value": 0
+          },
+          {
+            "date": "2026-07-23",
+            "value": 0
+          },
+          {
+            "date": "2026-07-24",
+            "value": 0
+          },
+          {
+            "date": "2026-07-25",
+            "value": 0
+          },
+          {
+            "date": "2026-07-26",
+            "value": 0
+          },
+          {
+            "date": "2026-07-27",
+            "value": 0
+          },
+          {
+            "date": "2026-07-28",
+            "value": 0
+          },
+          {
+            "date": "2026-07-29",
+            "value": 0
+          },
+          {
+            "date": "2026-07-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-31",
+            "value": 0
+          },
+          {
+            "date": "2026-08-01",
+            "value": 0
+          },
+          {
+            "date": "2026-08-02",
+            "value": 0
+          },
+          {
+            "date": "2026-08-03",
+            "value": 0
+          },
+          {
+            "date": "2026-08-04",
+            "value": 0
+          },
+          {
+            "date": "2026-08-05",
+            "value": 0
+          },
+          {
+            "date": "2026-08-06",
+            "value": 0
+          },
+          {
+            "date": "2026-08-07",
+            "value": 0
+          },
+          {
+            "date": "2026-08-08",
+            "value": 0
+          },
+          {
+            "date": "2026-08-09",
+            "value": 0
+          },
+          {
+            "date": "2026-08-10",
+            "value": 0
+          },
+          {
+            "date": "2026-08-11",
+            "value": 0
+          },
+          {
+            "date": "2026-08-12",
+            "value": 0
+          },
+          {
+            "date": "2026-08-13",
+            "value": 0
+          },
+          {
+            "date": "2026-08-14",
+            "value": 0
+          },
+          {
+            "date": "2026-08-15",
+            "value": 8
+          },
+          {
+            "date": "2026-08-16",
+            "value": 100
+          },
+          {
+            "date": "2026-08-17",
+            "value": 36
+          },
+          {
+            "date": "2026-08-18",
+            "value": 11
+          },
+          {
+            "date": "2026-08-19",
+            "value": 8
+          },
+          {
+            "date": "2026-08-20",
+            "value": 25
+          },
+          {
+            "date": "2026-08-21",
+            "value": 8
+          },
+          {
+            "date": "2026-08-22",
+            "value": 8
+          },
+          {
+            "date": "2026-08-23",
+            "value": 3
+          },
+          {
+            "date": "2026-08-24",
+            "value": 5
+          },
+          {
+            "date": "2026-08-25",
+            "value": 3
+          },
+          {
+            "date": "2026-08-26",
+            "value": 2
+          },
+          {
+            "date": "2026-08-27",
+            "value": 0
+          }
+        ],
+        "query": "St Michael Aries",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
       "review_status": "rejected",
       "blocking_reasons": [
         "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior.",
         "Evidence is too concentrated in one voice, root, or copied text.",
-        "Comparable uncapped historical windows are unavailable.",
-        "Information parity could not be checked.",
         "The proposal is unanchored, incomplete, or contains an unsupported financial claim."
       ],
-      "caveats": [
-        "6 cited records were removed because the text did not support the specific subject."
-      ],
+      "caveats": [],
       "evidence": [
         {
           "id": "e7df676c6813b7dbc5ce93263d93dcc7",
           "platform": "x",
-          "url": "https://x.com/danbarker/status/2090869819570573418",
+          "url": "https://platform.twitter.com/embed/Tweet.html?dnt=true&id=2090869819570573418",
+          "source_url": "https://x.com/danbarker/status/2090869819570573418",
           "author": "danbarker",
           "text": "Marks and Spencer did something slightly cheeky this week. They very, very heavily promoted that they were relaunching a 'St Michael' brand clothing range, in collaboration with the streetwear brand Aries.\n\nEvery article about it, and their own website, featured this green bag as the main item. Featured in the Mail, Telegraph, Guardian, Grazia, The Times, GQ, Harpers Bazaar, Metro, the Mirror, and on and on. Theoretically hundreds of thousands in advertising value.\n\nThey announced it would be la",
-          "created_at": "Fri Aug 21 18:33:06 +0000 2026"
+          "created_at": "Fri Aug 21 18:33:06 +0000 2026",
+          "engagement": {
+            "bookmarks": 158,
+            "collects": null,
+            "comments": 24,
+            "likes": 411,
+            "replies": null,
+            "reposts": 16,
+            "shares": 16,
+            "upvotes": null,
+            "views": 175058
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "ec5b59bc5b4afe5f0d9a12e6",
+      "panel_id": "fintech_payments",
+      "qualification_status": "not_qualified",
+      "label": "UK bank switching offers around Santander/Nationwide/Revolut",
+      "behaviour_type": "switching",
+      "anchor_terms": [
+        "switching offers",
+        "Santander",
+        "Nationwide",
+        "Revolut"
+      ],
+      "summary": "A TikTok roundup highlights current UK bank switching offers, ranking Santander, Nationwide, and Revolut-related incentives and explicitly framing bank tenure as a reason to reconsider providers.",
+      "economic_mechanism": "Cash incentives and upgraded savings/protection features can accelerate account switching and deposit reallocation between banks.",
+      "why_investigate": "Specific named institutions and explicit switching incentives make this more actionable than generic personal-finance content.",
+      "contradiction": "This is promotional/informational content rather than confirmed realized switching behavior.",
+      "invalidation": "Invalidate if the offers expire without persistent search interest or if eligibility frictions suppress actual switching.",
+      "evidence_ids": [
+        "35acae047c2476e38658a350ead8ec57"
+      ],
+      "evidence_kinds": {
+        "35acae047c2476e38658a350ead8ec57": "firsthand"
+      },
+      "engagement_by_id": {},
+      "citation_filter": {
+        "requested": 1,
+        "relevant": 1,
+        "dropped": 0
+      },
+      "voice_count": 1,
+      "platforms": [
+        "tiktok"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "switching offers",
+              "Santander",
+              "Nationwide",
+              "Revolut"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "switching",
+            "records": 0,
+            "authors": 0
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Fewer than three independent firsthand voices support this behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 0,
+            "proof_evidence_ids": []
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "fail",
+          "passed": false,
+          "reason": "The proposal is unanchored, incomplete, or contains an unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 92,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 87
+          },
+          {
+            "date": "2026-05-28",
+            "value": 65
+          },
+          {
+            "date": "2026-05-29",
+            "value": 39
+          },
+          {
+            "date": "2026-05-30",
+            "value": 56
+          },
+          {
+            "date": "2026-05-31",
+            "value": 68
+          },
+          {
+            "date": "2026-06-01",
+            "value": 81
+          },
+          {
+            "date": "2026-06-02",
+            "value": 73
+          },
+          {
+            "date": "2026-06-03",
+            "value": 71
+          },
+          {
+            "date": "2026-06-04",
+            "value": 74
+          },
+          {
+            "date": "2026-06-05",
+            "value": 71
+          },
+          {
+            "date": "2026-06-06",
+            "value": 42
+          },
+          {
+            "date": "2026-06-07",
+            "value": 32
+          },
+          {
+            "date": "2026-06-08",
+            "value": 69
+          },
+          {
+            "date": "2026-06-09",
+            "value": 75
+          },
+          {
+            "date": "2026-06-10",
+            "value": 74
+          },
+          {
+            "date": "2026-06-11",
+            "value": 63
+          },
+          {
+            "date": "2026-06-12",
+            "value": 100
+          },
+          {
+            "date": "2026-06-13",
+            "value": 58
+          },
+          {
+            "date": "2026-06-14",
+            "value": 41
+          },
+          {
+            "date": "2026-06-15",
+            "value": 78
+          },
+          {
+            "date": "2026-06-16",
+            "value": 75
+          },
+          {
+            "date": "2026-06-17",
+            "value": 64
+          },
+          {
+            "date": "2026-06-18",
+            "value": 41
+          },
+          {
+            "date": "2026-06-19",
+            "value": 78
+          },
+          {
+            "date": "2026-06-20",
+            "value": 53
+          },
+          {
+            "date": "2026-06-21",
+            "value": 63
+          },
+          {
+            "date": "2026-06-22",
+            "value": 43
+          },
+          {
+            "date": "2026-06-23",
+            "value": 54
+          },
+          {
+            "date": "2026-06-24",
+            "value": 59
+          },
+          {
+            "date": "2026-06-25",
+            "value": 59
+          },
+          {
+            "date": "2026-06-26",
+            "value": 30
+          },
+          {
+            "date": "2026-06-27",
+            "value": 36
+          },
+          {
+            "date": "2026-06-28",
+            "value": 56
+          },
+          {
+            "date": "2026-06-29",
+            "value": 51
+          },
+          {
+            "date": "2026-06-30",
+            "value": 83
+          },
+          {
+            "date": "2026-07-01",
+            "value": 96
+          },
+          {
+            "date": "2026-07-02",
+            "value": 76
+          },
+          {
+            "date": "2026-07-03",
+            "value": 58
+          },
+          {
+            "date": "2026-07-04",
+            "value": 71
+          },
+          {
+            "date": "2026-07-05",
+            "value": 65
+          },
+          {
+            "date": "2026-07-06",
+            "value": 65
+          },
+          {
+            "date": "2026-07-07",
+            "value": 76
+          },
+          {
+            "date": "2026-07-08",
+            "value": 66
+          },
+          {
+            "date": "2026-07-09",
+            "value": 76
+          },
+          {
+            "date": "2026-07-10",
+            "value": 82
+          },
+          {
+            "date": "2026-07-11",
+            "value": 56
+          },
+          {
+            "date": "2026-07-12",
+            "value": 58
+          },
+          {
+            "date": "2026-07-13",
+            "value": 61
+          },
+          {
+            "date": "2026-07-14",
+            "value": 100
+          },
+          {
+            "date": "2026-07-15",
+            "value": 69
+          },
+          {
+            "date": "2026-07-16",
+            "value": 67
+          },
+          {
+            "date": "2026-07-17",
+            "value": 48
+          },
+          {
+            "date": "2026-07-18",
+            "value": 36
+          },
+          {
+            "date": "2026-07-19",
+            "value": 0
+          },
+          {
+            "date": "2026-07-20",
+            "value": 42
+          },
+          {
+            "date": "2026-07-21",
+            "value": 56
+          },
+          {
+            "date": "2026-07-22",
+            "value": 86
+          },
+          {
+            "date": "2026-07-23",
+            "value": 65
+          },
+          {
+            "date": "2026-07-24",
+            "value": 54
+          },
+          {
+            "date": "2026-07-25",
+            "value": 79
+          },
+          {
+            "date": "2026-07-26",
+            "value": 42
+          },
+          {
+            "date": "2026-07-27",
+            "value": 58
+          },
+          {
+            "date": "2026-07-28",
+            "value": 60
+          },
+          {
+            "date": "2026-07-29",
+            "value": 70
+          },
+          {
+            "date": "2026-07-30",
+            "value": 53
+          },
+          {
+            "date": "2026-07-31",
+            "value": 85
+          },
+          {
+            "date": "2026-08-01",
+            "value": 51
+          },
+          {
+            "date": "2026-08-02",
+            "value": 55
+          },
+          {
+            "date": "2026-08-03",
+            "value": 56
+          },
+          {
+            "date": "2026-08-04",
+            "value": 65
+          },
+          {
+            "date": "2026-08-05",
+            "value": 71
+          },
+          {
+            "date": "2026-08-06",
+            "value": 62
+          },
+          {
+            "date": "2026-08-07",
+            "value": 64
+          },
+          {
+            "date": "2026-08-08",
+            "value": 62
+          },
+          {
+            "date": "2026-08-09",
+            "value": 67
+          },
+          {
+            "date": "2026-08-10",
+            "value": 53
+          },
+          {
+            "date": "2026-08-11",
+            "value": 68
+          },
+          {
+            "date": "2026-08-12",
+            "value": 56
+          },
+          {
+            "date": "2026-08-13",
+            "value": 56
+          },
+          {
+            "date": "2026-08-14",
+            "value": 52
+          },
+          {
+            "date": "2026-08-15",
+            "value": 51
+          },
+          {
+            "date": "2026-08-16",
+            "value": 53
+          },
+          {
+            "date": "2026-08-17",
+            "value": 70
+          },
+          {
+            "date": "2026-08-18",
+            "value": 68
+          },
+          {
+            "date": "2026-08-19",
+            "value": 67
+          },
+          {
+            "date": "2026-08-20",
+            "value": 71
+          },
+          {
+            "date": "2026-08-21",
+            "value": 57
+          },
+          {
+            "date": "2026-08-22",
+            "value": 38
+          },
+          {
+            "date": "2026-08-23",
+            "value": 42
+          },
+          {
+            "date": "2026-08-24",
+            "value": 52
+          },
+          {
+            "date": "2026-08-25",
+            "value": 57
+          },
+          {
+            "date": "2026-08-26",
+            "value": 57
+          },
+          {
+            "date": "2026-08-27",
+            "value": 49
+          }
+        ],
+        "query": "bank switch offer",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "rejected",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Fewer than three independent firsthand voices support this behavior.",
+        "Evidence is too concentrated in one voice, root, or copied text.",
+        "The proposal is unanchored, incomplete, or contains an unsupported financial claim."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "35acae047c2476e38658a350ead8ec57",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@thequidsquid/video/7657952895475682582",
+          "source_url": "https://www.tiktok.com/@thequidsquid/video/7657952895475682582",
+          "author": "thequidsquid",
+          "text": "The best bank isn't always the one you've been with the longest. 🏦 If your bank isn't rewarding you, it might be time to see what else is out there. This month there are some brilliant offers available. 🥉 Revolut has become a fully licensed UK bank, giving eligible deposits FSCS protection up to £120,000. They've also launched a 5% savings rate on up to £25,000 and there's a £25 sign-up bonus available via MoneySavingExpert's link. 🥈 Nationwide continues to reward loyalty. I recently received £1",
+          "created_at": "2026-07-02T15:28:28+00:00",
+          "engagement": {
+            "bookmarks": null,
+            "collects": null,
+            "comments": 47,
+            "likes": 2886,
+            "replies": null,
+            "reposts": null,
+            "shares": 331,
+            "upvotes": null,
+            "views": 88900
+          }
+        }
+      ]
+    },
+    {
+      "candidate_id": "b661484cd9ce46645ea21de0",
+      "panel_id": "automobiles",
+      "qualification_status": "not_qualified",
+      "label": "hidden door releases after crash",
+      "behaviour_type": "pain_point",
+      "anchor_terms": [
+        "hidden door releases",
+        "door releases",
+        "can't find after a crash"
+      ],
+      "summary": "Multiple independent X posts cite a large China recall centered on occupants being unable to find hidden/emergency door releases after a crash, including Tesla and other automakers.",
+      "economic_mechanism": "A specific safety/usability failure can trigger recalls, redesigns, owner concern, and shifts toward simpler door egress solutions or retrofits.",
+      "why_investigate": "This is unusually specific, repeated by independent authors, and tied to a concrete product interaction rather than general sentiment.",
+      "contradiction": "Evidence is news-driven and recall-focused, not direct consumer switching or purchase behavior.",
+      "invalidation": "Invalidate if follow-up evidence shows the issue is isolated to regulator framing, quickly remedied, or not influencing owner behavior/search interest.",
+      "evidence_ids": [
+        "9bc8ac05699fd35e6ef4809dfb595ce4"
+      ],
+      "evidence_kinds": {
+        "9bc8ac05699fd35e6ef4809dfb595ce4": "reportage"
+      },
+      "engagement_by_id": {},
+      "citation_filter": {
+        "requested": 1,
+        "relevant": 1,
+        "dropped": 0
+      },
+      "voice_count": 1,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "hidden door releases",
+              "door releases",
+              "can't find after a crash"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "pain_point",
+            "records": 1,
+            "authors": 1
+          }
+        },
+        "evidence_quality": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Matched citations are dominated by reporting or commentary, not firsthand behavior.",
+          "metrics": {
+            "firsthand_records": 0,
+            "firsthand_authors": 0,
+            "firsthand_platforms": 0,
+            "known_engagement_records": 0,
+            "engaged_records": 0,
+            "reportage_records": 1,
+            "proof_evidence_ids": []
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "trajectory": {
+        "error_category": null,
+        "geo": "",
+        "nonzero_points": 52,
+        "normalized": true,
+        "points": [
+          {
+            "date": "2026-05-27",
+            "value": 0
+          },
+          {
+            "date": "2026-05-28",
+            "value": 66
+          },
+          {
+            "date": "2026-05-29",
+            "value": 37
+          },
+          {
+            "date": "2026-05-30",
+            "value": 43
+          },
+          {
+            "date": "2026-05-31",
+            "value": 59
+          },
+          {
+            "date": "2026-06-01",
+            "value": 36
+          },
+          {
+            "date": "2026-06-02",
+            "value": 38
+          },
+          {
+            "date": "2026-06-03",
+            "value": 0
+          },
+          {
+            "date": "2026-06-04",
+            "value": 42
+          },
+          {
+            "date": "2026-06-05",
+            "value": 100
+          },
+          {
+            "date": "2026-06-06",
+            "value": 64
+          },
+          {
+            "date": "2026-06-07",
+            "value": 0
+          },
+          {
+            "date": "2026-06-08",
+            "value": 40
+          },
+          {
+            "date": "2026-06-09",
+            "value": 57
+          },
+          {
+            "date": "2026-06-10",
+            "value": 34
+          },
+          {
+            "date": "2026-06-11",
+            "value": 41
+          },
+          {
+            "date": "2026-06-12",
+            "value": 46
+          },
+          {
+            "date": "2026-06-13",
+            "value": 37
+          },
+          {
+            "date": "2026-06-14",
+            "value": 42
+          },
+          {
+            "date": "2026-06-15",
+            "value": 0
+          },
+          {
+            "date": "2026-06-16",
+            "value": 36
+          },
+          {
+            "date": "2026-06-17",
+            "value": 42
+          },
+          {
+            "date": "2026-06-18",
+            "value": 0
+          },
+          {
+            "date": "2026-06-19",
+            "value": 41
+          },
+          {
+            "date": "2026-06-20",
+            "value": 54
+          },
+          {
+            "date": "2026-06-21",
+            "value": 0
+          },
+          {
+            "date": "2026-06-22",
+            "value": 60
+          },
+          {
+            "date": "2026-06-23",
+            "value": 0
+          },
+          {
+            "date": "2026-06-24",
+            "value": 45
+          },
+          {
+            "date": "2026-06-25",
+            "value": 48
+          },
+          {
+            "date": "2026-06-26",
+            "value": 0
+          },
+          {
+            "date": "2026-06-27",
+            "value": 0
+          },
+          {
+            "date": "2026-06-28",
+            "value": 0
+          },
+          {
+            "date": "2026-06-29",
+            "value": 44
+          },
+          {
+            "date": "2026-06-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-01",
+            "value": 40
+          },
+          {
+            "date": "2026-07-02",
+            "value": 0
+          },
+          {
+            "date": "2026-07-03",
+            "value": 0
+          },
+          {
+            "date": "2026-07-04",
+            "value": 52
+          },
+          {
+            "date": "2026-07-05",
+            "value": 34
+          },
+          {
+            "date": "2026-07-06",
+            "value": 32
+          },
+          {
+            "date": "2026-07-07",
+            "value": 0
+          },
+          {
+            "date": "2026-07-08",
+            "value": 40
+          },
+          {
+            "date": "2026-07-09",
+            "value": 38
+          },
+          {
+            "date": "2026-07-10",
+            "value": 34
+          },
+          {
+            "date": "2026-07-11",
+            "value": 48
+          },
+          {
+            "date": "2026-07-12",
+            "value": 41
+          },
+          {
+            "date": "2026-07-13",
+            "value": 0
+          },
+          {
+            "date": "2026-07-14",
+            "value": 0
+          },
+          {
+            "date": "2026-07-15",
+            "value": 0
+          },
+          {
+            "date": "2026-07-16",
+            "value": 0
+          },
+          {
+            "date": "2026-07-17",
+            "value": 0
+          },
+          {
+            "date": "2026-07-18",
+            "value": 0
+          },
+          {
+            "date": "2026-07-19",
+            "value": 0
+          },
+          {
+            "date": "2026-07-20",
+            "value": 0
+          },
+          {
+            "date": "2026-07-21",
+            "value": 0
+          },
+          {
+            "date": "2026-07-22",
+            "value": 0
+          },
+          {
+            "date": "2026-07-23",
+            "value": 37
+          },
+          {
+            "date": "2026-07-24",
+            "value": 52
+          },
+          {
+            "date": "2026-07-25",
+            "value": 0
+          },
+          {
+            "date": "2026-07-26",
+            "value": 46
+          },
+          {
+            "date": "2026-07-27",
+            "value": 44
+          },
+          {
+            "date": "2026-07-28",
+            "value": 0
+          },
+          {
+            "date": "2026-07-29",
+            "value": 0
+          },
+          {
+            "date": "2026-07-30",
+            "value": 0
+          },
+          {
+            "date": "2026-07-31",
+            "value": 0
+          },
+          {
+            "date": "2026-08-01",
+            "value": 0
+          },
+          {
+            "date": "2026-08-02",
+            "value": 0
+          },
+          {
+            "date": "2026-08-03",
+            "value": 0
+          },
+          {
+            "date": "2026-08-04",
+            "value": 0
+          },
+          {
+            "date": "2026-08-05",
+            "value": 0
+          },
+          {
+            "date": "2026-08-06",
+            "value": 0
+          },
+          {
+            "date": "2026-08-07",
+            "value": 0
+          },
+          {
+            "date": "2026-08-08",
+            "value": 0
+          },
+          {
+            "date": "2026-08-09",
+            "value": 0
+          },
+          {
+            "date": "2026-08-10",
+            "value": 0
+          },
+          {
+            "date": "2026-08-11",
+            "value": 0
+          },
+          {
+            "date": "2026-08-12",
+            "value": 0
+          },
+          {
+            "date": "2026-08-13",
+            "value": 8
+          },
+          {
+            "date": "2026-08-14",
+            "value": 9
+          },
+          {
+            "date": "2026-08-15",
+            "value": 11
+          },
+          {
+            "date": "2026-08-16",
+            "value": 11
+          },
+          {
+            "date": "2026-08-17",
+            "value": 11
+          },
+          {
+            "date": "2026-08-18",
+            "value": 9
+          },
+          {
+            "date": "2026-08-19",
+            "value": 11
+          },
+          {
+            "date": "2026-08-20",
+            "value": 9
+          },
+          {
+            "date": "2026-08-21",
+            "value": 14
+          },
+          {
+            "date": "2026-08-22",
+            "value": 18
+          },
+          {
+            "date": "2026-08-23",
+            "value": 14
+          },
+          {
+            "date": "2026-08-24",
+            "value": 21
+          },
+          {
+            "date": "2026-08-25",
+            "value": 15
+          },
+          {
+            "date": "2026-08-26",
+            "value": 16
+          },
+          {
+            "date": "2026-08-27",
+            "value": 11
+          }
+        ],
+        "query": "Tesla door release",
+        "source": "Google Trends",
+        "status": "complete",
+        "timeframe": "today 3-m"
+      },
+      "inferred_panel_id": null,
+      "review_status": "rejected",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Matched citations are dominated by reporting or commentary, not firsthand behavior.",
+        "Evidence is too concentrated in one voice, root, or copied text."
+      ],
+      "caveats": [],
+      "evidence": [
+        {
+          "id": "9bc8ac05699fd35e6ef4809dfb595ce4",
+          "platform": "x",
+          "url": "https://platform.twitter.com/embed/Tweet.html?dnt=true&id=2090877459029729497",
+          "source_url": "https://x.com/UnbiasedHdlns/status/2090877459029729497",
+          "author": "UnbiasedHdlns",
+          "text": "China just ordered Tesla to recall almost 3 million cars.\n\n- It's over hidden door releases people can't find after a crash.\n- Eight other automakers filed the same recall the same day, nearly 4.27 million cars total.\n- Bloomberg has tied at least 15 deaths to Tesla doors that wouldn't open after a crash.\n\nFacts. Not Spin.\n\nRead the full story: https://t.co/YHpDlPDjq3",
+          "created_at": "Fri Aug 21 19:03:27 +0000 2026",
+          "engagement": {
+            "bookmarks": 0,
+            "collects": null,
+            "comments": 0,
+            "likes": 0,
+            "replies": null,
+            "reposts": 0,
+            "shares": 0,
+            "upvotes": null,
+            "views": 80
+          }
         }
       ]
     }
   ],
   "last_attempt": {
-    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
-    "started_at": "2026-08-27T02:14:30.501166+00:00",
-    "completed_at": "2026-08-27T02:53:56.023254+00:00",
+    "id": "42c3135e62d7441b8ae660377a03351c",
+    "started_at": "2026-08-27T15:30:59.491254+00:00",
+    "completed_at": "2026-08-27T16:17:44.388279+00:00",
     "status": "no_qualified_leads",
     "stage": "complete",
     "progress": 100,
-    "panel_version": "camillo-private-panels/4",
-    "evidence_count": 2203,
+    "panel_version": "camillo-private-panels/5",
+    "evidence_count": 2323,
     "candidate_count": 0,
     "error_category": null
   },
   "data_scan": {
-    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
-    "started_at": "2026-08-27T02:14:30.501166+00:00",
-    "completed_at": "2026-08-27T02:53:56.023254+00:00",
+    "id": "42c3135e62d7441b8ae660377a03351c",
+    "started_at": "2026-08-27T15:30:59.491254+00:00",
+    "completed_at": "2026-08-27T16:17:44.388279+00:00",
     "status": "no_qualified_leads",
     "stage": "complete",
     "progress": 100,
-    "panel_version": "camillo-private-panels/4",
-    "evidence_count": 2203,
+    "panel_version": "camillo-private-panels/5",
+    "evidence_count": 2323,
     "candidate_count": 0,
     "error_category": null
   },
   "review_scan": {
-    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
-    "started_at": "2026-08-27T02:14:30.501166+00:00",
-    "completed_at": "2026-08-27T02:53:56.023254+00:00",
+    "id": "42c3135e62d7441b8ae660377a03351c",
+    "started_at": "2026-08-27T15:30:59.491254+00:00",
+    "completed_at": "2026-08-27T16:17:44.388279+00:00",
     "status": "no_qualified_leads",
     "stage": "complete",
     "progress": 100,
-    "panel_version": "camillo-private-panels/4",
-    "evidence_count": 2203,
+    "panel_version": "camillo-private-panels/5",
+    "evidence_count": 2323,
     "candidate_count": 0,
     "error_category": null
   },
   "displaying_previous_data": false,
   "coverage": {
-    "summary": "0 trade-ready leads and 4 reviewed subjects from 2203 stored evidence records; X discovery checked 64/64 query scopes; 62 reached the per-query sample limit; discovery records found on 4/5 platforms",
+    "summary": "0 trade-ready leads and 8 reviewed subjects from 2323 stored evidence records; X discovery checked 64/64 query scopes; 62 reached the per-query sample limit; discovery records found on 4/5 platforms",
     "sources": [],
     "initial_funnel": {
       "panel_count": 16,
       "query_scopes": 64,
       "complete_scopes": 64,
       "capped_scopes": 62,
-      "reported_records": 1884
+      "reported_records": 1874
     },
     "platforms": {
       "x": {
@@ -593,21 +4163,21 @@
         "complete": 64,
         "partial": 0,
         "failed": 0,
-        "reported_records": 1884
+        "reported_records": 1874
       },
       "tiktok": {
         "scopes": 16,
         "complete": 16,
         "partial": 0,
         "failed": 0,
-        "reported_records": 126
+        "reported_records": 128
       },
       "instagram": {
         "scopes": 16,
         "complete": 16,
         "partial": 0,
         "failed": 0,
-        "reported_records": 47
+        "reported_records": 44
       },
       "reddit": {
         "scopes": 16,
@@ -621,15 +4191,15 @@
         "complete": 15,
         "partial": 1,
         "failed": 0,
-        "reported_records": 55
+        "reported_records": 52
       }
     }
   },
-  "snapshot_observed_at": "2026-08-27T02:53:56.023254+00:00",
+  "snapshot_observed_at": "2026-08-27T16:17:44.388279+00:00",
   "snapshot_mode": "read_only",
   "methodology_recheck": {
     "performed": true,
-    "source_run_id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
+    "source_run_id": "42c3135e62d7441b8ae660377a03351c",
     "new_collection": false
   }
 }

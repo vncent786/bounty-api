@@ -18,6 +18,10 @@ class FakeX:
             author_username=f"u{len(self.queries)}",
             text="I switched to a silicone air fryer liner",
             created_at="2026-08-26T00:00:00Z",
+            views=2500,
+            likes=25,
+            comments=4,
+            shares=2,
         )
         return ConnectorResult(
             items=[item],
@@ -93,6 +97,13 @@ def test_owned_discovery_runs_all_platforms_before_shortlisting():
     assert len(result["sources"]) == 8
     assert len(result["evidence"]) == 8
     assert len(collector.x_connector.queries) == 4
+    assert all("engagement" in item for item in result["evidence"])
+    x_evidence = [item for item in result["evidence"] if item["platform"] == "x"]
+    assert x_evidence[0]["engagement"] == {
+        "views": 2500, "likes": 25, "comments": 4, "shares": 2,
+        "collects": None, "upvotes": None, "replies": None,
+        "reposts": None, "bookmarks": None,
+    }
     assert {call["platform"] for call in broker.search_calls} == {
         "tiktok", "instagram", "reddit", "youtube",
     }

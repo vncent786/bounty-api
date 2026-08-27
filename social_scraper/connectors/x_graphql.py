@@ -41,7 +41,7 @@ class XConnector(BaseConnector):
         self._client = None
         self._sleep = sleep_fn or asyncio.sleep
         self._clock = clock or time.time
-        self._daily_request_limit = 300
+        self._daily_request_limit = 500
 
     @staticmethod
     def _env_int(name: str, default: int) -> int:
@@ -78,14 +78,14 @@ class XConnector(BaseConnector):
         db_path = self._db_path()
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
         self._daily_request_limit = self._env_int(
-            "BOUNTY_X_DAILY_REQUEST_LIMIT", 300
+            "BOUNTY_X_DAILY_REQUEST_LIMIT", 500
         )
         config = ScweetConfig(
             db_path=db_path,
             proxy=os.getenv("BOUNTY_X_PROXY", "").strip() or None,
             concurrency=1,
             daily_requests_limit=self._daily_request_limit,
-            daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 4000),
+            daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 8000),
             requests_per_min=self._env_int("BOUNTY_X_REQUESTS_PER_MIN", 5),
             min_delay_s=float(os.getenv("BOUNTY_X_MIN_DELAY_SECONDS", "3")),
             max_account_switches=0,

@@ -19,6 +19,10 @@ from social_scraper.investing.private_radar import (
     is_supported_qualified,
     review_decision_with_current_methodology,
 )
+from social_scraper.investing.trajectory import (
+    collect_search_trajectory,
+    derive_trajectory_query,
+)
 
 
 DEFAULT_DB = ROOT / "data" / "private_radar.db"
@@ -26,17 +30,37 @@ DEFAULT_OUTPUT = ROOT / "public" / "private-radar-snapshot.json"
 
 
 def _snapshot_evidence(item: dict[str, Any]) -> dict[str, Any]:
+    platform = str(item.get("platform") or "unknown")
+    source_url = str(item.get("url") or "")
+    external_id = str(item.get("external_id") or "")
+    display_url = source_url
+    if platform == "x" and external_id.isdigit():
+        display_url = (
+            "https://platform.twitter.com/embed/Tweet.html?dnt=true&id="
+            f"{external_id}"
+        )
     return {
         "id": str(item.get("id") or ""),
-        "platform": str(item.get("platform") or "unknown"),
-        "url": str(item.get("url") or ""),
+        "platform": platform,
+        "url": display_url,
+        "source_url": source_url,
         "author": item.get("author"),
         "text": str(item.get("text") or "")[:500],
         "created_at": item.get("created_at"),
+        "engagement": (
+            dict(item.get("engagement"))
+            if isinstance(item.get("engagement"), dict)
+            else {}
+        ),
     }
 
 
-def _recheck_decisions(store: PrivateRadarStore, scan: dict[str, Any]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def _recheck_decisions(
+    store: PrivateRadarStore,
+    scan: dict[str, Any],
+    *,
+    trajectory_provider=collect_search_trajectory,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     evidence = store.evidence_for_run(scan["id"])
     evidence_by_id = {str(item["id"]): item for item in evidence}
     panel_by_id = {
@@ -46,8 +70,15 @@ def _recheck_decisions(store: PrivateRadarStore, scan: dict[str, Any]) -> tuple[
     qualified = []
     reviewed = []
     for saved in scan.get("decisions") or []:
+        candidate_saved = dict(saved)
+        if not isinstance(candidate_saved.get("trajectory"), dict):
+            trajectory_query = str(
+                candidate_saved.get("trajectory_query")
+                or derive_trajectory_query(candidate_saved)
+            ).strip()
+            candidate_saved["trajectory"] = trajectory_provider(trajectory_query)
         decision, linked_records = review_decision_with_current_methodology(
-            saved, evidence_by_id
+            candidate_saved, evidence_by_id
         )
         if not decision or not linked_records:
             continue
@@ -66,7 +97,7 @@ def _recheck_decisions(store: PrivateRadarStore, scan: dict[str, Any]) -> tuple[
             "evidence": linked,
         })
     reviewed.sort(key=lambda item: (
-        {"needs_history": 0, "needs_more_evidence": 1, "rejected": 2}.get(
+        {"search_movement_only": 0, "needs_more_evidence": 1, "rejected": 2}.get(
             str(item.get("review_status")), 3
         ),
         str(item.get("label") or ""),

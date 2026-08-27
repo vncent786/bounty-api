@@ -286,6 +286,116 @@
     }
   }
 
+  function engagementSummary(record) {
+    const metrics = record?.engagement && typeof record.engagement === 'object'
+      ? record.engagement
+      : {};
+    const parts = [];
+    if (metrics.views !== null && metrics.views !== undefined && Number.isFinite(Number(metrics.views))) {
+      parts.push(`${formatInteger(metrics.views)} views`);
+    }
+    if (metrics.likes !== null && metrics.likes !== undefined && Number.isFinite(Number(metrics.likes))) {
+      parts.push(`${formatInteger(metrics.likes)} likes`);
+    }
+    const replies = Number(metrics.comments || 0) + Number(metrics.replies || 0);
+    if (Number.isFinite(replies) && replies > 0) parts.push(`${formatInteger(replies)} comments/replies`);
+    return parts.length ? parts.join(' · ') : 'Engagement not captured in this scan';
+  }
+
+  function sourceLinkLabel(record) {
+    if (record?.platform === 'x' && String(record?.url || '').includes('platform.twitter.com/embed/')) {
+      return 'X capture';
+    }
+    return platformLabel(record?.platform);
+  }
+
+  function movementPanel(item) {
+    const trajectory = item?.trajectory && typeof item.trajectory === 'object'
+      ? item.trajectory
+      : {};
+    const points = asArray(trajectory.points).filter(point => Number.isFinite(Number(point?.value)));
+    const panel = element('section', 'movement-panel');
+    panel.append(element('p', 'field-label', 'Search movement'));
+    if (points.length < 2) {
+      panel.append(element(
+        'p',
+        'movement-unavailable',
+        'No comparable movement series was collected. This subject cannot enter the watchlist.',
+      ));
+      return panel;
+    }
+    const chartWidth = 640;
+    const chartHeight = 148;
+    const chartLeft = 30;
+    const chartRight = 632;
+    const chartTop = 12;
+    const chartBottom = 132;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'movement-chart');
+    svg.setAttribute('viewBox', `0 0 ${chartWidth} ${chartHeight}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Google search interest for ${trajectory.query || item?.label || 'this subject'}`);
+    [0, 50, 100].forEach(value => {
+      const y = chartBottom - (value / 100) * (chartBottom - chartTop);
+      const guide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      guide.setAttribute('class', 'movement-guide');
+      guide.setAttribute('x1', String(chartLeft));
+      guide.setAttribute('x2', String(chartRight));
+      guide.setAttribute('y1', String(y));
+      guide.setAttribute('y2', String(y));
+      svg.append(guide);
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', 'movement-y-label');
+      label.setAttribute('x', '1');
+      label.setAttribute('y', String(y + 4));
+      label.textContent = String(value);
+      svg.append(label);
+    });
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+    line.setAttribute('class', 'movement-line');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('points', points.map((point, index) => {
+      const x = chartLeft + (index / (points.length - 1)) * (chartRight - chartLeft);
+      const y = chartBottom - (Math.max(0, Math.min(100, Number(point.value))) / 100) * (chartBottom - chartTop);
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    }).join(' '));
+    svg.append(line);
+    const axis = element('div', 'movement-axis');
+    append(
+      axis,
+      element('span', '', String(points[0]?.date || 'Start')),
+      element('span', '', '0–100 normalized'),
+      element('span', '', String(points[points.length - 1]?.date || 'Latest')),
+    );
+    const values = points.map(point => Number(point.value));
+    const latest = values[values.length - 1];
+    const peak = Math.max(...values);
+    const caption = element(
+      'p',
+      'movement-caption',
+      `Google search interest · worldwide · past 90 days · latest ${formatInteger(latest)} · peak ${formatInteger(peak)}. Values are normalized 0–100 within this chart and are not social proof.`,
+    );
+    append(panel, svg, axis, caption);
+    return panel;
+  }
+
+  function evidenceContent(item, record) {
+    const content = element('div', 'evidence-content');
+    const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
+    const rawKind = String(item?.evidence_kinds?.[record?.id] || 'observation');
+    const proofIds = asArray(item?.gates?.evidence_quality?.metrics?.proof_evidence_ids).map(String);
+    const kind = rawKind === 'firsthand'
+      ? proofIds.includes(String(record?.id)) ? 'firsthand behavior' : 'first-person context'
+      : rawKind.replaceAll('_', ' ');
+    append(
+      content,
+      element('span', 'evidence-text', text.length > 180 ? `${text.slice(0, 177)}...` : text),
+      element('span', 'evidence-kind', kind),
+      element('span', 'evidence-engagement', engagementSummary(record)),
+    );
+    return content;
+  }
+
   function supportLabel(value) {
     const labels = {
       cross_platform: 'Cross-platform',
@@ -330,12 +440,11 @@
     const list = element('ul', 'social-evidence-list');
     asArray(item?.evidence).slice(0, 5).forEach(record => {
       const row = element('li');
-      const link = element('a', 'source-link', platformLabel(record?.platform));
+      const link = element('a', 'source-link', sourceLinkLabel(record));
       link.href = safeSourceUrl(record?.url) || '#';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
-      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      append(row, link, evidenceContent(item, record));
       list.append(row);
     });
     if (!list.children.length) list.append(element('li', 'not-reported', 'No openable source evidence was returned.'));
@@ -392,24 +501,23 @@
     const list = element('ul', 'social-evidence-list');
     asArray(item?.evidence).slice(0, 8).forEach(record => {
       const row = element('li');
-      const link = element('a', 'source-link', platformLabel(record?.platform));
+      const link = element('a', 'source-link', sourceLinkLabel(record));
       link.href = safeSourceUrl(record?.url) || '#';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
-      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      append(row, link, evidenceContent(item, record));
       list.append(row);
     });
     evidence.append(list);
-    append(body, heading, taxonomy, summary, singlePlatformCaveat, details, metrics, evidence);
+    append(body, heading, taxonomy, summary, singlePlatformCaveat, movementPanel(item), details, metrics, evidence);
     append(article, rank, body);
     return article;
   }
 
   function reviewStatusCopy(value) {
     const copy = {
-      needs_history: ['Needs history', 'The behavior is worth checking, but comparable history or the market-awareness check is incomplete.'],
-      needs_more_evidence: ['Needs more evidence', 'A concrete observation exists, but there are not yet enough independent supporting voices.'],
+      search_movement_only: ['Search movement only', 'Search interest has a visible trajectory, but comparable social evidence is not yet strong enough for a lead.'],
+      needs_more_evidence: ['Insufficient evidence', 'Too few independent firsthand voices or too little visible engagement support this topic.'],
       rejected: ['Rejected', 'The checked evidence did not support an emerging investment lead.'],
     };
     return copy[value] || ['Reviewed', 'The subject did not pass every promotion check.'];
@@ -465,10 +573,12 @@
       element('p', 'social-reason', item?.why_investigate || item?.economic_mechanism || 'No investigation question was reported.'),
     );
 
+    const qualityMetrics = item?.gates?.evidence_quality?.metrics || {};
     const metrics = element('dl', 'signal-metrics social-metrics');
     append(
       metrics,
-      metric('Independent voices', formatInteger(item?.voice_count)),
+      metric('Firsthand voices', formatInteger(qualityMetrics.firsthand_authors)),
+      metric('Engaged sources', formatInteger(qualityMetrics.engaged_records)),
       metric('Platforms', formatInteger(asArray(item?.platforms).length)),
       metric('Relevant evidence', formatInteger(asArray(item?.evidence).length)),
     );
@@ -478,17 +588,16 @@
     const sourceList = element('ul', 'social-evidence-list');
     asArray(item?.evidence).slice(0, 6).forEach(record => {
       const row = element('li');
-      const link = element('a', 'source-link', platformLabel(record?.platform));
+      const link = element('a', 'source-link', sourceLinkLabel(record));
       link.href = safeSourceUrl(record?.url) || '#';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
-      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      append(row, link, evidenceContent(item, record));
       sourceList.append(row);
     });
     evidence.append(sourceList);
 
-    append(body, heading, taxonomy, summary, statusNote, blockers, question, metrics, evidence);
+    append(body, heading, taxonomy, summary, statusNote, movementPanel(item), blockers, question, metrics, evidence);
     append(article, rank, body);
     return article;
   }
@@ -503,8 +612,8 @@
     const safe = payload && typeof payload === 'object' ? payload : {};
     const items = asArray(safe.items);
     const reviewItems = asArray(safe.review_items);
-    const watchItems = reviewItems.filter(item => item?.review_status !== 'rejected');
-    const rejectedItems = reviewItems.filter(item => item?.review_status === 'rejected');
+    const watchItems = reviewItems.filter(item => item?.review_status === 'search_movement_only');
+    const rejectedItems = reviewItems.filter(item => item?.review_status !== 'search_movement_only');
     const attempt = safe.last_attempt;
     const dataScan = safe.data_scan;
     const list = $('#social-list');
@@ -525,6 +634,8 @@
         : 'Latest scan failed';
     } else if (!items.length && watchItems.length) {
       $('#social-status').textContent = `0 trade-ready · ${formatInteger(watchItems.length)} worth investigating`;
+    } else if (!items.length && rejectedItems.length) {
+      $('#social-status').textContent = `0 trade-ready · ${formatInteger(rejectedItems.length)} topic groups rejected`;
     } else if (dataScan?.status === 'no_qualified_leads') {
       $('#social-status').textContent = 'No qualified leads';
     } else if (dataScan) {
@@ -556,9 +667,9 @@
     }
     if (watchItems.length) {
       list.append(radarSectionHeading(
-        'Early worklist',
+        'Movement-backed watchlist',
         'Worth investigating',
-        'Specific hypotheses with real evidence, shown together with what is still missing. These are not trade recommendations.',
+        'Search movement is visible, but the social evidence is not yet strong enough for a trade-ready lead.',
       ));
       watchItems.forEach((item, index) => list.append(reviewRadarRow(item, index)));
     }
@@ -566,7 +677,7 @@
       list.append(radarSectionHeading(
         'Audit trail',
         'Rejected after review',
-        'These subjects were considered and then rejected. The failed checks are retained so a parser or evidence mistake is visible.',
+        'These topic groups failed evidence quality, novelty, or market-awareness checks. Reporting, dead-end anecdotes, and low-engagement posts are retained here as an audit trail, not promoted.',
       ));
       rejectedItems.forEach((item, index) => list.append(reviewRadarRow(item, index)));
     }

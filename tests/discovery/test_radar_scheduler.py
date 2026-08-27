@@ -1220,7 +1220,10 @@ def test_radar_failure_does_not_stop_zone_loop(tmp_path, monkeypatch):
 
     async def scenario():
         task = scheduler_mod.start_scheduler()
-        await asyncio.sleep(0.15)
+        for _ in range(50):
+            if registry.list_due_calls >= 2:
+                break
+            await asyncio.sleep(0.02)
         assert not task.done()
         assert registry.list_due_calls >= 2
         scheduler_mod.stop_scheduler()

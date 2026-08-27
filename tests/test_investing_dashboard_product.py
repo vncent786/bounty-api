@@ -62,6 +62,11 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert "Why it is not qualified" in script
     assert "Rejected after review" in script
     assert "review_items" in script
+    assert "search_movement_only" in script
+    assert "Google search interest" in script
+    assert "movementPanel" in script
+    assert "engagementSummary" in script
+    assert "Needs history" not in script
     assert '<article class="signal-row"' not in html
     assert "synthetic" not in combined
     assert "mock signal" not in combined
@@ -125,22 +130,44 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     assert "fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' })" in script
     assert "Read-only snapshot" in script
     assert snapshot["items"] == []
-    assert len(snapshot["review_items"]) == 4
-    assert {item["review_status"] for item in snapshot["review_items"]} >= {
-        "needs_history", "rejected"
+    assert len(snapshot["review_items"]) == 8
+    assert {item["review_status"] for item in snapshot["review_items"]} <= {
+        "needs_more_evidence", "rejected"
     }
+    assert all("trajectory" in item for item in snapshot["review_items"])
+    assert all(
+        item["gates"]["evidence_quality"]["state"] == "fail"
+        for item in snapshot["review_items"]
+    )
+    tesla = next(
+        item for item in snapshot["review_items"]
+        if "hidden door releases" in item["label"].casefold()
+    )
+    assert tesla["review_status"] == "rejected"
+    assert tesla["gates"]["evidence_quality"]["metrics"]["reportage_records"] >= 1
+    evidence = [
+        record for item in snapshot["review_items"] for record in item["evidence"]
+    ]
+    assert any(
+        record["url"].startswith("https://platform.twitter.com/embed/Tweet.html")
+        for record in evidence if record["platform"] == "x"
+    )
+    assert sum(
+        any(value is not None for value in record.get("engagement", {}).values())
+        for record in evidence
+    ) >= 2
     assert snapshot["data_scan"]["status"] == "no_qualified_leads"
-    assert snapshot["data_scan"]["panel_version"] == "camillo-private-panels/4"
+    assert snapshot["data_scan"]["panel_version"] == "camillo-private-panels/5"
     assert snapshot["coverage"]["initial_funnel"] == {
         "panel_count": 16,
         "query_scopes": 64,
         "complete_scopes": 64,
         "capped_scopes": 62,
-        "reported_records": 1884,
+        "reported_records": 1874,
     }
-    assert snapshot["coverage"]["platforms"]["tiktok"]["reported_records"] == 126
-    assert snapshot["coverage"]["platforms"]["instagram"]["reported_records"] == 47
-    assert snapshot["coverage"]["platforms"]["youtube"]["reported_records"] == 55
+    assert snapshot["coverage"]["platforms"]["tiktok"]["reported_records"] == 128
+    assert snapshot["coverage"]["platforms"]["instagram"]["reported_records"] == 44
+    assert snapshot["coverage"]["platforms"]["youtube"]["reported_records"] == 52
     assert snapshot["coverage"]["platforms"]["reddit"]["partial"] == 16
 
 

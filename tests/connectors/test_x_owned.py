@@ -64,8 +64,8 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     ))
 
     assert len(result.items) == 5
-    assert captured["config"]["daily_requests_limit"] == 300
-    assert captured["config"]["daily_tweets_limit"] == 4000
+    assert captured["config"]["daily_requests_limit"] == 500
+    assert captured["config"]["daily_tweets_limit"] == 8000
     assert captured["config"]["requests_per_min"] == 5
     assert captured["config"]["concurrency"] == 1
     assert captured["client"]["db_path"] == str(tmp_path / "state.db")

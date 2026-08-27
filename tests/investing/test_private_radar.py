@@ -10,6 +10,7 @@ from social_scraper.investing.private_radar import (
     PrivateRadarError,
     PrivateRadarScanner,
     PrivateRadarStore,
+    candidate_review_status,
     propose_candidates,
 )
 
@@ -45,7 +46,7 @@ def test_default_panels_cover_the_full_camillo_consumer_universe():
         assert panel.search_term
 
 
-def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare"):
+def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare", engagement=None):
     return {
         "id": eid,
         "panel_id": panel_id,
@@ -54,6 +55,9 @@ def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare"):
         "url": f"https://example.com/{eid}",
         "author": author,
         "text": text,
+        "engagement": engagement if engagement is not None else {
+            "views": 1000, "likes": 20, "comments": 5, "shares": 1,
+        },
         "created_at": "2026-08-26T00:00:00Z",
         "observed_at": "2026-08-26T12:00:00Z",
         "window_key": "current",
@@ -91,7 +95,7 @@ class FakeCollector:
             "evidence": [
                 _evidence(f"{panel.panel_id}-e1", "I switched to a silicone air fryer liner", "a", panel_id=panel.panel_id),
                 _evidence(f"{panel.panel_id}-e2", "We switched to silicone air fryer liners", "b", "instagram", panel.panel_id),
-                _evidence(f"{panel.panel_id}-e3", "Bought another silicone air fryer liner", "c", "youtube", panel.panel_id),
+                _evidence(f"{panel.panel_id}-e3", "I switched to another silicone air fryer liner", "c", "youtube", panel.panel_id),
             ],
             "sources": [
                 {"panel_id": panel.panel_id, "platform": "x", "stage": "discovery", "query_index": index, "status": "complete", "count": 1}
@@ -138,13 +142,80 @@ async def _news(_label, _anchors):
     return {"level": "L1", "status": "niche_coverage", "articles": [], "checked_source": "Google News RSS"}
 
 
+async def _trajectory(query):
+    return {
+        "query": query,
+        "source": "Google Trends",
+        "status": "complete",
+        "normalized": True,
+        "timeframe": "today 3-m",
+        "geo": "",
+        "points": [
+            {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20 + (index % 5)}
+            for index in range(30)
+        ],
+    }
+
+
 def _passing_gates():
     return {
         name: {"state": "pass", "passed": True, "reason": "fixture", "metrics": {}}
         for name in (
-            "specificity", "behavior", "anomaly", "breadth", "parity", "investigability"
+            "specificity", "behavior", "evidence_quality", "anomaly", "breadth", "parity", "investigability"
         )
     }
+
+
+def test_review_requires_visible_movement_before_entering_the_worklist():
+    gates = _passing_gates()
+    gates["anomaly"] = {
+        "state": "unknown", "passed": None,
+        "reason": "Comparable social history is unavailable.", "metrics": {},
+    }
+    decision = {"gates": gates, "citation_filter": {"relevant": 3, "dropped": 0}}
+
+    status, _blockers, _caveats = candidate_review_status(decision)
+    assert status == "rejected"
+
+    decision["trajectory"] = {
+        "status": "complete",
+        "points": [
+            {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20 + (index % 5)}
+            for index in range(30)
+        ],
+    }
+    status, _blockers, _caveats = candidate_review_status(decision)
+    assert status == "search_movement_only"
+
+
+def test_reportage_dominated_quality_failure_is_rejected_not_watchlisted():
+    gates = _passing_gates()
+    gates["evidence_quality"] = {
+        "state": "fail", "passed": False,
+        "reason": "Matched citations are dominated by reporting.",
+        "metrics": {"firsthand_records": 0, "reportage_records": 5},
+    }
+    gates["anomaly"] = {
+        "state": "unknown", "passed": None,
+        "reason": "Comparable social history is unavailable.", "metrics": {},
+    }
+    gates["parity"] = {
+        "state": "unknown", "passed": None,
+        "reason": "Market awareness was not checked.", "metrics": {},
+    }
+    decision = {
+        "gates": gates,
+        "citation_filter": {"relevant": 5, "dropped": 0},
+        "trajectory": {
+            "status": "complete",
+            "points": [{"date": str(index), "value": 50} for index in range(30)],
+        },
+    }
+
+    status, blockers, _caveats = candidate_review_status(decision)
+
+    assert status == "rejected"
+    assert blockers == ["Matched citations are dominated by reporting."]
 
 
 def _qualified_decision(*evidence_ids, label="Qualified", panel_id="beauty_skincare"):
@@ -155,6 +226,23 @@ def _qualified_decision(*evidence_ids, label="Qualified", panel_id="beauty_skinc
         "label": label,
         "evidence_ids": list(evidence_ids),
         "gates": _passing_gates(),
+    }
+
+
+def test_store_round_trips_source_native_engagement(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    store.add_evidence(run_id, [
+        _evidence(
+            "e1", "I switched to a specific product", "a",
+            engagement={"views": 2500, "likes": 25, "comments": 4, "shares": 2},
+        )
+    ])
+
+    loaded = store.evidence_for_run(run_id)
+
+    assert loaded[0]["engagement"] == {
+        "views": 2500, "likes": 25, "comments": 4, "shares": 2
     }
 
 
@@ -572,6 +660,7 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     store = PrivateRadarStore(tmp_path / "radar.db")
     scanner = PrivateRadarScanner(
         store, FakeCollector(), panels=None, llm_call_fn=_llm, news_check_fn=_news,
+        trajectory_check_fn=_trajectory,
     )
     result = asyncio.run(scanner.run())
 
@@ -581,6 +670,8 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     assert len(payload["items"]) == 1
     assert len(payload["items"][0]["evidence"]) == 3
     assert payload["items"][0]["gates"]["anomaly"]["passed"] is True
+    assert payload["items"][0]["trajectory"]["status"] == "complete"
+    assert len(payload["items"][0]["trajectory"]["points"]) == 30
 
 
 def test_model_failure_fails_closed_without_raw_fallback(tmp_path):

@@ -1,0 +1,41 @@
+{
+  "items": [],
+  "last_attempt": {
+    "id": "04904477adb84626b55d2ad9a96f2599",
+    "started_at": "2026-08-26T17:09:49.028339+00:00",
+    "completed_at": "2026-08-26T18:13:45.277282+00:00",
+    "status": "no_qualified_leads",
+    "stage": "complete",
+    "progress": 100,
+    "panel_version": "camillo-private-panels/3",
+    "evidence_count": 1962,
+    "candidate_count": 0,
+    "error_category": null
+  },
+  "data_scan": {
+    "id": "04904477adb84626b55d2ad9a96f2599",
+    "started_at": "2026-08-26T17:09:49.028339+00:00",
+    "completed_at": "2026-08-26T18:13:45.277282+00:00",
+    "status": "no_qualified_leads",
+    "stage": "complete",
+    "progress": 100,
+    "panel_version": "camillo-private-panels/3",
+    "evidence_count": 1962,
+    "candidate_count": 0,
+    "error_category": null
+  },
+  "displaying_previous_data": false,
+  "coverage": {
+    "summary": "0 qualified leads from 1962 stored evidence records; X discovery checked 64/64 query scopes; 61 reached the per-query sample limit",
+    "sources": [],
+    "initial_funnel": {
+      "panel_count": 16,
+      "query_scopes": 64,
+      "complete_scopes": 64,
+      "capped_scopes": 61,
+      "reported_records": 1880
+    }
+  },
+  "snapshot_observed_at": "2026-08-26T18:13:45.277282+00:00",
+  "snapshot_mode": "read_only"
+}

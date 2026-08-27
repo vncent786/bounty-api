@@ -6,6 +6,8 @@
   const SOCIAL_PULSE_URL = '/dashboard/api/investing/social-pulse';
   const PRIVATE_RADAR_URL = '/dashboard/api/investing/private-radar';
   const PRIVATE_SCAN_URL = '/dashboard/api/investing/private-radar/scans';
+  const PRIVATE_SNAPSHOT_URL = '/private-radar-snapshot.json';
+  const READ_ONLY_SNAPSHOT = new URLSearchParams(window.location.search).get('snapshot') === '1';
   const DEFAULT_RADAR_URL = '/dashboard/api/investing/radar?limit=40&country=&category=';
   const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
 
@@ -439,13 +441,28 @@
     items.forEach((item, index) => list.append(privateRadarRow(item, index)));
   }
 
+  async function loadPrivateSnapshot() {
+    const response = await fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' });
+    if (!response.ok) throw new Error(`Snapshot request failed (${response.status})`);
+    return response.json();
+  }
+
   async function loadPrivateRadar() {
     const list = $('#social-list');
     list.setAttribute('aria-busy', 'true');
     try {
-      const payload = await api(PRIVATE_RADAR_URL);
+      const payload = READ_ONLY_SNAPSHOT
+        ? await loadPrivateSnapshot()
+        : await api(PRIVATE_RADAR_URL);
       renderPrivateRadar(payload);
-      if (payload?.last_attempt?.status === 'running') pollPrivateScan(payload.last_attempt.id);
+      if (!READ_ONLY_SNAPSHOT && payload?.last_attempt?.status === 'running') {
+        pollPrivateScan(payload.last_attempt.id);
+      }
+      if (READ_ONLY_SNAPSHOT) {
+        const button = $('#reload-radar');
+        button.disabled = true;
+        button.textContent = 'Read-only snapshot';
+      }
       return payload;
     } catch (error) {
       list.setAttribute('aria-busy', 'false');
@@ -480,6 +497,11 @@
 
   async function startPrivateScan() {
     const button = $('#reload-radar');
+    if (READ_ONLY_SNAPSHOT) {
+      button.disabled = true;
+      button.textContent = 'Read-only snapshot';
+      return;
+    }
     button.disabled = true;
     clearError();
     try {

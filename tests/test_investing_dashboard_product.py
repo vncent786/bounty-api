@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from apis.investing_dashboard_page import (
@@ -106,6 +107,28 @@ def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_hand
     assert "/dashboard/classic?topic=${encodeURIComponent(String(keyword || ''))}" in script
     assert "window.location" not in script[script.index("function classicTopicUrl"):script.index("function showView")]
     assert "innerHTML" not in script
+
+
+def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
+    script = _script()
+    snapshot = json.loads(
+        (ROOT / "public" / "private-radar-snapshot.json").read_text(encoding="utf-8")
+    )
+
+    assert "const PRIVATE_SNAPSHOT_URL = '/private-radar-snapshot.json'" in script
+    assert "const READ_ONLY_SNAPSHOT" in script
+    assert "new URLSearchParams(window.location.search).get('snapshot') === '1'" in script
+    assert "fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' })" in script
+    assert "Read-only snapshot" in script
+    assert snapshot["items"] == []
+    assert snapshot["data_scan"]["status"] == "no_qualified_leads"
+    assert snapshot["coverage"]["initial_funnel"] == {
+        "panel_count": 16,
+        "query_scopes": 64,
+        "complete_scopes": 64,
+        "capped_scopes": 61,
+        "reported_records": 1880,
+    }
 
 
 def test_private_radar_renders_qualified_cited_leads_without_inner_html():

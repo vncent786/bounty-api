@@ -61,6 +61,30 @@ def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare"):
     }
 
 
+def _complete_discovery_sources(panel, *, x_count=0, non_x_counts=None):
+    non_x_counts = dict(non_x_counts or {})
+    return [
+        {
+            "panel_id": panel.panel_id,
+            "platform": "x",
+            "stage": "discovery",
+            "query_index": index,
+            "status": "complete",
+            "count": x_count,
+        }
+        for index in range(max(1, len(panel.x_query_slices)))
+    ] + [
+        {
+            "panel_id": panel.panel_id,
+            "platform": platform,
+            "stage": "discovery",
+            "status": "complete",
+            "count": int(non_x_counts.get(platform, 0)),
+        }
+        for platform in ("tiktok", "instagram", "reddit", "youtube")
+    ]
+
+
 class FakeCollector:
     async def collect_discovery(self, panel):
         return {
@@ -69,7 +93,13 @@ class FakeCollector:
                 _evidence(f"{panel.panel_id}-e2", "We switched to silicone air fryer liners", "b", "instagram", panel.panel_id),
                 _evidence(f"{panel.panel_id}-e3", "Bought another silicone air fryer liner", "c", "youtube", panel.panel_id),
             ],
-            "sources": [{"platform": "x", "status": "complete", "count": 3}],
+            "sources": [
+                {"panel_id": panel.panel_id, "platform": "x", "stage": "discovery", "query_index": index, "status": "complete", "count": 1}
+                for index in range(4)
+            ] + [
+                {"panel_id": panel.panel_id, "platform": platform, "stage": "discovery", "status": "complete", "count": 1 if platform in {"instagram", "youtube"} else 0}
+                for platform in ("tiktok", "instagram", "reddit", "youtube")
+            ],
         }
 
     async def collect_windows(self, panel, anchor_terms):
@@ -117,9 +147,10 @@ def _passing_gates():
     }
 
 
-def _qualified_decision(*evidence_ids, label="Qualified"):
+def _qualified_decision(*evidence_ids, label="Qualified", panel_id="beauty_skincare"):
     return {
         "candidate_id": "q",
+        "panel_id": panel_id,
         "qualification_status": "qualified",
         "label": label,
         "evidence_ids": list(evidence_ids),
@@ -178,8 +209,40 @@ def test_public_payload_discloses_bounded_x_funnel_scope_and_caps(tmp_path):
         "capped_scopes": 3,
         "reported_records": 102,
     }
+    assert payload["coverage"]["platforms"] == {
+        "x": {
+            "scopes": 4,
+            "complete": 4,
+            "partial": 0,
+            "failed": 0,
+            "reported_records": 102,
+        }
+    }
     assert "X discovery checked 4/4 query scopes" in payload["coverage"]["summary"]
     assert "3 reached the per-query sample limit" in payload["coverage"]["summary"]
+    assert "discovery records found on 1/1 platforms" in payload["coverage"]["summary"]
+
+
+def test_store_rejects_cross_panel_citations_even_when_all_gates_claim_pass(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    store.add_evidence(run_id, [
+        _evidence("auto", "I switched to automobile product", "a", panel_id="automobiles"),
+        _evidence("beauty", "I switched to beauty product", "b", "instagram", "beauty_skincare"),
+    ])
+
+    result = store.complete_scan(run_id, [{
+        "candidate_id": "cross-panel",
+        "panel_id": "automobiles",
+        "qualification_status": "qualified",
+        "label": "Cross-panel padding",
+        "evidence_ids": ["auto", "beauty"],
+        "gates": _passing_gates(),
+    }], limitations=[])
+
+    assert result["status"] == "no_qualified_leads"
+    assert result["candidate_count"] == 0
+    assert store.public_payload()["items"] == []
 
 
 def test_unknown_candidate_coverage_cannot_be_reported_as_an_empty_cycle(tmp_path):
@@ -235,23 +298,51 @@ def test_proposals_drop_broad_panel_terms_but_keep_specific_anchors():
 
 def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
     evidence = []
+    non_x_platforms = ("tiktok", "instagram", "reddit", "youtube")
     for panel in DEFAULT_PANELS:
-        for index in range(20):
-            evidence.append(_evidence(
-                f"{panel.panel_id}-{index}",
-                f"I switched to specific {panel.panel_id} product {index}",
-                f"author-{panel.panel_id}-{index}",
-                panel_id=panel.panel_id,
-            ))
+        for query_index, query in enumerate(panel.x_query_slices):
+            for index in range(2):
+                item = _evidence(
+                    f"{panel.panel_id}-x-{query_index}-{index}",
+                    f"I switched to specific {panel.panel_id} product {query_index} {index}",
+                    f"author-{panel.panel_id}-x-{query_index}-{index}",
+                    panel_id=panel.panel_id,
+                )
+                item["query"] = query
+                evidence.append(item)
+        for platform in non_x_platforms:
+            for index in range(2):
+                item = _evidence(
+                    f"{panel.panel_id}-{platform}-{index}",
+                    f"I switched to specific {panel.panel_id} product on {platform} {index}",
+                    f"author-{panel.panel_id}-{platform}-{index}",
+                    platform=platform,
+                    panel_id=panel.panel_id,
+                )
+                item["query"] = panel.search_term
+                evidence.append(item)
 
     async def model(_system, user):
         payload = json.loads(user)
         counts = {}
+        platform_counts = {}
         for record in payload["records"]:
-            counts[record["panel_id"]] = counts.get(record["panel_id"], 0) + 1
-        assert len(payload["records"]) == 192
+            panel_id = record["panel_id"]
+            counts[panel_id] = counts.get(panel_id, 0) + 1
+            platform_counts.setdefault(panel_id, {})[record["platform"]] = (
+                platform_counts.setdefault(panel_id, {}).get(record["platform"], 0) + 1
+            )
+        assert len(payload["records"]) == 256
         assert set(counts) == {panel.panel_id for panel in DEFAULT_PANELS}
-        assert set(counts.values()) == {12}
+        assert set(counts.values()) == {16}
+        for per_platform in platform_counts.values():
+            assert per_platform == {
+                "x": 8,
+                "tiktok": 2,
+                "instagram": 2,
+                "reddit": 2,
+                "youtube": 2,
+            }
         candidates = []
         for panel in DEFAULT_PANELS[:6]:
             candidates.append({
@@ -264,7 +355,7 @@ def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
                 "why_investigate": "Check independent adoption and persistence.",
                 "contradiction": "The checked records may be isolated.",
                 "invalidation": "Reject if independent adoption does not broaden.",
-                "evidence_ids": [f"{panel.panel_id}-0"],
+                "evidence_ids": [f"{panel.panel_id}-x-0-0"],
             })
         return json.dumps({"candidates": candidates, "limitations": []})
 
@@ -278,6 +369,46 @@ def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
     assert [value["panel_id"] for value in proposals] == [
         panel.panel_id for panel in DEFAULT_PANELS[:4]
     ]
+
+
+def test_proposals_cannot_use_evidence_from_another_panel():
+    evidence = [
+        _evidence(
+            "auto-e1",
+            "I switched to a specific automobile product",
+            "auto-author",
+            panel_id="automobiles",
+        ),
+        _evidence(
+            "beauty-e1",
+            "I switched to a specific beauty product",
+            "beauty-author",
+            "instagram",
+            "beauty_skincare",
+        ),
+    ]
+
+    async def model(_system, _user):
+        return '''{"candidates":[{
+          "panel_id":"automobiles",
+          "label":"Specific automobile product switch",
+          "behaviour_type":"switching",
+          "anchor_terms":["specific automobile product"],
+          "summary":"People switched to a specific automobile product.",
+          "economic_mechanism":"Substitution may alter category mix.",
+          "why_investigate":"Check independent adoption.",
+          "contradiction":"The evidence may be isolated.",
+          "invalidation":"Reject if adoption does not broaden.",
+          "evidence_ids":["auto-e1","beauty-e1"]
+        }],"limitations":[]}'''
+
+    proposals, _ = asyncio.run(propose_candidates(
+        evidence,
+        llm_call_fn=model,
+        panels=(DEFAULT_PANELS[0],),
+    ))
+
+    assert proposals[0]["evidence_ids"] == ["auto-e1"]
 
 
 def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
@@ -295,13 +426,7 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
                         panel_id=panel.panel_id,
                     )
                 ],
-                "sources": [{
-                    "panel_id": panel.panel_id,
-                    "platform": "x",
-                    "status": "complete",
-                    "count": 1,
-                    "error_category": None,
-                }],
+                "sources": _complete_discovery_sources(panel, x_count=1),
             }
 
         async def collect_corroboration(self, _panel, _anchors):
@@ -447,18 +572,46 @@ def test_partial_initial_funnel_is_incomplete_even_when_some_evidence_arrived(tm
     assert result["error_category"] == "PrivateRadarCoverageUnavailable"
 
 
+def test_one_usable_non_x_source_allows_scan_with_other_source_gaps(tmp_path):
+    class PartialMultiSourceCollector:
+        async def collect_discovery(self, panel):
+            sources = _complete_discovery_sources(panel, x_count=1)
+            for source in sources:
+                if source["platform"] == "tiktok":
+                    source.update(status="partial", count=1)
+                elif source["platform"] in {"instagram", "reddit", "youtube"}:
+                    source.update(status="failed", count=0)
+            return {
+                "evidence": [
+                    _evidence("x-result", "I switched to product alpha", "x-author", panel_id=panel.panel_id),
+                    _evidence("t-result", "I switched to product beta", "t-author", "tiktok", panel.panel_id),
+                ],
+                "sources": sources,
+            }
+
+    async def no_candidates(_system, _user):
+        return '{"candidates":[],"limitations":["Three non-X sources were unavailable."]}'
+
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    scanner = PrivateRadarScanner(
+        store,
+        PartialMultiSourceCollector(),
+        panels=(DEFAULT_PANELS[0],),
+        llm_call_fn=no_candidates,
+    )
+
+    result = asyncio.run(scanner.run())
+
+    assert result["status"] == "no_qualified_leads"
+    assert result["limitations"] == ["Three non-X sources were unavailable."]
+
+
 def test_healthy_empty_sources_are_an_honest_empty_cycle(tmp_path):
     class HealthyEmptyCollector:
         async def collect_discovery(self, panel):
             return {
                 "evidence": [],
-                "sources": [{
-                    "panel_id": panel.panel_id,
-                    "platform": "x",
-                    "status": "complete",
-                    "count": 0,
-                    "error_category": None,
-                }],
+                "sources": _complete_discovery_sources(panel),
             }
 
     async def no_candidates(_system, _user):
@@ -563,13 +716,7 @@ def test_scanner_heartbeat_keeps_a_blocked_active_scan_owned(tmp_path):
             await self.release.wait()
             return {
                 "evidence": [],
-                "sources": [{
-                    "panel_id": panel.panel_id,
-                    "platform": "x",
-                    "status": "complete",
-                    "count": 0,
-                    "error_category": None,
-                }],
+                "sources": _complete_discovery_sources(panel),
             }
 
     async def no_candidates(_system, _user):

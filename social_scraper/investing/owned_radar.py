@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, Mapping, Sequence
@@ -14,6 +15,7 @@ from apis.social_search_api import build_default_broker
 from social_scraper.connectors.x_graphql import XConnector
 from social_scraper.investing.private_radar import (
     DEFAULT_PANELS,
+    NON_X_DISCOVERY_PLATFORMS,
     Panel,
     PrivateRadarScanner,
     PrivateRadarStore,
@@ -181,6 +183,7 @@ class OwnedRadarCollector:
             sources.append({
                 "panel_id": panel.panel_id,
                 "platform": "x",
+                "stage": "discovery",
                 "query_index": query_index,
                 "query": query,
                 "status": _x_source_status(x_result),
@@ -188,6 +191,24 @@ class OwnedRadarCollector:
                 "error_category": x_result.health.error,
                 "coverage": x_result.health.coverage,
             })
+        platform_results = await asyncio.gather(*(
+            self._broker_search(
+                panel,
+                platform,
+                panel.search_term,
+                count=8,
+                time_filter="month" if platform == "youtube" else "week",
+                sort="latest",
+                hydrate=False,
+            )
+            for platform in NON_X_DISCOVERY_PLATFORMS
+        ))
+        for result in platform_results:
+            source = dict(result["source"])
+            source["stage"] = "discovery"
+            source["query"] = panel.search_term
+            evidence.extend(result["evidence"])
+            sources.append(source)
         deduped = {item["id"]: item for item in evidence}
         return {"evidence": list(deduped.values()), "sources": sources}
 
@@ -252,14 +273,24 @@ class OwnedRadarCollector:
         query = str(anchor_terms[0])
         evidence = []
         sources = []
-        for platform in ("tiktok", "instagram", "reddit", "youtube"):
-            result = await self._broker_search(
-                panel, platform, query, count=5,
+        platform_results = await asyncio.gather(*(
+            self._broker_search(
+                panel,
+                platform,
+                query,
+                count=5,
                 time_filter="month" if platform == "youtube" else "week",
-                sort="latest", hydrate=True,
+                sort="latest",
+                hydrate=True,
             )
+            for platform in NON_X_DISCOVERY_PLATFORMS
+        ))
+        for result in platform_results:
+            source = dict(result["source"])
+            source["stage"] = "corroboration"
+            source["query"] = query
             evidence.extend(result["evidence"])
-            sources.append(result["source"])
+            sources.append(source)
         deduped = {item["id"]: item for item in evidence}
         return {"evidence": list(deduped.values()), "sources": sources}
 

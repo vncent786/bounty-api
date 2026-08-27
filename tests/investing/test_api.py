@@ -218,7 +218,8 @@ def test_private_radar_get_is_persisted_and_qualified_only(tmp_path, monkeypatch
         )
     }
     private_store.complete_scan(run_id, [{
-        "candidate_id": "q", "qualification_status": "qualified",
+        "candidate_id": "q", "panel_id": "beauty",
+        "qualification_status": "qualified",
         "label": "Qualified shift", "evidence_ids": ["e1", "e2"],
         "gates": passing_gates,
     }, {

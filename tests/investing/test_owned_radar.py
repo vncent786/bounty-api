@@ -35,8 +35,18 @@ class NoDiscoveryBroker:
 
 
 class FakeBroker:
+    def __init__(self):
+        self.search_calls = []
+
     async def search(self, *, keyword, platforms, count, time_filter, sort):
         platform = platforms[0]
+        self.search_calls.append({
+            "keyword": keyword,
+            "platform": platform,
+            "count": count,
+            "time_filter": time_filter,
+            "sort": sort,
+        })
         return {
             "items": [{
                 "platform": platform,
@@ -73,13 +83,20 @@ def test_owned_collector_builds_four_comparable_x_windows():
     assert len(result["evidence"]) == 4
 
 
-def test_owned_discovery_is_x_first_and_defers_other_sources_until_shortlist():
-    collector = OwnedRadarCollector(broker=NoDiscoveryBroker(), x_connector=FakeX())
+def test_owned_discovery_runs_all_platforms_before_shortlisting():
+    broker = FakeBroker()
+    collector = OwnedRadarCollector(broker=broker, x_connector=FakeX())
     result = asyncio.run(collector.collect_discovery(DEFAULT_PANELS[0]))
-    assert {source["platform"] for source in result["sources"]} == {"x"}
-    assert len(result["sources"]) == 4
-    assert len(result["evidence"]) == 4
+    assert {source["platform"] for source in result["sources"]} == {
+        "x", "tiktok", "instagram", "reddit", "youtube",
+    }
+    assert len(result["sources"]) == 8
+    assert len(result["evidence"]) == 8
     assert len(collector.x_connector.queries) == 4
+    assert {call["platform"] for call in broker.search_calls} == {
+        "tiktok", "instagram", "reddit", "youtube",
+    }
+    assert all(source["stage"] == "discovery" for source in result["sources"])
 
 
 def test_owned_corroboration_includes_reddit_with_source_receipts():
@@ -93,3 +110,4 @@ def test_owned_corroboration_includes_reddit_with_source_receipts():
         "tiktok", "instagram", "reddit", "youtube",
     }
     assert len(result["evidence"]) == 4
+    assert all(source["stage"] == "corroboration" for source in result["sources"])

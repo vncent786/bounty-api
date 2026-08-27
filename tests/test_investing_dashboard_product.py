@@ -122,13 +122,18 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     assert "Read-only snapshot" in script
     assert snapshot["items"] == []
     assert snapshot["data_scan"]["status"] == "no_qualified_leads"
+    assert snapshot["data_scan"]["panel_version"] == "camillo-private-panels/4"
     assert snapshot["coverage"]["initial_funnel"] == {
         "panel_count": 16,
         "query_scopes": 64,
         "complete_scopes": 64,
-        "capped_scopes": 61,
-        "reported_records": 1880,
+        "capped_scopes": 62,
+        "reported_records": 1884,
     }
+    assert snapshot["coverage"]["platforms"]["tiktok"]["reported_records"] == 126
+    assert snapshot["coverage"]["platforms"]["instagram"]["reported_records"] == 47
+    assert snapshot["coverage"]["platforms"]["youtube"]["reported_records"] == 55
+    assert snapshot["coverage"]["platforms"]["reddit"]["partial"] == 16
 
 
 def test_private_radar_renders_qualified_cited_leads_without_inner_html():

@@ -17,10 +17,11 @@ from typing import Any, Awaitable, Callable, Iterator, Mapping, Sequence
 from social_scraper.investing.qualification import is_specific_anchor, qualify_candidate
 
 
-PANEL_VERSION = "camillo-private-panels/3"
+PANEL_VERSION = "camillo-private-panels/4"
 SCAN_SCHEMA_VERSION = "private-investing-radar/1"
-MAX_DISCOVERY_RECORDS_PER_PANEL = 12
+MAX_DISCOVERY_RECORDS_PER_PANEL = 16
 MAX_SHORTLIST_CANDIDATES = 4
+NON_X_DISCOVERY_PLATFORMS = ("tiktok", "instagram", "reddit", "youtube")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -143,7 +144,7 @@ DEFAULT_PANELS = (
 )
 
 
-_SYSTEM_PROMPT = """Rank and return at most four strongest specific information-arbitrage candidates from the supplied current social evidence. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
+_SYSTEM_PROMPT = """Rank and return at most four strongest specific information-arbitrage candidates from the supplied current multi-platform social evidence. Prefer exact product, service, or problem anchors repeated by independent authors across platforms; a strong single-platform candidate may remain investigable but must not be described as cross-platform. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
 
 
 def _utc_iso(value: datetime | str | None = None) -> str:
@@ -190,7 +191,9 @@ REQUIRED_QUALIFICATION_GATES = {
 
 
 def is_supported_qualified(
-    decision: Mapping[str, Any], available_evidence_ids: set[str] | None = None
+    decision: Mapping[str, Any],
+    available_evidence_ids: set[str] | None = None,
+    evidence_panel_by_id: Mapping[str, str] | None = None,
 ) -> bool:
     if decision.get("qualification_status") != "qualified" or not decision.get("candidate_id"):
         return False
@@ -199,6 +202,13 @@ def is_supported_qualified(
         return False
     if available_evidence_ids is not None and not evidence_ids.issubset(available_evidence_ids):
         return False
+    if evidence_panel_by_id is not None:
+        candidate_panel = str(decision.get("panel_id") or "")
+        if not candidate_panel or any(
+            evidence_panel_by_id.get(evidence_id) != candidate_panel
+            for evidence_id in evidence_ids
+        ):
+            return False
     gates = decision.get("gates")
     if not isinstance(gates, Mapping) or not REQUIRED_QUALIFICATION_GATES.issubset(gates):
         return False
@@ -425,16 +435,20 @@ class PrivateRadarStore:
     ) -> dict[str, Any]:
         values = [dict(value) for value in decisions]
         with self._transaction() as connection:
-            available_evidence_ids = {
-                str(row["id"])
-                for row in connection.execute(
-                    "SELECT id FROM private_radar_evidence WHERE run_id=?", (run_id,)
-                ).fetchall()
+            evidence_rows = connection.execute(
+                "SELECT id,panel_id FROM private_radar_evidence WHERE run_id=?",
+                (run_id,),
+            ).fetchall()
+            available_evidence_ids = {str(row["id"]) for row in evidence_rows}
+            evidence_panel_by_id = {
+                str(row["id"]): str(row["panel_id"]) for row in evidence_rows
             }
             qualified = [
                 value
                 for value in values
-                if is_supported_qualified(value, available_evidence_ids)
+                if is_supported_qualified(
+                    value, available_evidence_ids, evidence_panel_by_id
+                )
             ]
             has_incomplete_coverage = any(
                 value.get("qualification_status") == "unknown_due_to_coverage"
@@ -534,14 +548,29 @@ class PrivateRadarStore:
                 "coverage": {"summary": "No private investment scan has completed yet", "sources": []},
             }
         evidence = {item["id"]: item for item in self.evidence_for_run(data_scan["id"])}
+        evidence_panel_by_id = {
+            evidence_id: str(item.get("panel_id") or "")
+            for evidence_id, item in evidence.items()
+        }
         items = []
         for decision in data_scan["decisions"]:
-            if not is_supported_qualified(decision, set(evidence)):
+            if not is_supported_qualified(
+                decision, set(evidence), evidence_panel_by_id
+            ):
                 continue
             linked = [evidence[eid] for eid in decision.get("evidence_ids", [])]
             items.append({**decision, "evidence": linked})
-        initial_sources = [
+        discovery_sources = [
             source for source in data_scan["sources"]
+            if source.get("stage") == "discovery"
+            or (
+                source.get("platform") == "x"
+                and source.get("query_index") is not None
+                and source.get("window_key") is None
+            )
+        ]
+        initial_sources = [
+            source for source in discovery_sources
             if source.get("platform") == "x"
             and source.get("query_index") is not None
             and source.get("window_key") is None
@@ -558,6 +587,23 @@ class PrivateRadarStore:
             ),
             "reported_records": sum(int(source.get("count") or 0) for source in initial_sources),
         }
+        platform_coverage = {}
+        for source in discovery_sources:
+            platform = str(source.get("platform") or "unknown")
+            value = platform_coverage.setdefault(platform, {
+                "scopes": 0,
+                "complete": 0,
+                "partial": 0,
+                "failed": 0,
+                "reported_records": 0,
+            })
+            value["scopes"] += 1
+            status = str(source.get("status") or "failed")
+            if status in {"complete", "partial"}:
+                value[status] += 1
+            else:
+                value["failed"] += 1
+            value["reported_records"] += int(source.get("count") or 0)
         coverage_summary = (
             f"{len(items)} qualified leads from {data_scan['evidence_count']} stored evidence records"
         )
@@ -569,6 +615,13 @@ class PrivateRadarStore:
                 coverage_summary += (
                     f"; {funnel['capped_scopes']} reached the per-query sample limit"
                 )
+        if platform_coverage:
+            platforms_with_records = sum(
+                value["reported_records"] > 0 for value in platform_coverage.values()
+            )
+            coverage_summary += (
+                f"; discovery records found on {platforms_with_records}/{len(platform_coverage)} platforms"
+            )
         return {
             "items": items,
             "last_attempt": self._public_scan(attempt),
@@ -578,6 +631,7 @@ class PrivateRadarStore:
                 "summary": coverage_summary,
                 "sources": data_scan["sources"],
                 "initial_funnel": funnel,
+                "platforms": platform_coverage,
             },
         }
 
@@ -605,13 +659,16 @@ async def propose_candidates(
     balanced_records = []
     for panel in panels:
         panel_records = [item for item in records if item.get("panel_id") == panel.panel_id]
-        by_query: dict[str, list[dict[str, Any]]] = {}
+        by_scope: dict[str, list[dict[str, Any]]] = {}
         for item in panel_records:
-            by_query.setdefault(str(item.get("query") or ""), []).append(item)
+            scope_key = f"{item.get('platform') or 'unknown'}:{item.get('query') or ''}"
+            by_scope.setdefault(scope_key, []).append(item)
         selected = []
-        per_query = max(1, MAX_DISCOVERY_RECORDS_PER_PANEL // max(1, len(by_query)))
-        for query_records in by_query.values():
-            selected.extend(query_records[:per_query])
+        per_scope = max(
+            1, MAX_DISCOVERY_RECORDS_PER_PANEL // max(1, len(by_scope))
+        )
+        for scope_records in by_scope.values():
+            selected.extend(scope_records[:per_scope])
         selected_ids = {str(item.get("id")) for item in selected}
         if len(selected) < MAX_DISCOVERY_RECORDS_PER_PANEL:
             selected.extend(
@@ -631,6 +688,9 @@ async def propose_candidates(
     }
     parsed = _parse_model_json(await llm_call_fn(_SYSTEM_PROMPT, _json(payload)))
     known_ids = {str(item.get("id")) for item in records}
+    known_panel_by_id = {
+        str(item.get("id")): str(item.get("panel_id") or "") for item in records
+    }
     panel_ids = {panel.panel_id for panel in panels}
     accepted = []
     seen_panels = set()
@@ -638,7 +698,14 @@ async def propose_candidates(
         if not isinstance(raw, Mapping):
             continue
         value = dict(raw)
-        ids = list(dict.fromkeys(str(eid) for eid in value.get("evidence_ids") or []))
+        requested_ids = list(dict.fromkeys(
+            str(eid) for eid in value.get("evidence_ids") or []
+        ))
+        candidate_panel = str(value.get("panel_id") or "")
+        ids = [
+            eid for eid in requested_ids
+            if known_panel_by_id.get(eid) == candidate_panel
+        ]
         anchors = [
             str(anchor).strip()
             for anchor in value.get("anchor_terms") or []
@@ -648,7 +715,9 @@ async def propose_candidates(
             value.get("panel_id") not in panel_ids
             or value.get("panel_id") in seen_panels
             or not str(value.get("label") or "").strip()
-            or not ids or any(eid not in known_ids for eid in ids) or not anchors
+            or not ids
+            or any(eid not in known_ids for eid in requested_ids)
+            or not anchors
         ):
             continue
         value["evidence_ids"] = ids
@@ -704,12 +773,36 @@ class PrivateRadarScanner:
                     progress=10 + int(30 * (index + 1) / len(self.panels)), sources=sources,
                 )
             current_evidence = self.store.evidence_for_run(run_id)
-            source_states = {
-                str(source.get("status") or "failed") for source in sources
-            }
-            if not source_states or source_states != {"complete"}:
+            discovery_sources = [
+                source for source in sources if source.get("stage") == "discovery"
+            ]
+            x_sources = [
+                source for source in discovery_sources if source.get("platform") == "x"
+            ]
+            expected_x_scopes = sum(
+                max(1, len(panel.x_query_slices)) for panel in self.panels
+            )
+            non_x_sources = [
+                source for source in discovery_sources
+                if source.get("platform") in NON_X_DISCOVERY_PLATFORMS
+            ]
+            expected_non_x_scopes = len(self.panels) * len(NON_X_DISCOVERY_PLATFORMS)
+            non_x_evidence = [
+                item for item in current_evidence
+                if item.get("platform") in NON_X_DISCOVERY_PLATFORMS
+            ]
+            x_incomplete = (
+                len(x_sources) != expected_x_scopes
+                or any(source.get("status") != "complete" for source in x_sources)
+            )
+            non_x_incomplete = len(non_x_sources) != expected_non_x_scopes
+            non_x_unavailable = (
+                not non_x_evidence
+                and any(source.get("status") != "complete" for source in non_x_sources)
+            )
+            if x_incomplete or non_x_incomplete or non_x_unavailable:
                 raise PrivateRadarCoverageUnavailable(
-                    "initial social discovery sources were unavailable or incomplete"
+                    "initial multi-platform discovery was unavailable or incomplete"
                 )
             if self.llm_call_fn is None:
                 from social_scraper.llm_client import call_llm
@@ -754,6 +847,7 @@ class PrivateRadarScanner:
                 candidate_evidence = [
                     item for item in all_evidence
                     if item["id"] in evidence_ids
+                    and item.get("panel_id") == proposal["panel_id"]
                     and item.get("window_key") in {None, "current"}
                 ]
                 preliminary = qualify_candidate(

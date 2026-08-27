@@ -280,6 +280,7 @@ def qualify_candidate(
 
     return {
         "candidate_id": _candidate_id(label, anchors),
+        "panel_id": str(proposal.get("panel_id") or ""),
         "qualification_status": status,
         "label": label,
         "behaviour_type": behaviour,

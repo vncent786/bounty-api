@@ -1,41 +1,78 @@
 {
   "items": [],
   "last_attempt": {
-    "id": "04904477adb84626b55d2ad9a96f2599",
-    "started_at": "2026-08-26T17:09:49.028339+00:00",
-    "completed_at": "2026-08-26T18:13:45.277282+00:00",
+    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
+    "started_at": "2026-08-27T02:14:30.501166+00:00",
+    "completed_at": "2026-08-27T02:53:56.023254+00:00",
     "status": "no_qualified_leads",
     "stage": "complete",
     "progress": 100,
-    "panel_version": "camillo-private-panels/3",
-    "evidence_count": 1962,
+    "panel_version": "camillo-private-panels/4",
+    "evidence_count": 2203,
     "candidate_count": 0,
     "error_category": null
   },
   "data_scan": {
-    "id": "04904477adb84626b55d2ad9a96f2599",
-    "started_at": "2026-08-26T17:09:49.028339+00:00",
-    "completed_at": "2026-08-26T18:13:45.277282+00:00",
+    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
+    "started_at": "2026-08-27T02:14:30.501166+00:00",
+    "completed_at": "2026-08-27T02:53:56.023254+00:00",
     "status": "no_qualified_leads",
     "stage": "complete",
     "progress": 100,
-    "panel_version": "camillo-private-panels/3",
-    "evidence_count": 1962,
+    "panel_version": "camillo-private-panels/4",
+    "evidence_count": 2203,
     "candidate_count": 0,
     "error_category": null
   },
   "displaying_previous_data": false,
   "coverage": {
-    "summary": "0 qualified leads from 1962 stored evidence records; X discovery checked 64/64 query scopes; 61 reached the per-query sample limit",
+    "summary": "0 qualified leads from 2203 stored evidence records; X discovery checked 64/64 query scopes; 62 reached the per-query sample limit; discovery records found on 4/5 platforms",
     "sources": [],
     "initial_funnel": {
       "panel_count": 16,
       "query_scopes": 64,
       "complete_scopes": 64,
-      "capped_scopes": 61,
-      "reported_records": 1880
+      "capped_scopes": 62,
+      "reported_records": 1884
+    },
+    "platforms": {
+      "x": {
+        "scopes": 64,
+        "complete": 64,
+        "partial": 0,
+        "failed": 0,
+        "reported_records": 1884
+      },
+      "tiktok": {
+        "scopes": 16,
+        "complete": 16,
+        "partial": 0,
+        "failed": 0,
+        "reported_records": 126
+      },
+      "instagram": {
+        "scopes": 16,
+        "complete": 16,
+        "partial": 0,
+        "failed": 0,
+        "reported_records": 47
+      },
+      "reddit": {
+        "scopes": 16,
+        "complete": 0,
+        "partial": 16,
+        "failed": 0,
+        "reported_records": 0
+      },
+      "youtube": {
+        "scopes": 16,
+        "complete": 15,
+        "partial": 1,
+        "failed": 0,
+        "reported_records": 55
+      }
     }
   },
-  "snapshot_observed_at": "2026-08-26T18:13:45.277282+00:00",
+  "snapshot_observed_at": "2026-08-27T02:53:56.023254+00:00",
   "snapshot_mode": "read_only"
 }

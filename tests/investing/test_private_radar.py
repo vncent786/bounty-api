@@ -158,7 +158,7 @@ def _qualified_decision(*evidence_ids, label="Qualified", panel_id="beauty_skinc
     }
 
 
-def test_private_radar_store_exposes_only_supported_qualified_candidates(tmp_path):
+def test_private_radar_store_exposes_qualified_and_reviewed_candidates_separately(tmp_path):
     store = PrivateRadarStore(tmp_path / "radar.db")
     run_id, created = store.create_scan_if_idle()
     assert created is True
@@ -175,13 +175,116 @@ def test_private_radar_store_exposes_only_supported_qualified_candidates(tmp_pat
             "evidence_ids": ["missing-1", "missing-2"],
             "gates": _passing_gates(),
         },
-        {"candidate_id": "n", "qualification_status": "not_qualified", "label": "Rejected", "evidence_ids": []},
+        {
+            "candidate_id": "n",
+            "panel_id": "beauty_skincare",
+            "qualification_status": "not_qualified",
+            "label": "Rejected",
+            "summary": "A cited but unsupported possibility.",
+            "evidence_ids": ["e1"],
+            "gates": {
+                **_passing_gates(),
+                "behavior": {
+                    "state": "fail", "passed": False,
+                    "reason": "Only one independent behavior was found.",
+                    "metrics": {"records": 1, "authors": 1},
+                },
+            },
+        },
     ], limitations=[])
 
     payload = store.public_payload()
     assert [item["label"] for item in payload["items"]] == ["Qualified"]
+    assert [item["label"] for item in payload["review_items"]] == ["Rejected"]
+    assert payload["review_items"][0]["review_status"] == "needs_more_evidence"
+    assert payload["review_items"][0]["blocking_reasons"] == [
+        "Only one independent behavior was found."
+    ]
+    assert payload["review_items"][0]["evidence"][0]["id"] == "e1"
     assert payload["data_scan"]["status"] == "complete"
     assert payload["data_scan"]["candidate_count"] == 1
+
+
+def test_review_items_infer_one_safe_panel_for_legacy_decisions(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    store.add_evidence(run_id, [
+        _evidence("e1", "I replaced streaming with physical media", "a", "tiktok", "streaming"),
+        _evidence("e2", "I cancelled Netflix to buy DVDs", "b", "tiktok", "streaming"),
+    ])
+    gates = _passing_gates()
+    gates["anomaly"] = {
+        "state": "unknown", "passed": None,
+        "reason": "Comparable history is unavailable.", "metrics": {},
+    }
+    store.complete_scan(run_id, [{
+        "candidate_id": "legacy",
+        "qualification_status": "unknown_due_to_coverage",
+        "label": "Physical media replacing streaming",
+        "evidence_ids": ["e1", "e2"],
+        "gates": gates,
+    }], limitations=[])
+
+    payload = store.public_payload()
+
+    assert len(payload["review_items"]) == 1
+    assert payload["review_items"][0]["inferred_panel_id"] == "streaming"
+    assert {item["id"] for item in payload["review_items"][0]["evidence"]} == {"e1", "e2"}
+
+
+def test_review_items_fail_closed_when_legacy_evidence_spans_panels(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    store.add_evidence(run_id, [
+        _evidence("e1", "I switched products", "a", panel_id="automobiles"),
+        _evidence("e2", "I switched products", "b", "instagram", "beauty_skincare"),
+    ])
+    store.complete_scan(run_id, [{
+        "candidate_id": "legacy-cross-panel",
+        "qualification_status": "not_qualified",
+        "label": "Unsafe legacy review",
+        "evidence_ids": ["e1", "e2"],
+        "gates": _passing_gates(),
+    }], limitations=[])
+
+    assert store.public_payload()["review_items"] == []
+
+
+def test_public_payload_rechecks_saved_qualified_decisions_before_rendering(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    store.add_evidence(run_id, [
+        _evidence("e1", "The acme widget is not the problem", "a", panel_id="consumer_technology"),
+        _evidence("e2", "The acme widget has no problem at all", "b", "youtube", "consumer_technology"),
+    ])
+    store.complete_scan(run_id, [{
+        "candidate_id": "stale-qualified",
+        "panel_id": "consumer_technology",
+        "qualification_status": "qualified",
+        "label": "Acme widget reported pain point",
+        "behaviour_type": "pain_point",
+        "anchor_terms": ["acme widget"],
+        "summary": "The acme widget may have a reported problem.",
+        "economic_mechanism": "Returns could increase service costs.",
+        "why_investigate": "Check whether complaints broaden.",
+        "contradiction": "The language may be negated.",
+        "invalidation": "Reject if users say there is no problem.",
+        "evidence_ids": ["e1", "e2"],
+        "gates": _passing_gates(),
+        "parity": {"level": "L1", "status": "niche_coverage", "articles": []},
+        "windows": [
+            {"window_key": "current", "start_date": "2026-08-19", "end_date": "2026-08-26", "anchor_query": '"acme widget"', "status": "complete", "result_count": 5, "unique_authors": 5, "capped": False},
+            {"window_key": "prior_1", "start_date": "2026-08-12", "end_date": "2026-08-19", "anchor_query": '"acme widget"', "status": "complete", "result_count": 1, "unique_authors": 1, "capped": False},
+            {"window_key": "prior_2", "start_date": "2026-08-05", "end_date": "2026-08-12", "anchor_query": '"acme widget"', "status": "complete", "result_count": 1, "unique_authors": 1, "capped": False},
+            {"window_key": "prior_3", "start_date": "2026-07-29", "end_date": "2026-08-05", "anchor_query": '"acme widget"', "status": "complete", "result_count": 0, "unique_authors": 0, "capped": False},
+        ],
+    }], limitations=[])
+
+    payload = store.public_payload()
+
+    assert payload["items"] == []
+    assert payload["review_items"][0]["label"] == "Acme widget reported pain point"
+    assert payload["review_items"][0]["gates"]["behavior"]["state"] == "fail"
 
 
 def test_public_payload_discloses_bounded_x_funnel_scope_and_caps(tmp_path):
@@ -365,9 +468,9 @@ def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
         panels=DEFAULT_PANELS,
     ))
 
-    assert len(proposals) == 4
+    assert len(proposals) == 6
     assert [value["panel_id"] for value in proposals] == [
-        panel.panel_id for panel in DEFAULT_PANELS[:4]
+        panel.panel_id for panel in DEFAULT_PANELS[:6]
     ]
 
 

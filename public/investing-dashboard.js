@@ -277,6 +277,15 @@
     return labels[String(value || '').toLowerCase()] || String(value || 'Unknown source');
   }
 
+  function safeSourceUrl(value) {
+    try {
+      const parsed = new URL(String(value || ''));
+      return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : '';
+    } catch (_error) {
+      return '';
+    }
+  }
+
   function supportLabel(value) {
     const labels = {
       cross_platform: 'Cross-platform',
@@ -322,7 +331,7 @@
     asArray(item?.evidence).slice(0, 5).forEach(record => {
       const row = element('li');
       const link = element('a', 'source-link', platformLabel(record?.platform));
-      link.href = record?.url || '#';
+      link.href = safeSourceUrl(record?.url) || '#';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
@@ -352,6 +361,10 @@
     const taxonomy = element('p', 'taxonomy');
     taxonomy.textContent = `Retrospective anomaly  /  ${String(item?.behaviour_type || '').replaceAll('_', ' ')}  /  ${parity}  /  ${readableList(asArray(item?.platforms).map(platformLabel))}`;
     const summary = element('p', 'social-summary', `Hypothesis: ${item?.summary || 'No hypothesis reported.'}`);
+    const breadthMetrics = item?.gates?.breadth?.metrics || {};
+    const singlePlatformCaveat = breadthMetrics.cross_platform === false
+      ? element('p', 'qualification-caveat', 'Coverage caveat: independent support was observed on one platform only.')
+      : null;
 
     const details = element('div', 'signal-reasons');
     const fields = [
@@ -380,7 +393,7 @@
     asArray(item?.evidence).slice(0, 8).forEach(record => {
       const row = element('li');
       const link = element('a', 'source-link', platformLabel(record?.platform));
-      link.href = record?.url || '#';
+      link.href = safeSourceUrl(record?.url) || '#';
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
       const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
@@ -388,7 +401,94 @@
       list.append(row);
     });
     evidence.append(list);
-    append(body, heading, taxonomy, summary, details, metrics, evidence);
+    append(body, heading, taxonomy, summary, singlePlatformCaveat, details, metrics, evidence);
+    append(article, rank, body);
+    return article;
+  }
+
+  function reviewStatusCopy(value) {
+    const copy = {
+      needs_history: ['Needs history', 'The behavior is worth checking, but comparable history or the market-awareness check is incomplete.'],
+      needs_more_evidence: ['Needs more evidence', 'A concrete observation exists, but there are not yet enough independent supporting voices.'],
+      rejected: ['Rejected', 'The checked evidence did not support an emerging investment lead.'],
+    };
+    return copy[value] || ['Reviewed', 'The subject did not pass every promotion check.'];
+  }
+
+  function radarSectionHeading(kicker, title, copy) {
+    const header = element('header', 'review-section-head');
+    append(
+      header,
+      element('p', 'field-label', kicker),
+      element('h3', '', title),
+      element('p', '', copy),
+    );
+    return header;
+  }
+
+  function reviewRadarRow(item, index) {
+    const status = String(item?.review_status || 'rejected');
+    const [statusLabel, statusCopy] = reviewStatusCopy(status);
+    const article = element('article', `signal-row social-signal-row review-row ${status}`);
+    article.dataset.signalId = String(item?.candidate_id || '');
+    const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
+    const body = element('div', 'signal-body');
+    const heading = element('div', 'signal-heading');
+    const title = element('h3', '', item?.label || 'Reviewed subject');
+    const badge = element('span', 'review-badge', statusLabel);
+    append(heading, title, badge);
+
+    const taxonomy = element('p', 'taxonomy');
+    taxonomy.textContent = `${String(item?.behaviour_type || 'behavior not classified').replaceAll('_', ' ')}  /  ${readableList(asArray(item?.platforms).map(platformLabel))}`;
+    const summary = element('p', 'social-summary', item?.summary || 'No hypothesis summary was returned.');
+    const statusNote = element('p', 'review-status-copy', statusCopy);
+
+    const blockers = element('div', 'review-blockers');
+    blockers.append(element('p', 'field-label', 'Why it is not qualified'));
+    const blockerList = element('ul', 'review-reason-list');
+    asArray(item?.blocking_reasons).forEach(reason => blockerList.append(element('li', '', reason)));
+    if (!blockerList.children.length) blockerList.append(element('li', '', 'The subject did not pass every promotion check.'));
+    blockers.append(blockerList);
+
+    const caveats = asArray(item?.caveats);
+    if (caveats.length) {
+      blockers.append(element('p', 'field-label', 'Data-quality notes'));
+      const caveatList = element('ul', 'review-caveat-list');
+      caveats.forEach(reason => caveatList.append(element('li', '', reason)));
+      blockers.append(caveatList);
+    }
+
+    const question = element('div', 'signal-reasons');
+    append(
+      question,
+      element('p', 'field-label', 'What is still worth investigating'),
+      element('p', 'social-reason', item?.why_investigate || item?.economic_mechanism || 'No investigation question was reported.'),
+    );
+
+    const metrics = element('dl', 'signal-metrics social-metrics');
+    append(
+      metrics,
+      metric('Independent voices', formatInteger(item?.voice_count)),
+      metric('Platforms', formatInteger(asArray(item?.platforms).length)),
+      metric('Relevant evidence', formatInteger(asArray(item?.evidence).length)),
+    );
+
+    const evidence = element('div', 'social-evidence');
+    evidence.append(element('p', 'field-label', 'Source evidence'));
+    const sourceList = element('ul', 'social-evidence-list');
+    asArray(item?.evidence).slice(0, 6).forEach(record => {
+      const row = element('li');
+      const link = element('a', 'source-link', platformLabel(record?.platform));
+      link.href = safeSourceUrl(record?.url) || '#';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      const text = String(record?.text || '').replace(/\s+/g, ' ').trim();
+      append(row, link, element('span', '', text.length > 180 ? `${text.slice(0, 177)}...` : text));
+      sourceList.append(row);
+    });
+    evidence.append(sourceList);
+
+    append(body, heading, taxonomy, summary, statusNote, blockers, question, metrics, evidence);
     append(article, rank, body);
     return article;
   }
@@ -402,6 +502,9 @@
   function renderPrivateRadar(payload) {
     const safe = payload && typeof payload === 'object' ? payload : {};
     const items = asArray(safe.items);
+    const reviewItems = asArray(safe.review_items);
+    const watchItems = reviewItems.filter(item => item?.review_status !== 'rejected');
+    const rejectedItems = reviewItems.filter(item => item?.review_status === 'rejected');
     const attempt = safe.last_attempt;
     const dataScan = safe.data_scan;
     const list = $('#social-list');
@@ -417,28 +520,56 @@
     if (attempt?.status === 'running') {
       $('#social-status').textContent = `${String(attempt.stage || 'running').replaceAll('_', ' ')} · ${formatInteger(attempt.progress)}%`;
     } else if (attempt?.status === 'failed') {
-      $('#social-status').textContent = 'Latest scan failed';
+      $('#social-status').textContent = reviewItems.length
+        ? `Scan incomplete · ${formatInteger(watchItems.length)} subjects still worth reviewing`
+        : 'Latest scan failed';
+    } else if (!items.length && watchItems.length) {
+      $('#social-status').textContent = `0 trade-ready · ${formatInteger(watchItems.length)} worth investigating`;
     } else if (dataScan?.status === 'no_qualified_leads') {
       $('#social-status').textContent = 'No qualified leads';
     } else if (dataScan) {
-      $('#social-status').textContent = `Qualified scan · ${formatTimestamp(dataScan.completed_at || dataScan.started_at)}`;
+      $('#social-status').textContent = `${formatInteger(items.length)} trade-ready · ${formatTimestamp(dataScan.completed_at || dataScan.started_at)}`;
     } else {
       $('#social-status').textContent = 'Awaiting first private scan';
     }
 
-    if (!items.length) {
+    if (!items.length && !reviewItems.length) {
       const running = attempt?.status === 'running';
       list.append(statePanel(
         running ? 'Scanning' : attempt?.status === 'failed' ? 'Failed' : 'No qualified leads',
-        running ? 'Owned sources are being checked' : attempt?.status === 'failed' ? 'The latest scan did not complete' : 'Nothing passed every investment gate',
+        running ? 'Owned sources are being checked' : attempt?.status === 'failed' ? 'The latest scan did not complete' : 'No supported subject reached review',
         running
           ? 'Historical windows, behavior evidence, breadth, citations, and information parity are checked before anything appears.'
-          : 'An empty result is valid. Raw posts and generic trends are not used as filler.',
+          : 'Raw posts and generic trends are not used as filler. Source and coverage gaps remain visible above.',
         running ? 'loading-state' : attempt?.status === 'failed' ? 'failed-state' : 'empty-state',
       ));
       return;
     }
-    items.forEach((item, index) => list.append(privateRadarRow(item, index)));
+
+    if (items.length) {
+      list.append(radarSectionHeading(
+        'Trade-ready',
+        'Qualified leads',
+        'Every required behavior, novelty, breadth, market-awareness, and citation check passed.',
+      ));
+      items.forEach((item, index) => list.append(privateRadarRow(item, index)));
+    }
+    if (watchItems.length) {
+      list.append(radarSectionHeading(
+        'Early worklist',
+        'Worth investigating',
+        'Specific hypotheses with real evidence, shown together with what is still missing. These are not trade recommendations.',
+      ));
+      watchItems.forEach((item, index) => list.append(reviewRadarRow(item, index)));
+    }
+    if (rejectedItems.length) {
+      list.append(radarSectionHeading(
+        'Audit trail',
+        'Rejected after review',
+        'These subjects were considered and then rejected. The failed checks are retained so a parser or evidence mistake is visible.',
+      ));
+      rejectedItems.forEach((item, index) => list.append(reviewRadarRow(item, index)));
+    }
   }
 
   async function loadPrivateSnapshot() {

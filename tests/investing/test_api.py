@@ -188,7 +188,7 @@ def test_missing_radar_entities_return_404(tmp_path, monkeypatch):
     assert client.get("/dashboard/api/investing/radar/candidates/999").status_code == 404
 
 
-def test_private_radar_get_is_persisted_and_qualified_only(tmp_path, monkeypatch):
+def test_private_radar_get_returns_persisted_leads_and_cited_review_items(tmp_path, monkeypatch):
     client, _store = _client(tmp_path, monkeypatch)
     private_store = dashboard_api._private_radar_store
     run_id, _ = private_store.create_scan_if_idle()
@@ -223,12 +223,23 @@ def test_private_radar_get_is_persisted_and_qualified_only(tmp_path, monkeypatch
         "label": "Qualified shift", "evidence_ids": ["e1", "e2"],
         "gates": passing_gates,
     }, {
-        "candidate_id": "r", "qualification_status": "not_qualified",
-        "label": "Rejected noise", "evidence_ids": [],
+        "candidate_id": "r", "panel_id": "beauty",
+        "qualification_status": "not_qualified",
+        "label": "Early review", "evidence_ids": ["e1"],
+        "gates": {
+            **passing_gates,
+            "behavior": {
+                "state": "fail", "passed": False,
+                "reason": "Only one independent behavior was found.",
+                "metrics": {"records": 1, "authors": 1},
+            },
+        },
     }], limitations=[])
 
     payload = client.get("/dashboard/api/investing/private-radar").json()
     assert [item["label"] for item in payload["items"]] == ["Qualified shift"]
+    assert [item["label"] for item in payload["review_items"]] == ["Early review"]
+    assert payload["review_items"][0]["review_status"] == "needs_more_evidence"
 
 
 def test_private_scan_requires_owned_worker_and_refuses_railway(tmp_path, monkeypatch):

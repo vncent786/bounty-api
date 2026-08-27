@@ -203,3 +203,215 @@ def test_financial_coverage_or_single_voice_rejects_candidate():
     assert result["qualification_status"] == "not_qualified"
     assert result["gates"]["breadth"]["passed"] is False
     assert result["gates"]["parity"]["passed"] is False
+
+
+def test_natural_switching_language_and_single_platform_can_pass_current_evidence():
+    evidence = [
+        _evidence(
+            "e1",
+            "a",
+            "Part 5 of replacing streaming services with physical media.",
+            "tiktok",
+        ),
+        _evidence(
+            "e2",
+            "b",
+            "Cancelling Netflix to buy DVDs, months 1 through 4.",
+            "tiktok",
+        ),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Replacing streaming subscriptions with physical media",
+            anchor_terms=[
+                "replacing streaming services with physical media",
+                "cancelling Netflix to buy DVDs",
+            ],
+            summary="People are replacing streaming with physical media and cancelling Netflix for DVDs.",
+            evidence_ids=["e1", "e2"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["state"] == "pass"
+    assert result["gates"]["behavior"]["metrics"]["authors"] == 2
+    assert result["gates"]["breadth"]["state"] == "pass"
+    assert result["gates"]["breadth"]["metrics"]["cross_platform"] is False
+    assert result["gates"]["investigability"]["state"] == "pass"
+    assert result["qualification_status"] == "qualified"
+
+
+def test_home_gym_causal_language_counts_as_switching_behavior():
+    evidence = [
+        _evidence(
+            "e1",
+            "a",
+            "It was hell trying to cancel the membership. I bought what I need and now have a true home gym.",
+            "x",
+        ),
+        _evidence(
+            "e2",
+            "b",
+            "I haven't been to the gym ever since I bought a home dumbbell set and a bench.",
+            "x",
+        ),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Gym cancellations pushing home gym adoption",
+            anchor_terms=[
+                "true home gym",
+                "bought a home dumbbell set and a bench",
+            ],
+            summary="People are leaving gym memberships after building a home gym with dumbbells and a bench.",
+            evidence_ids=["e1", "e2"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["metrics"]["records"] == 2
+    assert result["gates"]["behavior"]["metrics"]["authors"] == 2
+    assert result["gates"]["behavior"]["state"] == "pass"
+
+
+def test_pain_language_can_follow_a_specific_anchor_without_ending_the_clause():
+    evidence = [
+        _evidence(
+            "e1",
+            "a",
+            "Tesla hidden door releases are too hard to find after a crash, according to the recall.",
+            "x",
+        ),
+        _evidence(
+            "e2",
+            "b",
+            "The hidden door releases are a safety issue because people cannot find them after a crash.",
+            "youtube",
+        ),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Tesla hidden door release post-crash pain",
+            behaviour_type="pain_point",
+            anchor_terms=["hidden door releases", "after a crash"],
+            summary="People report that hidden door releases are difficult to find after a crash.",
+            evidence_ids=["e1", "e2"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["metrics"]["records"] == 2
+    assert result["gates"]["behavior"]["state"] == "pass"
+
+
+def test_negated_pain_language_does_not_count_as_behavior_support():
+    evidence = [
+        _evidence("e1", "a", "The acme widget is not the problem; the shipping box was.", "x"),
+        _evidence("e2", "b", "The acme widget has no problem at all and works well.", "youtube"),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Acme widget reported pain point",
+            behaviour_type="pain_point",
+            anchor_terms=["acme widget"],
+            summary="The acme widget may have a reported problem.",
+            evidence_ids=["e1", "e2"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["metrics"]["records"] == 0
+    assert result["gates"]["behavior"]["state"] == "fail"
+
+
+def test_loyalty_ever_since_language_does_not_count_as_switching():
+    evidence = [
+        _evidence("e1", "a", "I have loved my acme widget ever since day one and will never switch.", "x"),
+        _evidence("e2", "b", "My acme widget has been great ever since I bought it.", "youtube"),
+        _evidence("e3", "c", "I haven't been disappointed with my acme widget ever since day one.", "tiktok"),
+        _evidence("e4", "d", "I have not been let down by my acme widget ever since the update.", "instagram"),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Acme widget consumer switching",
+            anchor_terms=["acme widget"],
+            summary="People may be switching to the acme widget.",
+            evidence_ids=["e1", "e2", "e3", "e4"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["behavior"]["metrics"]["records"] == 0
+    assert result["gates"]["behavior"]["state"] == "fail"
+
+
+def test_summary_anchor_requires_a_contiguous_specific_phrase():
+    evidence = [
+        _evidence("e1", "a", "The hidden door releases are a problem.", "x"),
+        _evidence("e2", "b", "Hidden door releases have a safety issue.", "youtube"),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="Hidden door releases safety pain",
+            behaviour_type="pain_point",
+            anchor_terms=["hidden door releases"],
+            summary="Hidden costs hit door sales while new releases slip.",
+            evidence_ids=["e1", "e2"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["gates"]["investigability"]["state"] == "fail"
+    assert result["qualification_status"] == "not_qualified"
+
+
+def test_candidate_evidence_drops_records_matching_only_a_weak_anchor():
+    evidence = [
+        _evidence(
+            "sale",
+            "retail-watcher",
+            "St Michael and Aries promoted a green bag that was put live early and instantly sold out.",
+            "x",
+        ),
+        _evidence(
+            "church",
+            "traveller",
+            "I visited the Catholic Church of St Michael while travelling.",
+            "tiktok",
+        ),
+        _evidence(
+            "faith",
+            "reader",
+            "A history of St Michael churches and first masses.",
+            "reddit",
+        ),
+    ]
+    result = qualify_candidate(
+        _proposal(
+            label="St Michael Aries green bag sellout",
+            behaviour_type="shortage",
+            anchor_terms=["St Michael", "Aries", "green bag", "instantly sold out"],
+            summary="The St Michael Aries green bag reportedly sold out.",
+            evidence_ids=["sale", "church", "faith"],
+        ),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["evidence_ids"] == ["sale"]
+    assert result["gates"]["behavior"]["metrics"]["records"] == 1
+    assert result["gates"]["breadth"]["metrics"]["authors"] == 1
+    assert result["qualification_status"] == "not_qualified"

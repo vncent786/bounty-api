@@ -20,7 +20,7 @@ from social_scraper.investing.qualification import is_specific_anchor, qualify_c
 PANEL_VERSION = "camillo-private-panels/4"
 SCAN_SCHEMA_VERSION = "private-investing-radar/1"
 MAX_DISCOVERY_RECORDS_PER_PANEL = 16
-MAX_SHORTLIST_CANDIDATES = 4
+MAX_SHORTLIST_CANDIDATES = 8
 NON_X_DISCOVERY_PLATFORMS = ("tiktok", "instagram", "reddit", "youtube")
 
 
@@ -144,7 +144,7 @@ DEFAULT_PANELS = (
 )
 
 
-_SYSTEM_PROMPT = """Rank and return at most four strongest specific information-arbitrage candidates from the supplied current multi-platform social evidence. Prefer exact product, service, or problem anchors repeated by independent authors across platforms; a strong single-platform candidate may remain investigable but must not be described as cross-platform. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
+_SYSTEM_PROMPT = """Rank and return at most eight strongest specific information-arbitrage candidates from the supplied current multi-platform social evidence. Prefer exact product, service, or problem anchors repeated by independent authors across platforms; a strong single-platform candidate may remain investigable but must not be described as cross-platform. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
 
 
 def _utc_iso(value: datetime | str | None = None) -> str:
@@ -213,6 +213,127 @@ def is_supported_qualified(
     if not isinstance(gates, Mapping) or not REQUIRED_QUALIFICATION_GATES.issubset(gates):
         return False
     return all(gates[name].get("passed") is True for name in REQUIRED_QUALIFICATION_GATES)
+
+
+def link_review_evidence(
+    decision: Mapping[str, Any],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+) -> tuple[str, list[dict[str, Any]]]:
+    """Link review citations to exactly one panel, inferring it only for legacy rows."""
+    evidence_ids = list(dict.fromkeys(
+        str(value) for value in decision.get("evidence_ids") or []
+    ))
+    linked = [dict(evidence_by_id[eid]) for eid in evidence_ids if eid in evidence_by_id]
+    if not evidence_ids or len(linked) != len(evidence_ids):
+        return "", []
+    panels = {str(item.get("panel_id") or "") for item in linked}
+    if "" in panels or len(panels) != 1:
+        return "", []
+    linked_panel = next(iter(panels))
+    decision_panel = str(decision.get("panel_id") or "")
+    if decision_panel and decision_panel != linked_panel:
+        return "", []
+    return decision_panel or linked_panel, linked
+
+
+def review_decision_with_current_methodology(
+    decision: Mapping[str, Any],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    """Recheck a saved near-miss against current rules without collecting new data."""
+    linked_panel, linked = link_review_evidence(decision, evidence_by_id)
+    if not linked:
+        return None, []
+    required = (
+        "label", "behaviour_type", "anchor_terms", "summary", "economic_mechanism",
+        "why_investigate", "contradiction", "invalidation",
+    )
+    if not all(decision.get(field) for field in required):
+        value = {**decision}
+    else:
+        value = qualify_candidate(
+            {**decision, "panel_id": linked_panel},
+            evidence=linked,
+            windows=decision.get("windows") or [],
+            parity=decision.get("parity") or {
+                "level": "unknown", "status": "not_checked", "articles": [],
+            },
+        )
+        linked_map = {str(item["id"]): item for item in linked}
+        linked = [
+            linked_map[eid] for eid in value.get("evidence_ids") or []
+            if eid in linked_map
+        ]
+    value["decision_basis"] = (
+        "Rechecked with the current deterministic rules against the same stored "
+        "evidence. No new collection or historical backfill was performed."
+    )
+    value["inferred_panel_id"] = (
+        linked_panel if not str(decision.get("panel_id") or "") else None
+    )
+    return value, linked
+
+
+def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str], list[str]]:
+    """Classify a cited near-miss without weakening strict lead promotion."""
+    gates = decision.get("gates") if isinstance(decision.get("gates"), Mapping) else {}
+    blockers = []
+    caveats = []
+    for name in ("specificity", "behavior", "breadth", "anomaly", "parity", "investigability"):
+        gate = gates.get(name)
+        if not isinstance(gate, Mapping) or gate.get("state") == "pass":
+            continue
+        reason = str(gate.get("reason") or "").strip()
+        if reason and reason not in blockers:
+            blockers.append(reason)
+
+    citation_filter = (
+        decision.get("citation_filter")
+        if isinstance(decision.get("citation_filter"), Mapping)
+        else {}
+    )
+    dropped = int(citation_filter.get("dropped") or 0)
+    relevant = int(citation_filter.get("relevant") or 0)
+    if dropped:
+        caveats.append(
+            f"{dropped} cited record{'s were' if dropped != 1 else ' was'} removed because "
+            "the text did not support the specific subject."
+        )
+    breadth_metrics = (
+        gates.get("breadth", {}).get("metrics", {})
+        if isinstance(gates.get("breadth"), Mapping)
+        else {}
+    )
+    if breadth_metrics.get("cross_platform") is False and int(breadth_metrics.get("authors") or 0) >= 2:
+        caveats.append("Independent voices were found on one platform only.")
+
+    failed = {
+        name for name, gate in gates.items()
+        if isinstance(gate, Mapping) and gate.get("state") == "fail"
+    }
+    unknown = {
+        name for name, gate in gates.items()
+        if isinstance(gate, Mapping) and gate.get("state") == "unknown"
+    }
+    behavior_metrics = (
+        gates.get("behavior", {}).get("metrics", {})
+        if isinstance(gates.get("behavior"), Mapping)
+        else {}
+    )
+    if relevant < 2 and dropped > 0:
+        status = "rejected"
+    elif failed & {"specificity", "anomaly", "parity", "investigability"}:
+        status = "rejected"
+    elif unknown & {"anomaly", "parity"} and not failed:
+        status = "needs_history"
+    elif (
+        ("behavior" in failed and int(behavior_metrics.get("records") or 0) >= 1)
+        or ("breadth" in failed and int(breadth_metrics.get("authors") or 0) >= 1)
+    ):
+        status = "needs_more_evidence"
+    else:
+        status = "rejected"
+    return status, blockers, caveats
 
 
 class PrivateRadarStore:
@@ -541,27 +662,71 @@ class PrivateRadarStore:
             data_scan = self.latest_qualified_scan()
         else:
             data_scan = attempt
-        if not data_scan:
+        review_scan = (
+            attempt
+            if attempt and attempt.get("decisions") and attempt.get("status") != "running"
+            else data_scan
+        )
+        coverage_scan = review_scan or data_scan
+        if not coverage_scan:
             return {
-                "items": [], "last_attempt": self._public_scan(attempt), "data_scan": None,
-                "displaying_previous_data": False,
+                "items": [], "review_items": [],
+                "last_attempt": self._public_scan(attempt), "data_scan": None,
+                "review_scan": None, "displaying_previous_data": False,
                 "coverage": {"summary": "No private investment scan has completed yet", "sources": []},
             }
-        evidence = {item["id"]: item for item in self.evidence_for_run(data_scan["id"])}
-        evidence_panel_by_id = {
-            evidence_id: str(item.get("panel_id") or "")
-            for evidence_id, item in evidence.items()
-        }
+
         items = []
-        for decision in data_scan["decisions"]:
-            if not is_supported_qualified(
-                decision, set(evidence), evidence_panel_by_id
+        if data_scan:
+            qualified_evidence = {
+                item["id"]: item for item in self.evidence_for_run(data_scan["id"])
+            }
+            evidence_panel_by_id = {
+                evidence_id: str(item.get("panel_id") or "")
+                for evidence_id, item in qualified_evidence.items()
+            }
+            for saved_decision in data_scan["decisions"]:
+                decision, linked = review_decision_with_current_methodology(
+                    saved_decision, qualified_evidence
+                )
+                if not decision or not is_supported_qualified(
+                    decision, set(qualified_evidence), evidence_panel_by_id
+                ):
+                    continue
+                items.append({**decision, "evidence": linked})
+
+        review_evidence = {
+            item["id"]: item for item in self.evidence_for_run(review_scan["id"])
+        } if review_scan else {}
+        review_panel_by_id = {
+            evidence_id: str(item.get("panel_id") or "")
+            for evidence_id, item in review_evidence.items()
+        }
+        review_items = []
+        for saved_decision in (review_scan or {}).get("decisions", []):
+            decision, linked = review_decision_with_current_methodology(
+                saved_decision, review_evidence
+            )
+            if not decision or not linked or is_supported_qualified(
+                decision, set(review_evidence), review_panel_by_id
             ):
                 continue
-            linked = [evidence[eid] for eid in decision.get("evidence_ids", [])]
-            items.append({**decision, "evidence": linked})
+            review_status, blocking_reasons, caveats = candidate_review_status(decision)
+            review_items.append({
+                **decision,
+                "review_status": review_status,
+                "blocking_reasons": blocking_reasons,
+                "caveats": caveats,
+                "evidence": linked,
+            })
+        review_items.sort(key=lambda item: (
+            {"needs_history": 0, "needs_more_evidence": 1, "rejected": 2}.get(
+                str(item.get("review_status")), 3
+            ),
+            str(item.get("label") or ""),
+        ))
         discovery_sources = [
-            source for source in data_scan["sources"]
+            source for source in coverage_scan["sources"]
             if source.get("stage") == "discovery"
             or (
                 source.get("platform") == "x"
@@ -605,7 +770,8 @@ class PrivateRadarStore:
                 value["failed"] += 1
             value["reported_records"] += int(source.get("count") or 0)
         coverage_summary = (
-            f"{len(items)} qualified leads from {data_scan['evidence_count']} stored evidence records"
+            f"{len(items)} trade-ready leads and {len(review_items)} reviewed subjects "
+            f"from {coverage_scan['evidence_count']} stored evidence records"
         )
         if funnel["query_scopes"]:
             coverage_summary += (
@@ -624,12 +790,14 @@ class PrivateRadarStore:
             )
         return {
             "items": items,
+            "review_items": review_items,
             "last_attempt": self._public_scan(attempt),
             "data_scan": self._public_scan(data_scan),
+            "review_scan": self._public_scan(review_scan),
             "displaying_previous_data": bool(attempt and data_scan and attempt["id"] != data_scan["id"]),
             "coverage": {
                 "summary": coverage_summary,
-                "sources": data_scan["sources"],
+                "sources": coverage_scan["sources"],
                 "initial_funnel": funnel,
                 "platforms": platform_coverage,
             },

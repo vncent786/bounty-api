@@ -44,12 +44,12 @@ def test_investing_shell_keeps_classic_bounty_prominent_and_explains_what_remain
     assert "topic pre-filled" in html
 
 
-def test_private_radar_has_qualified_only_and_honest_lifecycle_states_without_samples():
+def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_samples():
     html = get_investing_dashboard_html().body.decode()
     script = _script()
     combined = f"{html}\n{script}".casefold()
 
-    assert "Qualified investment leads" in html
+    assert "Investment signal review" in html
     assert "Run private scan" in html
     assert "Raw social posts and generic trends are never displayed as leads." in html
     assert 'class="signal-lane hidden" aria-labelledby="breaking-title"' in html
@@ -58,6 +58,10 @@ def test_private_radar_has_qualified_only_and_honest_lifecycle_states_without_sa
     for state_label in ("Scanning", "No qualified leads", "Failed"):
         assert state_label.casefold() in combined
 
+    assert "Worth investigating" in script
+    assert "Why it is not qualified" in script
+    assert "Rejected after review" in script
+    assert "review_items" in script
     assert '<article class="signal-row"' not in html
     assert "synthetic" not in combined
     assert "mock signal" not in combined
@@ -121,6 +125,10 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     assert "fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' })" in script
     assert "Read-only snapshot" in script
     assert snapshot["items"] == []
+    assert len(snapshot["review_items"]) == 4
+    assert {item["review_status"] for item in snapshot["review_items"]} >= {
+        "needs_history", "rejected"
+    }
     assert snapshot["data_scan"]["status"] == "no_qualified_leads"
     assert snapshot["data_scan"]["panel_version"] == "camillo-private-panels/4"
     assert snapshot["coverage"]["initial_funnel"] == {
@@ -153,6 +161,8 @@ def test_private_radar_renders_qualified_cited_leads_without_inner_html():
     assert "noopener noreferrer" in script
     assert "privateRadarRow" in script
     assert "renderPrivateRadar" in script
+    assert "safeSourceUrl" in script
+    assert "Coverage caveat: independent support was observed on one platform only." in script
     assert "innerHTML" not in script
 
 

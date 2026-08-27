@@ -31,14 +31,27 @@ ALLOWED_BEHAVIOURS = {
     "pain_point", "price_change", "workaround",
 }
 BEHAVIOUR_PHRASES = {
-    "purchase": ("i bought", "we bought", "purchased", "ordered", "buying", "repurchased"),
-    "adoption": ("started using", "now use", "installed", "adopted", "trying it", "new use"),
-    "switching": ("switched to", "switching to", "moved from", "replaced my", "instead of"),
+    "purchase": ("i bought", "we bought", "bought", "purchased", "ordered", "buying", "repurchased"),
+    "adoption": ("started using", "now use", "now have", "installed", "adopted", "trying it", "new use"),
+    "switching": (
+        "switched to", "switching to", "moved from", "replaced my", "replacing",
+        "replaced", "instead of", "cancelling", "canceling", "cancelled", "canceled",
+        "trying to cancel", "now have",
+    ),
     "shortage": ("sold out", "out of stock", "can't find", "cannot find", "shortage", "restock"),
     "rejection": ("stopped using", "stopped buying", "returned it", "cancelled", "canceled", "boycott"),
-    "pain_point": ("problem", "issue", "doesn't work", "not working", "pain", "struggling"),
+    "pain_point": (
+        "problem", "issue", "doesn't work", "not working", "pain", "struggling",
+        "can't find", "cannot find", "hard to find", "wouldn't open", "won't open",
+        "safety issue", "trapped",
+    ),
     "price_change": ("price increase", "price hike", "more expensive", "cheaper", "discount"),
     "workaround": ("workaround", "hack", "temporary fix", "instead of"),
+}
+
+_SUMMARY_STOPWORDS = {
+    "a", "an", "and", "as", "at", "for", "from", "in", "into", "of", "on",
+    "or", "the", "their", "this", "to", "with",
 }
 
 
@@ -52,6 +65,27 @@ def is_specific_anchor(value: Any) -> bool:
         return False
     tokens = normalized.split()
     return not (len(tokens) == 1 and tokens[0] in GENERIC_TOKENS)
+
+
+def _phrase_is_negated(clause: str, phrase: str) -> bool:
+    phrase_tokens = phrase.split()
+    if not phrase_tokens or phrase_tokens[0] in {"not", "no", "never"}:
+        return False
+    tokens = clause.split()
+    starts = [
+        index for index in range(len(tokens) - len(phrase_tokens) + 1)
+        if tokens[index:index + len(phrase_tokens)] == phrase_tokens
+    ]
+    if not starts:
+        return False
+    negations = {
+        "not", "no", "never", "without", "isn", "wasn", "aren", "weren",
+        "doesn", "didn", "don", "won",
+    }
+    return all(
+        any(token in negations for token in tokens[max(0, index - 3):index])
+        for index in starts
+    )
 
 
 def _behavior_applies_to_anchor(
@@ -74,13 +108,21 @@ def _behavior_applies_to_anchor(
         clause = _norm(raw_clause)
         if not clause:
             continue
+        if behavior == "switching" and re.search(
+            r"\b(?:haven t|have not) been\s+(?:to|back to|inside|at)\b.+\bever since\b",
+            clause,
+        ):
+            if any(anchor and anchor in clause for anchor in anchors):
+                return True
         for phrase in (_norm(value) for value in phrases):
-            if not phrase:
+            if not phrase or _phrase_is_negated(clause, phrase):
                 continue
             phrase_pattern = re.escape(phrase)
             for anchor in anchors:
                 if not anchor:
                     continue
+                if anchor in clause and phrase in anchor:
+                    return True
                 anchor_pattern = rf"{re.escape(anchor)}s?"
                 forward = (
                     rf"(?:^|\s){phrase_pattern}{object_bridge}\s+"
@@ -90,12 +132,48 @@ def _behavior_applies_to_anchor(
                     return True
                 if directional:
                     continue
+                if anchor in clause and phrase in clause:
+                    return True
                 reverse = (
                     rf"(?:^|\s){anchor_pattern}{state_bridge}\s+"
                     rf"{phrase_pattern}$"
                 )
                 if re.search(reverse, clause):
                     return True
+    return False
+
+
+def _anchor_matches(text: Any, anchors: Sequence[str]) -> list[str]:
+    normalized_text = _norm(text)
+    return [anchor for anchor in anchors if anchor and anchor in normalized_text]
+
+
+def _evidence_is_anchor_relevant(text: Any, anchors: Sequence[str]) -> bool:
+    """Reject weak single-anchor collisions when a proposal supplies richer anchors."""
+    matches = _anchor_matches(text, anchors)
+    if not matches:
+        return False
+    if len(anchors) == 1 or any(len(match.split()) >= 3 for match in matches):
+        return True
+    return len(matches) >= 2
+
+
+def _summary_supports_anchor(summary: Any, anchors: Sequence[str]) -> bool:
+    normalized_summary = _norm(summary)
+    for anchor in anchors:
+        if anchor in normalized_summary:
+            return True
+        tokens = anchor.split()
+        if len(tokens) < 2:
+            continue
+        for index in range(len(tokens) - 1):
+            phrase = f"{tokens[index]} {tokens[index + 1]}"
+            if (
+                tokens[index] not in _SUMMARY_STOPWORDS
+                and tokens[index + 1] not in _SUMMARY_STOPWORDS
+                and phrase in normalized_summary
+            ):
+                return True
     return False
 
 
@@ -129,10 +207,16 @@ def qualify_candidate(
     anchors = [str(value).strip() for value in proposal.get("anchor_terms") or [] if str(value).strip()]
     evidence_by_id = {str(item.get("id")): dict(item) for item in evidence if item.get("id")}
     requested_ids = list(dict.fromkeys(str(value) for value in proposal.get("evidence_ids") or []))
-    cited = [evidence_by_id[eid] for eid in requested_ids if eid in evidence_by_id]
+    requested_cited = [
+        evidence_by_id[eid] for eid in requested_ids if eid in evidence_by_id
+    ]
 
     normalized_label = _norm(label)
     normalized_anchors = [_norm(anchor) for anchor in anchors if _norm(anchor)]
+    cited = [
+        item for item in requested_cited
+        if _evidence_is_anchor_relevant(item.get("text"), normalized_anchors)
+    ]
     anchor_supported = bool(normalized_anchors) and all(
         any(anchor in _norm(item.get("text")) for item in cited)
         for anchor in normalized_anchors
@@ -180,15 +264,23 @@ def qualify_candidate(
     }
     text_counts = Counter(_norm(item.get("text")) for item in cited if _norm(item.get("text")))
     largest_copy_group = max(text_counts.values(), default=0)
+    cross_platform = len(platforms) >= 2
     breadth_ok = (
-        len(authors) >= 2 and len(roots) >= 2 and len(platforms) >= 2
+        len(authors) >= 2 and len(roots) >= 2
         and largest_copy_group < max(2, len(cited))
     )
     breadth = _gate(
         "pass" if breadth_ok else "fail",
-        "Evidence contains independent roots and voices after copy checks."
+        (
+            "Evidence contains independent roots and voices across multiple platforms."
+            if cross_platform else
+            "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent."
+        )
         if breadth_ok else "Evidence is too concentrated in one voice, root, or copied text.",
-        {"authors": len(authors), "roots": len(roots), "platforms": len(platforms), "largest_copy_group": largest_copy_group},
+        {
+            "authors": len(authors), "roots": len(roots), "platforms": len(platforms),
+            "cross_platform": cross_platform, "largest_copy_group": largest_copy_group,
+        },
     )
 
     window_rows = [dict(row) for row in windows]
@@ -253,8 +345,9 @@ def qualify_candidate(
     )
     hypothesis_texts = [str(proposal.get(field) or "").strip() for field in required_fields]
     claims_safe = not any(UNSUPPORTED_CLAIM.search(text) for text in hypothesis_texts)
-    summary_norm = _norm(proposal.get("summary"))
-    summary_anchored = any(anchor in summary_norm for anchor in normalized_anchors)
+    summary_anchored = _summary_supports_anchor(
+        proposal.get("summary"), normalized_anchors
+    )
     investable_ok = all(hypothesis_texts) and claims_safe and summary_anchored
     investigability = _gate(
         "pass" if investable_ok else "fail",
@@ -291,6 +384,11 @@ def qualify_candidate(
         "contradiction": str(proposal.get("contradiction") or "").strip(),
         "invalidation": str(proposal.get("invalidation") or "").strip(),
         "evidence_ids": [item["id"] for item in cited],
+        "citation_filter": {
+            "requested": len(requested_cited),
+            "relevant": len(cited),
+            "dropped": max(0, len(requested_cited) - len(cited)),
+        },
         "voice_count": len(authors),
         "platforms": sorted({str(item.get("platform")) for item in cited}),
         "gates": gates,

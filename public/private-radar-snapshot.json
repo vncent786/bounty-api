@@ -1,5 +1,545 @@
 {
   "items": [],
+  "review_items": [
+    {
+      "candidate_id": "073a81cbae8493b178bb89a3",
+      "panel_id": "fitness_wearables",
+      "qualification_status": "unknown_due_to_coverage",
+      "label": "Gym membership cancellation pain pushing home gym adoption",
+      "behaviour_type": "switching",
+      "anchor_terms": [
+        "bought a home dumbbell set and a bench",
+        "trying to cancel the membership",
+        "true home gym"
+      ],
+      "summary": "Independent X users describe abandoning gym attendance after buying home equipment, with one explicitly citing hellish gym membership cancellation and another saying they haven't been to the gym since buying a home dumbbell set and bench.",
+      "economic_mechanism": "Friction in cancelling memberships plus upfront equipment purchases can shift workouts from recurring gym spend to home-equipment usage.",
+      "why_investigate": "Specific behavior appears twice from separate authors with a concrete trigger and substitute product, even though it is currently single-platform rather than cross-platform.",
+      "contradiction": "A separate TikTok item questions tracker accuracy, but does not reinforce home-gym switching; the broader panel mixes wearables and gyms.",
+      "invalidation": "Invalid if these posts are atypical anecdotes and not part of wider cancellation-driven migration to home setups.",
+      "evidence_ids": [
+        "43a1e90bd9af2dd27fe07cfc793f61b5",
+        "de07f2d5c36f0b8e503a40a08d68d952"
+      ],
+      "citation_filter": {
+        "requested": 2,
+        "relevant": 2,
+        "dropped": 0
+      },
+      "voice_count": 2,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "bought a home dumbbell set and a bench",
+              "trying to cancel the membership",
+              "true home gym"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Concrete behavior appears in at least two independent cited voices.",
+          "metrics": {
+            "behaviour_type": "switching",
+            "records": 2,
+            "authors": 2
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent.",
+          "metrics": {
+            "authors": 2,
+            "roots": 2,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "inferred_panel_id": "fitness_wearables",
+      "review_status": "needs_history",
+      "blocking_reasons": [
+        "Comparable uncapped historical windows are unavailable.",
+        "Information parity could not be checked."
+      ],
+      "caveats": [
+        "Independent voices were found on one platform only."
+      ],
+      "evidence": [
+        {
+          "id": "43a1e90bd9af2dd27fe07cfc793f61b5",
+          "platform": "x",
+          "url": "https://x.com/tonydangerHOU/status/2090854046152167635",
+          "author": "tonydangerHOU",
+          "text": "I signed up for a gym once in my life. It was fucking HELL trying to cancel the membership. I bought the equipment I need and now have a true home gym. \n\n#NeverAgain",
+          "created_at": "Fri Aug 21 17:30:25 +0000 2026"
+        },
+        {
+          "id": "de07f2d5c36f0b8e503a40a08d68d952",
+          "platform": "x",
+          "url": "https://x.com/Dickson_SEO/status/2090872791885099227",
+          "author": "Dickson_SEO",
+          "text": "I haven't been to the gym ever since I bought a home dumbbell set and a bench",
+          "created_at": "Fri Aug 21 18:44:54 +0000 2026"
+        }
+      ]
+    },
+    {
+      "candidate_id": "9043af115855967605d20306",
+      "panel_id": "streaming",
+      "qualification_status": "unknown_due_to_coverage",
+      "label": "Replacing streaming services with physical media",
+      "behaviour_type": "switching",
+      "anchor_terms": [
+        "replacing streaming services with physical media",
+        "Cancelling Netflix to buy DVD's"
+      ],
+      "summary": "TikTok posts show explicit consumer switching away from subscriptions/streaming toward DVDs and Blu-rays, including one creator documenting replacement of streaming services with physical media and another recapping cancelling Netflix to buy DVDs.",
+      "economic_mechanism": "Subscription fatigue or catalog instability can push some users toward one-time ownership purchases instead of recurring digital access.",
+      "why_investigate": "Clear cross-platform behavioral switch with exact anchors around physical media replacing streaming, not just sentiment about content quality.",
+      "contradiction": "The evidence appears creator-led and may reflect niche enthusiast behavior rather than broad household switching.",
+      "invalidation": "Invalid if follow-up shows these are isolated content formats for engagement rather than genuine sustained purchase substitution.",
+      "evidence_ids": [
+        "3aaa6e71c57e147ed479db93c75e8365",
+        "e79cbc920db7763bcb3f99d6b9c56430"
+      ],
+      "citation_filter": {
+        "requested": 2,
+        "relevant": 2,
+        "dropped": 0
+      },
+      "voice_count": 2,
+      "platforms": [
+        "tiktok"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "replacing streaming services with physical media",
+              "Cancelling Netflix to buy DVD's"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Concrete behavior appears in at least two independent cited voices.",
+          "metrics": {
+            "behaviour_type": "switching",
+            "records": 2,
+            "authors": 2
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent.",
+          "metrics": {
+            "authors": 2,
+            "roots": 2,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "inferred_panel_id": "streaming",
+      "review_status": "needs_history",
+      "blocking_reasons": [
+        "Comparable uncapped historical windows are unavailable.",
+        "Information parity could not be checked."
+      ],
+      "caveats": [
+        "Independent voices were found on one platform only."
+      ],
+      "evidence": [
+        {
+          "id": "3aaa6e71c57e147ed479db93c75e8365",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@jamiec_1989/video/7650112438007876886",
+          "author": "jamiec_1989",
+          "text": "Part 5 of replacing streaming services with physical media. #bluray #dvd #physicalmedia #film #fyp",
+          "created_at": "2026-06-11T12:23:30+00:00"
+        },
+        {
+          "id": "e79cbc920db7763bcb3f99d6b9c56430",
+          "platform": "tiktok",
+          "url": "https://www.tiktok.com/@thereelwatchers/video/7645398046536158486",
+          "author": "thereelwatchers",
+          "text": "Cancelling Netflix to buy DVD's Month 1-4 Recap",
+          "created_at": "2026-05-29T19:29:15+00:00"
+        }
+      ]
+    },
+    {
+      "candidate_id": "248b2f33dcd272ea20b4e225",
+      "panel_id": "automobiles",
+      "qualification_status": "unknown_due_to_coverage",
+      "label": "Tesla hidden door releases recall and post-crash egress pain",
+      "behaviour_type": "pain_point",
+      "anchor_terms": [
+        "hidden door releases",
+        "can't find after a crash",
+        "recall",
+        "Tesla",
+        "Model 3"
+      ],
+      "summary": "Two independent X posts describe a large Tesla recall in China tied to hidden door releases that people cannot find after a crash, with one noting similar recalls from other automakers the same day.",
+      "economic_mechanism": "A safety-interface defect can drive recall costs and change buyer or regulator scrutiny around cabin/door hardware design and post-crash usability.",
+      "why_investigate": "Specific product/problem anchor repeated independently with concrete action already taken (recall), making it more actionable than generic EV sentiment.",
+      "contradiction": "Evidence is news/reporting rather than firsthand owner behavior, and one post expands the issue beyond Tesla to multiple automakers.",
+      "invalidation": "Invalid if subsequent recall details show the issue is isolated, mischaracterized, or not affecting real-world post-crash exit behavior.",
+      "evidence_ids": [
+        "7e418807d8b97802e4ccbb5f02a3d937",
+        "84dbbf2f31e3becb274ff336e69b676b",
+        "8a7f44ed04bc513c6fdec529cff9f1f1",
+        "8bbd7f4f68cb90f6ccbef5c8b68cb6f6",
+        "9532bf89abb985fbf5096c49322c97e4",
+        "9bc8ac05699fd35e6ef4809dfb595ce4",
+        "9f05ed15abe229a3585a9637124a9632"
+      ],
+      "citation_filter": {
+        "requested": 16,
+        "relevant": 7,
+        "dropped": 9
+      },
+      "voice_count": 6,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "hidden door releases",
+              "can't find after a crash",
+              "recall",
+              "Tesla",
+              "Model 3"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Concrete behavior appears in at least two independent cited voices.",
+          "metrics": {
+            "behaviour_type": "pain_point",
+            "records": 5,
+            "authors": 4
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Evidence contains independent roots and voices on one platform; cross-platform confirmation is still absent.",
+          "metrics": {
+            "authors": 6,
+            "roots": 7,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Possible mechanism, diligence question, counterevidence, and invalidation are explicit and contain no unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "inferred_panel_id": "automobiles",
+      "review_status": "needs_history",
+      "blocking_reasons": [
+        "Comparable uncapped historical windows are unavailable.",
+        "Information parity could not be checked."
+      ],
+      "caveats": [
+        "9 cited records were removed because the text did not support the specific subject.",
+        "Independent voices were found on one platform only."
+      ],
+      "evidence": [
+        {
+          "id": "7e418807d8b97802e4ccbb5f02a3d937",
+          "platform": "x",
+          "url": "https://x.com/Laraib_Fatiima/status/2090875702942081104",
+          "author": "Laraib_Fatiima",
+          "text": "BREAKING: Tesla has issued its largest-ever product recall in mainland China, as Elon Musk’s firm pledges to fix a door-handle issue affecting nearly 3 million vehicles.\n\nThe company will call back a total of 2.98 million vehicles, including Shanghai-made Model 3s and Model Ys as well as other cars imported from the United States, according to a statement issued by China’s State Administration for Market Regulation on Friday.\n\nThis Tesla recall is part of a wider China-wide push affecting 4.3 mi",
+          "created_at": "Fri Aug 21 18:56:28 +0000 2026"
+        },
+        {
+          "id": "84dbbf2f31e3becb274ff336e69b676b",
+          "platform": "x",
+          "url": "https://x.com/CodingNoobie/status/2090868143376023686",
+          "author": "CodingNoobie",
+          "text": "DAILY TECH NEWS ROUNDUP 🚨\n\nEverything important that happened in tech during the last 24 hours:\n\nMicron is investing $10 billion over the next decade in a new Boise research hub focused on memory, compute, packaging, and semiconductor technologies for AI.\n\nSupermicro found no evidence current executives knew about the alleged Nvidia chip diversion to China but fired employees over export-control violations.\n\nCastelion raised $1 billion at a $13 billion valuation to scale hypersonic weapons and e",
+          "created_at": "Fri Aug 21 18:26:26 +0000 2026"
+        },
+        {
+          "id": "8a7f44ed04bc513c6fdec529cff9f1f1",
+          "platform": "x",
+          "url": "https://x.com/Unusual_Dami/status/2090808820356325825",
+          "author": "Unusual_Dami",
+          "text": "they recalled 3 million Teslas because people can't find the door handles in emergencies... man was really designing cars to trap you inside and calling it innovation\n\ngive me a 2008 Camry with door handles I can see over this futuristic coffin. if escaping your car needs a tutorial, that's not progress that's just bad design\n\nsame energy as phones without headphone jacks removing basic features and gaslighting us into thinking we're outdated for complaining",
+          "created_at": "Fri Aug 21 14:30:42 +0000 2026"
+        },
+        {
+          "id": "8bbd7f4f68cb90f6ccbef5c8b68cb6f6",
+          "platform": "x",
+          "url": "https://x.com/Neome_com/status/2090876886519865383",
+          "author": "Neome_com",
+          "text": "CRYPTO BREAKING NEWS: Only the latest. No repeats 💙 \n • BounceBit to Shut Down Standalone Blockchain and Move to BNB Chain After Exploit.\n • Brian Armstrong: Crypto Regulatory Clarity Coming by Mid-September.\n • Bitcoin Hits the $80,000 Mark – Will It Keep Rising? Analysts Issue a Warning.\n • Ripple handles $16 trillion in transactions, sets sights on more on-chain growth.\n • Nomura-Backed Laser Digital Wins Japan’s First Crypto Approval in Four Years.\n • XRP Market Outlook: Buyers Reclaim Momen",
+          "created_at": "Fri Aug 21 19:01:11 +0000 2026"
+        },
+        {
+          "id": "9532bf89abb985fbf5096c49322c97e4",
+          "platform": "x",
+          "url": "https://x.com/tldrnewsletter/status/2090878883147001990",
+          "author": "tldrnewsletter",
+          "text": "China's market regulator ordered Tesla to recall 2.98 million vehicles over emergency door releases it says are too hard to find after a crash, the largest recall in Tesla's history in any market. Tesla filed a second recall the same day covering 2.74 million Model 3 and Model Y cars, adding cabin-camera eye tracking to its driver monitoring system.",
+          "created_at": "Fri Aug 21 19:09:07 +0000 2026"
+        },
+        {
+          "id": "9bc8ac05699fd35e6ef4809dfb595ce4",
+          "platform": "x",
+          "url": "https://x.com/UnbiasedHdlns/status/2090877459029729497",
+          "author": "UnbiasedHdlns",
+          "text": "China just ordered Tesla to recall almost 3 million cars.\n\n- It's over hidden door releases people can't find after a crash.\n- Eight other automakers filed the same recall the same day, nearly 4.27 million cars total.\n- Bloomberg has tied at least 15 deaths to Tesla doors that wouldn't open after a crash.\n\nFacts. Not Spin.\n\nRead the full story: https://t.co/YHpDlPDjq3",
+          "created_at": "Fri Aug 21 19:03:27 +0000 2026"
+        },
+        {
+          "id": "9f05ed15abe229a3585a9637124a9632",
+          "platform": "x",
+          "url": "https://x.com/CodingNoobie/status/2090868291581681971",
+          "author": "CodingNoobie",
+          "text": "Detailed:\n\nMicron announced a $10 billion investment over the next decade to build Micron Research Labs in Boise, focused on next-generation memory, compute architectures, advanced packaging, and semiconductor manufacturing. The facility is expected to break ground in 2027 and targets technologies that could become critical infrastructure for future AI systems.\n\nSupermicro completed an independent investigation into the alleged diversion of Nvidia AI servers to China and said it found no evidenc",
+          "created_at": "Fri Aug 21 18:27:01 +0000 2026"
+        }
+      ]
+    },
+    {
+      "candidate_id": "c830aff3ec0dc08911133196",
+      "panel_id": "fashion_apparel",
+      "qualification_status": "not_qualified",
+      "label": "St Michael x Aries green bag sold out early with tiny allocation",
+      "behaviour_type": "shortage",
+      "anchor_terms": [
+        "St Michael",
+        "Aries",
+        "green bag",
+        "put live early",
+        "instantly sold out"
+      ],
+      "summary": "One detailed X post alleges the St Michael x Aries green bag was launched early, instantly sold out, and had only a very small number of units available, with store stock reportedly pre-allocated.",
+      "economic_mechanism": "Ultra-limited allocation and mistimed release can create artificial scarcity, resale activity, and distorted read-through on real demand.",
+      "why_investigate": "Highly specific product anchor with detailed mechanics around launch timing, allocation, and resale; strong investigable single-post signal even without cross-platform confirmation.",
+      "contradiction": "This is based on one author's synthesis of comments and website clues rather than direct multi-author confirmation.",
+      "invalidation": "Invalid if inventory was larger than alleged or if early sellout was caused mainly by technical errors or controlled influencer allocation unrelated to real demand.",
+      "evidence_ids": [
+        "e7df676c6813b7dbc5ce93263d93dcc7"
+      ],
+      "citation_filter": {
+        "requested": 7,
+        "relevant": 1,
+        "dropped": 6
+      },
+      "voice_count": 1,
+      "platforms": [
+        "x"
+      ],
+      "gates": {
+        "specificity": {
+          "state": "pass",
+          "passed": true,
+          "reason": "Specific product/behaviour anchor is supported by cited evidence.",
+          "metrics": {
+            "anchor_terms": [
+              "St Michael",
+              "Aries",
+              "green bag",
+              "put live early",
+              "instantly sold out"
+            ]
+          }
+        },
+        "behavior": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Concrete behavior is not independently supported.",
+          "metrics": {
+            "behaviour_type": "shortage",
+            "records": 1,
+            "authors": 1
+          }
+        },
+        "anomaly": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Comparable uncapped historical windows are unavailable.",
+          "metrics": {
+            "current_count": 0,
+            "prior_counts": []
+          }
+        },
+        "breadth": {
+          "state": "fail",
+          "passed": false,
+          "reason": "Evidence is too concentrated in one voice, root, or copied text.",
+          "metrics": {
+            "authors": 1,
+            "roots": 1,
+            "platforms": 1,
+            "cross_platform": false,
+            "largest_copy_group": 1
+          }
+        },
+        "parity": {
+          "state": "unknown",
+          "passed": null,
+          "reason": "Information parity could not be checked.",
+          "metrics": {
+            "level": "unknown"
+          }
+        },
+        "investigability": {
+          "state": "fail",
+          "passed": false,
+          "reason": "The proposal is unanchored, incomplete, or contains an unsupported financial claim.",
+          "metrics": {}
+        }
+      },
+      "parity": {
+        "articles": [],
+        "level": "unknown",
+        "status": "not_checked_before_history"
+      },
+      "windows": [],
+      "decision_basis": "Rechecked with the current deterministic rules against the same stored evidence. No new collection or historical backfill was performed.",
+      "inferred_panel_id": "fashion_apparel",
+      "review_status": "rejected",
+      "blocking_reasons": [
+        "Concrete behavior is not independently supported.",
+        "Evidence is too concentrated in one voice, root, or copied text.",
+        "Comparable uncapped historical windows are unavailable.",
+        "Information parity could not be checked.",
+        "The proposal is unanchored, incomplete, or contains an unsupported financial claim."
+      ],
+      "caveats": [
+        "6 cited records were removed because the text did not support the specific subject."
+      ],
+      "evidence": [
+        {
+          "id": "e7df676c6813b7dbc5ce93263d93dcc7",
+          "platform": "x",
+          "url": "https://x.com/danbarker/status/2090869819570573418",
+          "author": "danbarker",
+          "text": "Marks and Spencer did something slightly cheeky this week. They very, very heavily promoted that they were relaunching a 'St Michael' brand clothing range, in collaboration with the streetwear brand Aries.\n\nEvery article about it, and their own website, featured this green bag as the main item. Featured in the Mail, Telegraph, Guardian, Grazia, The Times, GQ, Harpers Bazaar, Metro, the Mirror, and on and on. Theoretically hundreds of thousands in advertising value.\n\nThey announced it would be la",
+          "created_at": "Fri Aug 21 18:33:06 +0000 2026"
+        }
+      ]
+    }
+  ],
   "last_attempt": {
     "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
     "started_at": "2026-08-27T02:14:30.501166+00:00",
@@ -24,9 +564,21 @@
     "candidate_count": 0,
     "error_category": null
   },
+  "review_scan": {
+    "id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
+    "started_at": "2026-08-27T02:14:30.501166+00:00",
+    "completed_at": "2026-08-27T02:53:56.023254+00:00",
+    "status": "no_qualified_leads",
+    "stage": "complete",
+    "progress": 100,
+    "panel_version": "camillo-private-panels/4",
+    "evidence_count": 2203,
+    "candidate_count": 0,
+    "error_category": null
+  },
   "displaying_previous_data": false,
   "coverage": {
-    "summary": "0 qualified leads from 2203 stored evidence records; X discovery checked 64/64 query scopes; 62 reached the per-query sample limit; discovery records found on 4/5 platforms",
+    "summary": "0 trade-ready leads and 4 reviewed subjects from 2203 stored evidence records; X discovery checked 64/64 query scopes; 62 reached the per-query sample limit; discovery records found on 4/5 platforms",
     "sources": [],
     "initial_funnel": {
       "panel_count": 16,
@@ -74,5 +626,10 @@
     }
   },
   "snapshot_observed_at": "2026-08-27T02:53:56.023254+00:00",
-  "snapshot_mode": "read_only"
+  "snapshot_mode": "read_only",
+  "methodology_recheck": {
+    "performed": true,
+    "source_run_id": "ba5e91c9f7364cf483ce81cbeb2c60bf",
+    "new_collection": false
+  }
 }

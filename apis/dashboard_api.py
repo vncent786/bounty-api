@@ -509,7 +509,7 @@ async def _run_private_radar_scan(run_id: str):
 
 @router.get("/investing/private-radar")
 async def get_private_investing_radar():
-    """Read qualified persisted private Radar output only."""
+    """Read persisted trade-ready leads plus cited near-miss review decisions."""
     return _get_private_radar_store().public_payload()
 
 

@@ -135,7 +135,11 @@ class XConnector(BaseConnector):
         *,
         already_waited: float,
     ) -> float | None:
-        if error_code not in {"x_rate_limited", "x_account_pool_unavailable"}:
+        retryable_codes = {
+            "x_rate_limited", "x_account_pool_unavailable", "x_error",
+            "x_forbidden",
+        }
+        if error_code not in retryable_codes:
             return None
         max_wait = self._env_float("BOUNTY_X_MAX_WAIT_SECONDS", 20 * 60)
         remaining_wait = max_wait - already_waited
@@ -149,9 +153,17 @@ class XConnector(BaseConnector):
             )
         except Exception:
             accounts = []
+        if error_code == "x_error" and not any(
+            int(account.get("status") or 0) == 404 for account in accounts
+        ):
+            return None
+        if error_code == "x_forbidden" and not any(
+            int(account.get("status") or 0) == 1 for account in accounts
+        ):
+            return None
         active = [
             account for account in accounts
-            if int(account.get("status") or 0) == 1
+            if int(account.get("status") or 0) in {1, 404}
             and int(account.get("daily_requests") or 0) < self._daily_request_limit
         ]
         if accounts and not active:
@@ -164,6 +176,10 @@ class XConnector(BaseConnector):
         ]
         if future:
             wait_seconds = max(1.0, min(future) - now + 1.0)
+        elif error_code == "x_forbidden":
+            wait_seconds = self._env_float(
+                "BOUNTY_X_FORBIDDEN_RETRY_SECONDS", 30.0
+            )
         elif active and any(account.get("busy") for account in active):
             wait_seconds = 5.0
         else:

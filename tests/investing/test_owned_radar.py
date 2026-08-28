@@ -1,16 +1,51 @@
 import asyncio
 
 from social_scraper.base import ConnectorResult, SocialItem, SourceHealth
-from social_scraper.investing.owned_radar import OwnedRadarCollector
+from social_scraper.investing.owned_radar import OwnedRadarCollector, _source_status
 from social_scraper.investing.private_radar import DEFAULT_PANELS
+
+
+def test_source_status_does_not_attach_an_unused_fallback_error_to_a_success():
+    status, error = _source_status(
+        {
+            "platform": "reddit",
+            "status": "ok",
+            "selected_connector": "reddit_mobile_owned",
+        },
+        [
+            {
+                "platform": "reddit",
+                "connector": "reddit_atom_scoped",
+                "status": "error",
+                "error": "connector_error",
+            },
+            {
+                "platform": "reddit",
+                "connector": "reddit_mobile_owned",
+                "status": "ok",
+                "error": None,
+            },
+        ],
+    )
+
+    assert status == "complete"
+    assert error is None
 
 
 class FakeX:
     def __init__(self):
         self.queries = []
+        self.search_calls = []
 
     async def search(self, query, count=20, time_filter="", sort="", region=""):
         self.queries.append(query)
+        self.search_calls.append({
+            "query": query,
+            "count": count,
+            "time_filter": time_filter,
+            "sort": sort,
+            "region": region,
+        })
         item = SocialItem(
             platform="x",
             post_id=f"x{len(self.queries)}",
@@ -108,6 +143,35 @@ def test_owned_discovery_runs_all_platforms_before_shortlisting():
         "tiktok", "instagram", "reddit", "youtube",
     }
     assert all(source["stage"] == "discovery" for source in result["sources"])
+    assert all(call["time_filter"] == "month" for call in collector.x_connector.search_calls)
+    assert all(call["time_filter"] == "month" for call in broker.search_calls)
+    reddit_call = next(call for call in broker.search_calls if call["platform"] == "reddit")
+    assert reddit_call["keyword"] == "car"
+
+
+def test_owned_discovery_records_a_failed_x_scope_and_finishes_the_panel():
+    class FirstXCallFails(FakeX):
+        async def search(self, query, count=20, time_filter="", sort="", region=""):
+            if not self.search_calls:
+                self.search_calls.append({
+                    "query": query, "count": count, "time_filter": time_filter,
+                    "sort": sort, "region": region,
+                })
+                raise TimeoutError("temporary scope timeout")
+            return await super().search(
+                query, count=count, time_filter=time_filter, sort=sort, region=region
+            )
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=FakeBroker(), x_connector=FirstXCallFails()
+    ).collect_discovery(DEFAULT_PANELS[0]))
+
+    x_receipts = [source for source in result["sources"] if source["platform"] == "x"]
+    assert len(x_receipts) == 4
+    assert x_receipts[0]["status"] == "failed"
+    assert x_receipts[0]["error_category"] == "TimeoutError"
+    assert all(source["status"] == "complete" for source in x_receipts[1:])
+    assert len(result["evidence"]) == 7
 
 
 def test_owned_corroboration_includes_reddit_with_source_receipts():
@@ -122,3 +186,284 @@ def test_owned_corroboration_includes_reddit_with_source_receipts():
     }
     assert len(result["evidence"]) == 4
     assert all(source["stage"] == "corroboration" for source in result["sources"])
+
+
+def test_broker_route_exception_becomes_an_explicit_failed_source_receipt():
+    class BrokenBroker:
+        async def search(self, **_kwargs):
+            raise TimeoutError("route timeout")
+
+    collector = OwnedRadarCollector(broker=BrokenBroker(), x_connector=FakeX())
+    result = asyncio.run(collector._broker_search(
+        DEFAULT_PANELS[0], "reddit", "home gym", count=3
+    ))
+
+    assert result["evidence"] == []
+    assert result["source"]["status"] == "failed"
+    assert result["source"]["error_category"] == "TimeoutError"
+
+
+def test_broker_search_retries_one_transient_connector_timeout():
+    class FlakyBroker(FakeBroker):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            self.attempts += 1
+            if self.attempts == 1:
+                platform = platforms[0]
+                return {
+                    "items": [],
+                    "platform_results": {
+                        platform: {
+                            "platform": platform,
+                            "status": "partial",
+                            "selected_connector": f"{platform}_owned",
+                            "coverage": {},
+                        }
+                    },
+                    "source_health": [{
+                        "platform": platform,
+                        "connector": f"{platform}_owned",
+                        "status": "error",
+                        "error": "connector_timeout",
+                    }],
+                }
+            return await super().search(
+                keyword=keyword,
+                platforms=platforms,
+                count=count,
+                time_filter=time_filter,
+                sort=sort,
+            )
+
+    broker = FlakyBroker()
+    result = asyncio.run(OwnedRadarCollector(
+        broker=broker, x_connector=FakeX()
+    )._broker_search(
+        DEFAULT_PANELS[0], "tiktok", "hotel", count=3, hydrate=False
+    ))
+
+    assert broker.attempts == 2
+    assert result["source"]["status"] == "complete"
+    assert result["source"]["error_category"] is None
+    assert result["source"]["coverage"]["attempt_count"] == 2
+    assert result["source"]["coverage"]["recovered_errors"] == ["connector_timeout"]
+    assert len(result["evidence"]) == 1
+
+
+def test_broker_search_does_not_retry_a_non_timeout_connector_error():
+    class ConnectorErrorBroker(FakeBroker):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            self.attempts += 1
+            platform = platforms[0]
+            return {
+                "items": [],
+                "platform_results": {
+                    platform: {
+                        "platform": platform,
+                        "status": "partial",
+                        "selected_connector": f"{platform}_owned",
+                        "coverage": {},
+                    }
+                },
+                "source_health": [{
+                    "platform": platform,
+                    "connector": f"{platform}_owned",
+                    "status": "error",
+                    "error": "connector_error",
+                }],
+            }
+
+    broker = ConnectorErrorBroker()
+    result = asyncio.run(OwnedRadarCollector(
+        broker=broker, x_connector=FakeX()
+    )._broker_search(
+        DEFAULT_PANELS[0], "instagram", "hotel", count=3, hydrate=False
+    ))
+
+    assert broker.attempts == 1
+    assert result["source"]["status"] == "partial"
+    assert result["source"]["error_category"] == "connector_error"
+
+
+def test_owned_trend_discovery_feeds_google_candidates_into_social_collection():
+    def trends():
+        return {
+            "status": "complete",
+            "source": "Google Trends Trending Now",
+            "observed_at": "2026-08-28T00:00:00+00:00",
+            "geographies": ["US", "GB"],
+            "failures": [],
+            "candidates": [{
+                "keyword": "home gym",
+                "normalized_keyword": "home gym",
+                "categories": ["Health"],
+                "countries": ["GB", "US"],
+                "country_breadth": 2,
+                "observations": [],
+                "keyword_basket": ["home gym", "garage gym"],
+                "panel_id": "fitness_wearables",
+                "source": "Google Trends Trending Now",
+            }],
+        }
+
+    collector = OwnedRadarCollector(
+        broker=FakeBroker(), x_connector=FakeX(), trend_discovery_fn=trends
+    )
+
+    result = asyncio.run(collector.collect_trend_discovery())
+
+    assert result["trend_candidates"][0]["keyword"] == "home gym"
+    assert len(result["evidence"]) == 5
+    assert result["sources"][0]["platform"] == "google_trends"
+    assert result["sources"][0]["stage"] == "trend_discovery"
+    assert {source["platform"] for source in result["sources"][1:]} == {
+        "x", "tiktok", "instagram", "reddit", "youtube",
+    }
+    assert all(source["stage"] == "trend_candidate" for source in result["sources"][1:])
+
+
+def test_google_candidate_social_collection_retains_other_sources_when_x_drops():
+    class BrokenX:
+        async def search(self, *_args, **_kwargs):
+            raise RuntimeError("temporary X failure")
+
+    def trends():
+        return {
+            "status": "complete",
+            "source": "Google Trends Trending Now",
+            "observed_at": "2026-08-28T00:00:00+00:00",
+            "geographies": ["US"],
+            "failures": [],
+            "candidates": [{
+                "keyword": "home gym",
+                "normalized_keyword": "home gym",
+                "categories": ["Health"],
+                "countries": ["US"],
+                "country_breadth": 1,
+                "observations": [],
+                "keyword_basket": ["home gym"],
+                "panel_id": "fitness_wearables",
+                "source": "Google Trends Trending Now",
+            }],
+        }
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=FakeBroker(), x_connector=BrokenX(), trend_discovery_fn=trends
+    ).collect_trend_discovery())
+
+    x_receipt = next(
+        source for source in result["sources"]
+        if source.get("platform") == "x" and source.get("stage") == "trend_candidate"
+    )
+    assert x_receipt["status"] == "failed"
+    assert x_receipt["error_category"] == "RuntimeError"
+    assert {item["platform"] for item in result["evidence"]} == {
+        "tiktok", "instagram", "reddit", "youtube",
+    }
+
+
+def test_owned_preflight_requires_every_release_source():
+    async def trajectory(query):
+        return {
+            "query": query,
+            "source": "Google Trends",
+            "status": "complete",
+            "points": [
+                {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20}
+                for index in range(30)
+            ],
+        }
+
+    collector = OwnedRadarCollector(
+        broker=FakeBroker(),
+        x_connector=FakeX(),
+        trajectory_check_fn=trajectory,
+    )
+
+    result = asyncio.run(collector.preflight())
+
+    assert result["ok"] is True
+    assert {source["platform"] for source in result["sources"]} == {
+        "x", "tiktok", "instagram", "reddit", "youtube", "google_trends",
+    }
+    assert all(source["status"] == "complete" for source in result["sources"])
+
+
+def test_owned_preflight_blocks_the_sweep_when_tiktok_cannot_return_records():
+    class TikTokFails(FakeBroker):
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            if platforms == ["tiktok"]:
+                raise TimeoutError("TikTok worker unavailable")
+            return await super().search(
+                keyword=keyword,
+                platforms=platforms,
+                count=count,
+                time_filter=time_filter,
+                sort=sort,
+            )
+
+    async def trajectory(query):
+        return {
+            "query": query,
+            "source": "Google Trends",
+            "status": "complete",
+            "points": [
+                {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20}
+                for index in range(30)
+            ],
+        }
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=TikTokFails(),
+        x_connector=FakeX(),
+        trajectory_check_fn=trajectory,
+    ).preflight())
+
+    assert result["ok"] is False
+    assert result["error_category"] == "preflight_tiktok_unavailable"
+    receipt = next(item for item in result["sources"] if item["platform"] == "tiktok")
+    assert receipt["status"] == "failed"
+    assert receipt["error_category"] == "TimeoutError"
+
+
+def test_owned_preflight_records_a_source_exception_without_starting_a_scan():
+    class BrokenX:
+        async def search(self, *_args, **_kwargs):
+            raise RuntimeError("session expired")
+
+    async def trajectory(query):
+        return {
+            "query": query,
+            "source": "Google Trends",
+            "status": "complete",
+            "points": [
+                {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20}
+                for index in range(30)
+            ],
+        }
+
+    collector = OwnedRadarCollector(
+        broker=FakeBroker(),
+        x_connector=BrokenX(),
+        trajectory_check_fn=trajectory,
+    )
+
+    result = asyncio.run(collector.preflight())
+
+    assert result["ok"] is False
+    assert result["error_category"] == "preflight_x_unavailable"
+    x_receipt = next(item for item in result["sources"] if item["platform"] == "x")
+    assert x_receipt == {
+        "platform": "x",
+        "stage": "preflight",
+        "status": "failed",
+        "count": 0,
+        "error_category": "RuntimeError",
+    }

@@ -214,7 +214,7 @@ def test_private_radar_get_returns_persisted_leads_and_cited_review_items(tmp_pa
     passing_gates = {
         name: {"state": "pass", "passed": True, "reason": "fixture", "metrics": {}}
         for name in (
-            "specificity", "behavior", "evidence_quality", "anomaly", "breadth", "parity", "investigability"
+            "specificity", "behavior", "evidence_quality", "persistence", "anomaly", "breadth", "parity", "investigability"
         )
     }
     private_store.complete_scan(run_id, [{

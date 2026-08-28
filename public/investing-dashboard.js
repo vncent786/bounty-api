@@ -15,6 +15,9 @@
     country: '',
     category: '',
     lastPayload: null,
+    lastPrivatePayload: null,
+    movementGeo: 'WORLDWIDE',
+    movementHorizon: '3m',
     pollingRunId: null,
   };
 
@@ -309,13 +312,47 @@
     return platformLabel(record?.platform);
   }
 
-  function movementPanel(item) {
-    const trajectory = item?.trajectory && typeof item.trajectory === 'object'
+  function movementTrajectory(item) {
+    const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
+      ? item.movement_bundle
+      : {};
+    const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
+    const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const hasBundleSeries = bundle.series && typeof bundle.series === 'object';
+    const bundledTrajectory = bundle?.series?.[selectedGeo]?.[selectedHorizon];
+    if (hasBundleSeries) {
+      return bundledTrajectory && typeof bundledTrajectory === 'object'
+        ? bundledTrajectory
+        : {};
+    }
+    return item?.trajectory && typeof item.trajectory === 'object'
       ? item.trajectory
       : {};
+  }
+
+  function hasSelectedMovement(item) {
+    return asArray(movementTrajectory(item).points)
+      .filter(point => Number.isFinite(Number(point?.value))).length >= 2;
+  }
+
+  function movementPanel(item) {
+    const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
+      ? item.movement_bundle
+      : {};
+    const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
+    const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const trajectory = movementTrajectory(item);
     const points = asArray(trajectory.points).filter(point => Number.isFinite(Number(point?.value)));
     const panel = element('section', 'movement-panel');
     panel.append(element('p', 'field-label', 'Search movement'));
+    panel.append(element(
+      'p',
+      'movement-query',
+      `Query used: “${bundle.query || trajectory.query || item?.label || 'Not reported'}”`,
+    ));
+    if (item?.trajectory_query_reason) {
+      panel.append(element('p', 'movement-query-reason', item.trajectory_query_reason));
+    }
     if (points.length < 2) {
       panel.append(element(
         'p',
@@ -370,12 +407,26 @@
     const values = points.map(point => Number(point.value));
     const latest = values[values.length - 1];
     const peak = Math.max(...values);
+    const geoName = asArray(bundle.geographies).find(value => value?.code === selectedGeo)?.name
+      || (selectedGeo === 'WORLDWIDE' ? 'Worldwide' : selectedGeo || 'Worldwide');
+    const horizonName = asArray(bundle.horizons).find(value => value?.code === selectedHorizon)?.name
+      || selectedHorizon;
     const caption = element(
       'p',
       'movement-caption',
-      `Google search interest · worldwide · past 90 days · latest ${formatInteger(latest)} · peak ${formatInteger(peak)}. Values are normalized 0–100 within this chart and are not social proof.`,
+      `Google search interest · ${geoName} · ${horizonName} · latest ${formatInteger(latest)} · peak ${formatInteger(peak)}. Values are normalized 0–100 within this chart and are not social proof.`,
     );
-    append(panel, svg, axis, caption);
+    const classification = bundle.classification && typeof bundle.classification === 'object'
+      ? bundle.classification
+      : null;
+    const assessment = classification
+      ? element(
+          'p',
+          `movement-assessment ${classification.trend_eligible ? 'eligible' : 'not-eligible'}`,
+          `${String(classification.movement_type || 'unclear').replaceAll('_', ' ')}: ${classification.reason || 'No interpretation reported.'}`,
+        )
+      : null;
+    append(panel, svg, axis, caption, assessment);
     return panel;
   }
 
@@ -517,7 +568,7 @@
   function reviewStatusCopy(value) {
     const copy = {
       search_movement_only: ['Search movement only', 'Search interest has a visible trajectory, but comparable social evidence is not yet strong enough for a lead.'],
-      needs_more_evidence: ['Insufficient evidence', 'Too few independent firsthand voices or too little visible engagement support this topic.'],
+      needs_more_evidence: ['Weak firsthand support', 'The checked posts did not reach the required number of independent firsthand voices with visible engagement.'],
       rejected: ['Rejected', 'The checked evidence did not support an emerging investment lead.'],
     };
     return copy[value] || ['Reviewed', 'The subject did not pass every promotion check.'];
@@ -608,10 +659,101 @@
     return `${prefix}${coverage.summary || 'No private scan coverage reported'}`;
   }
 
+  function trendDiscoveryRow(item, index) {
+    const article = element('article', 'signal-row trend-candidate-row');
+    const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
+    const body = element('div', 'signal-body');
+    const heading = element('div', 'signal-heading');
+    const title = element('h3', '', item?.keyword || 'Search candidate');
+    const badge = element('span', 'review-badge search-only', 'Search attention only');
+    append(heading, title, badge);
+    const taxonomy = element('p', 'taxonomy');
+    taxonomy.textContent = `${readableList(item?.categories)}  /  ${readableList(item?.countries)}`;
+    const details = element('div', 'trend-candidate-details');
+    append(
+      details,
+      element('p', 'field-label', 'Queries considered'),
+      element('p', 'social-reason', readableList(item?.keyword_basket)),
+    );
+    const observations = element('ul', 'trend-observation-list');
+    asArray(item?.observations).forEach(observation => {
+      const volume = observation?.search_volume === null || observation?.search_volume === undefined
+        ? 'volume unavailable'
+        : `${formatInteger(observation.search_volume)} searches`;
+      const growth = observation?.growth_pct === null || observation?.growth_pct === undefined
+        ? 'growth unavailable'
+        : `${formatInteger(observation.growth_pct)}% growth`;
+      observations.append(element('li', '', `${observation?.geo || 'Unknown market'} · ${volume} · ${growth}`));
+    });
+    append(body, heading, taxonomy, details, observations);
+    append(article, rank, body);
+    return article;
+  }
+
+  function renderTrendDiscovery(payload) {
+    const discovery = payload?.trend_discovery;
+    const list = $('#trend-discovery-list');
+    if (!list) return;
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
+    if (!discovery || !asArray(discovery.candidates).length) {
+      $('#trend-discovery-status').textContent = 'No first-layer search candidates';
+      list.append(statePanel(
+        'Unavailable',
+        'This scan predates worldwide Google Trends discovery',
+        'Run a new scan after mandatory-source preflight passes.',
+        'empty-state',
+      ));
+      return;
+    }
+    const candidates = asArray(discovery.candidates).filter(item => (
+      state.movementGeo === 'WORLDWIDE'
+      || asArray(item?.countries).includes(state.movementGeo)
+    ));
+    $('#trend-discovery-status').textContent = `${formatInteger(candidates.length)} search candidates · ${formatTimestamp(discovery.observed_at)}`;
+    if (!candidates.length) {
+      list.append(statePanel(
+        'No candidates',
+        'No search candidates appeared in this market',
+        'Choose Worldwide or another supported country.',
+        'empty-state',
+      ));
+      return;
+    }
+    candidates.forEach((item, index) => list.append(trendDiscoveryRow(item, index)));
+  }
+
+  function configureMovementControls(payload) {
+    const candidates = [
+      ...asArray(payload?.items),
+      ...asArray(payload?.review_items),
+    ];
+    const bundle = candidates.find(item => item?.movement_bundle)?.movement_bundle;
+    const controls = $('#movement-controls');
+    if (!bundle || !controls) {
+      if (controls) controls.classList.add('hidden');
+      return;
+    }
+    const geographies = new Set(asArray(bundle.geographies).map(value => String(value?.code || '')));
+    const horizons = new Set(asArray(bundle.horizons).map(value => String(value?.code || '')));
+    if (!geographies.has(state.movementGeo)) {
+      state.movementGeo = String(bundle.default_geo || 'WORLDWIDE');
+    }
+    if (!horizons.has(state.movementHorizon)) {
+      state.movementHorizon = String(bundle.default_horizon || '3m');
+    }
+    $('#movement-geo').value = state.movementGeo;
+    $('#movement-horizon').value = state.movementHorizon;
+    controls.classList.remove('hidden');
+  }
+
   function renderPrivateRadar(payload) {
     const safe = payload && typeof payload === 'object' ? payload : {};
-    const items = asArray(safe.items);
-    const reviewItems = asArray(safe.review_items);
+    state.lastPrivatePayload = safe;
+    configureMovementControls(safe);
+    renderTrendDiscovery(safe);
+    const items = asArray(safe.items).filter(hasSelectedMovement);
+    const reviewItems = asArray(safe.review_items).filter(hasSelectedMovement);
     const watchItems = reviewItems.filter(item => item?.review_status === 'search_movement_only');
     const rejectedItems = reviewItems.filter(item => item?.review_status !== 'search_movement_only');
     const attempt = safe.last_attempt;
@@ -1001,19 +1143,14 @@
   function bindEvents() {
     $$('.nav-item').forEach(item => item.addEventListener('click', () => showView(item.dataset.view)));
 
-    $('#radar-filters').addEventListener('submit', event => {
-      event.preventDefault();
-      state.country = $('#country-filter').value;
-      state.category = $('#category-filter').value;
-      loadRadar();
+    $('#movement-geo').addEventListener('change', event => {
+      state.movementGeo = event.target.value;
+      if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
     });
 
-    $('#clear-filters').addEventListener('click', () => {
-      state.country = '';
-      state.category = '';
-      $('#country-filter').value = '';
-      $('#category-filter').value = '';
-      loadRadar();
+    $('#movement-horizon').addEventListener('change', event => {
+      state.movementHorizon = event.target.value;
+      if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
     });
 
     $('#reload-radar').addEventListener('click', startPrivateScan);

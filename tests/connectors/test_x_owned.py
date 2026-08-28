@@ -80,7 +80,7 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     assert result.raw_records[0]["payload"]["tweets"]
 
 
-def test_owned_x_waits_for_temporary_cooldown_and_restarts_bounded_query(monkeypatch, tmp_path):
+def test_owned_x_waits_for_temporary_404_cooldown_and_restarts_bounded_query(monkeypatch, tmp_path):
     captured = {"search": [], "waits": []}
 
     class FakeConfig:
@@ -90,10 +90,10 @@ def test_owned_x_waits_for_temporary_cooldown_and_restarts_bounded_query(monkeyp
     class FakeDB:
         def list_accounts(self, **_kwargs):
             return [{
-                "status": 1,
+                "status": 404,
                 "available_til": 104.0,
                 "daily_requests": 20,
-                "cooldown_reason": "rate_limit",
+                "cooldown_reason": "transient",
                 "busy": False,
             }]
 
@@ -104,7 +104,7 @@ def test_owned_x_waits_for_temporary_cooldown_and_restarts_bounded_query(monkeyp
         def search(self, _query, **kwargs):
             captured["search"].append(kwargs)
             if len(captured["search"]) == 1:
-                raise RuntimeError("No eligible accounts (total=1, cooldown=1)")
+                raise RuntimeError("GraphQL endpoint returned 404")
             return [_tweet("resumed")]
 
     async def fake_sleep(seconds):
@@ -128,6 +128,48 @@ def test_owned_x_waits_for_temporary_cooldown_and_restarts_bounded_query(monkeyp
     assert result.health.coverage["retry_count"] == 1
     assert result.health.coverage["waited_seconds"] == 5.0
     assert result.health.coverage["retried_after_cooldown"] is True
+
+
+def test_owned_x_retries_a_transient_forbidden_when_account_remains_active(
+    monkeypatch, tmp_path,
+):
+    captured = {"calls": 0, "waits": []}
+
+    class FakeDB:
+        def list_accounts(self, **_kwargs):
+            return [{
+                "status": 1,
+                "available_til": 0.0,
+                "daily_requests": 20,
+                "cooldown_reason": None,
+                "busy": False,
+            }]
+
+    class ForbiddenOnce:
+        def __init__(self):
+            self.db = FakeDB()
+
+        def search(self, _query, **_kwargs):
+            captured["calls"] += 1
+            if captured["calls"] == 1:
+                raise RuntimeError("403 Forbidden")
+            return [_tweet("retried-forbidden")]
+
+    async def fake_sleep(seconds):
+        captured["waits"].append(seconds)
+
+    monkeypatch.setenv("BOUNTY_X_SCWEET_DB", str(tmp_path / "state.db"))
+    connector = XConnector(sleep_fn=fake_sleep, clock=lambda: 100.0)
+    connector._client = ForbiddenOnce()
+
+    result = asyncio.run(connector.search(
+        "beauty products", count=3, time_filter="month", sort="latest"
+    ))
+
+    assert captured["calls"] == 2
+    assert captured["waits"] == [30.0]
+    assert result.health.status == "ok"
+    assert result.health.coverage["retry_count"] == 1
 
 
 def test_owned_x_daily_safety_cap_fails_without_a_retry_loop(monkeypatch, tmp_path):

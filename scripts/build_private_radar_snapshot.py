@@ -22,6 +22,7 @@ from social_scraper.investing.private_radar import (
 from social_scraper.investing.trajectory import (
     collect_search_trajectory,
     derive_trajectory_query,
+    trajectory_is_usable,
 )
 
 
@@ -80,7 +81,11 @@ def _recheck_decisions(
         decision, linked_records = review_decision_with_current_methodology(
             candidate_saved, evidence_by_id
         )
-        if not decision or not linked_records:
+        if (
+            not decision
+            or not linked_records
+            or not trajectory_is_usable(decision.get("trajectory"))
+        ):
             continue
         linked = [_snapshot_evidence(item) for item in linked_records]
         if is_supported_qualified(decision, set(evidence_by_id), panel_by_id):
@@ -108,10 +113,14 @@ def _recheck_decisions(
 def build_snapshot(db_path: Path) -> dict[str, Any]:
     store = PrivateRadarStore(db_path)
     scan = store.latest_attempt()
-    if not scan or scan.get("status") == "running":
-        raise RuntimeError("a terminal private Radar scan is required")
+    if not scan or scan.get("status") not in {"complete", "no_qualified_leads"}:
+        raise RuntimeError("a successful terminal private Radar scan is required")
     payload = store.public_payload()
     qualified, reviewed = _recheck_decisions(store, scan)
+    if not qualified and not reviewed:
+        raise RuntimeError(
+            "the latest scan has no cited subjects with usable search movement"
+        )
     payload["items"] = qualified
     payload["review_items"] = reviewed
     payload["review_scan"] = store._public_scan(scan)

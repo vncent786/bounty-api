@@ -1,8 +1,14 @@
 # Bounty Current State
 
-**Last updated:** 2026-08-25
+**Last updated:** 2026-08-28
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
-**Current product phase:** Investor Radar public preview withdrawn after Vincent's quality review. `/dashboard` is restored to stable Classic Bounty; `/dashboard/investing-preview` is private/internal; Social Pulse collection is disabled by default. Rebuild follows the recovered Camillo process: stable category/brand scopes → comparable multi-cycle velocity and breadth → specific behavior gate → perennial-content rejection → L0-L2 information-parity gate → cited investigation. Raw posts, raw Google trends, and generic mega-themes never become customer leads. Canonical plan: `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
+**Current product phase:** Public Investor Radar remains withdrawn and `/dashboard` remains stable Classic Bounty. `/dashboard/investing-preview` is the private worldwide-first information-arbitrage Radar. A mandatory production-path preflight now proves Google Trends, X, Reddit, TikTok, Instagram, and YouTube before the 16-panel sweep starts. Discovery samples a full month so the multi-week persistence gate is reachable, while Google Trends supplies country-native candidates plus selectable Worldwide/country 3-month, 1-year, and 5-year movement. The public phone snapshot must not be refreshed or deployed unless a fresh scan completes with no unrecovered required-source errors, user-facing subjects have openable evidence and real movement charts, regressions pass, and desktop/mobile QA passes. Public Social Pulse scheduling stays off. Release contract: `.hermes/plans/2026-08-26-private-day-one-radar-release.md`.
+
+## Active release gate — 2026-08-28
+
+- The latest strict sweep was rejected after one transient X 403, one TikTok timeout, one Instagram timeout, and a successful Reddit route inheriting an unused fallback error. Nothing from that run was deployed.
+- Selected-route receipt isolation, timeout-only bounded retry, X 403/404 recovery, concise Reddit panel queries, and all-six-source preflight are implemented and regression-tested.
+- Same-day failed attempts consumed 334/500 X requests and 5,367/8,000 tweets. Do not raise safety caps or rerun the full sweep before the UTC daily reset. After reset: run all-six canaries, full sweep, snapshot build, selector QA, desktop/mobile inspection, full regression, exact diff review, then deploy only if every gate passes.
 
 ## What Bounty is
 
@@ -144,7 +150,7 @@ The zone path (TrendMonitor) and research-runs path (StagedRunner + handlers) ha
 
 ### 1. Replies and comment threads
 
-The canonical nested conversation model, immutable observation storage, thread reconstruction, and zone provenance are integrated. The active connectors still collect primarily top-level posts, however. Phase 2 must retrieve real YouTube and Reddit comments/replies, preserve route completeness and truncation, and feed those records through the canonical corpus.
+Owned TikTok, Instagram, and X plus YouTube and Reddit now implement bounded root/reply retrieval with parent relationships, explicit truncation, source health, and raw evidence preservation. The richer research-run and private Radar paths use this depth; legacy zones still do not. Remaining work is repeated canaries, session recovery, and moving the owned worker to a durable ingestion boundary before a public SLA.
 
 ### 2. Bounded historical read
 

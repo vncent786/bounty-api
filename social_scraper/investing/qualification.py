@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from collections import Counter
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Any, Mapping, Sequence
 
 
@@ -200,6 +200,22 @@ def _safe_metric(value: Any) -> int | None:
         return None
 
 
+def _created_at(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            parsed = datetime.strptime(text, "%a %b %d %H:%M:%S %z %Y")
+        except ValueError:
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _engagement_state(item: Mapping[str, Any]) -> tuple[bool, bool, dict[str, int | None]]:
     raw = item.get("engagement") if isinstance(item.get("engagement"), Mapping) else {}
     metrics = {
@@ -365,6 +381,56 @@ def qualify_candidate(
         },
     )
 
+    dated_firsthand = [
+        (item, _created_at(item.get("created_at")))
+        for item in firsthand_records
+    ]
+    dated_firsthand = [
+        (item, timestamp) for item, timestamp in dated_firsthand
+        if timestamp is not None
+    ]
+    timestamps = [timestamp for _item, timestamp in dated_firsthand]
+    active_weeks = {
+        (timestamp.isocalendar().year, timestamp.isocalendar().week)
+        for timestamp in timestamps
+    }
+    day_counts = Counter(timestamp.date().isoformat() for timestamp in timestamps)
+    max_day_records = max(day_counts.values(), default=0)
+    span_days = (
+        (max(timestamps).date() - min(timestamps).date()).days
+        if timestamps else 0
+    )
+    one_day_cluster = (
+        bool(timestamps)
+        and span_days <= 1
+        and max_day_records / len(timestamps) >= 0.7
+    )
+    persistence_ok = (
+        len(timestamps) >= 3
+        and len(active_weeks) >= 2
+        and span_days >= 7
+        and not one_day_cluster
+    )
+    if persistence_ok:
+        persistence_reason = "Firsthand behavior persists across at least two weeks."
+        social_pattern = "ongoing"
+    elif one_day_cluster:
+        persistence_reason = "The firsthand cluster is concentrated in one day and may be event-driven."
+        social_pattern = "one_day_cluster"
+    else:
+        persistence_reason = "The checked firsthand evidence does not span enough time to establish persistence."
+        social_pattern = "insufficient_history"
+    persistence = _gate(
+        "pass" if persistence_ok else "fail",
+        persistence_reason,
+        {
+            "dated_firsthand_records": len(timestamps),
+            "active_weeks": len(active_weeks),
+            "span_days": span_days,
+            "max_single_day_records": max_day_records,
+        },
+    )
+
     authors = {
         _norm(item.get("author"))
         for item in cited if _norm(item.get("author"))
@@ -471,6 +537,7 @@ def qualify_candidate(
         "specificity": specificity,
         "behavior": behavior_gate,
         "evidence_quality": evidence_quality,
+        "persistence": persistence,
         "anomaly": anomaly,
         "breadth": breadth,
         "parity": parity_gate,
@@ -490,6 +557,7 @@ def qualify_candidate(
         "qualification_status": status,
         "label": label,
         "behaviour_type": behaviour,
+        "social_pattern": social_pattern,
         "anchor_terms": anchors,
         "summary": str(proposal.get("summary") or "").strip(),
         "economic_mechanism": str(proposal.get("economic_mechanism") or "").strip(),

@@ -65,26 +65,31 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <button class="primary-action" id="reload-radar" type="button">Run private scan</button>
       </header>
 
-      <section class="radar-controls hidden" aria-labelledby="scope-title">
+      <section class="radar-controls movement-controls hidden" id="movement-controls" aria-labelledby="scope-title">
         <div class="control-intro">
-          <p class="eyebrow">Scope</p>
-          <h2 id="scope-title">Global by default</h2>
-          <p>Narrow the persisted feed only when a market or topic area matters to your thesis.</p>
+          <p class="eyebrow">Search movement</p>
+          <h2 id="scope-title">Worldwide by default</h2>
+          <p>Switch market and timeframe to inspect whether search interest is durable. Google Trends is normalized search attention, not social proof.</p>
         </div>
-        <form id="radar-filters" class="filter-form">
-          <label for="country-filter">Country
-            <select id="country-filter" name="country">
-              <option value="">Global — all markets</option>
+        <div class="filter-form" role="group" aria-label="Search movement controls">
+          <label for="movement-geo">Country
+            <select id="movement-geo" name="movement_geo">
+              <option value="WORLDWIDE">Worldwide</option>
+              <option value="US">United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="SG">Singapore</option>
+              <option value="DE">Germany</option>
+              <option value="FR">France</option>
             </select>
           </label>
-          <label for="category-filter">Category
-            <select id="category-filter" name="category">
-              <option value="">All categories</option>
+          <label for="movement-horizon">Timeframe
+            <select id="movement-horizon" name="movement_horizon">
+              <option value="3m">3 months</option>
+              <option value="1y">1 year</option>
+              <option value="5y">5 years</option>
             </select>
           </label>
-          <button class="secondary-action" type="submit">Apply filters</button>
-          <button class="text-button clear-filters" id="clear-filters" type="button">Reset to global</button>
-        </form>
+        </div>
       </section>
 
       <section class="radar-receipt" aria-label="Radar source receipt">
@@ -98,10 +103,28 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
       </div>
 
       <div class="lane-stack">
+        <section class="signal-lane trend-discovery-lane" aria-labelledby="trend-discovery-title">
+          <header class="lane-head">
+            <div>
+              <p class="lane-number">Layer 01</p>
+              <h2 id="trend-discovery-title">Google Trends discovery</h2>
+              <p>Worldwide search-attention candidates generated before social qualification. Search activity is a lead to investigate, never proof.</p>
+            </div>
+            <span class="lane-status" id="trend-discovery-status">Checking search candidates</span>
+          </header>
+          <div class="signal-list" id="trend-discovery-list" aria-live="polite" aria-busy="true">
+            <div class="state-panel loading-state">
+              <p class="eyebrow">Loading</p>
+              <h3>Checking worldwide search attention</h3>
+              <p>Candidate geographies and query baskets are loading.</p>
+            </div>
+          </div>
+        </section>
+
         <section class="signal-lane social-lane" aria-labelledby="social-title">
           <header class="lane-head">
             <div>
-              <p class="lane-number">Lane 01</p>
+              <p class="lane-number">Layer 02</p>
               <h2 id="social-title">Investment signal review</h2>
               <p>Trade-ready leads stay strict. Early hypotheses remain visible with the exact missing evidence, failed checks, and openable sources.</p>
             </div>

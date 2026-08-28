@@ -10,6 +10,11 @@ import re
 from collections import Counter
 from typing import Any, Mapping, Sequence
 
+from social_scraper.investing.google_discovery import (
+    MOVEMENT_GEOGRAPHIES,
+    MOVEMENT_HORIZONS,
+)
+
 
 _QUERY_STOPWORDS = {
     "a", "an", "and", "after", "as", "at", "because", "before", "bought",
@@ -103,8 +108,13 @@ def collect_search_trajectory(
     try:
         if trends is None:
             from trendspy import Trends
-            trends = Trends(request_delay=2.0)
-        frame = trends.interest_over_time([query], timeframe=timeframe, geo=geo)
+            trends = Trends(request_delay=4.0)
+        frame = trends.interest_over_time(
+            [query],
+            timeframe=timeframe,
+            geo=geo,
+            headers={"referer": "https://trends.google.com/"},
+        )
         if frame is None or len(frame) == 0 or query not in frame:
             return {**base, "status": "insufficient_search_volume", "error_category": None}
         values = frame[query].tolist()
@@ -128,6 +138,234 @@ def collect_search_trajectory(
         "points": points,
         "error_category": None,
         "nonzero_points": nonzero,
+    }
+
+
+def _frame_series(frame, query: str, *, geo: str, horizon: str, timeframe: str) -> dict[str, Any]:
+    base = {
+        "query": query,
+        "source": "Google Trends",
+        "geo": geo,
+        "horizon": horizon,
+        "timeframe": timeframe,
+        "normalized": True,
+        "points": [],
+    }
+    if frame is None or len(frame) == 0 or query not in frame:
+        return {**base, "status": "insufficient_search_volume", "error_category": None}
+    values = frame[query].tolist()
+    dates = frame.index.tolist()
+    points = [
+        {"date": str(day)[:10], "value": int(value)}
+        for day, value in zip(dates, values)
+        if value is not None
+    ]
+    nonzero = sum(int(point["value"]) > 0 for point in points)
+    status = "complete" if len(points) >= 30 and nonzero >= 8 else "insufficient_search_volume"
+    return {
+        **base,
+        "status": status,
+        "points": points,
+        "error_category": None,
+        "nonzero_points": nonzero,
+    }
+
+
+def collect_movement_bundles(
+    candidates: Sequence[Mapping[str, Any]],
+    *,
+    trends=None,
+    geographies: Sequence[Mapping[str, str]] = MOVEMENT_GEOGRAPHIES,
+    horizons: Sequence[Mapping[str, str]] = MOVEMENT_HORIZONS,
+    batch_size: int = 5,
+) -> list[dict[str, Any]]:
+    """Collect selectable country/horizon movement with bounded batched requests."""
+    if trends is None:
+        from trendspy import Trends
+        trends = Trends(request_delay=4.0)
+    queries = [
+        str(candidate.get("trajectory_query") or derive_trajectory_query(candidate)).strip()
+        for candidate in candidates
+    ]
+    bundles = [{
+        "query": query,
+        "source": "Google Trends",
+        "default_geo": "WORLDWIDE",
+        "default_horizon": "3m",
+        "geographies": [
+            {"code": str(value.get("code") or "WORLDWIDE"), "name": str(value.get("name") or "")}
+            for value in geographies
+        ],
+        "horizons": [
+            {"code": str(value.get("code") or ""), "name": str(value.get("name") or "")}
+            for value in horizons
+        ],
+        "series": {},
+    } for query in queries]
+    query_indices: dict[str, list[int]] = {}
+    for index, query in enumerate(queries):
+        query_indices.setdefault(query, []).append(index)
+    unique_queries = list(query_indices)
+    for geography in geographies:
+        geo = str(geography.get("code") or "")
+        geo_key = geo or "WORLDWIDE"
+        for bundle in bundles:
+            bundle["series"][geo_key] = {}
+        for horizon in horizons:
+            horizon_code = str(horizon.get("code") or "")
+            timeframe = str(horizon.get("timeframe") or "")
+            for start in range(0, len(unique_queries), max(1, int(batch_size))):
+                chunk = unique_queries[start:start + max(1, int(batch_size))]
+                if not chunk:
+                    continue
+                try:
+                    frame = trends.interest_over_time(
+                        chunk,
+                        timeframe=timeframe,
+                        geo=geo,
+                        headers={"referer": "https://trends.google.com/"},
+                    )
+                except Exception as exc:
+                    for query in chunk:
+                        failed_series = {
+                            "query": query,
+                            "source": "Google Trends",
+                            "geo": geo,
+                            "horizon": horizon_code,
+                            "timeframe": timeframe,
+                            "normalized": True,
+                            "status": "failed",
+                            "points": [],
+                            "error_category": type(exc).__name__,
+                        }
+                        for bundle_index in query_indices[query]:
+                            bundles[bundle_index]["series"][geo_key][horizon_code] = dict(
+                                failed_series
+                            )
+                    continue
+                for query in chunk:
+                    try:
+                        series = _frame_series(
+                            frame, query, geo=geo, horizon=horizon_code,
+                            timeframe=timeframe,
+                        )
+                    except Exception as exc:
+                        series = {
+                            "query": query,
+                            "source": "Google Trends",
+                            "geo": geo,
+                            "horizon": horizon_code,
+                            "timeframe": timeframe,
+                            "normalized": True,
+                            "status": "failed",
+                            "points": [],
+                            "error_category": type(exc).__name__,
+                        }
+                    for bundle_index in query_indices[query]:
+                        bundles[bundle_index]["series"][geo_key][horizon_code] = dict(
+                            series
+                        )
+    for bundle in bundles:
+        bundle["classification"] = classify_movement_bundle(bundle)
+    return bundles
+
+
+def _values(value: Mapping[str, Any] | None) -> list[float]:
+    if not isinstance(value, Mapping) or value.get("status") != "complete":
+        return []
+    parsed = []
+    for point in value.get("points") or []:
+        try:
+            parsed.append(float(point.get("value")))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return parsed
+
+
+def classify_movement_bundle(bundle: Mapping[str, Any] | None) -> dict[str, Any]:
+    """Separate isolated spikes from sustained or strengthening search movement."""
+    if not isinstance(bundle, Mapping):
+        return {
+            "movement_type": "unavailable", "trend_eligible": False,
+            "reason": "No comparable search movement bundle was collected.",
+            "metrics": {},
+        }
+    geo = str(bundle.get("default_geo") or "WORLDWIDE")
+    series = (bundle.get("series") or {}).get(geo) or {}
+    short_values = _values(series.get("3m"))
+    annual_values = _values(series.get("1y"))
+    five_year_values = _values(series.get("5y"))
+    if not short_values:
+        return {
+            "movement_type": "unavailable", "trend_eligible": False,
+            "reason": "No usable three-month search series was collected.",
+            "metrics": {},
+        }
+    peak = max(short_values)
+    total = sum(short_values)
+    top3_share = (
+        sum(sorted(short_values, reverse=True)[:3]) / total if total > 0 else 0.0
+    )
+    latest = short_values[-1]
+    chunk_size = len(five_year_values) // 5 if len(five_year_values) >= 5 else 0
+    five_year_peaks = []
+    if chunk_size:
+        for index in range(5):
+            start = index * chunk_size
+            end = len(five_year_values) if index == 4 else (index + 1) * chunk_size
+            values = five_year_values[start:end]
+            five_year_peaks.append(round(max(values), 2) if values else 0.0)
+    rising_transitions = sum(
+        right > left for left, right in zip(five_year_peaks, five_year_peaks[1:])
+    )
+    quarter = max(1, len(annual_values) // 4) if annual_values else 0
+    prior_mean = (
+        sum(annual_values[-2 * quarter:-quarter]) / quarter
+        if quarter and len(annual_values) >= 2 * quarter else None
+    )
+    recent_mean = (
+        sum(annual_values[-quarter:]) / quarter if quarter else None
+    )
+    metrics = {
+        "three_month_peak": round(peak, 2),
+        "three_month_latest": round(latest, 2),
+        "top_three_points_share": round(top3_share, 4),
+        "five_year_peaks": five_year_peaks,
+        "rising_peak_transitions": rising_transitions,
+        "prior_quarter_mean": round(prior_mean, 2) if prior_mean is not None else None,
+        "recent_quarter_mean": round(recent_mean, 2) if recent_mean is not None else None,
+    }
+    if peak > 0 and top3_share >= 0.45 and latest <= peak * 0.35:
+        movement_type = "event_spike"
+        reason = "Search attention is concentrated in a few points and has already fallen sharply."
+        eligible = False
+    elif len(five_year_peaks) == 5 and rising_transitions >= 3 and five_year_peaks[-1] > five_year_peaks[0]:
+        movement_type = "rising_peaks"
+        reason = "Five-year search peaks are repeatedly moving higher."
+        eligible = True
+    elif (
+        recent_mean is not None and prior_mean is not None and prior_mean > 0
+        and recent_mean >= prior_mean * 1.15
+    ):
+        movement_type = "accelerating"
+        reason = "The latest quarter is materially above the preceding quarter."
+        eligible = True
+    elif (
+        recent_mean is not None and prior_mean is not None and prior_mean > 0
+        and recent_mean <= prior_mean * 0.85
+    ):
+        movement_type = "declining"
+        reason = "The latest quarter is materially below the preceding quarter."
+        eligible = False
+    else:
+        movement_type = "stable_or_unclear"
+        reason = "Search movement is visible but does not show a durable rising pattern."
+        eligible = False
+    return {
+        "movement_type": movement_type,
+        "trend_eligible": eligible,
+        "reason": reason,
+        "metrics": metrics,
     }
 
 

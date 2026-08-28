@@ -201,7 +201,7 @@ def _matches_keyword(item, keyword):
 class RedditMobileConnector(BaseConnector):
     platform = "reddit"
     connector_name = "reddit_mobile_owned"
-    requires_options = True
+    requires_options = False
     manages_timeout = True
 
     def __init__(
@@ -221,10 +221,11 @@ class RedditMobileConnector(BaseConnector):
         self._token_proxy_identity = None
 
     def can_handle_options(self, options):
+        available = CURL_CFFI_AVAILABLE or self.request_fn is not None
+        if not options:
+            return available
         requested = options.get("subreddits") if isinstance(options, dict) else None
-        return (
-            CURL_CFFI_AVAILABLE or self.request_fn is not None
-        ) and (
+        return available and (
             isinstance(requested, list)
             and 1 <= len(requested) <= self.max_subreddits
             and all(isinstance(value, str) and SUBREDDIT_RE.fullmatch(value) for value in requested)

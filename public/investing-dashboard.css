@@ -500,6 +500,11 @@ select {
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
+.movement-query {
+  margin: 6px 0 0;
+  color: var(--ink-70);
+  font: 600 0.76rem / 1.45 var(--mono);
+}
 .movement-axis {
   display: flex;
   justify-content: space-between;
@@ -515,6 +520,16 @@ select {
   line-height: 1.5;
 }
 .movement-unavailable { color: var(--error); }
+.movement-assessment {
+  margin: 10px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--warning);
+  color: var(--warning);
+  font-size: 0.8rem;
+  line-height: 1.5;
+  text-transform: capitalize;
+}
+.movement-assessment.eligible { border-left-color: var(--cobalt); color: var(--cobalt-deep); }
 .signal-list { min-width: 0; }
 
 .review-section-head {
@@ -547,6 +562,23 @@ select {
   text-transform: uppercase;
 }
 .review-row.rejected .review-badge { color: var(--error); }
+.review-badge.search-only { color: var(--cobalt-deep); }
+.trend-candidate-row { border-left: 3px solid var(--cobalt); padding-left: 14px; }
+.trend-candidate-details {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.trend-observation-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  gap: 5px;
+  list-style: none;
+  color: var(--ink-55);
+  font: 500 0.68rem / 1.5 var(--mono);
+}
 .review-status-copy {
   margin: -8px 0 18px;
   color: var(--ink-55);
@@ -842,7 +874,7 @@ select {
   .signal-row { grid-template-columns: 30px minmax(0, 1fr); gap: 10px; }
   .signal-heading { display: block; }
   .investigate-link { display: inline-flex; margin-top: 13px; }
-  .signal-reasons { grid-template-columns: 1fr; gap: 7px; }
+  .signal-reasons, .trend-candidate-details { grid-template-columns: 1fr; gap: 7px; }
   .signal-metrics { grid-template-columns: 1fr; }
   .metric { padding: 10px 0; }
   .metric + .metric { padding-left: 0; border-top: 1px solid var(--rule-faint); border-left: 0; }

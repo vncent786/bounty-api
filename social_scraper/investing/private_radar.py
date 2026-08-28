@@ -148,7 +148,7 @@ DEFAULT_PANELS = (
 )
 
 
-_SYSTEM_PROMPT = """Rank and return at most eight strongest specific information-arbitrage candidates from the supplied current multi-platform social evidence. Prefer exact product, service, or problem anchors repeated by independent authors across platforms; a strong single-platform candidate may remain investigable but must not be described as cross-platform. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"trajectory_query":str,"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. trajectory_query must be a concise public search phrase (normally two to four words) for one comparable Google Trends request; it is a movement sensor, not social proof. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
+_SYSTEM_PROMPT = """Rank and return at most eight strongest specific information-arbitrage candidates from the supplied current multi-platform social evidence. Prefer exact product, service, or problem anchors repeated by independent authors across platforms; a strong single-platform candidate may remain investigable but must not be described as cross-platform. Return JSON only: {"candidates":[{"panel_id":str,"label":str,"behaviour_type":str,"anchor_terms":[str],"trajectory_query":str,"trajectory_query_reason":str,"summary":str,"economic_mechanism":str,"why_investigate":str,"contradiction":str,"invalidation":str,"evidence_ids":[str]}],"limitations":[str]}. Use only supplied evidence IDs. trend_candidates are Google search-attention seeds, never proof; only return one when supplied social records independently support the behavior. trajectory_query must be a concise public search phrase (normally two to four words) for one comparable Google Trends request; trajectory_query_reason must explain why that phrase best represents the specific behavior and name any ambiguity. It is a movement sensor, not social proof. Allowed behaviour types: purchase, adoption, switching, shortage, rejection, pain_point, price_change, workaround. Reject broad themes such as AI, inflation, fitness, technology, news, shopping, and viral. Anchor terms must be exact specific product/service/problem phrases present in cited evidence; never include a broad panel category such as coffee, beauty, food, device, or household. Do not name a company unless cited evidence names it. Do not infer revenue or materiality. Return no candidate when evidence is vague, perennial, promotional, political, entertainment-only, or sentiment without behavior."""
 
 
 def _utc_iso(value: datetime | str | None = None) -> str:
@@ -190,8 +190,8 @@ class PrivateRadarCoverageUnavailable(PrivateRadarError):
 
 
 REQUIRED_QUALIFICATION_GATES = {
-    "specificity", "behavior", "evidence_quality", "anomaly", "breadth", "parity",
-    "investigability",
+    "specificity", "behavior", "evidence_quality", "persistence", "anomaly",
+    "breadth", "parity", "investigability",
 }
 
 
@@ -275,6 +275,8 @@ def review_decision_with_current_methodology(
     )
     if isinstance(decision.get("trajectory"), Mapping):
         value["trajectory"] = dict(decision["trajectory"])
+    if isinstance(decision.get("movement_bundle"), Mapping):
+        value["movement_bundle"] = dict(decision["movement_bundle"])
     value["inferred_panel_id"] = (
         linked_panel if not str(decision.get("panel_id") or "") else None
     )
@@ -290,12 +292,12 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
         isinstance(gates.get(name), Mapping)
         and gates[name].get("state") == "fail"
         for name in (
-            "specificity", "behavior", "evidence_quality", "breadth", "investigability"
+            "specificity", "behavior", "evidence_quality", "persistence", "breadth", "investigability"
         )
     )
     for name in (
-        "specificity", "behavior", "evidence_quality", "breadth", "anomaly", "parity",
-        "investigability",
+        "specificity", "behavior", "evidence_quality", "persistence", "breadth",
+        "anomaly", "parity", "investigability",
     ):
         if preflight_failed and name in {"anomaly", "parity"}:
             continue
@@ -717,6 +719,7 @@ class PrivateRadarStore:
         if not coverage_scan:
             return {
                 "items": [], "review_items": [],
+                "trend_discovery": None,
                 "last_attempt": self._public_scan(attempt), "data_scan": None,
                 "review_scan": None, "displaying_previous_data": False,
                 "coverage": {"summary": "No private investment scan has completed yet", "sources": []},
@@ -771,6 +774,23 @@ class PrivateRadarStore:
             ),
             str(item.get("label") or ""),
         ))
+        trend_source = next(
+            (
+                source for source in coverage_scan["sources"]
+                if source.get("stage") == "trend_discovery"
+                and source.get("platform") == "google_trends"
+            ),
+            None,
+        )
+        trend_discovery = None if not trend_source else {
+            "status": str(trend_source.get("status") or "unknown"),
+            "observed_at": trend_source.get("observed_at"),
+            "geographies": list(trend_source.get("geographies") or []),
+            "candidates": [
+                dict(value) for value in trend_source.get("candidates") or []
+                if isinstance(value, Mapping)
+            ],
+        }
         discovery_sources = [
             source for source in coverage_scan["sources"]
             if source.get("stage") == "discovery"
@@ -837,6 +857,7 @@ class PrivateRadarStore:
         return {
             "items": items,
             "review_items": review_items,
+            "trend_discovery": trend_discovery,
             "last_attempt": self._public_scan(attempt),
             "data_scan": self._public_scan(data_scan),
             "review_scan": self._public_scan(review_scan),
@@ -866,6 +887,7 @@ async def propose_candidates(
     evidence: Sequence[Mapping[str, Any]], *,
     llm_call_fn: Callable[[str, str], Awaitable[str]],
     panels: Sequence[Panel],
+    trend_candidates: Sequence[Mapping[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     records = [dict(item) for item in evidence]
     if not records:
@@ -894,6 +916,7 @@ async def propose_candidates(
         "schema_version": SCAN_SCHEMA_VERSION,
         "panel_version": PANEL_VERSION,
         "panels": [dataclasses.asdict(panel) for panel in panels],
+        "trend_candidates": [dict(value) for value in (trend_candidates or [])],
         "records": [{
             "id": item.get("id"), "panel_id": item.get("panel_id"),
             "platform": item.get("platform"), "author": item.get("author"),
@@ -942,6 +965,10 @@ async def propose_candidates(
         value["trajectory_query"] = (
             trajectory_query[:80] or derive_trajectory_query(value)
         )
+        value["trajectory_query_reason"] = str(
+            value.get("trajectory_query_reason")
+            or "Derived from the candidate's specific product and behavior anchors."
+        ).strip()[:300]
         accepted.append(value)
         seen_panels.add(value["panel_id"])
     limitations = [str(item)[:300] for item in parsed.get("limitations") or [] if isinstance(item, str)]
@@ -958,6 +985,7 @@ class PrivateRadarScanner:
         llm_call_fn: Callable[[str, str], Awaitable[str]] | None = None,
         news_check_fn: Callable[[str, Sequence[str]], Awaitable[dict[str, Any]]] | None = None,
         trajectory_check_fn: Callable[[str], Awaitable[dict[str, Any]]] | None = None,
+        movement_bundle_fn: Callable[[Sequence[Mapping[str, Any]]], Awaitable[list[dict[str, Any]]]] | None = None,
         heartbeat_interval_seconds: float = 30.0,
     ):
         self.store = store
@@ -966,6 +994,7 @@ class PrivateRadarScanner:
         self.llm_call_fn = llm_call_fn
         self.news_check_fn = news_check_fn
         self.trajectory_check_fn = trajectory_check_fn
+        self.movement_bundle_fn = movement_bundle_fn
         self.heartbeat_interval_seconds = max(
             0.001, float(heartbeat_interval_seconds)
         )
@@ -984,7 +1013,59 @@ class PrivateRadarScanner:
         heartbeat_task = asyncio.create_task(self._heartbeat_loop(run_id))
         sources = []
         limitations = []
+        trend_candidates = []
         try:
+            if hasattr(self.collector, "preflight"):
+                self.store.update_progress(
+                    run_id, stage="checking_mandatory_sources", progress=1
+                )
+                preflight = await self.collector.preflight()
+                sources.extend(preflight.get("sources") or [])
+                self.store.update_progress(
+                    run_id,
+                    stage=(
+                        "preflight_complete" if preflight.get("ok")
+                        else "preflight_failed"
+                    ),
+                    progress=3,
+                    sources=sources,
+                )
+                if not preflight.get("ok"):
+                    return self.store.fail_scan(
+                        run_id,
+                        str(preflight.get("error_category") or "preflight_failed"),
+                    )
+            if hasattr(self.collector, "collect_trend_discovery"):
+                self.store.update_progress(
+                    run_id, stage="discovering_google_trends", progress=4,
+                    sources=sources,
+                )
+                trend_result = await self.collector.collect_trend_discovery()
+                trend_candidates = list(trend_result.get("trend_candidates") or [])
+                trend_sources = list(trend_result.get("sources") or [])
+                sources.extend(trend_sources)
+                self.store.add_evidence(
+                    run_id, trend_result.get("evidence") or []
+                )
+                trend_receipt = next(
+                    (
+                        source for source in trend_sources
+                        if source.get("stage") == "trend_discovery"
+                        and source.get("platform") == "google_trends"
+                    ),
+                    {},
+                )
+                if (
+                    trend_receipt.get("status") not in {"complete", "partial"}
+                    or not trend_candidates
+                ):
+                    self.store.update_progress(
+                        run_id, stage="trend_discovery_failed", progress=4,
+                        sources=sources,
+                    )
+                    return self.store.fail_scan(
+                        run_id, "trend_discovery_unavailable"
+                    )
             self.store.update_progress(run_id, stage="collecting_current_evidence", progress=5)
             for index, panel in enumerate(self.panels):
                 result = await self.collector.collect_discovery(panel)
@@ -1009,22 +1090,21 @@ class PrivateRadarScanner:
                 if source.get("platform") in NON_X_DISCOVERY_PLATFORMS
             ]
             expected_non_x_scopes = len(self.panels) * len(NON_X_DISCOVERY_PLATFORMS)
-            non_x_evidence = [
-                item for item in current_evidence
-                if item.get("platform") in NON_X_DISCOVERY_PLATFORMS
-            ]
             x_incomplete = (
                 len(x_sources) != expected_x_scopes
                 or any(source.get("status") != "complete" for source in x_sources)
             )
-            non_x_incomplete = len(non_x_sources) != expected_non_x_scopes
-            non_x_unavailable = (
-                not non_x_evidence
-                and any(source.get("status") != "complete" for source in non_x_sources)
+            non_x_incomplete = (
+                len(non_x_sources) != expected_non_x_scopes
+                or any(
+                    source.get("status") not in {"complete", "partial"}
+                    or bool(source.get("error_category"))
+                    for source in non_x_sources
+                )
             )
-            if x_incomplete or non_x_incomplete or non_x_unavailable:
+            if x_incomplete or non_x_incomplete:
                 raise PrivateRadarCoverageUnavailable(
-                    "initial multi-platform discovery was unavailable or incomplete"
+                    "required discovery sources were unavailable or incomplete"
                 )
             if self.llm_call_fn is None:
                 from social_scraper.llm_client import call_llm
@@ -1034,9 +1114,20 @@ class PrivateRadarScanner:
             else:
                 model = self.llm_call_fn
             proposals, model_limitations = await propose_candidates(
-                current_evidence, llm_call_fn=model, panels=self.panels
+                current_evidence, llm_call_fn=model, panels=self.panels,
+                trend_candidates=trend_candidates,
             )
             limitations.extend(model_limitations)
+            movement_bundles: list[dict[str, Any]] = []
+            if self.movement_bundle_fn is not None and proposals:
+                try:
+                    movement_bundles = list(
+                        await self.movement_bundle_fn(proposals)
+                    )
+                except Exception as exc:
+                    limitations.append(
+                        f"Selectable Google Trends movement failed: {type(exc).__name__}."
+                    )
             self.store.update_progress(run_id, stage="checking_history_and_coverage", progress=50)
             panel_by_id = {panel.panel_id: panel for panel in self.panels}
             decisions = []
@@ -1076,7 +1167,22 @@ class PrivateRadarScanner:
                     proposal.get("trajectory_query")
                     or derive_trajectory_query(proposal)
                 ).strip()
-                if self.trajectory_check_fn is None:
+                movement_bundle = (
+                    dict(movement_bundles[index])
+                    if index < len(movement_bundles)
+                    and isinstance(movement_bundles[index], Mapping)
+                    else {}
+                )
+                default_geo = str(
+                    movement_bundle.get("default_geo") or "WORLDWIDE"
+                )
+                default_horizon = str(
+                    movement_bundle.get("default_horizon") or "3m"
+                )
+                trajectory = dict(
+                    (((movement_bundle.get("series") or {}).get(default_geo) or {}).get(default_horizon) or {})
+                )
+                if not trajectory and self.trajectory_check_fn is None:
                     trajectory = {
                         "query": trajectory_query,
                         "source": "Google Trends",
@@ -1085,7 +1191,7 @@ class PrivateRadarScanner:
                         "points": [],
                         "error_category": "not_configured",
                     }
-                else:
+                elif not trajectory:
                     try:
                         trajectory = await self.trajectory_check_fn(trajectory_query)
                     except Exception as exc:
@@ -1108,8 +1214,10 @@ class PrivateRadarScanner:
                     },
                 )
                 preliminary["trajectory"] = dict(trajectory)
+                if movement_bundle:
+                    preliminary["movement_bundle"] = movement_bundle
                 preflight_gates = (
-                    "specificity", "behavior", "evidence_quality", "breadth", "investigability"
+                    "specificity", "behavior", "evidence_quality", "persistence", "breadth", "investigability"
                 )
                 if any(
                     preliminary["gates"][name]["state"] == "fail"
@@ -1141,6 +1249,8 @@ class PrivateRadarScanner:
                         parity=parity,
                     )
                     decision["trajectory"] = dict(trajectory)
+                    if movement_bundle:
+                        decision["movement_bundle"] = movement_bundle
                     decisions.append(decision)
                 self.store.update_progress(
                     run_id, stage="qualifying_candidates",

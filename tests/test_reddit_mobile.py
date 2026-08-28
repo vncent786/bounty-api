@@ -97,6 +97,34 @@ def test_mobile_connector_mints_once_and_reads_each_exact_subreddit(tmp_path):
     assert all(item.likes == 17 for item in result.items)
 
 
+def test_mobile_connector_auto_discovery_is_reachable_through_broker(tmp_path, monkeypatch):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url))
+        if "access-token/loid" in url:
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        return FakeResponse(200, {"kind": "Listing", "data": {"children": [{"data": POST}]}})
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+        clock=lambda: datetime(2026, 8, 3, 6, 0, tzinfo=timezone.utc),
+    )
+    monkeypatch.setattr(connector, "_discover_subreddits", lambda _keyword: ["stocks"])
+    broker = SourceBroker()
+    broker.register(connector, priority=1)
+
+    response = asyncio.run(broker.search(
+        "earnings", platforms=["reddit"], count=5, time_filter="week", sort="latest"
+    ))
+
+    assert response["count"] == 1
+    assert response["platform_results"]["reddit"]["selected_connector"] == "reddit_mobile_owned"
+    assert response["items"][0]["post_id"] == "abc123"
+    assert calls[0][0] == "POST"
+
+
 def test_mobile_connector_marks_complete_listing_outage_as_error(tmp_path):
     def request(method, url, **kwargs):
         if method == "POST":

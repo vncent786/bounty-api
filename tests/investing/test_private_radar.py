@@ -46,7 +46,10 @@ def test_default_panels_cover_the_full_camillo_consumer_universe():
         assert panel.search_term
 
 
-def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare", engagement=None):
+def _evidence(
+    eid, text, author, platform="x", panel_id="beauty_skincare", engagement=None,
+    created_at="2026-08-26T00:00:00Z",
+):
     return {
         "id": eid,
         "panel_id": panel_id,
@@ -58,7 +61,7 @@ def _evidence(eid, text, author, platform="x", panel_id="beauty_skincare", engag
         "engagement": engagement if engagement is not None else {
             "views": 1000, "likes": 20, "comments": 5, "shares": 1,
         },
-        "created_at": "2026-08-26T00:00:00Z",
+        "created_at": created_at,
         "observed_at": "2026-08-26T12:00:00Z",
         "window_key": "current",
         "query": "silicone air fryer liner",
@@ -93,9 +96,18 @@ class FakeCollector:
     async def collect_discovery(self, panel):
         return {
             "evidence": [
-                _evidence(f"{panel.panel_id}-e1", "I switched to a silicone air fryer liner", "a", panel_id=panel.panel_id),
-                _evidence(f"{panel.panel_id}-e2", "We switched to silicone air fryer liners", "b", "instagram", panel.panel_id),
-                _evidence(f"{panel.panel_id}-e3", "I switched to another silicone air fryer liner", "c", "youtube", panel.panel_id),
+                _evidence(
+                    f"{panel.panel_id}-e1", "I switched to a silicone air fryer liner", "a",
+                    panel_id=panel.panel_id, created_at="2026-08-12T00:00:00Z",
+                ),
+                _evidence(
+                    f"{panel.panel_id}-e2", "We switched to silicone air fryer liners", "b",
+                    "instagram", panel.panel_id, created_at="2026-08-20T00:00:00Z",
+                ),
+                _evidence(
+                    f"{panel.panel_id}-e3", "I switched to another silicone air fryer liner", "c",
+                    "youtube", panel.panel_id, created_at="2026-08-26T00:00:00Z",
+                ),
             ],
             "sources": [
                 {"panel_id": panel.panel_id, "platform": "x", "stage": "discovery", "query_index": index, "status": "complete", "count": 1}
@@ -157,11 +169,37 @@ async def _trajectory(query):
     }
 
 
+async def _movement_bundles(candidates):
+    bundles = []
+    for candidate in candidates:
+        trajectory = await _trajectory(candidate.get("trajectory_query") or "home gym")
+        bundles.append({
+            "query": trajectory["query"],
+            "source": "Google Trends",
+            "default_geo": "WORLDWIDE",
+            "default_horizon": "3m",
+            "geographies": [
+                {"code": "WORLDWIDE", "name": "Worldwide"},
+                {"code": "US", "name": "United States"},
+            ],
+            "horizons": [
+                {"code": "3m", "name": "3 months"},
+                {"code": "1y", "name": "1 year"},
+                {"code": "5y", "name": "5 years"},
+            ],
+            "series": {
+                "WORLDWIDE": {"3m": trajectory},
+                "US": {"3m": trajectory},
+            },
+        })
+    return bundles
+
+
 def _passing_gates():
     return {
         name: {"state": "pass", "passed": True, "reason": "fixture", "metrics": {}}
         for name in (
-            "specificity", "behavior", "evidence_quality", "anomaly", "breadth", "parity", "investigability"
+            "specificity", "behavior", "evidence_quality", "persistence", "anomaly", "breadth", "parity", "investigability"
         )
     }
 
@@ -389,10 +427,33 @@ def test_public_payload_discloses_bounded_x_funnel_scope_and_caps(tmp_path):
             "error_category": None,
             "coverage": {"requested_limit_reached": index < 3},
         })
+    sources.append({
+        "platform": "google_trends",
+        "stage": "trend_discovery",
+        "status": "complete",
+        "count": 1,
+        "observed_at": "2026-08-28T00:00:00+00:00",
+        "geographies": ["US", "GB"],
+        "candidates": [{
+            "keyword": "home gym", "categories": ["Health"],
+            "countries": ["GB", "US"], "country_breadth": 2,
+            "keyword_basket": ["home gym", "garage gym"],
+        }],
+    })
     store.complete_scan(run_id, [], limitations=[], sources=sources)
 
     payload = store.public_payload()
 
+    assert payload["trend_discovery"] == {
+        "status": "complete",
+        "observed_at": "2026-08-28T00:00:00+00:00",
+        "geographies": ["US", "GB"],
+        "candidates": [{
+            "keyword": "home gym", "categories": ["Health"],
+            "countries": ["GB", "US"], "country_breadth": 2,
+            "keyword_basket": ["home gym", "garage gym"],
+        }],
+    }
     assert payload["coverage"]["initial_funnel"] == {
         "panel_count": 1,
         "query_scopes": 4,
@@ -513,8 +574,17 @@ def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
                 item["query"] = panel.search_term
                 evidence.append(item)
 
+    trend_candidates = [{
+        "keyword": "home gym",
+        "categories": ["Health"],
+        "countries": ["GB", "US"],
+        "keyword_basket": ["home gym", "garage gym"],
+        "panel_id": "fitness_wearables",
+    }]
+
     async def model(_system, user):
         payload = json.loads(user)
+        assert payload["trend_candidates"] == trend_candidates
         counts = {}
         platform_counts = {}
         for record in payload["records"]:
@@ -554,6 +624,7 @@ def test_candidate_proposal_payload_is_balanced_and_shortlist_is_bounded():
         evidence,
         llm_call_fn=model,
         panels=DEFAULT_PANELS,
+        trend_candidates=trend_candidates,
     ))
 
     assert len(proposals) == 6
@@ -661,6 +732,7 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     scanner = PrivateRadarScanner(
         store, FakeCollector(), panels=None, llm_call_fn=_llm, news_check_fn=_news,
         trajectory_check_fn=_trajectory,
+        movement_bundle_fn=_movement_bundles,
     )
     result = asyncio.run(scanner.run())
 
@@ -672,6 +744,8 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     assert payload["items"][0]["gates"]["anomaly"]["passed"] is True
     assert payload["items"][0]["trajectory"]["status"] == "complete"
     assert len(payload["items"][0]["trajectory"]["points"]) == 30
+    assert payload["items"][0]["movement_bundle"]["default_geo"] == "WORLDWIDE"
+    assert payload["items"][0]["movement_bundle"]["default_horizon"] == "3m"
 
 
 def test_model_failure_fails_closed_without_raw_fallback(tmp_path):
@@ -685,6 +759,38 @@ def test_model_failure_fails_closed_without_raw_fallback(tmp_path):
     result = asyncio.run(scanner.run())
     assert result["status"] == "failed"
     assert store.public_payload()["items"] == []
+
+
+def test_failed_preflight_blocks_all_panel_collection(tmp_path):
+    class FailedPreflightCollector:
+        async def preflight(self):
+            return {
+                "ok": False,
+                "error_category": "preflight_reddit_unavailable",
+                "sources": [{
+                    "platform": "reddit", "stage": "preflight",
+                    "status": "failed", "count": 0,
+                    "error_category": "reddit_mobile_unavailable",
+                }],
+            }
+
+        async def collect_discovery(self, _panel):
+            raise AssertionError("full collection must not start after failed preflight")
+
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    scanner = PrivateRadarScanner(
+        store,
+        FailedPreflightCollector(),
+        panels=(DEFAULT_PANELS[0],),
+        llm_call_fn=_llm,
+    )
+
+    result = asyncio.run(scanner.run())
+
+    assert result["status"] == "failed"
+    assert result["error_category"] == "preflight_reddit_unavailable"
+    assert result["evidence_count"] == 0
+    assert result["sources"][0]["stage"] == "preflight"
 
 
 def test_unavailable_sources_are_a_failure_not_an_empty_cycle(tmp_path):
@@ -766,7 +872,7 @@ def test_partial_initial_funnel_is_incomplete_even_when_some_evidence_arrived(tm
     assert result["error_category"] == "PrivateRadarCoverageUnavailable"
 
 
-def test_one_usable_non_x_source_allows_scan_with_other_source_gaps(tmp_path):
+def test_any_failed_required_non_x_source_blocks_the_scan(tmp_path):
     class PartialMultiSourceCollector:
         async def collect_discovery(self, panel):
             sources = _complete_discovery_sources(panel, x_count=1)
@@ -783,21 +889,21 @@ def test_one_usable_non_x_source_allows_scan_with_other_source_gaps(tmp_path):
                 "sources": sources,
             }
 
-    async def no_candidates(_system, _user):
-        return '{"candidates":[],"limitations":["Three non-X sources were unavailable."]}'
+    async def must_not_run(*_args):
+        raise AssertionError("model must not run when a required source failed")
 
     store = PrivateRadarStore(tmp_path / "radar.db")
     scanner = PrivateRadarScanner(
         store,
         PartialMultiSourceCollector(),
         panels=(DEFAULT_PANELS[0],),
-        llm_call_fn=no_candidates,
+        llm_call_fn=must_not_run,
     )
 
     result = asyncio.run(scanner.run())
 
-    assert result["status"] == "no_qualified_leads"
-    assert result["limitations"] == ["Three non-X sources were unavailable."]
+    assert result["status"] == "failed"
+    assert result["error_category"] == "PrivateRadarCoverageUnavailable"
 
 
 def test_healthy_empty_sources_are_an_honest_empty_cycle(tmp_path):

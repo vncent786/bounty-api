@@ -42,7 +42,7 @@ Secrets live in `.env` locally (gitignored — **never commit, never paste conte
 
 ## What this is
 
-Bounty's public Investor Radar is withdrawn while its signal methodology is rebuilt. `/dashboard` serves stable Classic Bounty; `/dashboard/investing-preview` is an internal preview only; Social Pulse scheduling defaults off. The next Radar must follow the sourced Camillo process: stable category and global tradeable-brand scopes, comparable historical or forward velocity windows, expanding independent breadth, specific consumer behavior, perennial-content rejection, L0-L2 information parity, citations, and an investigation question. Historical backfill can produce day-one retrospective anomalies; forward monitoring establishes persistence and prospective validity. Discovery is not limited to options-enabled securities. Raw social titles, raw Google trends, one-off virality, and generic themes such as `AI` are internal evidence only and must never be customer-facing leads. Source notes: `references/camillo-information-arbitrage-methodology-2026-08.md`; rebuild plan: `.hermes/plans/2026-08-25_235000-camillo-information-arbitrage-rebuild.md`.
+Bounty's public Investor Radar is withdrawn while its signal methodology is rebuilt. `/dashboard` serves stable Classic Bounty; `/dashboard/investing-preview` is the internal private Radar. The private Radar now has an owned-worker manual scan that persists progress and shows only candidates passing deterministic specificity, behavior, comparable-history anomaly, breadth, citation, parity, and investigability gates. `No qualified leads` is a valid result. Public Social Pulse scheduling stays off. Discovery is not limited to options-enabled securities. Raw social titles, raw Google trends, one-off virality, and generic themes such as `AI` are internal evidence only and must never be customer-facing leads. Source notes: `references/camillo-information-arbitrage-methodology-2026-08.md`; release contract: `.hermes/plans/2026-08-26-private-day-one-radar-release.md`.
 
 ## Canonical methodology: Buzzabout, not a Google Trends dashboard
 
@@ -142,6 +142,7 @@ Dashboard auth fails CLOSED (503) in production unless `BOUNTY_DASHBOARD_TOKEN` 
 | `BOUNTY_X_BEARER_TOKEN` | Official X API bearer token for Recent/Full-Archive Search |
 | `BOUNTY_X_ENABLE_FULL_ARCHIVE` | Set to `1` only when the X project has paid full-archive access |
 | `BOUNTY_OWNED_SOCIAL_WORKER` | Set `1` only on the residential collection worker; production API/Railway defaults to no browser/session connectors |
+| `BOUNTY_PRIVATE_RADAR_DB` | Private Radar SQLite path; local default uses the Discovery database unless explicitly isolated |
 | `BOUNTY_X_AUTH_TOKEN` | Owned X account auth cookie used by Scweet web GraphQL |
 | `BOUNTY_X_SCWEET_DB` | Owned X account/cooldown state path; use an ignored runtime database |
 | `BOUNTY_X_DAILY_REQUEST_LIMIT` / `BOUNTY_X_DAILY_TWEETS_LIMIT` | Hard per-account budgets; defaults 100 pages and 3,000 posts/day |

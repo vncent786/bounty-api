@@ -1,7 +1,10 @@
 from social_scraper.investing.qualification import qualify_candidate
 
 
-def _evidence(eid, author, text, platform="x", engagement=None):
+def _evidence(eid, author, text, platform="x", engagement=None, created_at=None):
+    if created_at is None:
+        suffix = int(str(eid)[-1]) if str(eid)[-1:].isdigit() else 1
+        created_at = f"2026-08-{min(26, 2 + (suffix - 1) * 8):02d}T00:00:00Z"
     return {
         "id": eid,
         "external_id": eid,
@@ -9,6 +12,7 @@ def _evidence(eid, author, text, platform="x", engagement=None):
         "author": author,
         "text": text,
         "url": f"https://example.com/{eid}",
+        "created_at": created_at,
         "engagement": engagement if engagement is not None else {
             "views": 1000, "likes": 20, "comments": 5, "shares": 1,
         },
@@ -431,7 +435,38 @@ def test_three_firsthand_engaged_voices_can_pass_evidence_quality():
     assert quality["state"] == "pass"
     assert quality["metrics"]["firsthand_authors"] == 3
     assert quality["metrics"]["engaged_records"] == 3
+    assert result["gates"]["persistence"]["state"] == "pass"
+    assert result["social_pattern"] == "ongoing"
     assert result["qualification_status"] == "qualified"
+
+
+def test_one_day_social_cluster_fails_persistence_even_with_engagement():
+    evidence = [
+        _evidence(
+            "e1", "a", "I switched to a silicone air fryer liner", "x",
+            created_at="2026-08-20T01:00:00Z",
+        ),
+        _evidence(
+            "e2", "b", "We switched to silicone air fryer liners", "instagram",
+            created_at="2026-08-20T08:00:00Z",
+        ),
+        _evidence(
+            "e3", "c", "I switched to another silicone air fryer liner", "youtube",
+            created_at="2026-08-20T22:00:00Z",
+        ),
+    ]
+
+    result = qualify_candidate(
+        _proposal(), evidence=evidence, windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    persistence = result["gates"]["persistence"]
+    assert persistence["state"] == "fail"
+    assert persistence["metrics"]["active_weeks"] == 1
+    assert persistence["metrics"]["span_days"] == 0
+    assert result["social_pattern"] == "one_day_cluster"
+    assert result["qualification_status"] == "not_qualified"
 
 
 def test_negated_pain_language_does_not_count_as_behavior_support():

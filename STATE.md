@@ -8,7 +8,7 @@
 
 - Run `5326c39d668e4f508deb822657f5814c` completed with 2,583 stored evidence records, eight reviewed candidates, zero qualified leads, and no terminal error.
 - Mandatory canaries completed with records for Google Trends, X, TikTok, Instagram, Reddit, and YouTube. The full sweep completed 64/64 X scopes; TikTok, Instagram, and Reddit completed 16/16; YouTube completed 13 scopes plus three healthy short/empty scopes with no connector error. There were zero unrecovered source failures.
-- The sanitized read-only snapshot contains five cited, chart-backed rejected subjects and eight Google Trends discovery candidates. Desktop and mobile QA passed with zero overflow, zero console/network failures, 13 evidence links, and populated Worldwide/United States charts across 3 months, 1 year, and 5 years. The public release remains pending final regression, exact-diff review, commit, push, and production smoke test.
+- The sanitized read-only snapshot contains five cited, chart-backed rejected subjects and eight Google Trends discovery candidates. Desktop, mobile, and production QA passed with zero overflow, zero console/network failures, 13 evidence links, and populated Worldwide/United States charts across 3 months, 1 year, and 5 years. The private preview is deployed at `https://bountyapi.com/dashboard/investing-preview?snapshot=1#social` through commit `f55d316`; Classic Bounty remains the default `/dashboard`.
 - X daily request/tweet caps remain 500/8,000 because they cover a normal full sweep with margin. Future scans use 10 requests/minute, one-third of Scweet's documented default, with header-aware cooldowns and bounded transient retries.
 
 ## What Bounty is

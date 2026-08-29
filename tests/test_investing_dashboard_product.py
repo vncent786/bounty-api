@@ -40,7 +40,7 @@ def test_investing_shell_keeps_classic_bounty_prominent_and_explains_what_remain
     assert html.count('href="/dashboard/classic"') >= 3
     assert html.count("Open Classic Bounty") >= 3
     assert "Classic research, projects, and lenses remain available." in html
-    assert "Projects, research runs, findings, and lenses remain available." in html
+    assert "Build a cited investment dossier" in html
     assert "topic pre-filled" in html
 
 
@@ -118,6 +118,52 @@ def test_private_radar_uses_manual_scan_and_persisted_read_contract():
     assert "loadPrivateRadar()" in init_block
     assert "loadRadar()" not in init_block
     assert "loadSocialPulse()" not in init_block
+
+
+def test_candidate_to_dossier_workflow_is_generic_persisted_and_snapshot_safe():
+    html = get_investing_dashboard_html().body.decode()
+    script = _script()
+    styles = _styles()
+
+    for element_id in (
+        "investment-research-form",
+        "research-source-scan",
+        "research-candidate-id",
+        "research-candidate-label",
+        "research-company",
+        "research-ticker",
+        "research-exchange",
+        "research-primary-url",
+        "research-transcript-url",
+        "research-start",
+        "investment-research-progress",
+        "investment-dossier-list",
+        "investment-dossier-detail",
+    ):
+        assert f'id="{element_id}"' in html
+
+    for marker in (
+        "INVESTMENT_DOSSIER_RUNS_URL",
+        "investmentResearchButton",
+        "prepareInvestmentResearch",
+        "startInvestmentResearch",
+        "pollInvestmentResearch",
+        "loadInvestmentDossierRuns",
+        "renderInvestmentDossierDetail",
+        "/execute",
+        "/dossier",
+        "assumptionPayload",
+        "if (READ_ONLY_SNAPSHOT) return",
+        "This page makes no company-research API calls in snapshot mode.",
+    ):
+        assert marker in script
+
+    assert "Costco" not in html
+    assert "Costco" not in script
+    assert "innerHTML" not in script
+    assert ".research-dossier-layout" in styles
+    assert ".assumption-table" in styles
+    assert "@media (max-width: 760px)" in styles
 
 
 def test_signal_rows_render_contract_fields_source_time_and_encoded_classic_handoff():

@@ -38,8 +38,11 @@ _investing_store = None
 _social_pulse_store = None
 _private_radar_store = None
 _private_radar_tasks: dict[str, asyncio.Task] = {}
+_investment_research_store = None
+_investment_research_tasks: dict[str, asyncio.Task] = {}
 
 _DB_PATH = Path(__file__).resolve().parents[1] / "data" / "monitoring.db"
+_PRIVATE_SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "public" / "private-radar-snapshot.json"
 
 
 class DiscoveryLensCriterionRequest(BaseModel):
@@ -180,6 +183,43 @@ class FamilyActionRequest(BaseModel):
     details: dict[str, Any] = Field(default_factory=dict)
 
 
+class InvestmentDossierRunCreateRequest(BaseModel):
+    workspace_id: str = Field(default="default", min_length=1, max_length=100)
+    source_scan_id: str = Field(min_length=1, max_length=100)
+    candidate_id: str = Field(min_length=1, max_length=100)
+    selection_mode: str = Field(default="research_only", pattern="^(qualified|research_only)$")
+    company_name: str = Field(min_length=1, max_length=240)
+    ticker: Optional[str] = Field(default=None, max_length=24)
+    exchange_code: Optional[str] = Field(default="US", max_length=16)
+    primary_document_urls: list[str] = Field(default_factory=list, max_length=4)
+    transcript_url: Optional[str] = Field(default=None, max_length=2000)
+    assumptions: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    idempotency_key: Optional[str] = Field(default=None, max_length=160)
+
+
+def _validated_https_urls(values: list[str], *, field_name: str) -> list[str]:
+    from social_scraper.investing.free_company_sources import (
+        validate_public_https_url_syntax,
+    )
+
+    results = []
+    for value in values:
+        try:
+            text = validate_public_https_url_syntax(str(value or "").strip())
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=f"{field_name}: {exc}") from exc
+        if len(text) > 2000:
+            raise HTTPException(status_code=422, detail=f"{field_name} is too long")
+        results.append(text)
+    return results
+
+
+def _validated_optional_https(value: str | None, *, field_name: str) -> str | None:
+    if not value:
+        return None
+    return _validated_https_urls([value], field_name=field_name)[0]
+
+
 def _get_registry():
     global _registry
     if _registry is None:
@@ -243,6 +283,83 @@ def _get_private_radar_store():
         _private_radar_store = PrivateRadarStore(path)
     return _private_radar_store
 
+
+def _get_investment_research_store():
+    global _investment_research_store
+    if _investment_research_store is None:
+        from social_scraper.investing.research_store import InvestmentResearchStore
+        configured = os.getenv("BOUNTY_INVESTMENT_RESEARCH_DB", "").strip()
+        path = Path(configured) if configured else _discovery_db_path()
+        _investment_research_store = InvestmentResearchStore(path)
+    return _investment_research_store
+
+
+def _load_private_snapshot() -> dict[str, Any] | None:
+    try:
+        return json.loads(_PRIVATE_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def _private_candidate_for_handoff(
+    source_scan_id: str,
+    candidate_id: str,
+    selection_mode: str,
+) -> dict[str, Any]:
+    from social_scraper.investing.generic_dossier import build_candidate_handoff
+
+    store = _get_private_radar_store()
+    scan = store.get_scan(source_scan_id)
+    candidate = None
+    if scan and scan.get("status") in {"complete", "no_qualified_leads"}:
+        decision = next(
+            (
+                dict(value) for value in scan.get("decisions") or []
+                if str(value.get("candidate_id") or "") == str(candidate_id)
+            ),
+            None,
+        )
+        if decision:
+            evidence_by_id = {
+                str(value.get("id")): value
+                for value in store.evidence_for_run(source_scan_id)
+            }
+            evidence_ids = [str(value) for value in decision.get("evidence_ids") or []]
+            linked = [
+                dict(evidence_by_id[value]) for value in evidence_ids
+                if value in evidence_by_id
+            ]
+            if len(linked) == len(evidence_ids) and linked:
+                candidate = {**decision, "evidence": linked}
+    if candidate is None:
+        snapshot = _load_private_snapshot() or {}
+        snapshot_scan_ids = {
+            str((snapshot.get(name) or {}).get("id") or "")
+            for name in ("data_scan", "review_scan", "last_attempt")
+        }
+        if str(source_scan_id) in snapshot_scan_ids:
+            candidate = next(
+                (
+                    dict(value)
+                    for value in (
+                        list(snapshot.get("items") or [])
+                        + list(snapshot.get("review_items") or [])
+                    )
+                    if str(value.get("candidate_id") or "") == str(candidate_id)
+                ),
+                None,
+            )
+    if candidate is None:
+        raise HTTPException(status_code=404, detail="Investment candidate was not found")
+    try:
+        return build_candidate_handoff(
+            candidate,
+            source_scan_id=source_scan_id,
+            selection_mode=selection_mode,
+            created_at=datetime.now(timezone.utc).isoformat(),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 def _public_investing_sweep(run: Mapping[str, Any] | None) -> dict[str, Any] | None:
@@ -510,7 +627,12 @@ async def _run_private_radar_scan(run_id: str):
 @router.get("/investing/private-radar")
 async def get_private_investing_radar():
     """Read persisted trade-ready leads plus cited near-miss review decisions."""
-    return _get_private_radar_store().public_payload()
+    payload = _get_private_radar_store().public_payload()
+    if payload.get("data_scan") is None:
+        snapshot = _load_private_snapshot()
+        if snapshot:
+            return {**snapshot, "snapshot_fallback": True}
+    return payload
 
 
 @router.post("/investing/private-radar/scans", status_code=202)
@@ -539,6 +661,144 @@ async def get_private_investing_scan(run_id: str):
     if not scan:
         raise HTTPException(status_code=404, detail="Private Radar scan was not found")
     return {"scan": scan}
+
+
+async def _run_investment_research_background(run_id: str, claim_token: str):
+    try:
+        from social_scraper.investing.research_runner import GenericInvestmentResearchRunner
+        await GenericInvestmentResearchRunner(
+            _get_investment_research_store()
+        ).run(run_id, claim_token)
+    except asyncio.CancelledError:
+        store = _get_investment_research_store()
+        current = store.get_research_run(run_id)
+        if current and current.get("status") == "running":
+            try:
+                store.complete_research_run(
+                    run_id,
+                    claim_token=claim_token,
+                    status="cancelled",
+                    dossier_id=None,
+                    result={"message": "Research task was cancelled and can be restarted."},
+                    error_category="cancelled",
+                )
+            except ValueError:
+                pass
+        raise
+    except Exception as exc:
+        logger.error("Investment research run failed: %s", exc, exc_info=True)
+    finally:
+        _investment_research_tasks.pop(run_id, None)
+
+
+def _schedule_investment_research_run(run_id: str, claim_token: str) -> None:
+    task = asyncio.create_task(
+        _run_investment_research_background(run_id, claim_token)
+    )
+    _investment_research_tasks[run_id] = task
+
+
+@router.post("/investing/dossier-runs", status_code=202)
+async def create_investment_dossier_run(request: InvestmentDossierRunCreateRequest):
+    document_urls = _validated_https_urls(
+        request.primary_document_urls,
+        field_name="primary_document_urls",
+    )
+    transcript_url = _validated_optional_https(
+        request.transcript_url,
+        field_name="transcript_url",
+    )
+    handoff = _private_candidate_for_handoff(
+        request.source_scan_id,
+        request.candidate_id,
+        request.selection_mode,
+    )
+    target = {
+        "company_name": request.company_name.strip(),
+        "ticker": str(request.ticker or "").strip().upper() or None,
+        "exchange_code": str(request.exchange_code or "US").strip().upper(),
+        "primary_document_urls": document_urls,
+        "transcript_url": transcript_url,
+    }
+    options = {
+        "assumptions": request.assumptions,
+        "as_of": datetime.now(timezone.utc).date().isoformat(),
+    }
+    store = _get_investment_research_store()
+    try:
+        run, created = store.create_research_run(
+            workspace_id=request.workspace_id,
+            handoff=handoff,
+            target=target,
+            options=options,
+            idempotency_key=request.idempotency_key,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    started = False
+    if created:
+        claim_token = store.claim_research_run(run["id"], lease_seconds=300)
+        if not claim_token:
+            raise HTTPException(status_code=409, detail="Research run could not be claimed")
+        _schedule_investment_research_run(run["id"], claim_token)
+        run = store.get_research_run(run["id"])
+        started = True
+    return {"run": run, "started": started}
+
+
+@router.get("/investing/dossier-runs")
+async def list_investment_dossier_runs(workspace_id: str = Query("default", max_length=100)):
+    return {"runs": _get_investment_research_store().list_research_runs(workspace_id)}
+
+
+@router.get("/investing/dossier-runs/{run_id}")
+async def get_investment_dossier_run(run_id: str):
+    run = _get_investment_research_store().get_research_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Investment research run was not found")
+    return {"run": run}
+
+
+@router.post("/investing/dossier-runs/{run_id}/execute", status_code=202)
+async def execute_investment_dossier_run(run_id: str):
+    store = _get_investment_research_store()
+    run = store.get_research_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Investment research run was not found")
+    if run.get("status") in {"complete", "partial", "cancelled"}:
+        raise HTTPException(status_code=409, detail="Investment research run is already terminal")
+    claim_token = store.claim_research_run(run_id, lease_seconds=300)
+    if not claim_token:
+        return {"run": run, "started": False}
+    _schedule_investment_research_run(run_id, claim_token)
+    return {"run": store.get_research_run(run_id), "started": True}
+
+
+@router.get("/investing/dossier-runs/{run_id}/dossier")
+async def get_investment_dossier_for_run(run_id: str):
+    store = _get_investment_research_store()
+    run = store.get_research_run(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="Investment research run was not found")
+    if not run.get("dossier_id"):
+        raise HTTPException(status_code=409, detail="Investment dossier is not ready")
+    record = store.get_dossier_record(run["dossier_id"])
+    if not record:
+        raise HTTPException(status_code=500, detail="Investment dossier record is missing")
+    if not store.verify_dossier(run["dossier_id"]):
+        raise HTTPException(status_code=500, detail="Investment dossier integrity check failed")
+    return {"dossier": record["payload"], "payload_sha256": record["payload_sha256"]}
+
+
+@router.get("/investing/dossiers/{dossier_id}")
+async def get_saved_investment_dossier(dossier_id: str):
+    store = _get_investment_research_store()
+    record = store.get_dossier_record(dossier_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Investment dossier was not found")
+    if not store.verify_dossier(dossier_id):
+        raise HTTPException(status_code=500, detail="Investment dossier integrity check failed")
+    return {"dossier": record["payload"], "payload_sha256": record["payload_sha256"]}
 
 
 @router.get("/investing/radar/runs/{sweep_id}")

@@ -195,11 +195,69 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
           <p>Move from an observed signal to a bounded, cited read of the conversations behind it.</p>
         </div>
       </header>
-      <section class="handoff-panel">
-        <p class="eyebrow">Available in Classic Bounty</p>
-        <h2>Projects, research runs, findings, and lenses remain available.</h2>
-        <p>This investing-first workspace does not invent a second research flow. Use the established Classic Bounty workbench for deep investigation and source-backed findings.</p>
-        <a class="primary-link" href="/dashboard/classic">Open Classic Bounty</a>
+      <section class="research-workbench" aria-labelledby="research-form-title">
+        <header class="research-section-head">
+          <p class="eyebrow">Candidate to company research</p>
+          <h2 id="research-form-title">Build a cited investment dossier</h2>
+          <p>Confirm the company and ticker. Bounty checks free company records, official SEC filings when available, public coverage, and any source links you provide.</p>
+        </header>
+        <form id="investment-research-form" class="investment-research-form">
+          <input id="research-source-scan" type="hidden">
+          <input id="research-candidate-id" type="hidden">
+          <label for="research-candidate-label">Radar candidate (required)
+            <textarea id="research-candidate-label" rows="2" maxlength="240" readonly required></textarea>
+          </label>
+          <div class="research-form-grid">
+            <label for="research-company">Company legal name (required)
+              <input id="research-company" type="text" maxlength="240" autocomplete="organization" required>
+            </label>
+            <label for="research-ticker">Ticker, if listed
+              <input id="research-ticker" type="text" maxlength="24" autocapitalize="characters">
+            </label>
+            <label for="research-exchange">Exchange code
+              <input id="research-exchange" type="text" maxlength="16" value="US" autocapitalize="characters">
+            </label>
+          </div>
+          <label for="research-primary-url">Optional official filing or annual-report URL
+            <input id="research-primary-url" type="url" maxlength="2000" placeholder="https://…">
+          </label>
+          <label for="research-transcript-url">Optional earnings-call transcript URL
+            <input id="research-transcript-url" type="url" maxlength="2000" placeholder="https://…">
+          </label>
+          <details class="assumption-panel">
+            <summary>Optional materiality assumptions</summary>
+            <p>Only enter ranges you can defend. Empty fields stay unknown and produce no financial-impact estimate.</p>
+            <div class="assumption-table" role="group" aria-label="Low, base, and high assumptions">
+              <div class="assumption-head"><span>Input</span><span>Low</span><span>Base</span><span>High</span></div>
+              <div class="assumption-row" data-assumption="affected_population"><span>Affected customers or units</span><input type="number" min="0" step="any" aria-label="Affected population low"><input type="number" min="0" step="any" aria-label="Affected population base"><input type="number" min="0" step="any" aria-label="Affected population high"></div>
+              <div class="assumption-row" data-assumption="behavior_change_rate"><span>Behavior change, percent</span><input type="number" min="0" max="100" step="any" aria-label="Behavior change low"><input type="number" min="0" max="100" step="any" aria-label="Behavior change base"><input type="number" min="0" max="100" step="any" aria-label="Behavior change high"></div>
+              <div class="assumption-row" data-assumption="incremental_revenue_per_affected"><span>Revenue per affected customer or unit</span><input type="number" min="0" step="any" aria-label="Revenue per affected low"><input type="number" min="0" step="any" aria-label="Revenue per affected base"><input type="number" min="0" step="any" aria-label="Revenue per affected high"></div>
+              <div class="assumption-row" data-assumption="contribution_margin"><span>Contribution margin, percent</span><input type="number" min="0" max="100" step="any" aria-label="Contribution margin low"><input type="number" min="0" max="100" step="any" aria-label="Contribution margin base"><input type="number" min="0" max="100" step="any" aria-label="Contribution margin high"></div>
+              <div class="assumption-row" data-assumption="offsetting_costs"><span>Offsetting costs</span><input type="number" min="0" step="any" aria-label="Offsetting costs low"><input type="number" min="0" step="any" aria-label="Offsetting costs base"><input type="number" min="0" step="any" aria-label="Offsetting costs high"></div>
+            </div>
+            <label for="research-assumption-note">Assumption rationale
+              <textarea id="research-assumption-note" rows="2" maxlength="500" placeholder="Why are these ranges defensible?"></textarea>
+            </label>
+          </details>
+          <button id="research-start" class="primary-action" type="submit">Start company research</button>
+        </form>
+      </section>
+      <section class="research-progress-section" aria-labelledby="research-progress-title">
+        <header class="research-section-head compact">
+          <p class="eyebrow">Current work</p>
+          <h2 id="research-progress-title">Progress</h2>
+        </header>
+        <div id="investment-research-progress" aria-live="polite"></div>
+      </section>
+      <section class="research-dossiers-section" aria-labelledby="research-dossiers-title">
+        <header class="research-section-head compact">
+          <p class="eyebrow">Persisted work</p>
+          <h2 id="research-dossiers-title">Saved dossiers</h2>
+        </header>
+        <div class="research-dossier-layout">
+          <div id="investment-dossier-list" class="research-dossier-list" aria-live="polite" aria-busy="true"></div>
+          <aside id="investment-dossier-detail" class="research-dossier-detail" aria-live="polite"></aside>
+        </div>
       </section>
     </section>
 

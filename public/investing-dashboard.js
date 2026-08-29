@@ -7,6 +7,7 @@
   const PRIVATE_RADAR_URL = '/dashboard/api/investing/private-radar';
   const PRIVATE_SCAN_URL = '/dashboard/api/investing/private-radar/scans';
   const PRIVATE_SNAPSHOT_URL = '/private-radar-snapshot.json';
+  const INVESTMENT_DOSSIER_RUNS_URL = '/dashboard/api/investing/dossier-runs';
   const READ_ONLY_SNAPSHOT = new URLSearchParams(window.location.search).get('snapshot') === '1';
   const DEFAULT_RADAR_URL = '/dashboard/api/investing/radar?limit=40&country=&category=';
   const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -20,6 +21,11 @@
     movementHorizon: '3m',
     movementQueries: {},
     pollingRunId: null,
+    researchDraft: null,
+    researchRuns: [],
+    selectedResearchRunId: null,
+    researchPollingRunId: null,
+    researchLoaded: false,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -122,6 +128,7 @@
       else item.removeAttribute('aria-current');
     });
     if (updateHistory) history.replaceState(null, '', `#${name}`);
+    if (name === 'research' && !state.researchLoaded) loadInvestmentDossierRuns();
     $('#investing-desk').focus({ preventScroll: true });
   }
 
@@ -602,6 +609,38 @@
     return article;
   }
 
+  function prepareInvestmentResearch(item) {
+    if (READ_ONLY_SNAPSHOT) return;
+    const scan = state.lastPrivatePayload?.review_scan || state.lastPrivatePayload?.data_scan || {};
+    const candidateId = String(item?.candidate_id || '');
+    const label = String(item?.label || '').trim();
+    if (!scan.id || !candidateId || !label) {
+      showError('This subject does not have a persisted candidate handoff.');
+      return;
+    }
+    state.researchDraft = { item, sourceScanId: String(scan.id), candidateId };
+    $('#research-source-scan').value = String(scan.id);
+    $('#research-candidate-id').value = candidateId;
+    $('#research-candidate-label').value = label;
+    $('#research-company').value = String(item?.company_name || '');
+    $('#research-ticker').value = String(item?.ticker || '');
+    $('#research-exchange').value = String(item?.exchange_code || 'US');
+    showView('research');
+    $('#research-company').focus();
+  }
+
+  function investmentResearchButton(item) {
+    const button = element('button', 'investigate-link research-action', 'Build dossier');
+    button.type = 'button';
+    button.setAttribute('aria-label', `Build a company dossier for ${item?.label || 'this subject'}`);
+    button.addEventListener('click', () => prepareInvestmentResearch(item));
+    if (READ_ONLY_SNAPSHOT) {
+      button.disabled = true;
+      button.title = 'Company research is unavailable in the read-only snapshot';
+    }
+    return button;
+  }
+
   function privateRadarRow(item, index) {
     const article = element('article', 'signal-row social-signal-row');
     article.dataset.signalId = String(item?.candidate_id || '');
@@ -609,9 +648,11 @@
     const body = element('div', 'signal-body');
     const heading = element('div', 'signal-heading');
     const title = element('h3', '', item?.label || 'Qualified subject');
-    const investigate = element('a', 'investigate-link', 'Investigate');
+    const actions = element('div', 'signal-actions');
+    const investigate = element('a', 'investigate-link', 'Read conversations');
     investigate.href = classicTopicUrl(item?.label || '');
-    append(heading, title, investigate);
+    append(actions, investigate, investmentResearchButton(item));
+    append(heading, title, actions);
 
     const parity = item?.parity?.level || 'Unknown parity';
     const taxonomy = element('p', 'taxonomy');
@@ -690,8 +731,10 @@
     const body = element('div', 'signal-body');
     const heading = element('div', 'signal-heading');
     const title = element('h3', '', item?.label || 'Reviewed subject');
+    const actions = element('div', 'signal-actions');
     const badge = element('span', 'review-badge', statusLabel);
-    append(heading, title, badge);
+    append(actions, badge, investmentResearchButton(item));
+    append(heading, title, actions);
 
     const taxonomy = element('p', 'taxonomy');
     taxonomy.textContent = `${String(item?.behaviour_type || 'behavior not classified').replaceAll('_', ' ')}  /  ${readableList(asArray(item?.platforms).map(platformLabel))}`;
@@ -1052,6 +1095,398 @@
     }
   }
 
+  function assumptionPayload() {
+    const rationale = $('#research-assumption-note').value.trim();
+    const units = {
+      affected_population: 'customers or units',
+      behavior_change_rate: 'share',
+      incremental_revenue_per_affected: 'reporting currency',
+      contribution_margin: 'share',
+      offsetting_costs: 'reporting currency',
+    };
+    const values = {};
+    $$('.assumption-row').forEach(row => {
+      const name = row.dataset.assumption;
+      const inputs = $$('input', row);
+      const raw = inputs.map(input => input.value.trim());
+      if (!raw.some(Boolean)) return;
+      const divide = name === 'behavior_change_rate' || name === 'contribution_margin';
+      const convert = value => {
+        if (!value) return null;
+        const number = Number(value);
+        return Number.isFinite(number) ? divide ? number / 100 : number : null;
+      };
+      values[name] = {
+        low: convert(raw[0]),
+        base: convert(raw[1]),
+        high: convert(raw[2]),
+        unit: units[name] || '',
+        rationale: rationale || 'User-supplied explicit assumption',
+      };
+    });
+    return values;
+  }
+
+  function researchStatusLabel(value) {
+    const labels = {
+      planned: 'Ready to start',
+      running: 'Research running',
+      complete: 'Research finished',
+      partial: 'Research finished with gaps',
+      error: 'Research failed',
+      cancelled: 'Research cancelled',
+    };
+    return labels[String(value || '')] || String(value || 'unknown').replaceAll('_', ' ');
+  }
+
+  function renderInvestmentResearchProgress(run) {
+    const target = $('#investment-research-progress');
+    target.replaceChildren();
+    if (!run) {
+      target.append(statePanel('Idle', 'No company research is running', 'Choose a Radar subject and confirm the company to begin.', 'empty-state'));
+      return;
+    }
+    const status = String(run.status || 'planned');
+    const stage = ['complete', 'partial', 'error', 'cancelled'].includes(status)
+      ? researchStatusLabel(status)
+      : String(run.stage || status).replaceAll('_', ' ');
+    const copy = run.result?.message || (
+      status === 'running'
+        ? 'Free company sources are being checked. Progress survives navigation.'
+        : status === 'complete' || status === 'partial'
+          ? 'The dossier was saved and can be reopened below.'
+          : status === 'error'
+            ? 'The run ended without a dossier. Source failure was not converted into an empty result.'
+            : 'The run is ready to start.'
+    );
+    const panel = statePanel(
+      status === 'running' ? `${formatInteger(run.progress)}% · Research running` : researchStatusLabel(status),
+      stage,
+      copy,
+      status === 'error' ? 'failed-state' : status === 'running' ? 'loading-state' : '',
+    );
+    if ((status === 'planned' || status === 'error') && !READ_ONLY_SNAPSHOT) {
+      const resume = element('button', 'primary-action compact-action', 'Resume research');
+      resume.type = 'button';
+      resume.addEventListener('click', () => resumeInvestmentResearch(run.id));
+      panel.append(resume);
+    }
+    target.append(panel);
+  }
+
+  function renderInvestmentDossierList() {
+    const target = $('#investment-dossier-list');
+    target.replaceChildren();
+    target.setAttribute('aria-busy', 'false');
+    if (!state.researchRuns.length) {
+      target.append(statePanel('Empty', 'No saved company research', 'Start from a Radar subject. Dossiers remain available after reload.', 'empty-state'));
+      return;
+    }
+    state.researchRuns.forEach(run => {
+      const button = element('button', `research-dossier-row${state.selectedResearchRunId === run.id ? ' selected' : ''}`);
+      button.type = 'button';
+      const title = run.handoff?.decision?.label || run.target?.company_name || 'Investment dossier';
+      append(
+        button,
+        element('strong', 'row-title', title),
+        element('span', 'review-badge', researchStatusLabel(run.status)),
+        element('span', 'row-copy', run.target?.company_name || 'Company not reported'),
+        element('span', 'row-meta mono', formatTimestamp(run.completed_at || run.created_at)),
+      );
+      button.addEventListener('click', () => selectInvestmentResearchRun(run));
+      target.append(button);
+    });
+  }
+
+  function dossierSection(title, values) {
+    const section = element('section', 'dossier-section');
+    section.append(element('h3', '', title));
+    asArray(values).filter(Boolean).forEach(value => section.append(value));
+    return section;
+  }
+
+  function renderInvestmentDossierDetail(dossier) {
+    const target = $('#investment-dossier-detail');
+    target.replaceChildren();
+    if (!dossier) {
+      target.append(statePanel('Select a dossier', 'Research detail appears here', 'Choose saved research from the list.', 'empty-state'));
+      return;
+    }
+    append(
+      target,
+      element('p', 'eyebrow', 'Saved investment research'),
+      element('h2', '', dossier.title || dossier.target?.company_name || 'Investment dossier'),
+      element('p', 'social-summary', dossier.bottom_line || 'No bottom line was reported.'),
+      element(
+        'p',
+        'qualification-caveat dossier-top-caveat',
+        `Candidate ${String(dossier.candidate?.qualification_status || 'unknown').replaceAll('_', ' ')} · Company direction ${String(dossier.direction?.company_direction || 'uncertain').replaceAll('_', ' ')} · Materiality ${String(dossier.materiality?.status || 'unknown').replaceAll('_', ' ')}`,
+      ),
+    );
+
+    const candidate = dossier.candidate?.decision || {};
+    target.append(dossierSection('Observed signal', [
+      element('p', '', candidate.summary || 'No candidate summary was reported.'),
+      element('p', 'qualification-caveat', `Original status: ${String(dossier.candidate?.qualification_status || 'unknown').replaceAll('_', ' ')}`),
+    ]));
+
+    const direction = dossier.direction || {};
+    target.append(dossierSection('Direction and falsification', [
+      element('p', 'qualification-caveat', `Company direction: ${String(direction.company_direction || 'uncertain').replaceAll('_', ' ')}`),
+      element('p', '', direction.possible_mechanism || 'No company mechanism was reported.'),
+      element('p', 'review-status-copy', `Counterevidence: ${direction.counterevidence || 'Not reported'}`),
+      element('p', 'review-status-copy', `Invalidation: ${direction.invalidation || 'Not reported'}`),
+    ]));
+
+    const materiality = dossier.materiality || {};
+    const scenario = materiality.scenario || {};
+    const scenarioRows = element('dl', 'signal-metrics dossier-metrics');
+    append(
+      scenarioRows,
+      metric('Materiality', String(materiality.status || 'unknown').replaceAll('_', ' ')),
+      metric('Revenue low', scenario.revenue_low ?? 'Not calculated'),
+      metric('Revenue base', scenario.revenue_base ?? 'Not calculated'),
+      metric('Revenue high', scenario.revenue_high ?? 'Not calculated'),
+      metric('Contribution base', scenario.contribution_base ?? 'Not calculated'),
+    );
+    const missing = asArray(materiality.missing_reason_codes);
+    target.append(dossierSection('Materiality', [
+      scenarioRows,
+      element('p', 'review-status-copy', materiality.limitation || 'No materiality explanation was reported.'),
+      missing.length ? element('p', 'not-reported', `Still missing: ${readableList(missing.map(value => String(value).replaceAll('_', ' ')))}`) : null,
+    ]));
+
+    const facts = asArray(dossier.reported_facts);
+    const factList = element('ul', 'review-reason-list');
+    facts.forEach(fact => {
+      const numeric = Number(fact.value);
+      const displayValue = Number.isFinite(numeric)
+        ? numeric.toLocaleString(undefined, { maximumFractionDigits: 4 })
+        : fact.value ?? 'not reported';
+      factList.append(element(
+        'li',
+        '',
+        `${String(fact.metric || 'Reported fact').replaceAll('_', ' ')}: ${displayValue} ${fact.currency || fact.unit || ''}`,
+      ));
+    });
+    if (!facts.length) factList.append(element('li', 'not-reported', 'No verified numeric company fact was available.'));
+    target.append(dossierSection('Company disclosure', [factList]));
+
+    const passages = element('ul', 'social-evidence-list');
+    asArray(dossier.filing_passages).forEach(value => {
+      const row = element('li');
+      const url = safeSourceUrl(value?.source_url);
+      if (url) {
+        const link = element('a', 'source-link', value?.source_label || 'Open source document');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        row.append(link);
+      }
+      row.append(element('span', 'evidence-text', value?.text || 'No passage text'));
+      passages.append(row);
+    });
+    if (!passages.children.length) passages.append(element('li', 'not-reported', 'No candidate-specific filing passage was found.'));
+    target.append(dossierSection('Relevant filing passages', [passages]));
+
+    const transcriptList = element('ul', 'review-reason-list');
+    asArray(dossier.transcript_research?.findings).forEach(value => transcriptList.append(element(
+      'li',
+      '',
+      `${value?.speaker || 'Speaker unavailable'}: ${value?.text || ''}`,
+    )));
+    if (!transcriptList.children.length) transcriptList.append(element('li', 'not-reported', 'No transcript finding was available.'));
+    target.append(dossierSection('Transcript findings', [
+      transcriptList,
+      element('p', 'review-status-copy', dossier.transcript_research?.critical_quote_policy || ''),
+    ]));
+
+    const parity = dossier.information_parity || {};
+    const coverageLinks = element('div', 'dossier-source-links');
+    asArray(parity.checks).forEach(check => {
+      asArray(check?.articles).forEach(article => {
+        const url = safeSourceUrl(article?.url);
+        if (!url) return;
+        const link = element('a', 'source-link', article?.source || article?.title || 'Public coverage');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        coverageLinks.append(link);
+      });
+    });
+    target.append(dossierSection('Public coverage checked', [
+      element('p', 'qualification-caveat', `Coverage status: ${String(parity.status || 'unknown').replaceAll('_', ' ')}`),
+      element('p', 'review-status-copy', parity.conclusion || 'No coverage conclusion was reported.'),
+      coverageLinks.children.length ? coverageLinks : element('p', 'not-reported', 'No matching public article was returned by the sampled checks.'),
+    ]));
+
+    const sourceList = element('div', 'dossier-source-links');
+    asArray(dossier.sources).forEach(value => {
+      const url = safeSourceUrl(value?.url || value?.requested_url);
+      if (!url) return;
+      const link = element(
+        'a',
+        'source-link',
+        `${String(value?.source_type || 'Source').replaceAll('_', ' ')} · ${String(value?.status || 'unknown').replaceAll('_', ' ')}`,
+      );
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      sourceList.append(link);
+    });
+    target.append(dossierSection('Sources and limits', [
+      sourceList,
+      ...asArray(dossier.limitations).map(value => element('p', 'not-reported', value)),
+    ]));
+  }
+
+  async function selectInvestmentResearchRun(run) {
+    state.selectedResearchRunId = run.id;
+    renderInvestmentDossierList();
+    renderInvestmentResearchProgress(run);
+    const target = $('#investment-dossier-detail');
+    target.replaceChildren(statePanel('Loading', 'Opening saved research', 'The persisted dossier is loading.', 'loading-state'));
+    if (!run.dossier_id) {
+      target.replaceChildren(statePanel(
+        String(run.status || 'running').replaceAll('_', ' '),
+        'The dossier is not ready yet',
+        run.result?.message || 'Progress remains visible above.',
+        run.status === 'error' ? 'failed-state' : 'loading-state',
+      ));
+      if (run.status === 'running') pollInvestmentResearch(run.id);
+      return;
+    }
+    try {
+      const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}/${encodeURIComponent(run.id)}/dossier`);
+      renderInvestmentDossierDetail(payload?.dossier || null);
+    } catch (error) {
+      target.replaceChildren(statePanel('Failed', 'Saved dossier unavailable', error.message, 'failed-state'));
+    }
+  }
+
+  async function loadInvestmentDossierRuns() {
+    state.researchLoaded = true;
+    const list = $('#investment-dossier-list');
+    const detail = $('#investment-dossier-detail');
+    const progress = $('#investment-research-progress');
+    if (READ_ONLY_SNAPSHOT) {
+      $$('#investment-research-form input, #investment-research-form textarea, #investment-research-form button').forEach(control => { control.disabled = true; });
+      list.setAttribute('aria-busy', 'false');
+      list.replaceChildren(statePanel('Read-only', 'Company research is locked in this snapshot', 'Open the authenticated private workspace to create or revisit dossiers.', 'empty-state'));
+      detail.replaceChildren(statePanel('Read-only', 'No authenticated research loaded', 'This page makes no company-research API calls in snapshot mode.', 'empty-state'));
+      progress.replaceChildren(statePanel('Read-only', 'No research is running', 'The published snapshot cannot start work.', 'empty-state'));
+      return;
+    }
+    list.setAttribute('aria-busy', 'true');
+    try {
+      const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}?workspace_id=default`);
+      state.researchRuns = asArray(payload?.runs);
+      renderInvestmentDossierList();
+      const selected = state.researchRuns.find(run => run.id === state.selectedResearchRunId) || state.researchRuns[0];
+      if (selected) await selectInvestmentResearchRun(selected);
+      else {
+        renderInvestmentResearchProgress(null);
+        renderInvestmentDossierDetail(null);
+      }
+    } catch (error) {
+      list.setAttribute('aria-busy', 'false');
+      list.replaceChildren(statePanel('Failed', 'Saved research unavailable', error.message, 'failed-state'));
+      showError(`Saved investment research could not be loaded: ${error.message}`);
+    }
+  }
+
+  async function pollInvestmentResearch(runId) {
+    if (!runId || state.researchPollingRunId === runId) return;
+    state.researchPollingRunId = runId;
+    try {
+      for (let attempt = 0; attempt < 300; attempt += 1) {
+        const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}/${encodeURIComponent(runId)}`);
+        const run = payload?.run || {};
+        const index = state.researchRuns.findIndex(value => value.id === runId);
+        if (index >= 0) state.researchRuns[index] = run;
+        else state.researchRuns.unshift(run);
+        renderInvestmentResearchProgress(run);
+        renderInvestmentDossierList();
+        if (run.status !== 'running' && run.status !== 'planned') {
+          await loadInvestmentDossierRuns();
+          return;
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      showError('Company research is still running. Reopen Research later to check persisted progress.');
+    } catch (error) {
+      showError(`Company research status failed: ${error.message}`);
+    } finally {
+      state.researchPollingRunId = null;
+      $('#research-start').disabled = false;
+    }
+  }
+
+  async function resumeInvestmentResearch(runId) {
+    if (READ_ONLY_SNAPSHOT) return;
+    try {
+      const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}/${encodeURIComponent(runId)}/execute`, { method: 'POST' });
+      if (payload?.run) renderInvestmentResearchProgress(payload.run);
+      if (payload?.started) pollInvestmentResearch(runId);
+    } catch (error) {
+      showError(`Company research could not resume: ${error.message}`);
+    }
+  }
+
+  async function startInvestmentResearch(event) {
+    event.preventDefault();
+    if (READ_ONLY_SNAPSHOT) return;
+    clearError();
+    const sourceScanId = $('#research-source-scan').value.trim();
+    const candidateId = $('#research-candidate-id').value.trim();
+    const companyName = $('#research-company').value.trim();
+    if (!sourceScanId || !candidateId) {
+      showError('Choose a Radar subject before starting company research.');
+      return;
+    }
+    if (!companyName) {
+      showError('Confirm the company legal name first.');
+      $('#research-company').focus();
+      return;
+    }
+    const primaryUrl = $('#research-primary-url').value.trim();
+    const transcriptUrl = $('#research-transcript-url').value.trim();
+    const selectedItem = state.researchDraft?.item || {};
+    const payload = {
+      workspace_id: 'default',
+      source_scan_id: sourceScanId,
+      candidate_id: candidateId,
+      selection_mode: selectedItem?.qualification_status === 'qualified' ? 'qualified' : 'research_only',
+      company_name: companyName,
+      ticker: $('#research-ticker').value.trim().toUpperCase() || null,
+      exchange_code: $('#research-exchange').value.trim().toUpperCase() || 'US',
+      primary_document_urls: primaryUrl ? [primaryUrl] : [],
+      transcript_url: transcriptUrl || null,
+      assumptions: assumptionPayload(),
+      idempotency_key: globalThis.crypto?.randomUUID?.() || `${candidateId}-${Date.now()}`,
+    };
+    const button = $('#research-start');
+    button.disabled = true;
+    try {
+      const response = await api(INVESTMENT_DOSSIER_RUNS_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const run = response?.run;
+      if (!run) throw new Error('Research run was not returned');
+      state.selectedResearchRunId = run.id;
+      state.researchRuns = [run, ...state.researchRuns.filter(value => value.id !== run.id)];
+      renderInvestmentResearchProgress(run);
+      renderInvestmentDossierList();
+      toast(response.started ? 'Company research started' : 'Existing company research reopened');
+      if (run.status === 'running') pollInvestmentResearch(run.id);
+      else await selectInvestmentResearchRun(run);
+    } catch (error) {
+      button.disabled = false;
+      showError(`Company research could not start: ${error.message}`);
+    }
+  }
+
   function socialCoverageText(coverage) {
     if (!coverage || typeof coverage !== 'object') return 'Social coverage not reported';
     const sources = asArray(coverage.sources);
@@ -1307,6 +1742,7 @@
     });
 
     $('#reload-radar').addEventListener('click', startPrivateScan);
+    $('#investment-research-form').addEventListener('submit', startInvestmentResearch);
 
     $('#set-token').addEventListener('click', () => {
       const entered = window.prompt('API bearer token. Leave blank to clear this tab’s token.', getToken());

@@ -89,6 +89,30 @@ class ScenarioBridgeResult:
     terms: tuple[BridgeRangeTerm, ...]
 
 
+@dataclass(frozen=True)
+class RangeAssumption:
+    name: str
+    low: Decimal | None
+    base: Decimal | None
+    high: Decimal | None
+    unit: str
+    provenance_kind: str
+    rationale: str
+    source_ref: str | None = None
+
+
+@dataclass(frozen=True)
+class MaterialityScenarioResult:
+    revenue_low: Decimal | None
+    revenue_base: Decimal | None
+    revenue_high: Decimal | None
+    contribution_low: Decimal | None
+    contribution_base: Decimal | None
+    contribution_high: Decimal | None
+    missing_assumptions: tuple[str, ...]
+    assumptions: tuple[RangeAssumption, ...]
+
+
 def _scopes_are_compatible(numerator: ReportedFact, denominator: ReportedFact) -> bool:
     if (
         numerator.scope_type == denominator.scope_type
@@ -251,6 +275,85 @@ def evaluate_scenario_bridge(
         missing_terms=missing,
         assumption_terms=assumptions,
         terms=normalized,
+    )
+
+
+def evaluate_materiality_assumptions(
+    assumptions: dict[str, RangeAssumption],
+) -> MaterialityScenarioResult:
+    """Evaluate an explicit customer/unit economics scenario without hidden ranges."""
+    required = (
+        "affected_population",
+        "behavior_change_rate",
+        "incremental_revenue_per_affected",
+        "contribution_margin",
+        "offsetting_costs",
+    )
+    missing = tuple(
+        name for name in required
+        if name not in assumptions
+        or any(
+            value is None
+            for value in (
+                assumptions[name].low,
+                assumptions[name].base,
+                assumptions[name].high,
+            )
+        )
+    )
+    ordered = tuple(assumptions[name] for name in required if name in assumptions)
+    for assumption in ordered:
+        values = (assumption.low, assumption.base, assumption.high)
+        if all(value is not None for value in values):
+            assert assumption.low is not None
+            assert assumption.base is not None
+            assert assumption.high is not None
+            if not assumption.low <= assumption.base <= assumption.high:
+                raise ValueError(f"assumption range is not ordered: {assumption.name}")
+    for rate_name in ("behavior_change_rate", "contribution_margin"):
+        assumption = assumptions.get(rate_name)
+        if assumption and all(
+            value is not None for value in (assumption.low, assumption.base, assumption.high)
+        ):
+            assert assumption.low is not None and assumption.high is not None
+            if assumption.low < 0 or assumption.high > 1:
+                raise ValueError(f"{rate_name} must be between 0 and 1")
+    if missing:
+        return MaterialityScenarioResult(
+            revenue_low=None,
+            revenue_base=None,
+            revenue_high=None,
+            contribution_low=None,
+            contribution_base=None,
+            contribution_high=None,
+            missing_assumptions=missing,
+            assumptions=ordered,
+        )
+    population = assumptions["affected_population"]
+    rate = assumptions["behavior_change_rate"]
+    revenue = assumptions["incremental_revenue_per_affected"]
+    margin = assumptions["contribution_margin"]
+    costs = assumptions["offsetting_costs"]
+    assert all(
+        value is not None
+        for assumption in (population, rate, revenue, margin, costs)
+        for value in (assumption.low, assumption.base, assumption.high)
+    )
+    revenue_low = population.low * rate.low * revenue.low  # type: ignore[operator]
+    revenue_base = population.base * rate.base * revenue.base  # type: ignore[operator]
+    revenue_high = population.high * rate.high * revenue.high  # type: ignore[operator]
+    contribution_low = revenue_low * margin.low - costs.high  # type: ignore[operator]
+    contribution_base = revenue_base * margin.base - costs.base  # type: ignore[operator]
+    contribution_high = revenue_high * margin.high - costs.low  # type: ignore[operator]
+    return MaterialityScenarioResult(
+        revenue_low=revenue_low,
+        revenue_base=revenue_base,
+        revenue_high=revenue_high,
+        contribution_low=contribution_low,
+        contribution_base=contribution_base,
+        contribution_high=contribution_high,
+        missing_assumptions=(),
+        assumptions=ordered,
     )
 
 

@@ -5,7 +5,7 @@
   --paper-deep: #e9e4d6;
   --ink: #111111;
   --ink-70: rgba(17, 17, 17, 0.72);
-  --ink-55: rgba(17, 17, 17, 0.58);
+  --ink-55: rgba(17, 17, 17, 0.68);
   --ink-38: rgba(17, 17, 17, 0.4);
   --rule: rgba(17, 17, 17, 0.28);
   --rule-faint: rgba(17, 17, 17, 0.14);
@@ -60,15 +60,14 @@ main:focus-visible { outline-offset: -3px; }
 .skip-link {
   position: fixed;
   z-index: 1000;
-  top: 12px;
+  top: -120px;
   left: 12px;
   padding: 10px 14px;
   background: var(--ink);
   color: var(--paper-raised);
-  transform: translateY(-180%);
 }
 
-.skip-link:focus { transform: translateY(0); }
+.skip-link:focus { top: 12px; }
 
 /* Masthead */
 .masthead {
@@ -864,6 +863,144 @@ select {
   font-size: 0.82rem;
 }
 
+/* Investment research workbench */
+.signal-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.research-action {
+  background: transparent;
+  cursor: pointer;
+}
+
+.research-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.research-workbench,
+.research-progress-section,
+.research-dossiers-section {
+  margin-top: 32px;
+}
+
+.research-section-head {
+  padding: 22px 0 14px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.research-section-head.compact { border-bottom-width: 1px; }
+.research-section-head h2 { margin: 5px 0 7px; font-size: clamp(1.4rem, 3vw, 2.2rem); letter-spacing: -0.035em; }
+.research-section-head p:last-child { max-width: 720px; margin: 0; color: var(--ink-55); line-height: 1.55; }
+
+.investment-research-form {
+  display: grid;
+  gap: 16px;
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid var(--rule-faint);
+  background: var(--paper-raised);
+}
+
+.investment-research-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink-55);
+  font: 500 0.74rem / 1.5 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.investment-research-form input,
+.investment-research-form textarea {
+  width: 100%;
+  min-width: 0;
+  padding: 10px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 0.92rem / 1.45 var(--sans);
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.investment-research-form textarea { resize: vertical; }
+.investment-research-form input:focus,
+.investment-research-form textarea:focus { outline: 2px solid var(--cobalt); outline-offset: 1px; }
+
+.research-form-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(120px, 0.6fr) minmax(100px, 0.5fr);
+  gap: 12px;
+}
+
+.assumption-panel {
+  padding: 14px;
+  border: 1px solid var(--rule-faint);
+}
+
+.assumption-panel summary { color: var(--cobalt); cursor: pointer; font-weight: 600; }
+.assumption-panel summary::after { content: " · Show fields"; color: var(--ink-55); font-size: 0.76rem; }
+.assumption-panel[open] summary::after { content: " · Hide fields"; }
+.assumption-panel > p { color: var(--ink-55); font-size: 0.84rem; }
+.assumption-table { display: grid; gap: 8px; margin: 14px 0; overflow-x: auto; }
+.assumption-head,
+.assumption-row {
+  display: grid;
+  grid-template-columns: minmax(210px, 2fr) repeat(3, minmax(88px, 0.75fr));
+  gap: 8px;
+  align-items: center;
+  min-width: 560px;
+}
+.assumption-head { color: var(--ink-55); font: 500 0.65rem / 1.4 var(--mono); text-transform: uppercase; }
+.assumption-row > span { font-size: 0.8rem; }
+.assumption-row input { padding: 8px; }
+
+.compact-action { margin-top: 16px; }
+.research-dossier-layout { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr); gap: 18px; align-items: start; }
+.research-dossier-list,
+.research-dossier-detail { min-width: 0; }
+.research-dossier-row {
+  display: grid;
+  width: 100%;
+  min-height: 92px;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid var(--rule-faint);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  gap: 6px;
+}
+.research-dossier-row:hover,
+.research-dossier-row.selected { background: var(--paper-raised); }
+.research-dossier-row.selected { box-shadow: inset 3px 0 0 var(--cobalt); }
+.row-title { overflow-wrap: anywhere; }
+.row-copy,
+.row-meta { color: var(--ink-55); font-size: 0.76rem; }
+.research-dossier-detail { min-height: 320px; padding: 18px; border: 1px solid var(--rule-faint); background: var(--paper-raised); overflow-wrap: anywhere; }
+.research-dossier-detail > h2 { margin: 6px 0 10px; font-size: clamp(1.5rem, 3vw, 2.2rem); }
+.dossier-top-caveat { margin: 0 0 14px; color: var(--ink); }
+.dossier-section { margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--rule-faint); }
+.dossier-section h3 { margin: 0 0 10px; font-size: 1rem; }
+.dossier-section .review-status-copy { margin: 10px 0; }
+.dossier-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dossier-source-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.dossier-source-links .source-link,
+.dossier-section .social-evidence-list .source-link {
+  display: inline-flex;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid var(--rule-faint);
+  align-items: center;
+}
+
 /* Responsive */
 @media (max-width: 1040px) {
   .product-shell { grid-template-columns: 210px minmax(0, 1fr); }
@@ -940,6 +1077,12 @@ select {
   .metric { padding: 10px 0; }
   .metric + .metric { padding-left: 0; border-top: 1px solid var(--rule-faint); border-left: 0; }
   .source-receipt { display: grid; gap: 4px; }
+  .signal-actions { justify-content: flex-start; }
+  .research-form-grid,
+  .research-dossier-layout { grid-template-columns: 1fr; }
+  .investment-research-form { padding: 16px; }
+  .investment-research-form .primary-action { width: 100%; }
+  .research-dossier-detail { padding: 14px; }
 
   .classic-callout,
   .handoff-panel { grid-template-columns: 1fr; gap: 22px; }
@@ -957,6 +1100,8 @@ select {
   .clear-filters { justify-self: start; }
   .signal-row { grid-template-columns: 1fr; }
   .signal-rank { padding-top: 0; }
+  .signal-actions { display: grid; grid-template-columns: 1fr; }
+  .signal-actions > * { width: 100%; justify-content: center; }
 }
 
 @media (prefers-reduced-motion: reduce) {

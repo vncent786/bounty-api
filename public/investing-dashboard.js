@@ -26,6 +26,7 @@
     selectedResearchRunId: null,
     researchPollingRunId: null,
     researchLoaded: false,
+    readOnlyFallback: false,
   };
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -45,6 +46,16 @@
 
   function getToken() {
     return sessionStorage.getItem(TOKEN_KEY) || '';
+  }
+
+  function researchIsLocked() {
+    return READ_ONLY_SNAPSHOT || state.readOnlyFallback || !getToken();
+  }
+
+  function setResearchFormDisabled(disabled) {
+    $$('#investment-research-form input, #investment-research-form textarea, #investment-research-form button').forEach(control => {
+      control.disabled = Boolean(disabled);
+    });
   }
 
   function toast(message) {
@@ -610,7 +621,10 @@
   }
 
   function prepareInvestmentResearch(item) {
-    if (READ_ONLY_SNAPSHOT) return;
+    if (researchIsLocked()) {
+      showError('Set the API token to start company research. The displayed Radar is read-only.');
+      return;
+    }
     const scan = state.lastPrivatePayload?.review_scan || state.lastPrivatePayload?.data_scan || {};
     const candidateId = String(item?.candidate_id || '');
     const label = String(item?.label || '').trim();
@@ -634,9 +648,9 @@
     button.type = 'button';
     button.setAttribute('aria-label', `Build a company dossier for ${item?.label || 'this subject'}`);
     button.addEventListener('click', () => prepareInvestmentResearch(item));
-    if (READ_ONLY_SNAPSHOT) {
+    if (researchIsLocked()) {
       button.disabled = true;
-      button.title = 'Company research is unavailable in the read-only snapshot';
+      button.title = 'Set the API token to enable company research';
     }
     return button;
   }
@@ -1027,24 +1041,41 @@
     return response.json();
   }
 
+  async function showRadarReadOnlyFallback() {
+    const payload = await loadPrivateSnapshot();
+    state.readOnlyFallback = !READ_ONLY_SNAPSHOT;
+    renderPrivateRadar(payload);
+    const button = $('#reload-radar');
+    button.disabled = true;
+    button.textContent = READ_ONLY_SNAPSHOT ? 'Read-only snapshot' : 'Set token to run scan';
+    if (state.readOnlyFallback) {
+      $('#social-status').textContent = `${$('#social-status').textContent} · read-only`;
+    }
+    state.researchLoaded = false;
+    return payload;
+  }
+
   async function loadPrivateRadar() {
     const list = $('#social-list');
     list.setAttribute('aria-busy', 'true');
     try {
-      const payload = READ_ONLY_SNAPSHOT
-        ? await loadPrivateSnapshot()
-        : await api(PRIVATE_RADAR_URL);
+      if (READ_ONLY_SNAPSHOT || !getToken()) {
+        return await showRadarReadOnlyFallback();
+      }
+      const payload = await api(PRIVATE_RADAR_URL);
+      state.readOnlyFallback = false;
       renderPrivateRadar(payload);
-      if (!READ_ONLY_SNAPSHOT && payload?.last_attempt?.status === 'running') {
+      if (payload?.last_attempt?.status === 'running') {
         pollPrivateScan(payload.last_attempt.id);
       }
-      if (READ_ONLY_SNAPSHOT) {
-        const button = $('#reload-radar');
-        button.disabled = true;
-        button.textContent = 'Read-only snapshot';
-      }
+      const button = $('#reload-radar');
+      button.disabled = false;
+      button.textContent = 'Run private scan';
       return payload;
     } catch (error) {
+      if (error.status === 401 && !READ_ONLY_SNAPSHOT) {
+        return showRadarReadOnlyFallback();
+      }
       list.setAttribute('aria-busy', 'false');
       list.replaceChildren(statePanel('Failed', 'Private Radar unavailable', error.message, 'failed-state'));
       showError(`Private Radar could not be loaded: ${error.message}`);
@@ -1077,9 +1108,10 @@
 
   async function startPrivateScan() {
     const button = $('#reload-radar');
-    if (READ_ONLY_SNAPSHOT) {
+    if (researchIsLocked()) {
       button.disabled = true;
-      button.textContent = 'Read-only snapshot';
+      button.textContent = 'Set token to run scan';
+      showError('Radar evidence is shown read-only. Set the API token to run a private scan.');
       return;
     }
     button.disabled = true;
@@ -1369,14 +1401,15 @@
     const list = $('#investment-dossier-list');
     const detail = $('#investment-dossier-detail');
     const progress = $('#investment-research-progress');
-    if (READ_ONLY_SNAPSHOT) {
-      $$('#investment-research-form input, #investment-research-form textarea, #investment-research-form button').forEach(control => { control.disabled = true; });
+    if (researchIsLocked()) {
+      setResearchFormDisabled(true);
       list.setAttribute('aria-busy', 'false');
-      list.replaceChildren(statePanel('Read-only', 'Company research is locked in this snapshot', 'Open the authenticated private workspace to create or revisit dossiers.', 'empty-state'));
-      detail.replaceChildren(statePanel('Read-only', 'No authenticated research loaded', 'This page makes no company-research API calls in snapshot mode.', 'empty-state'));
-      progress.replaceChildren(statePanel('Read-only', 'No research is running', 'The published snapshot cannot start work.', 'empty-state'));
+      list.replaceChildren(statePanel('Read-only', 'Company research needs the API token', 'Use Set API token above to create or revisit dossiers. Radar evidence remains visible without it.', 'empty-state'));
+      detail.replaceChildren(statePanel('Read-only', 'No authenticated research loaded', 'No company-research API calls are made while this view is locked.', 'empty-state'));
+      progress.replaceChildren(statePanel('Read-only', 'No research is running', 'Set the API token to unlock saved research.', 'empty-state'));
       return;
     }
+    setResearchFormDisabled(false);
     list.setAttribute('aria-busy', 'true');
     try {
       const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}?workspace_id=default`);
@@ -1423,7 +1456,7 @@
   }
 
   async function resumeInvestmentResearch(runId) {
-    if (READ_ONLY_SNAPSHOT) return;
+    if (researchIsLocked()) return;
     try {
       const payload = await api(`${INVESTMENT_DOSSIER_RUNS_URL}/${encodeURIComponent(runId)}/execute`, { method: 'POST' });
       if (payload?.run) renderInvestmentResearchProgress(payload.run);
@@ -1435,7 +1468,10 @@
 
   async function startInvestmentResearch(event) {
     event.preventDefault();
-    if (READ_ONLY_SNAPSHOT) return;
+    if (researchIsLocked()) {
+      showError('Set the API token to start company research.');
+      return;
+    }
     clearError();
     const sourceScanId = $('#research-source-scan').value.trim();
     const candidateId = $('#research-candidate-id').value.trim();
@@ -1749,11 +1785,18 @@
       if (entered === null) return;
       if (entered.trim()) {
         sessionStorage.setItem(TOKEN_KEY, entered.trim());
+        state.readOnlyFallback = false;
+        state.researchLoaded = false;
+        setResearchFormDisabled(false);
         toast('API token saved for this tab');
         loadPrivateRadar();
+        if ($('#view-research').classList.contains('active')) loadInvestmentDossierRuns();
       } else {
         sessionStorage.removeItem(TOKEN_KEY);
-        toast('API token cleared');
+        state.readOnlyFallback = true;
+        state.researchLoaded = false;
+        toast('API token cleared; Radar remains read-only');
+        loadPrivateRadar();
       }
     });
 

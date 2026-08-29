@@ -144,6 +144,8 @@ def test_candidate_to_dossier_workflow_is_generic_persisted_and_snapshot_safe():
 
     for marker in (
         "INVESTMENT_DOSSIER_RUNS_URL",
+        "showRadarReadOnlyFallback",
+        "Set token to run scan",
         "investmentResearchButton",
         "prepareInvestmentResearch",
         "startInvestmentResearch",
@@ -153,8 +155,8 @@ def test_candidate_to_dossier_workflow_is_generic_persisted_and_snapshot_safe():
         "/execute",
         "/dossier",
         "assumptionPayload",
-        "if (READ_ONLY_SNAPSHOT) return",
-        "This page makes no company-research API calls in snapshot mode.",
+        "researchIsLocked",
+        "No company-research API calls are made while this view is locked.",
     ):
         assert marker in script
 

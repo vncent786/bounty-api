@@ -126,7 +126,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
             <div>
               <p class="lane-number">Layer 02</p>
               <h2 id="social-title">Investment signal review</h2>
-              <p>Trade-ready leads stay strict. Early hypotheses remain visible with the exact missing evidence, failed checks, and openable sources.</p>
+              <p>Trade-ready leads stay strict. Rejected topics remain auditable with failed checks and openable sources.</p>
             </div>
             <span class="lane-status" id="social-status">Checking persisted private scan</span>
           </header>

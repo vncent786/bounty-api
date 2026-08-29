@@ -1,14 +1,15 @@
 # Bounty Current State
 
-**Last updated:** 2026-08-28
+**Last updated:** 2026-08-29
 **Canonical repository:** `D:\vncen\saas\bounty-api-fresh`
 **Current product phase:** Public Investor Radar remains withdrawn and `/dashboard` remains stable Classic Bounty. `/dashboard/investing-preview` is the private worldwide-first information-arbitrage Radar. A mandatory production-path preflight now proves Google Trends, X, Reddit, TikTok, Instagram, and YouTube before the 16-panel sweep starts. Discovery samples a full month so the multi-week persistence gate is reachable, while Google Trends supplies country-native candidates plus selectable Worldwide/country 3-month, 1-year, and 5-year movement. The public phone snapshot must not be refreshed or deployed unless a fresh scan completes with no unrecovered required-source errors, user-facing subjects have openable evidence and real movement charts, regressions pass, and desktop/mobile QA passes. Public Social Pulse scheduling stays off. Release contract: `.hermes/plans/2026-08-26-private-day-one-radar-release.md`.
 
-## Active release gate — 2026-08-28
+## Verified release gate — 2026-08-29
 
-- The latest strict sweep was rejected after one transient X 403, one TikTok timeout, one Instagram timeout, and a successful Reddit route inheriting an unused fallback error. Nothing from that run was deployed.
-- Selected-route receipt isolation, timeout-only bounded retry, X 403/404 recovery, concise Reddit panel queries, and all-six-source preflight are implemented and regression-tested.
-- Same-day failed attempts consumed 334/500 X requests and 5,367/8,000 tweets. Do not raise safety caps or rerun the full sweep before the UTC daily reset. After reset: run all-six canaries, full sweep, snapshot build, selector QA, desktop/mobile inspection, full regression, exact diff review, then deploy only if every gate passes.
+- Run `5326c39d668e4f508deb822657f5814c` completed with 2,583 stored evidence records, eight reviewed candidates, zero qualified leads, and no terminal error.
+- Mandatory canaries completed with records for Google Trends, X, TikTok, Instagram, Reddit, and YouTube. The full sweep completed 64/64 X scopes; TikTok, Instagram, and Reddit completed 16/16; YouTube completed 13 scopes plus three healthy short/empty scopes with no connector error. There were zero unrecovered source failures.
+- The sanitized read-only snapshot contains five cited, chart-backed rejected subjects and eight Google Trends discovery candidates. Desktop and mobile QA passed with zero overflow, zero console/network failures, 13 evidence links, and populated Worldwide/United States charts across 3 months, 1 year, and 5 years. The public release remains pending final regression, exact-diff review, commit, push, and production smoke test.
+- X daily request/tweet caps remain 500/8,000 because they cover a normal full sweep with margin. Future scans use 10 requests/minute, one-third of Scweet's documented default, with header-aware cooldowns and bounded transient retries.
 
 ## What Bounty is
 

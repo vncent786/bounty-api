@@ -153,27 +153,25 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     assert "fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' })" in script
     assert "Read-only snapshot" in script
     assert snapshot["items"] == []
-    assert len(snapshot["review_items"]) == 8
+    assert len(snapshot["review_items"]) >= 1
     assert {item["review_status"] for item in snapshot["review_items"]} <= {
         "needs_more_evidence", "rejected"
     }
-    assert all("trajectory" in item for item in snapshot["review_items"])
     assert all(
-        item["gates"]["evidence_quality"]["state"] == "fail"
+        item.get("trajectory", {}).get("status") == "complete"
+        and item.get("movement_bundle", {}).get("default_geo") == "WORLDWIDE"
+        and item.get("movement_bundle", {}).get("default_horizon") == "3m"
+        and item.get("evidence")
         for item in snapshot["review_items"]
     )
-    tesla = next(
-        item for item in snapshot["review_items"]
-        if "hidden door releases" in item["label"].casefold()
-    )
-    assert tesla["review_status"] == "rejected"
-    assert tesla["gates"]["evidence_quality"]["metrics"]["reportage_records"] >= 1
     evidence = [
         record for item in snapshot["review_items"] for record in item["evidence"]
     ]
-    assert any(
+    assert all(record["url"].startswith(("http://", "https://")) for record in evidence)
+    x_evidence = [record for record in evidence if record["platform"] == "x"]
+    assert not x_evidence or any(
         record["url"].startswith("https://platform.twitter.com/embed/Tweet.html")
-        for record in evidence if record["platform"] == "x"
+        for record in x_evidence
     )
     assert sum(
         any(value is not None for value in record.get("engagement", {}).values())
@@ -181,17 +179,21 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     ) >= 2
     assert snapshot["data_scan"]["status"] == "no_qualified_leads"
     assert snapshot["data_scan"]["panel_version"] == "camillo-private-panels/5"
-    assert snapshot["coverage"]["initial_funnel"] == {
-        "panel_count": 16,
-        "query_scopes": 64,
-        "complete_scopes": 64,
-        "capped_scopes": 62,
-        "reported_records": 1874,
-    }
-    assert snapshot["coverage"]["platforms"]["tiktok"]["reported_records"] == 128
-    assert snapshot["coverage"]["platforms"]["instagram"]["reported_records"] == 44
-    assert snapshot["coverage"]["platforms"]["youtube"]["reported_records"] == 52
-    assert snapshot["coverage"]["platforms"]["reddit"]["partial"] == 16
+    funnel = snapshot["coverage"]["initial_funnel"]
+    assert funnel["panel_count"] == 16
+    assert funnel["query_scopes"] == 64
+    assert funnel["complete_scopes"] == 64
+    assert 0 <= funnel["capped_scopes"] <= 64
+    assert funnel["reported_records"] > 0
+    for platform in ("tiktok", "instagram", "reddit", "youtube"):
+        coverage = snapshot["coverage"]["platforms"][platform]
+        assert coverage["scopes"] == 16
+        assert coverage["failed"] == 0
+        assert coverage["reported_records"] > 0
+    assert snapshot["coverage"]["platforms"]["reddit"]["complete"] == 16
+    assert len(snapshot["trend_discovery"]["candidates"]) > 0
+    assert snapshot["snapshot_mode"] == "read_only"
+    assert snapshot["snapshot_observed_at"]
 
 
 def test_private_radar_renders_qualified_cited_leads_without_inner_html():

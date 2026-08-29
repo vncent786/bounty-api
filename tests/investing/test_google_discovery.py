@@ -11,6 +11,7 @@ from social_scraper.investing.google_discovery import (
 class FakeTrends:
     def __init__(self):
         self.calls = []
+        self.news_calls = []
 
     def trending_now(self, *, geo):
         self.calls.append(geo)
@@ -23,6 +24,7 @@ class FakeTrends:
                     started_timestamp=[1_787_000_000],
                     trend_keywords=["garage gym", "home gym equipment"],
                     topics=[7],
+                    news_tokens=[[12345, "en", "US"]],
                 ),
                 SimpleNamespace(
                     keyword="tesla recall",
@@ -53,6 +55,16 @@ class FakeTrends:
             ],
         }
         return rows.get(geo, [])
+
+    def trending_now_news_by_ids(self, news_ids, max_news=3):
+        self.news_calls.append((news_ids, max_news))
+        return [SimpleNamespace(
+            title="Home gym demand rises as membership prices increase",
+            url="https://example.com/home-gym-demand",
+            source="Example News",
+            time=1_787_150_000,
+            snippet="Consumers are comparing home equipment with gym fees.",
+        )]
 
 
 def test_worldwide_discovery_aggregates_country_observations_without_summing_volume():
@@ -87,6 +99,27 @@ def test_worldwide_discovery_aggregates_country_observations_without_summing_vol
     assert home["keyword_basket"] == [
         "home gym", "garage gym", "home gym equipment", "home weights"
     ]
+    assert home["context_articles"] == [{
+        "title": "Home gym demand rises as membership prices increase",
+        "url": "https://example.com/home-gym-demand",
+        "source": "Example News",
+        "published_at": "2026-08-19T14:33:20+00:00",
+        "snippet": "Consumers are comparing home equipment with gym fees.",
+    }]
+    assert "_news_tokens" not in home
+    assert trends.news_calls == [([[12345, "en", "US"]], 3)]
+    assert home["context"] == {
+        "what_it_is": (
+            "Health topic. Recent coverage: Home gym demand rises as membership prices "
+            "increase. Related searches: garage gym, home gym equipment, home weights."
+        ),
+        "why_rising": "Current headlines from Example News are focused on this term.",
+        "investing_angle": (
+            "Search attention alone does not establish a listed beneficiary. Check cited "
+            "behavior and verified brand exposure before treating it as investable."
+        ),
+        "source_urls": ["https://example.com/home-gym-demand"],
+    }
 
 
 def test_worldwide_discovery_is_category_balanced_and_maps_consumer_panels():

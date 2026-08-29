@@ -1014,6 +1014,7 @@ class PrivateRadarScanner:
         sources = []
         limitations = []
         trend_candidates = []
+        trend_receipt: dict[str, Any] | None = None
         try:
             if hasattr(self.collector, "preflight"):
                 self.store.update_progress(
@@ -1119,11 +1120,29 @@ class PrivateRadarScanner:
             )
             limitations.extend(model_limitations)
             movement_bundles: list[dict[str, Any]] = []
-            if self.movement_bundle_fn is not None and proposals:
+            trend_movement_bundles: list[dict[str, Any]] = []
+            movement_inputs = [
+                {
+                    **dict(candidate),
+                    "trajectory_query": str(candidate.get("keyword") or "").strip(),
+                }
+                for candidate in trend_candidates
+            ] + list(proposals)
+            if self.movement_bundle_fn is not None and movement_inputs:
                 try:
-                    movement_bundles = list(
-                        await self.movement_bundle_fn(proposals)
+                    all_movement_bundles = list(
+                        await self.movement_bundle_fn(movement_inputs)
                     )
+                    trend_count = len(trend_candidates)
+                    trend_movement_bundles = all_movement_bundles[:trend_count]
+                    movement_bundles = all_movement_bundles[trend_count:]
+                    for candidate, bundle in zip(
+                        trend_candidates, trend_movement_bundles
+                    ):
+                        if isinstance(bundle, Mapping):
+                            candidate["movement_bundle"] = dict(bundle)
+                    if trend_receipt is not None:
+                        trend_receipt["candidates"] = trend_candidates
                 except Exception as exc:
                     limitations.append(
                         f"Selectable Google Trends movement failed: {type(exc).__name__}."

@@ -748,6 +748,47 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     assert payload["items"][0]["movement_bundle"]["default_horizon"] == "3m"
 
 
+def test_private_scan_attaches_movement_to_google_discovery_candidates(tmp_path):
+    class TrendCollector(FakeCollector):
+        async def collect_trend_discovery(self):
+            candidate = {
+                "keyword": "home gym",
+                "categories": ["Health"],
+                "countries": ["US"],
+                "keyword_basket": ["home gym", "garage gym"],
+                "observations": [],
+            }
+            return {
+                "trend_candidates": [candidate],
+                "evidence": [],
+                "sources": [{
+                    "platform": "google_trends",
+                    "stage": "trend_discovery",
+                    "status": "complete",
+                    "count": 1,
+                    "observed_at": "2026-08-29T00:00:00+00:00",
+                    "geographies": ["US"],
+                    "candidates": [candidate],
+                }],
+            }
+
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    result = asyncio.run(PrivateRadarScanner(
+        store,
+        TrendCollector(),
+        panels=None,
+        llm_call_fn=_llm,
+        news_check_fn=_news,
+        trajectory_check_fn=_trajectory,
+        movement_bundle_fn=_movement_bundles,
+    ).run())
+
+    assert result["status"] == "complete"
+    candidate = store.public_payload()["trend_discovery"]["candidates"][0]
+    assert candidate["movement_bundle"]["query"] == "home gym"
+    assert candidate["movement_bundle"]["default_horizon"] == "3m"
+
+
 def test_model_failure_fails_closed_without_raw_fallback(tmp_path):
     async def broken(*_args):
         raise RuntimeError("provider down")

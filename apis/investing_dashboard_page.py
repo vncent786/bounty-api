@@ -69,7 +69,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <div class="control-intro">
           <p class="eyebrow">Search movement</p>
           <h2 id="scope-title">Worldwide by default</h2>
-          <p>Switch market and timeframe to inspect whether search interest is durable. Google Trends is normalized search attention, not social proof.</p>
+          <p>Switch market, timeframe, and the tested query on each card. Every query has its own normalized 0–100 scale, so compare shape and persistence rather than line height.</p>
         </div>
         <div class="filter-form" role="group" aria-label="Search movement controls">
           <label for="movement-geo">Country
@@ -108,7 +108,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
             <div>
               <p class="lane-number">Layer 01</p>
               <h2 id="trend-discovery-title">Google Trends discovery</h2>
-              <p>Worldwide search-attention candidates generated before social qualification. Search activity is a lead to investigate, never proof.</p>
+              <p>Each search-attention candidate includes source-grounded context, first-detected timing, multiple tested queries, and selectable 3-month, 1-year, and 5-year charts. Search activity is still a lead to investigate, never proof.</p>
             </div>
             <span class="lane-status" id="trend-discovery-status">Checking search candidates</span>
           </header>

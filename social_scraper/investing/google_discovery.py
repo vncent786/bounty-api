@@ -76,6 +76,74 @@ def _timestamp(value: Any) -> float | None:
     return max(parsed) if parsed else None
 
 
+def _article(value: Any) -> dict[str, Any] | None:
+    title = str(getattr(value, "title", "") or "").strip()
+    url = str(getattr(value, "url", "") or "").strip()
+    if not title or not url.startswith(("http://", "https://")):
+        return None
+    published = _timestamp(getattr(value, "time", None))
+    article = {
+        "title": title,
+        "url": url,
+        "source": str(getattr(value, "source", "") or "").strip() or None,
+        "published_at": (
+            datetime.fromtimestamp(published, tz=timezone.utc).isoformat()
+            if published is not None else None
+        ),
+        "snippet": str(getattr(value, "snippet", "") or "").strip() or None,
+    }
+    return article
+
+
+def build_trend_context(candidate: Mapping[str, Any]) -> dict[str, Any]:
+    """Create concise source-grounded context without spending model tokens."""
+    articles = [
+        dict(value) for value in candidate.get("context_articles") or []
+        if isinstance(value, Mapping)
+        and str(value.get("title") or "").strip()
+        and str(value.get("url") or "").startswith(("http://", "https://"))
+    ]
+    categories = [str(value) for value in candidate.get("categories") or [] if str(value)]
+    keyword = _norm(candidate.get("keyword"))
+    related = [
+        str(value).strip() for value in candidate.get("keyword_basket") or []
+        if str(value).strip() and _norm(value) != keyword
+    ][:3]
+    if articles:
+        category_text = ", ".join(categories[:2]) or "Search"
+        related_text = f" Related searches: {', '.join(related)}." if related else ""
+        what_it_is = (
+            f"{category_text} topic. Recent coverage: {articles[0]['title']}."
+            f"{related_text}"
+        )
+        sources = ", ".join(dict.fromkeys(
+            str(article.get("source") or "").strip()
+            for article in articles[:3]
+            if str(article.get("source") or "").strip()
+        ))
+        why_rising = (
+            f"Current headlines from {sources} are focused on this term."
+            if sources else "Current headlines are focused on this term."
+        )
+    else:
+        category_text = ", ".join(categories[:2]) or "Unclassified"
+        related_text = ", ".join(related) or "no related terms were returned"
+        what_it_is = f"{category_text} topic. Related searches: {related_text}."
+        why_rising = (
+            "Google flagged a recent search increase, but the exact catalyst was not "
+            "established by the collected source context."
+        )
+    return {
+        "what_it_is": what_it_is,
+        "why_rising": why_rising,
+        "investing_angle": (
+            "Search attention alone does not establish a listed beneficiary. Check cited "
+            "behavior and verified brand exposure before treating it as investable."
+        ),
+        "source_urls": [article["url"] for article in articles[:3]],
+    }
+
+
 def _candidate_rank(candidate: Mapping[str, Any]) -> tuple:
     observations = candidate.get("observations") or []
     growth = max(
@@ -149,6 +217,7 @@ def collect_worldwide_trend_candidates(
                 "observations": [],
                 "keyword_basket": [keyword],
                 "source": "Google Trends Trending Now",
+                "_news_tokens": [],
             })
             for category in _categories(topic_ids):
                 if category not in candidate["categories"]:
@@ -160,6 +229,10 @@ def collect_worldwide_trend_candidates(
             for value in related:
                 if _norm(value) not in {_norm(item) for item in candidate["keyword_basket"]}:
                     candidate["keyword_basket"].append(value)
+            for token in getattr(row, "news_tokens", None) or []:
+                normalized_token = list(token) if isinstance(token, (list, tuple)) else token
+                if normalized_token not in candidate["_news_tokens"]:
+                    candidate["_news_tokens"].append(normalized_token)
             started = _timestamp(getattr(row, "started_timestamp", None))
             observation = {
                 "geo": geo,
@@ -186,6 +259,22 @@ def collect_worldwide_trend_candidates(
         candidate["panel_id"] = panel_for_trend_categories(candidate["categories"])
         candidates.append(candidate)
     selected = _balanced(candidates, max(1, int(limit)))
+    for candidate in selected:
+        tokens = candidate.pop("_news_tokens", [])
+        articles = []
+        context_error = None
+        if tokens and hasattr(trends, "trending_now_news_by_ids"):
+            try:
+                raw_articles = trends.trending_now_news_by_ids(tokens, max_news=3)
+                articles = [
+                    parsed for value in (raw_articles or [])
+                    if (parsed := _article(value)) is not None
+                ]
+            except Exception as exc:
+                context_error = type(exc).__name__
+        candidate["context_articles"] = articles
+        candidate["context_error_category"] = context_error
+        candidate["context"] = build_trend_context(candidate)
     return {
         "status": "complete" if not failures else "partial",
         "source": "Google Trends Trending Now",

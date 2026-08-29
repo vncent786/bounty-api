@@ -18,6 +18,7 @@
     lastPrivatePayload: null,
     movementGeo: 'WORLDWIDE',
     movementHorizon: '3m',
+    movementQueries: {},
     pollingRunId: null,
   };
 
@@ -171,6 +172,11 @@
     const hours = Number(value);
     if (!Number.isFinite(hours)) return String(value);
     if (hours < 1) return 'Less than 1 hour ago';
+    if (hours >= 48) {
+      const days = hours / 24;
+      const roundedDays = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(days);
+      return `${roundedDays} days ago`;
+    }
     const rounded = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(hours);
     return `${rounded} ${hours === 1 ? 'hour' : 'hours'} ago`;
   }
@@ -312,12 +318,65 @@
     return platformLabel(record?.platform);
   }
 
+  function movementItemKey(item) {
+    return String(
+      item?.candidate_id || item?.normalized_keyword || item?.keyword || item?.label || 'movement',
+    );
+  }
+
+  function trajectoryHasUsableMovement(trajectory) {
+    if (!trajectory || trajectory.status !== 'complete') return false;
+    const points = asArray(trajectory.points).filter(point => Number.isFinite(Number(point?.value)));
+    return points.length >= 30 && points.filter(point => Number(point.value) > 0).length >= 8;
+  }
+
+  function movementOptionUsable(option, bundle) {
+    const selectedGeo = state.movementGeo || String(bundle?.default_geo || 'WORLDWIDE');
+    const selectedHorizon = state.movementHorizon || String(bundle?.default_horizon || '3m');
+    return trajectoryHasUsableMovement(
+      option?.series?.[selectedGeo]?.[selectedHorizon],
+    );
+  }
+
+  function movementQueryOptions(bundle) {
+    const options = asArray(bundle?.query_options).filter(option => (
+      option && typeof option === 'object' && option.query
+    ));
+    if (options.length) return options;
+    if (bundle?.query) {
+      return [{
+        query: String(bundle.query),
+        reason: 'Primary query selected for this subject.',
+        source: 'selected_query',
+        series: bundle.series || {},
+        classification: bundle.classification || null,
+      }];
+    }
+    return [];
+  }
+
+  function selectedMovementOption(item, bundle) {
+    const options = movementQueryOptions(bundle);
+    const usable = options.filter(option => movementOptionUsable(option, bundle));
+    const preferred = state.movementQueries[movementItemKey(item)]
+      || String(bundle?.default_query || bundle?.query || '');
+    return usable.find(option => String(option.query) === preferred)
+      || usable.find(option => String(option.query) === String(bundle?.default_query || ''))
+      || usable[0]
+      || null;
+  }
+
   function movementTrajectory(item) {
     const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
       ? item.movement_bundle
       : {};
     const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
     const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const option = selectedMovementOption(item, bundle);
+    if (option?.series && typeof option.series === 'object') {
+      const selected = option?.series?.[selectedGeo]?.[selectedHorizon];
+      return selected && typeof selected === 'object' ? selected : {};
+    }
     const hasBundleSeries = bundle.series && typeof bundle.series === 'object';
     const bundledTrajectory = bundle?.series?.[selectedGeo]?.[selectedHorizon];
     if (hasBundleSeries) {
@@ -331,8 +390,7 @@
   }
 
   function hasSelectedMovement(item) {
-    return asArray(movementTrajectory(item).points)
-      .filter(point => Number.isFinite(Number(point?.value))).length >= 2;
+    return trajectoryHasUsableMovement(movementTrajectory(item));
   }
 
   function movementPanel(item) {
@@ -341,17 +399,52 @@
       : {};
     const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
     const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const queryOptions = movementQueryOptions(bundle);
+    const selectedOption = selectedMovementOption(item, bundle);
     const trajectory = movementTrajectory(item);
     const points = asArray(trajectory.points).filter(point => Number.isFinite(Number(point?.value)));
     const panel = element('section', 'movement-panel');
     panel.append(element('p', 'field-label', 'Search movement'));
+    if (queryOptions.length > 1) {
+      const picker = element('div', 'movement-query-options');
+      picker.setAttribute('role', 'group');
+      picker.setAttribute('aria-label', 'Google Trends query');
+      queryOptions.forEach(option => {
+        const active = option === selectedOption;
+        const usable = movementOptionUsable(option, bundle);
+        const button = element(
+          'button',
+          `movement-query-option${active ? ' active' : ''}${usable ? '' : ' unavailable'}`,
+          option.query,
+        );
+        button.type = 'button';
+        button.disabled = !usable;
+        button.title = usable
+          ? option.reason || 'Show this query'
+          : 'No comparable series for this market and timeframe';
+        button.setAttribute('aria-pressed', active ? 'true' : 'false');
+        button.addEventListener('click', () => {
+          if (!usable) return;
+          state.movementQueries[movementItemKey(item)] = String(option.query);
+          if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
+        });
+        picker.append(button);
+      });
+      panel.append(picker);
+      panel.append(element(
+        'p',
+        'movement-query-caveat',
+        'Queries are tested separately. Each chart has its own 0–100 scale, so compare shape and persistence, not line height. Dashed options lack usable history for this selection.',
+      ));
+    }
     panel.append(element(
       'p',
       'movement-query',
-      `Query used: “${bundle.query || trajectory.query || item?.label || 'Not reported'}”`,
+      `Query shown: “${selectedOption?.query || trajectory.query || item?.label || 'Not reported'}”`,
     ));
-    if (item?.trajectory_query_reason) {
-      panel.append(element('p', 'movement-query-reason', item.trajectory_query_reason));
+    const queryReason = selectedOption?.reason || item?.trajectory_query_reason;
+    if (queryReason) {
+      panel.append(element('p', 'movement-query-reason', queryReason));
     }
     if (points.length < 2) {
       panel.append(element(
@@ -361,6 +454,11 @@
       ));
       return panel;
     }
+    const geoName = asArray(bundle.geographies).find(value => value?.code === selectedGeo)?.name
+      || (selectedGeo === 'WORLDWIDE' ? 'Worldwide' : selectedGeo || 'Worldwide');
+    const horizonName = asArray(bundle.horizons).find(value => value?.code === selectedHorizon)?.name
+      || selectedHorizon;
+    panel.append(element('p', 'movement-scope', `${geoName} · ${horizonName}`));
     const chartWidth = 640;
     const chartHeight = 148;
     const chartLeft = 30;
@@ -407,18 +505,16 @@
     const values = points.map(point => Number(point.value));
     const latest = values[values.length - 1];
     const peak = Math.max(...values);
-    const geoName = asArray(bundle.geographies).find(value => value?.code === selectedGeo)?.name
-      || (selectedGeo === 'WORLDWIDE' ? 'Worldwide' : selectedGeo || 'Worldwide');
-    const horizonName = asArray(bundle.horizons).find(value => value?.code === selectedHorizon)?.name
-      || selectedHorizon;
     const caption = element(
       'p',
       'movement-caption',
       `Google search interest · ${geoName} · ${horizonName} · latest ${formatInteger(latest)} · peak ${formatInteger(peak)}. Values are normalized 0–100 within this chart and are not social proof.`,
     );
-    const classification = bundle.classification && typeof bundle.classification === 'object'
-      ? bundle.classification
-      : null;
+    const classification = selectedOption?.classification && typeof selectedOption.classification === 'object'
+      ? selectedOption.classification
+      : bundle.classification && typeof bundle.classification === 'object'
+        ? bundle.classification
+        : null;
     const assessment = classification
       ? element(
           'p',
@@ -669,6 +765,40 @@
     append(heading, title, badge);
     const taxonomy = element('p', 'taxonomy');
     taxonomy.textContent = `${readableList(item?.categories)}  /  ${readableList(item?.countries)}`;
+    const context = item?.context && typeof item.context === 'object' ? item.context : {};
+    const contextBlock = element('div', 'trend-context');
+    const contextFields = [
+      ['What it is', context.what_it_is],
+      ['Why it may be rising', context.why_rising],
+      ['Investing read', context.investing_angle],
+    ];
+    contextFields.forEach(([label, value]) => {
+      if (!value) return;
+      append(
+        contextBlock,
+        element('p', 'field-label', label),
+        element('p', 'social-reason', value),
+      );
+    });
+    const contextArticles = asArray(item?.context_articles);
+    if (contextArticles.length) {
+      contextBlock.append(element('p', 'field-label', 'Context sources'));
+      const links = element('div', 'trend-context-links');
+      contextArticles.slice(0, 3).forEach(articleValue => {
+        const url = safeSourceUrl(articleValue?.url);
+        if (!url) return;
+        const link = element(
+          'a',
+          'source-link',
+          articleValue?.source || articleValue?.title || 'Context source',
+        );
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        links.append(link);
+      });
+      contextBlock.append(links);
+    }
     const details = element('div', 'trend-candidate-details');
     append(
       details,
@@ -676,16 +806,35 @@
       element('p', 'social-reason', readableList(item?.keyword_basket)),
     );
     const observations = element('ul', 'trend-observation-list');
+    const observationNote = element(
+      'p',
+      'movement-query-caveat',
+      "Feed growth is Google's recent-alert metric, not a fixed 3-month rate. Use the chart below to judge duration.",
+    );
     asArray(item?.observations).forEach(observation => {
       const volume = observation?.search_volume === null || observation?.search_volume === undefined
         ? 'volume unavailable'
         : `${formatInteger(observation.search_volume)} searches`;
       const growth = observation?.growth_pct === null || observation?.growth_pct === undefined
         ? 'growth unavailable'
-        : `${formatInteger(observation.growth_pct)}% growth`;
-      observations.append(element('li', '', `${observation?.geo || 'Unknown market'} · ${volume} · ${growth}`));
+        : `${formatInteger(observation.growth_pct)}% feed growth`;
+      const started = `first detected ${formatStarted(observation?.started_hours_ago)}`;
+      observations.append(element(
+        'li',
+        '',
+        `${observation?.geo || 'Unknown market'} · ${volume} · ${growth} · ${started}`,
+      ));
     });
-    append(body, heading, taxonomy, details, observations);
+    append(
+      body,
+      heading,
+      taxonomy,
+      contextBlock,
+      details,
+      observationNote,
+      observations,
+      movementPanel(item),
+    );
     append(article, rank, body);
     return article;
   }
@@ -707,10 +856,13 @@
       return;
     }
     const candidates = asArray(discovery.candidates).filter(item => (
-      state.movementGeo === 'WORLDWIDE'
-      || asArray(item?.countries).includes(state.movementGeo)
+      (
+        state.movementGeo === 'WORLDWIDE'
+        || asArray(item?.countries).includes(state.movementGeo)
+      )
+      && hasSelectedMovement(item)
     ));
-    $('#trend-discovery-status').textContent = `${formatInteger(candidates.length)} search candidates · ${formatTimestamp(discovery.observed_at)}`;
+    $('#trend-discovery-status').textContent = `${formatInteger(candidates.length)} charted search candidates · ${formatTimestamp(discovery.observed_at)}`;
     if (!candidates.length) {
       list.append(statePanel(
         'No candidates',
@@ -727,6 +879,7 @@
     const candidates = [
       ...asArray(payload?.items),
       ...asArray(payload?.review_items),
+      ...asArray(payload?.trend_discovery?.candidates),
     ];
     const bundle = candidates.find(item => item?.movement_bundle)?.movement_bundle;
     const controls = $('#movement-controls');

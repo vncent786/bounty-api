@@ -86,6 +86,68 @@ def derive_trajectory_query(candidate: Mapping[str, Any]) -> str:
     return " ".join(fallback[:3]) or _norm(candidate.get("label"))[:80]
 
 
+def build_trajectory_query_basket(
+    candidate: Mapping[str, Any], *, max_queries: int = 2,
+) -> list[dict[str, str]]:
+    """Build a short, transparent set of public Google Trends queries."""
+    limit = max(1, int(max_queries))
+    options: list[dict[str, str]] = []
+    seen = set()
+
+    def add(value: Any, *, source: str, reason: str) -> None:
+        query = " ".join(str(value or "").strip().strip('"').split())
+        if not query or len(query) > 80 or len(query.split()) > 6:
+            return
+        key = query.casefold()
+        if key in seen or len(options) >= limit:
+            return
+        seen.add(key)
+        options.append({"query": query, "source": source, "reason": reason})
+
+    movement_bundle = (
+        candidate.get("movement_bundle")
+        if isinstance(candidate.get("movement_bundle"), Mapping)
+        else {}
+    )
+    primary = movement_bundle.get("query") or candidate.get("trajectory_query")
+    if primary:
+        add(
+            primary,
+            source="selected_query",
+            reason="Primary query selected for this subject.",
+        )
+
+    keyword_basket = candidate.get("keyword_basket") or []
+    for value in keyword_basket:
+        add(
+            value,
+            source="google_related_term",
+            reason="Related term returned with the Google Trends candidate.",
+        )
+
+    if not keyword_basket and candidate.get("keyword"):
+        add(
+            candidate.get("keyword"),
+            source="google_related_term",
+            reason="Canonical term returned by Google Trends.",
+        )
+
+    for value in candidate.get("anchor_terms") or []:
+        add(
+            value,
+            source="cited_social_anchor",
+            reason="Exact phrase found in the cited social evidence.",
+        )
+
+    if len(options) < limit:
+        add(
+            derive_trajectory_query(candidate),
+            source="derived_subject_phrase",
+            reason="Concise phrase derived from the subject and its evidence anchors.",
+        )
+    return options
+
+
 def collect_search_trajectory(
     query: str,
     *,
@@ -171,6 +233,43 @@ def _frame_series(frame, query: str, *, geo: str, horizon: str, timeframe: str) 
     }
 
 
+def select_default_movement_query(bundle: dict[str, Any]) -> dict[str, Any]:
+    """Select the query with the most usable, complete history without hiding options."""
+    options = bundle.get("query_options") or []
+    if not options:
+        return bundle
+
+    def option_score(index_option):
+        index, option = index_option
+        series = option.get("series") or {}
+        complete_series = sum(
+            value.get("status") == "complete"
+            for horizons_by_geo in series.values()
+            for value in horizons_by_geo.values()
+            if isinstance(value, Mapping)
+        )
+        default_series = (
+            (series.get(bundle.get("default_geo") or "WORLDWIDE") or {}).get(
+                bundle.get("default_horizon") or "3m"
+            ) or {}
+        )
+        points = default_series.get("points") or []
+        nonzero = sum(int(point.get("value") or 0) > 0 for point in points)
+        usable = (
+            default_series.get("status") == "complete"
+            and len(points) >= 30
+            and nonzero >= 8
+        )
+        return (int(usable), complete_series, nonzero, -index)
+
+    _selected_index, primary = max(enumerate(options), key=option_score)
+    bundle["query"] = primary["query"]
+    bundle["default_query"] = primary["query"]
+    bundle["series"] = primary["series"]
+    bundle["classification"] = primary.get("classification")
+    return bundle
+
+
 def collect_movement_bundles(
     candidates: Sequence[Mapping[str, Any]],
     *,
@@ -179,38 +278,56 @@ def collect_movement_bundles(
     horizons: Sequence[Mapping[str, str]] = MOVEMENT_HORIZONS,
     batch_size: int = 5,
 ) -> list[dict[str, Any]]:
-    """Collect selectable country/horizon movement with bounded batched requests."""
+    """Collect multiple transparent queries across selectable geographies/horizons."""
     if trends is None:
         from trendspy import Trends
-        trends = Trends(request_delay=4.0)
-    queries = [
-        str(candidate.get("trajectory_query") or derive_trajectory_query(candidate)).strip()
-        for candidate in candidates
-    ]
-    bundles = [{
-        "query": query,
-        "source": "Google Trends",
-        "default_geo": "WORLDWIDE",
-        "default_horizon": "3m",
-        "geographies": [
-            {"code": str(value.get("code") or "WORLDWIDE"), "name": str(value.get("name") or "")}
-            for value in geographies
-        ],
-        "horizons": [
-            {"code": str(value.get("code") or ""), "name": str(value.get("name") or "")}
-            for value in horizons
-        ],
-        "series": {},
-    } for query in queries]
-    query_indices: dict[str, list[int]] = {}
-    for index, query in enumerate(queries):
-        query_indices.setdefault(query, []).append(index)
-    unique_queries = list(query_indices)
+        trends = Trends(request_delay=8.0)
+
+    baskets = [build_trajectory_query_basket(candidate) for candidate in candidates]
+    bundles: list[dict[str, Any]] = []
+    query_targets: dict[str, list[tuple[int, int]]] = {}
+    for bundle_index, basket in enumerate(baskets):
+        options = [
+            {**dict(option), "series": {}}
+            for option in basket
+        ]
+        primary_query = options[0]["query"] if options else ""
+        bundle = {
+            "query": primary_query,
+            "source": "Google Trends",
+            "default_query": primary_query,
+            "default_geo": "WORLDWIDE",
+            "default_horizon": "3m",
+            "geographies": [
+                {
+                    "code": str(value.get("code") or "WORLDWIDE"),
+                    "name": str(value.get("name") or ""),
+                }
+                for value in geographies
+            ],
+            "horizons": [
+                {
+                    "code": str(value.get("code") or ""),
+                    "name": str(value.get("name") or ""),
+                }
+                for value in horizons
+            ],
+            "query_options": options,
+            "series": {},
+        }
+        bundles.append(bundle)
+        for option_index, option in enumerate(options):
+            query_targets.setdefault(option["query"], []).append(
+                (bundle_index, option_index)
+            )
+
+    unique_queries = list(query_targets)
     for geography in geographies:
         geo = str(geography.get("code") or "")
         geo_key = geo or "WORLDWIDE"
         for bundle in bundles:
-            bundle["series"][geo_key] = {}
+            for option in bundle["query_options"]:
+                option["series"][geo_key] = {}
         for horizon in horizons:
             horizon_code = str(horizon.get("code") or "")
             timeframe = str(horizon.get("timeframe") or "")
@@ -227,7 +344,7 @@ def collect_movement_bundles(
                     )
                 except Exception as exc:
                     for query in chunk:
-                        failed_series = {
+                        series = {
                             "query": query,
                             "source": "Google Trends",
                             "geo": geo,
@@ -238,10 +355,10 @@ def collect_movement_bundles(
                             "points": [],
                             "error_category": type(exc).__name__,
                         }
-                        for bundle_index in query_indices[query]:
-                            bundles[bundle_index]["series"][geo_key][horizon_code] = dict(
-                                failed_series
-                            )
+                        for bundle_index, option_index in query_targets[query]:
+                            bundles[bundle_index]["query_options"][option_index][
+                                "series"
+                            ][geo_key][horizon_code] = dict(series)
                     continue
                 for query in chunk:
                     try:
@@ -261,12 +378,21 @@ def collect_movement_bundles(
                             "points": [],
                             "error_category": type(exc).__name__,
                         }
-                    for bundle_index in query_indices[query]:
-                        bundles[bundle_index]["series"][geo_key][horizon_code] = dict(
-                            series
-                        )
+                    for bundle_index, option_index in query_targets[query]:
+                        bundles[bundle_index]["query_options"][option_index][
+                            "series"
+                        ][geo_key][horizon_code] = dict(series)
+
     for bundle in bundles:
-        bundle["classification"] = classify_movement_bundle(bundle)
+        for option in bundle["query_options"]:
+            option["classification"] = classify_movement_bundle({
+                "default_geo": bundle["default_geo"],
+                "series": option["series"],
+            })
+        if bundle["query_options"]:
+            select_default_movement_query(bundle)
+        else:
+            bundle["classification"] = classify_movement_bundle(None)
     return bundles
 
 

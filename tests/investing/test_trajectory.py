@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from social_scraper.investing.trajectory import (
+    build_trajectory_query_basket,
     collect_movement_bundles,
     collect_search_trajectory,
     classify_movement_bundle,
@@ -80,6 +81,35 @@ def test_trajectory_query_prefers_repeated_specific_phrases():
     }) == "st michael aries"
 
 
+def test_query_basket_keeps_selected_query_and_specific_alternatives():
+    basket = build_trajectory_query_basket({
+        "label": "T-Mobile plan increase prompting provider-switch consideration",
+        "movement_bundle": {"query": "T-Mobile price increase"},
+        "anchor_terms": ["T-Mobile", "plan increase", "switched providers"],
+    })
+
+    assert [item["query"] for item in basket] == [
+        "T-Mobile price increase", "T-Mobile",
+    ]
+    assert basket[0]["reason"] == "Primary query selected for this subject."
+    assert all(item["reason"] for item in basket)
+
+
+def test_discovery_query_basket_uses_google_related_terms_without_long_prose():
+    basket = build_trajectory_query_basket({
+        "keyword": "aaron paul",
+        "keyword_basket": [
+            "aaron paul", "aaron paul breaking bad", "why is aaron paul trending",
+            "this phrase is much too long to be a useful comparable public query",
+        ],
+    })
+
+    assert [item["query"] for item in basket] == [
+        "aaron paul", "aaron paul breaking bad",
+    ]
+    assert all(item["source"] == "google_related_term" for item in basket)
+
+
 def test_search_trajectory_returns_a_real_chart_contract():
     trends = FakeTrends([10 + (index % 7) for index in range(90)])
 
@@ -143,7 +173,11 @@ class FakeBatchTrends:
 def test_movement_bundles_cover_worldwide_countries_and_three_horizons():
     trends = FakeBatchTrends()
     candidates = [
-        {"label": "Home gym adoption", "trajectory_query": "home gym"},
+        {
+            "label": "Home gym adoption",
+            "trajectory_query": "home gym",
+            "keyword_basket": ["home gym", "garage gym"],
+        },
         {"label": "Physical media switch", "trajectory_query": "physical media"},
     ]
 
@@ -158,6 +192,10 @@ def test_movement_bundles_cover_worldwide_countries_and_three_horizons():
 
     assert len(bundles) == 2
     assert bundles[0]["query"] == "home gym"
+    assert [item["query"] for item in bundles[0]["query_options"]] == [
+        "home gym", "garage gym",
+    ]
+    assert bundles[0]["query_options"][1]["series"]["US"]["5y"]["status"] == "complete"
     assert bundles[0]["default_geo"] == "WORLDWIDE"
     assert bundles[0]["default_horizon"] == "3m"
     assert bundles[0]["series"]["WORLDWIDE"]["3m"]["status"] == "complete"
@@ -170,6 +208,37 @@ def test_movement_bundles_cover_worldwide_countries_and_three_horizons():
         "today 3-m", "today 12-m", "today 5-y"
     }
     assert all(call[3] == {"referer": "https://trends.google.com/"} for call in trends.calls)
+
+
+def test_movement_bundle_selects_the_query_with_usable_history_as_default():
+    class QueryQualityFrame(FakeBatchFrame):
+        def __getitem__(self, key):
+            if key == "weak phrase":
+                return FakeSeries([0] * self.days)
+            return FakeSeries([10 + (index % 8) for index in range(self.days)])
+
+    class QueryQualityTrends(FakeBatchTrends):
+        def interest_over_time(self, queries, *, timeframe, geo, headers=None):
+            self.calls.append((tuple(queries), timeframe, geo, headers))
+            days = {"today 3-m": 90, "today 12-m": 53, "today 5-y": 260}[timeframe]
+            return QueryQualityFrame(queries, days)
+
+    bundles = collect_movement_bundles(
+        [{
+            "movement_bundle": {"query": "weak phrase"},
+            "anchor_terms": ["strong phrase"],
+            "label": "Strong phrase switching behavior",
+        }],
+        trends=QueryQualityTrends(),
+        geographies=({"code": "", "name": "Worldwide"},),
+    )
+
+    assert [item["query"] for item in bundles[0]["query_options"]] == [
+        "weak phrase", "strong phrase",
+    ]
+    assert bundles[0]["default_query"] == "strong phrase"
+    assert bundles[0]["query"] == "strong phrase"
+    assert bundles[0]["series"]["WORLDWIDE"]["3m"]["status"] == "complete"
 
 
 def _series(values):

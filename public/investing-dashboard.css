@@ -486,6 +486,17 @@ select {
   height: 148px;
   margin-top: 10px;
 }
+.movement-scope {
+  display: inline-block;
+  margin: 12px 0 0;
+  padding: 5px 8px;
+  border: 1px solid var(--cobalt);
+  color: var(--cobalt-deep);
+  background: var(--paper-deep);
+  font: 750 0.7rem / 1.2 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 .movement-guide {
   stroke: var(--rule-faint);
   stroke-width: 1;
@@ -504,6 +515,41 @@ select {
   margin: 6px 0 0;
   color: var(--ink-70);
   font: 600 0.76rem / 1.45 var(--mono);
+}
+.movement-query-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 8px 0 10px;
+}
+.movement-query-option {
+  min-height: 44px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  color: var(--ink-70);
+  background: var(--paper-deep);
+  font: 650 0.7rem / 1.3 var(--mono);
+  cursor: pointer;
+}
+.movement-query-option.active {
+  border-color: var(--cobalt);
+  color: var(--paper);
+  background: var(--cobalt);
+}
+.movement-query-option.unavailable {
+  border-style: dashed;
+  color: var(--ink-38);
+  background: transparent;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.movement-query-caveat,
+.movement-query-reason {
+  margin: 6px 0 0;
+  color: var(--ink-55);
+  font-size: 0.72rem;
+  line-height: 1.5;
 }
 .movement-axis {
   display: flex;
@@ -564,6 +610,21 @@ select {
 .review-row.rejected .review-badge { color: var(--error); }
 .review-badge.search-only { color: var(--cobalt-deep); }
 .trend-candidate-row { border-left: 3px solid var(--cobalt); padding-left: 14px; }
+.trend-context {
+  margin: 4px 0 16px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--cobalt);
+  background: var(--paper-raised);
+}
+.trend-context .field-label { margin-top: 12px; }
+.trend-context .field-label:first-child { margin-top: 0; }
+.trend-context .social-reason { margin-bottom: 6px; }
+.trend-context-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 7px;
+}
 .trend-candidate-details {
   display: grid;
   grid-template-columns: 160px minmax(0, 1fr);

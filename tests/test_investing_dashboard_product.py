@@ -84,6 +84,14 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert 'id="trend-discovery-list"' in html
     assert "renderTrendDiscovery" in script
     assert "keyword_basket" in script
+    assert "movementQueryOptions" in script
+    assert "movement-query-option" in script
+    assert "Queries are tested separately" in script
+    assert "Why it may be rising" in script
+    assert "Investing read" in script
+    assert "first detected" in script
+    assert "not a fixed 3-month rate" in script
+    assert "movementPanel(item)" in script
     assert "Search attention only" in script
     assert "Needs history" not in script
     assert "Missing evidence" not in script
@@ -192,6 +200,17 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
         assert coverage["reported_records"] > 0
     assert snapshot["coverage"]["platforms"]["reddit"]["complete"] == 16
     assert len(snapshot["trend_discovery"]["candidates"]) > 0
+    assert all(
+        candidate.get("context", {}).get("what_it_is")
+        and candidate.get("context", {}).get("why_rising")
+        and candidate.get("context", {}).get("investing_angle")
+        and len(candidate.get("movement_bundle", {}).get("query_options") or []) >= 1
+        for candidate in snapshot["trend_discovery"]["candidates"]
+    )
+    assert all(
+        len(item.get("movement_bundle", {}).get("query_options") or []) >= 2
+        for item in snapshot["review_items"]
+    )
     assert snapshot["snapshot_mode"] == "read_only"
     assert snapshot["snapshot_observed_at"]
 

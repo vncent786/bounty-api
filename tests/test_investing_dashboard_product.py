@@ -74,7 +74,7 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert "movement-horizon-option" in script
     assert "state.movementHorizons" in script
     assert "hasMeaningfulTrend" in script
-    assert "stable or event-only candidates hidden" in script
+    assert "low-signal or off-topic candidates hidden" in script
     assert "item?.movement_bundle" in script
     assert "movementTrajectory" in script
     assert "trajectoryHasUsableMovement" in script
@@ -85,8 +85,10 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert "Google Trends discovery" in html
     assert 'id="trend-discovery-list"' in html
     assert "renderTrendDiscovery" in script
-    assert "keyword_basket" in script
     assert "movementQueryOptions" in script
+    assert "movementQueryRelevant" in script
+    assert "candidateTokens.size < 2 || queryTokens.length < 2" in script
+    assert "overlap.length >= 2" in script
     assert "movement-query-option" in script
     assert "Queries are tested separately" in script
     assert "Why it may be rising" in script

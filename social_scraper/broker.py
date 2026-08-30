@@ -119,6 +119,14 @@ class SourceBroker:
                 "ig_blocked",
                 "ig_error",
                 "ig_empty_tag",
+                "tiktok_auth_required",
+                "tiktok_verification_challenge",
+                "tiktok_query_empty",
+                "tiktok_empty_response",
+                "tiktok_timeout",
+                "tiktok_profile_busy",
+                "tiktok_network_error",
+                "tiktok_error",
             }
             data["error"] = data["error"] if data["error"] in safe_errors else "connector_error"
         return data

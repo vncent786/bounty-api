@@ -560,6 +560,78 @@ def test_broker_search_does_not_retry_a_non_timeout_connector_error():
     assert result["source"]["error_category"] == "connector_error"
 
 
+def test_broker_search_retries_one_tiktok_transient_empty_and_keeps_route_receipts():
+    class EmptyOnceBroker(FakeBroker):
+        def __init__(self):
+            super().__init__()
+            self.attempts = 0
+
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            self.attempts += 1
+            if self.attempts == 1:
+                return {
+                    "items": [],
+                    "platform_results": {
+                        "tiktok": {
+                            "platform": "tiktok",
+                            "status": "partial",
+                            "selected_connector": None,
+                            "attempted_connectors": ["authenticated", "playwright"],
+                            "coverage": {},
+                        }
+                    },
+                    "source_health": [
+                        {
+                            "platform": "tiktok",
+                            "connector": "authenticated",
+                            "status": "partial",
+                            "items_returned": 0,
+                            "error": None,
+                        },
+                        {
+                            "platform": "tiktok",
+                            "connector": "playwright",
+                            "status": "partial",
+                            "items_returned": 0,
+                            "error": None,
+                        },
+                    ],
+                }
+            return await super().search(
+                keyword=keyword,
+                platforms=platforms,
+                count=count,
+                time_filter=time_filter,
+                sort=sort,
+            )
+
+    broker = EmptyOnceBroker()
+    result = asyncio.run(OwnedRadarCollector(
+        broker=broker, x_connector=FakeX()
+    )._broker_search(
+        DEFAULT_PANELS[0],
+        "tiktok",
+        "switching skincare",
+        count=3,
+        time_filter="month",
+        sort="latest",
+        hydrate=False,
+        retry_empty=True,
+    ))
+
+    assert broker.attempts == 2
+    assert result["source"]["status"] == "complete"
+    coverage = result["source"]["coverage"]
+    assert coverage["attempt_count"] == 2
+    assert coverage["recovered_errors"] == ["tiktok_transient_empty"]
+    assert coverage["attempted_connectors"] == [
+        "authenticated", "playwright",
+    ]
+    assert [item["connector"] for item in coverage["route_health"][:2]] == [
+        "authenticated", "playwright",
+    ]
+
+
 def test_owned_trend_discovery_feeds_google_candidates_into_social_collection():
     def trends():
         return {
@@ -662,6 +734,13 @@ def test_owned_preflight_requires_every_release_source():
         "x", "tiktok", "instagram", "reddit", "youtube", "google_trends",
     }
     assert all(source["status"] == "complete" for source in result["sources"])
+    tiktok_call = next(
+        call for call in collector.broker.search_calls
+        if call["platform"] == "tiktok"
+    )
+    assert tiktok_call["keyword"] == "switching skincare"
+    assert tiktok_call["time_filter"] == "month"
+    assert tiktok_call["sort"] == "latest"
 
 
 def test_owned_preflight_blocks_the_sweep_when_tiktok_cannot_return_records():

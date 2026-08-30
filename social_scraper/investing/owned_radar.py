@@ -61,6 +61,12 @@ REDDIT_PANEL_QUERIES = {
 
 
 SOURCE_QUERY_RECIPE_VERSION = "camillo-source-queries/1"
+SOURCE_PREFLIGHT_QUERIES = {
+    # Verified production-shape query with current TikTok results. The first
+    # consumer panel's "switching car" can legitimately return only stale rows,
+    # which tests topic yield rather than connector health.
+    "tiktok": "switching skincare",
+}
 DEFAULT_ADAPTIVE_PLATFORM_LIMITS = {
     "x": 32,
     "tiktok": 48,
@@ -394,11 +400,14 @@ class OwnedRadarCollector:
             self._broker_search(
                 panel,
                 platform,
-                panel_platform_query(panel, platform),
+                SOURCE_PREFLIGHT_QUERIES.get(
+                    platform, panel_platform_query(panel, platform)
+                ),
                 count=3,
                 time_filter="month",
                 sort="latest",
                 hydrate=False,
+                retry_empty=(platform == "tiktok"),
             )
             for platform in social_platforms
         ]
@@ -589,6 +598,7 @@ class OwnedRadarCollector:
         query_lineage_id: str | None = None,
         budget: AdaptiveCollectionBudget | None = None,
         budget_operation: str = "root_search",
+        retry_empty: bool = False,
     ) -> dict[str, Any]:
         response = None
         platform_result = {}
@@ -596,6 +606,8 @@ class OwnedRadarCollector:
         status, error = "failed", None
         recovered_errors = []
         attempt_count = 0
+        attempted_connectors: list[str] = []
+        route_health: list[dict[str, Any]] = []
         for attempt in range(2):
             if budget is not None and not budget.reserve(
                 platform=platform,
@@ -616,6 +628,8 @@ class OwnedRadarCollector:
                         "coverage": {
                             "attempt_count": attempt_count,
                             "recovered_errors": recovered_errors,
+                            "attempted_connectors": attempted_connectors,
+                            "route_health": route_health,
                             "budget": budget.snapshot(),
                         },
                     },
@@ -647,6 +661,8 @@ class OwnedRadarCollector:
                         "coverage": {
                             "attempt_count": attempt_count,
                             "recovered_errors": recovered_errors,
+                            "attempted_connectors": attempted_connectors,
+                            "route_health": route_health,
                             **({"budget": budget.snapshot()} if budget is not None else {}),
                         },
                     },
@@ -655,12 +671,51 @@ class OwnedRadarCollector:
                 (response.get("platform_results") or {}).get(platform) or {}
             )
             platform_result["platform"] = platform
+            for connector_name in platform_result.get("attempted_connectors") or []:
+                connector_name = str(connector_name or "").strip()
+                if connector_name and connector_name not in attempted_connectors:
+                    attempted_connectors.append(connector_name)
             health = list(response.get("source_health") or [])
+            for health_item in health:
+                if health_item.get("platform") != platform:
+                    continue
+                route_health.append({
+                    "connector": health_item.get("connector"),
+                    "status": health_item.get("status"),
+                    "error": health_item.get("error"),
+                    "items_returned": int(health_item.get("items_returned") or 0),
+                    "coverage": dict(health_item.get("coverage") or {}),
+                })
             status, error = _source_status(platform_result, health)
             if attempt == 0 and error == "connector_timeout":
                 recovered_errors.append(error)
                 await asyncio.sleep(2.0)
                 continue
+            if retry_empty:
+                accepted_preview_count = sum(
+                    _normalise_item(
+                        item,
+                        panel_id=panel.panel_id,
+                        window_key="current",
+                        query=query,
+                        query_lineage_id=query_lineage_id,
+                    ) is not None
+                    for item in response.get("items") or []
+                )
+                transient_empty = (
+                    accepted_preview_count == 0
+                    and error in {
+                        None,
+                        "tiktok_empty_response",
+                        "tiktok_query_empty",
+                    }
+                )
+                if attempt == 0 and transient_empty:
+                    recovered_errors.append(error or "tiktok_transient_empty")
+                    await asyncio.sleep(2.0)
+                    continue
+                if transient_empty:
+                    error = error or "tiktok_transient_empty"
             break
         if response is None:
             raise RuntimeError("broker search returned no response")
@@ -725,6 +780,8 @@ class OwnedRadarCollector:
                     **(platform_result.get("coverage") or {}),
                     "attempt_count": attempt_count,
                     "recovered_errors": recovered_errors,
+                    "attempted_connectors": attempted_connectors,
+                    "route_health": route_health,
                     **({"budget": budget.snapshot()} if budget is not None else {}),
                 },
             },

@@ -112,6 +112,10 @@ _EXTRACT_JS = """
                 let thumbnail = '';
                 if (img) thumbnail = img.getAttribute('src') || '';
 
+                // Preserve an exact machine-readable timestamp when TikTok exposes one.
+                const timeEl = el.querySelector('time[datetime]');
+                const createdAt = timeEl ? (timeEl.getAttribute('datetime') || '') : '';
+
                 items.push({
                     id: videoId,
                     url: href.startsWith('http') ? href : 'https://www.tiktok.com' + href,
@@ -121,6 +125,7 @@ _EXTRACT_JS = """
                     views_text: viewsText,
                     likes_text: likesText,
                     thumbnail: thumbnail,
+                    created_at: createdAt,
                 });
             } catch (e) {}
         }
@@ -145,6 +150,66 @@ def parse_count(text: str) -> int | None:
         return None
 
 
+def _created_sort_key(item: SocialItem) -> float:
+    value = str(item.created_at or "").strip()
+    if not value:
+        return float("-inf")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return float("-inf")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc).timestamp()
+
+
+def _dom_social_items(dom_items: list[dict]) -> list[SocialItem]:
+    """Parse every captured DOM card; caller applies dedup/sort/count afterward."""
+    values = []
+    for item in dom_items:
+        values.append(SocialItem(
+            platform="tiktok",
+            post_id=str(item.get("id") or ""),
+            url=str(item.get("url") or ""),
+            author_username=str(item.get("author") or ""),
+            author_display_name=str(item.get("author_display") or ""),
+            text=str(item.get("caption") or ""),
+            created_at=item.get("created_at") or None,
+            views=parse_count(item.get("views_text")),
+            likes=parse_count(item.get("likes_text")),
+            thumbnail_url=item.get("thumbnail") or None,
+            media_type="video",
+        ))
+    return values
+
+
+def _finalize_items(
+    items: list[SocialItem], *, count: int, sort: str,
+) -> tuple[list[SocialItem], int]:
+    """Deduplicate and sort the full captured page before applying caller count."""
+    parsed_count = len(items)
+    deduped: dict[str, SocialItem] = {}
+    for item in items:
+        key = str(item.post_id or item.url or "").strip()
+        if not key:
+            continue
+        existing = deduped.get(key)
+        if existing is None or _created_sort_key(item) > _created_sort_key(existing):
+            deduped[key] = item
+    values = list(deduped.values())
+    if sort == "latest":
+        values.sort(key=_created_sort_key, reverse=True)
+    elif sort == "hot":
+        values.sort(
+            key=lambda item: (
+                int(item.likes or 0) + int(item.comments or 0),
+                int(item.views or 0),
+            ),
+            reverse=True,
+        )
+    return values[:max(0, int(count))], parsed_count
+
+
 class TikTokAuthConnector(BaseConnector):
     platform = "tiktok"
     connector_name = "authenticated"
@@ -164,6 +229,10 @@ class TikTokAuthConnector(BaseConnector):
         items = []
         raw_records = []
         error = None
+        exception_type = None
+        api_payload_count = 0
+        dom_item_count = 0
+        page_state = "starting"
 
         if not PLAYWRIGHT_AVAILABLE:
             return ConnectorResult(
@@ -231,6 +300,7 @@ class TikTokAuthConnector(BaseConnector):
             for raw_text in api_responses:
                 try:
                     data = json.loads(raw_text)
+                    api_payload_count += 1
                     raw_records.append({
                         "source_id": f"tiktok_search_api:{len(raw_records) + 1}",
                         "payload_format": "json",
@@ -244,30 +314,57 @@ class TikTokAuthConnector(BaseConnector):
                 except Exception:
                     pass
 
+            if items:
+                page_state = "api_results"
+
             # Strategy 2: Fall back to DOM extraction
             if not items:
                 dom_items = await page.evaluate(_EXTRACT_JS)
+                dom_item_count = len(dom_items)
                 raw_records.append({
                     "source_id": "tiktok_search_dom:1",
                     "payload_format": "json",
-                    "payload": {"items": dom_items[:count]},
+                    "payload": {"items": dom_items},
                 })
-                for d in dom_items[:count]:
-                    items.append(SocialItem(
-                        platform=self.platform,
-                        post_id=d.get("id", ""),
-                        url=d.get("url", ""),
-                        author_username=d.get("author", ""),
-                        author_display_name=d.get("author_display", ""),
-                        text=d.get("caption", ""),
-                        views=parse_count(d.get("views_text")),
-                        likes=parse_count(d.get("likes_text")),
-                        thumbnail_url=d.get("thumbnail"),
-                        media_type="video",
-                    ))
+                items.extend(_dom_social_items(dom_items))
+                if items:
+                    page_state = "dom_results"
+                else:
+                    flags = await page.evaluate("""
+                        () => {
+                            const text = (document.body?.innerText || '').toLowerCase();
+                            return {
+                                login: location.pathname.startsWith('/login'),
+                                challenge: text.includes('verify to continue') || text.includes('captcha'),
+                                noResults: text.includes('no results'),
+                            };
+                        }
+                    """)
+                    if flags.get("login"):
+                        page_state = "auth_required"
+                        error = "tiktok_auth_required"
+                    elif flags.get("challenge"):
+                        page_state = "verification_challenge"
+                        error = "tiktok_verification_challenge"
+                    elif flags.get("noResults"):
+                        page_state = "query_empty"
+                        error = "tiktok_query_empty"
+                    else:
+                        page_state = "empty_response"
+                        error = "tiktok_empty_response"
 
         except Exception as e:
-            error = str(e)
+            exception_type = type(e).__name__
+            message = str(e).casefold()
+            if isinstance(e, (TimeoutError, asyncio.TimeoutError)) or "timeout" in message:
+                error = "tiktok_timeout"
+            elif "profile" in message and ("use" in message or "lock" in message):
+                error = "tiktok_profile_busy"
+            elif any(value in message for value in ("proxy", "net::", "connection")):
+                error = "tiktok_network_error"
+            else:
+                error = "tiktok_error"
+            page_state = "exception"
         finally:
             if context:
                 try:
@@ -281,16 +378,35 @@ class TikTokAuthConnector(BaseConnector):
                     pass
 
         latency = int((time.time() - start) * 1000)
+        final_items, parsed_item_count = _finalize_items(
+            items, count=count, sort=sort
+        )
+        health_status = (
+            "ok"
+            if final_items
+            else "partial" if error == "tiktok_query_empty" else "error"
+        )
         return ConnectorResult(
-            items=items[:count],
+            items=final_items,
             health=SourceHealth(
                 platform=self.platform,
                 connector=self.connector_name,
-                status="ok" if items else ("error" if error else "partial"),
-                items_returned=len(items),
+                status=health_status,
+                items_returned=len(final_items),
                 items_requested=count,
                 latency_ms=latency,
                 error=error,
+                coverage={
+                    "page_state": page_state,
+                    "api_responses_seen": len(api_responses),
+                    "api_payloads_parsed": api_payload_count,
+                    "dom_items_seen": dom_item_count,
+                    "parsed_items_before_dedup": parsed_item_count,
+                    "returned_after_sort": len(final_items),
+                    "sort_requested": sort or None,
+                    "time_filter_requested": time_filter or None,
+                    "exception_type": exception_type,
+                },
             ),
             raw_records=raw_records,
         )

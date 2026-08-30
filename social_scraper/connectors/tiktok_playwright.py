@@ -18,6 +18,7 @@ from social_scraper.base import (
     BaseConnector, ConnectorResult, SocialItem, SourceHealth,
 )
 from social_scraper.proxy_config import build_playwright_proxy
+from social_scraper.connectors.tiktok_auth import _finalize_items
 
 try:
     from playwright.async_api import async_playwright
@@ -40,6 +41,7 @@ class TikTokPlaywrightConnector(BaseConnector):
         start = time.time()
         items = []
         error = None
+        api_responses = []
 
         if not PLAYWRIGHT_AVAILABLE:
             return ConnectorResult(
@@ -74,7 +76,6 @@ class TikTokPlaywrightConnector(BaseConnector):
                 page = await context.new_page()
 
                 # Intercept API responses
-                api_responses = []
 
                 async def handle_response(response):
                     url = response.url
@@ -115,17 +116,27 @@ class TikTokPlaywrightConnector(BaseConnector):
             error = str(e)
 
         latency = int((time.time() - start) * 1000)
+        final_items, parsed_item_count = _finalize_items(
+            items, count=count, sort=sort
+        )
 
         return ConnectorResult(
-            items=items[:count],
+            items=final_items,
             health=SourceHealth(
                 platform=self.platform,
                 connector=self.connector_name,
-                status="ok" if items else ("error" if error else "partial"),
-                items_returned=len(items),
+                status="ok" if final_items else ("error" if error else "partial"),
+                items_returned=len(final_items),
                 items_requested=count,
                 latency_ms=latency,
                 error=error,
+                coverage={
+                    "api_responses_seen": len(api_responses),
+                    "parsed_items_before_dedup": parsed_item_count,
+                    "returned_after_sort": len(final_items),
+                    "sort_requested": sort or None,
+                    "time_filter_requested": time_filter or None,
+                },
             ),
         )
 

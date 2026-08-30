@@ -69,17 +69,19 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert 'id="movement-geo"' in html
     assert '<option value="WORLDWIDE">Worldwide</option>' in html
     assert '<option value="US">United States</option>' in html
-    assert 'id="movement-horizon"' in html
-    assert '<option value="3m">3 months</option>' in html
-    assert '<option value="1y">1 year</option>' in html
-    assert '<option value="5y">5 years</option>' in html
+    assert 'id="movement-horizon"' not in html
+    assert "Timeframe for this topic" in script
+    assert "movement-horizon-option" in script
+    assert "state.movementHorizons" in script
+    assert "hasMeaningfulTrend" in script
+    assert "stable or event-only candidates hidden" in script
     assert "item?.movement_bundle" in script
     assert "movementTrajectory" in script
+    assert "trajectoryHasUsableMovement" in script
     assert "hasSelectedMovement" in script
     assert "asArray(safe.items).filter(hasSelectedMovement)" in script
     assert "asArray(safe.review_items).filter(hasSelectedMovement)" in script
     assert "state.movementGeo" in script
-    assert "state.movementHorizon" in script
     assert "Google Trends discovery" in html
     assert 'id="trend-discovery-list"' in html
     assert "renderTrendDiscovery" in script

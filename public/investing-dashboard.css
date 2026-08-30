@@ -336,6 +336,7 @@ main {
   gap: 12px;
   align-items: end;
 }
+.movement-controls .filter-form { grid-template-columns: minmax(220px, 320px); }
 
 .filter-form label {
   display: grid;
@@ -521,7 +522,8 @@ select {
   gap: 7px;
   margin: 8px 0 10px;
 }
-.movement-query-option {
+.movement-query-option,
+.movement-horizon-option {
   min-height: 44px;
   padding: 7px 10px;
   border: 1px solid var(--rule);
@@ -531,17 +533,36 @@ select {
   font: 650 0.7rem / 1.3 var(--mono);
   cursor: pointer;
 }
-.movement-query-option.active {
+.movement-query-option.active,
+.movement-horizon-option.active {
   border-color: var(--cobalt);
   color: var(--paper);
   background: var(--cobalt);
 }
-.movement-query-option.unavailable {
+.movement-query-option.unavailable,
+.movement-horizon-option.unavailable {
   border-style: dashed;
   color: var(--ink-38);
   background: transparent;
   cursor: not-allowed;
   opacity: 0.7;
+}
+.movement-timeframe {
+  display: flex;
+  margin-top: 14px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.movement-timeframe .field-label { margin: 0; }
+.movement-horizon-options {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(48px, auto));
+  gap: 6px;
+}
+.movement-horizon-option {
+  min-width: 48px;
+  padding-inline: 12px;
 }
 .movement-query-caveat,
 .movement-query-reason {

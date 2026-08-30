@@ -69,7 +69,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <div class="control-intro">
           <p class="eyebrow">Search movement</p>
           <h2 id="scope-title">Worldwide by default</h2>
-          <p>Switch market, timeframe, and the tested query on each card. Every query has its own normalized 0–100 scale, so compare shape and persistence rather than line height.</p>
+          <p>Switch market here. Change the timeframe and tested query directly on each topic card. Every query has its own normalized 0–100 scale, so compare shape and persistence rather than line height.</p>
         </div>
         <div class="filter-form" role="group" aria-label="Search movement controls">
           <label for="movement-geo">Country
@@ -80,13 +80,6 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
               <option value="SG">Singapore</option>
               <option value="DE">Germany</option>
               <option value="FR">France</option>
-            </select>
-          </label>
-          <label for="movement-horizon">Timeframe
-            <select id="movement-horizon" name="movement_horizon">
-              <option value="3m">3 months</option>
-              <option value="1y">1 year</option>
-              <option value="5y">5 years</option>
             </select>
           </label>
         </div>

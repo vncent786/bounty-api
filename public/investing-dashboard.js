@@ -18,7 +18,7 @@
     lastPayload: null,
     lastPrivatePayload: null,
     movementGeo: 'WORLDWIDE',
-    movementHorizon: '3m',
+    movementHorizons: {},
     movementQueries: {},
     pollingRunId: null,
     researchDraft: null,
@@ -342,15 +342,38 @@
     );
   }
 
+  function movementHorizonOptions(bundle) {
+    const options = asArray(bundle?.horizons).filter(value => value?.code);
+    return options.length ? options : [
+      { code: '3m', name: '3 months' },
+      { code: '1y', name: '1 year' },
+      { code: '5y', name: '5 years' },
+    ];
+  }
+
+  function selectedMovementHorizon(item, bundle) {
+    const options = movementHorizonOptions(bundle);
+    const available = new Set(options.map(value => String(value.code)));
+    const preferred = state.movementHorizons[movementItemKey(item)]
+      || String(bundle?.default_horizon || '3m');
+    const selectedGeo = state.movementGeo || String(bundle?.default_geo || 'WORLDWIDE');
+    const queryOptions = movementQueryOptions(bundle);
+    const usable = code => queryOptions.some(option => trajectoryHasUsableMovement(
+      option?.series?.[selectedGeo]?.[code],
+    ));
+    if (available.has(preferred) && usable(preferred)) return preferred;
+    return String(options.find(value => usable(String(value.code)))?.code || preferred || options[0]?.code || '3m');
+  }
+
   function trajectoryHasUsableMovement(trajectory) {
     if (!trajectory || trajectory.status !== 'complete') return false;
     const points = asArray(trajectory.points).filter(point => Number.isFinite(Number(point?.value)));
     return points.length >= 30 && points.filter(point => Number(point.value) > 0).length >= 8;
   }
 
-  function movementOptionUsable(option, bundle) {
+  function movementOptionUsable(option, bundle, item, horizon = null) {
     const selectedGeo = state.movementGeo || String(bundle?.default_geo || 'WORLDWIDE');
-    const selectedHorizon = state.movementHorizon || String(bundle?.default_horizon || '3m');
+    const selectedHorizon = horizon || selectedMovementHorizon(item, bundle);
     return trajectoryHasUsableMovement(
       option?.series?.[selectedGeo]?.[selectedHorizon],
     );
@@ -375,7 +398,7 @@
 
   function selectedMovementOption(item, bundle) {
     const options = movementQueryOptions(bundle);
-    const usable = options.filter(option => movementOptionUsable(option, bundle));
+    const usable = options.filter(option => movementOptionUsable(option, bundle, item));
     const preferred = state.movementQueries[movementItemKey(item)]
       || String(bundle?.default_query || bundle?.query || '');
     return usable.find(option => String(option.query) === preferred)
@@ -389,7 +412,7 @@
       ? item.movement_bundle
       : {};
     const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
-    const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const selectedHorizon = selectedMovementHorizon(item, bundle);
     const option = selectedMovementOption(item, bundle);
     if (option?.series && typeof option.series === 'object') {
       const selected = option?.series?.[selectedGeo]?.[selectedHorizon];
@@ -411,12 +434,26 @@
     return trajectoryHasUsableMovement(movementTrajectory(item));
   }
 
+  function hasMeaningfulTrend(item) {
+    const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
+      ? item.movement_bundle
+      : {};
+    const horizons = movementHorizonOptions(bundle).map(value => String(value.code));
+    return movementQueryOptions(bundle).some(option => {
+      const classification = option?.classification && typeof option.classification === 'object'
+        ? option.classification
+        : bundle?.classification;
+      return classification?.trend_eligible === true
+        && horizons.some(horizon => movementOptionUsable(option, bundle, item, horizon));
+    });
+  }
+
   function movementPanel(item) {
     const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
       ? item.movement_bundle
       : {};
     const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
-    const selectedHorizon = state.movementHorizon || String(bundle.default_horizon || '3m');
+    const selectedHorizon = selectedMovementHorizon(item, bundle);
     const queryOptions = movementQueryOptions(bundle);
     const selectedOption = selectedMovementOption(item, bundle);
     const trajectory = movementTrajectory(item);
@@ -429,7 +466,7 @@
       picker.setAttribute('aria-label', 'Google Trends query');
       queryOptions.forEach(option => {
         const active = option === selectedOption;
-        const usable = movementOptionUsable(option, bundle);
+        const usable = movementOptionUsable(option, bundle, item);
         const button = element(
           'button',
           `movement-query-option${active ? ' active' : ''}${usable ? '' : ' unavailable'}`,
@@ -455,6 +492,33 @@
         'Queries are tested separately. Each chart has its own 0–100 scale, so compare shape and persistence, not line height. Dashed options lack usable history for this selection.',
       ));
     }
+    const timeframe = element('div', 'movement-timeframe');
+    timeframe.append(element('span', 'field-label', 'Timeframe for this topic'));
+    const horizonPicker = element('div', 'movement-horizon-options');
+    horizonPicker.setAttribute('role', 'group');
+    horizonPicker.setAttribute('aria-label', `Timeframe for ${item?.keyword || item?.label || 'this topic'}`);
+    movementHorizonOptions(bundle).forEach(horizon => {
+      const code = String(horizon.code);
+      const active = code === selectedHorizon;
+      const usable = queryOptions.some(option => movementOptionUsable(option, bundle, item, code));
+      const button = element(
+        'button',
+        `movement-horizon-option${active ? ' active' : ''}${usable ? '' : ' unavailable'}`,
+        code === '3m' ? '3M' : code === '1y' ? '1Y' : code === '5y' ? '5Y' : horizon.name || code,
+      );
+      button.type = 'button';
+      button.disabled = !usable;
+      button.title = usable ? `Show ${horizon.name || code}` : 'No usable history for this timeframe';
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.addEventListener('click', () => {
+        if (!usable) return;
+        state.movementHorizons[movementItemKey(item)] = code;
+        if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
+      });
+      horizonPicker.append(button);
+    });
+    timeframe.append(horizonPicker);
+    panel.append(timeframe);
     panel.append(element(
       'p',
       'movement-query',
@@ -912,19 +976,20 @@
       ));
       return;
     }
-    const candidates = asArray(discovery.candidates).filter(item => (
-      (
-        state.movementGeo === 'WORLDWIDE'
-        || asArray(item?.countries).includes(state.movementGeo)
-      )
-      && hasSelectedMovement(item)
+    const marketCandidates = asArray(discovery.candidates).filter(item => (
+      state.movementGeo === 'WORLDWIDE'
+      || asArray(item?.countries).includes(state.movementGeo)
     ));
-    $('#trend-discovery-status').textContent = `${formatInteger(candidates.length)} charted search candidates · ${formatTimestamp(discovery.observed_at)}`;
+    const candidates = marketCandidates.filter(hasMeaningfulTrend);
+    const filteredCount = marketCandidates.length - candidates.length;
+    $('#trend-discovery-status').textContent = `${formatInteger(candidates.length)} meaningful search movements${filteredCount ? ` · ${formatInteger(filteredCount)} stable or event-only candidates hidden` : ''} · ${formatTimestamp(discovery.observed_at)}`;
     if (!candidates.length) {
       list.append(statePanel(
-        'No candidates',
-        'No search candidates appeared in this market',
-        'Choose Worldwide or another supported country.',
+        'No meaningful movement',
+        'No durable rising search pattern passed the display gate',
+        filteredCount
+          ? `${formatInteger(filteredCount)} alert candidates were retained in the audit data but hidden because their 3-month, 1-year and 5-year history was stable, declining, event-only or unusable.`
+          : 'Choose Worldwide or another supported country.',
         'empty-state',
       ));
       return;
@@ -945,15 +1010,10 @@
       return;
     }
     const geographies = new Set(asArray(bundle.geographies).map(value => String(value?.code || '')));
-    const horizons = new Set(asArray(bundle.horizons).map(value => String(value?.code || '')));
     if (!geographies.has(state.movementGeo)) {
       state.movementGeo = String(bundle.default_geo || 'WORLDWIDE');
     }
-    if (!horizons.has(state.movementHorizon)) {
-      state.movementHorizon = String(bundle.default_horizon || '3m');
-    }
     $('#movement-geo').value = state.movementGeo;
-    $('#movement-horizon').value = state.movementHorizon;
     controls.classList.remove('hidden');
   }
 
@@ -1769,11 +1829,6 @@
 
     $('#movement-geo').addEventListener('change', event => {
       state.movementGeo = event.target.value;
-      if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
-    });
-
-    $('#movement-horizon').addEventListener('change', event => {
-      state.movementHorizon = event.target.value;
       if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
     });
 

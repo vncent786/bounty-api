@@ -894,6 +894,75 @@
     return `${prefix}${coverage.summary || 'No private scan coverage reported'}`;
   }
 
+  function opportunityRow(item, index) {
+    const article = element('article', 'signal-row opportunity-row');
+    const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
+    const body = element('div', 'signal-body');
+    const heading = element('div', 'signal-heading');
+    const title = element('h3', '', item?.label || 'Observation under investigation');
+    const actions = element('div', 'signal-actions');
+    const investigate = element('a', 'investigate-link', 'Read conversations');
+    investigate.href = classicTopicUrl(item?.label || '');
+    const researchItem = {
+      ...item,
+      candidate_id: item?.opportunity_key,
+      qualification_status: 'not_qualified',
+    };
+    append(actions, investigate, investmentResearchButton(researchItem));
+    append(heading, title, actions);
+    const taxonomy = element('p', 'taxonomy');
+    taxonomy.textContent = `${String(item?.behaviour_type || 'behavior').replaceAll('_', ' ')}  /  replication underway`;
+    const summary = element('p', 'social-summary', item?.observation_summary || 'No observation summary was reported.');
+    const reasons = element('div', 'signal-reasons opportunity-reasons');
+    append(
+      reasons,
+      element('p', 'field-label', 'Why investigate'),
+      element('p', 'social-reason', item?.why_investigate || 'No investigation reason was reported.'),
+      element('p', 'field-label', 'What Bounty checks next'),
+      element('p', 'social-reason next-action', item?.next_action || 'Collect another independent observation.'),
+      element('p', 'field-label', 'What is still missing'),
+      element('p', 'social-reason', readableList(item?.missing_evidence)),
+      element('p', 'field-label', 'Reject it if'),
+      element('p', 'social-reason', item?.rejection_condition || 'No rejection condition was reported.'),
+    );
+    const evidence = element('div', 'social-evidence');
+    evidence.append(element('p', 'field-label', 'Cited observations'));
+    const evidenceList = element('ul', 'social-evidence-list');
+    asArray(item?.evidence).slice(0, 6).forEach(record => {
+      const row = element('li');
+      const link = element('a', 'source-link', sourceLinkLabel(record));
+      link.href = safeSourceUrl(record?.url) || '#';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      append(row, link, evidenceContent(item, record));
+      evidenceList.append(row);
+    });
+    evidence.append(evidenceList);
+    append(body, heading, taxonomy, summary, reasons, evidence);
+    append(article, rank, body);
+    return article;
+  }
+
+  function renderOpportunityQueue(payload) {
+    const list = $('#opportunity-list');
+    const status = $('#opportunity-status');
+    if (!list || !status) return;
+    const items = asArray(payload?.opportunity_queue);
+    list.replaceChildren();
+    list.setAttribute('aria-busy', 'false');
+    status.textContent = `${formatInteger(items.length)} active investigation${items.length === 1 ? '' : 's'}`;
+    if (!items.length) {
+      list.append(statePanel(
+        'No active investigations',
+        'This snapshot has no specific observation queued for replication',
+        'Bounty will add cited observations here after adaptive root and comment collection.',
+        'empty-state',
+      ));
+      return;
+    }
+    items.forEach((item, index) => list.append(opportunityRow(item, index)));
+  }
+
   function trendDiscoveryRow(item, index) {
     const article = element('article', 'signal-row trend-candidate-row');
     const rank = element('div', 'signal-rank mono', String(index + 1).padStart(2, '0'));
@@ -1041,6 +1110,7 @@
     const safe = payload && typeof payload === 'object' ? payload : {};
     state.lastPrivatePayload = safe;
     configureMovementControls(safe);
+    renderOpportunityQueue(safe);
     renderTrendDiscovery(safe);
     const items = asArray(safe.items).filter(hasSelectedMovement);
     const reviewItems = asArray(safe.review_items).filter(hasSelectedMovement);
@@ -1115,6 +1185,38 @@
     }
   }
 
+  function renderPrivateRadarFailure(message) {
+    const detail = String(message || 'The persisted Radar payload could not be loaded.');
+    const layers = [
+      {
+        list: '#opportunity-list',
+        status: '#opportunity-status',
+        title: 'Opportunity investigations unavailable',
+      },
+      {
+        list: '#trend-discovery-list',
+        status: '#trend-discovery-status',
+        title: 'Google Trends discovery unavailable',
+      },
+      {
+        list: '#social-list',
+        status: '#social-status',
+        title: 'Private Radar unavailable',
+      },
+    ];
+    layers.forEach(layer => {
+      const list = $(layer.list);
+      const status = $(layer.status);
+      if (list) {
+        list.setAttribute('aria-busy', 'false');
+        list.replaceChildren(statePanel('Failed', layer.title, detail, 'failed-state'));
+      }
+      if (status) status.textContent = 'Unavailable';
+    });
+    $('#social-coverage').textContent = 'Coverage unavailable because the Radar payload failed to load.';
+    state.lastPrivatePayload = null;
+  }
+
   async function loadPrivateSnapshot() {
     const response = await fetch(PRIVATE_SNAPSHOT_URL, { cache: 'no-store' });
     if (!response.ok) throw new Error(`Snapshot request failed (${response.status})`);
@@ -1156,8 +1258,7 @@
       if (error.status === 401 && !READ_ONLY_SNAPSHOT) {
         return showRadarReadOnlyFallback();
       }
-      list.setAttribute('aria-busy', 'false');
-      list.replaceChildren(statePanel('Failed', 'Private Radar unavailable', error.message, 'failed-state'));
+      renderPrivateRadarFailure(error.message);
       showError(`Private Radar could not be loaded: ${error.message}`);
       return null;
     }

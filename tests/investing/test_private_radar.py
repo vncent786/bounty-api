@@ -11,7 +11,9 @@ from social_scraper.investing.private_radar import (
     PrivateRadarScanner,
     PrivateRadarStore,
     candidate_review_status,
+    is_supported_qualified,
     propose_candidates,
+    summarize_candidate_depth_coverage,
 )
 
 
@@ -44,6 +46,45 @@ def test_default_panels_cover_the_full_camillo_consumer_universe():
         assert '"stopped buying"' in panel.x_query
         assert all("-filter:retweets" in query for query in panel.x_query_slices)
         assert panel.search_term
+
+
+def test_candidate_depth_coverage_is_unknown_when_thread_reads_are_partial():
+    gate = summarize_candidate_depth_coverage(
+        ["silicone air fryer liner"],
+        [{
+            "stage": "adaptive_depth",
+            "query": "silicone air fryer liner",
+            "status": "partial",
+            "returned_count": 4,
+            "platform_reported_total": 80,
+            "truncated": True,
+            "error_category": None,
+        }],
+    )
+
+    assert gate["state"] == "unknown"
+    assert gate["passed"] is None
+    assert gate["metrics"]["attempted_roots"] == 1
+    assert gate["metrics"]["returned_records"] == 4
+    assert gate["metrics"]["truncated_roots"] == 1
+
+
+def test_candidate_depth_coverage_passes_only_complete_matching_reads():
+    gate = summarize_candidate_depth_coverage(
+        ["silicone air fryer liner"],
+        [{
+            "stage": "adaptive_depth",
+            "query": "silicone air fryer liner",
+            "status": "complete",
+            "returned_count": 8,
+            "platform_reported_total": 8,
+            "truncated": False,
+            "error_category": None,
+        }],
+    )
+
+    assert gate["state"] == "pass"
+    assert gate["metrics"]["complete_roots"] == 1
 
 
 def _evidence(
@@ -204,6 +245,25 @@ def _passing_gates():
     }
 
 
+def test_supported_qualified_rejects_an_explicit_unknown_depth_gate():
+    gates = _passing_gates()
+    gates["conversation_depth"] = {
+        "state": "unknown",
+        "passed": None,
+        "reason": "Thread reads were truncated.",
+        "metrics": {"truncated_roots": 2},
+    }
+    decision = {
+        "candidate_id": "candidate",
+        "panel_id": "beauty_skincare",
+        "qualification_status": "qualified",
+        "evidence_ids": ["e1", "e2"],
+        "gates": gates,
+    }
+
+    assert is_supported_qualified(decision) is False
+
+
 def test_review_requires_visible_movement_before_entering_the_worklist():
     gates = _passing_gates()
     gates["anomaly"] = {
@@ -329,6 +389,29 @@ def test_private_radar_store_exposes_qualified_and_reviewed_candidates_separatel
     assert payload["review_items"][0]["evidence"][0]["id"] == "e1"
     assert payload["data_scan"]["status"] == "complete"
     assert payload["data_scan"]["candidate_count"] == 1
+
+
+def test_store_rejects_forged_qualified_decision_backed_by_comment_rows(tmp_path):
+    store = PrivateRadarStore(tmp_path / "radar.db")
+    run_id, _ = store.create_scan_if_idle()
+    root = _evidence("e1", "I switched to product", "a")
+    comment = {
+        **_evidence("e2", "We switched to product", "b", "instagram"),
+        "record_type": "comment",
+        "root_post_external_id": "e1",
+        "parent_external_id": "e1",
+        "thread_depth": 1,
+    }
+    store.add_evidence(run_id, [root, comment])
+
+    result = store.complete_scan(
+        run_id,
+        [_qualified_decision("e1", "e2")],
+        limitations=[],
+    )
+
+    assert result["candidate_count"] == 0
+    assert store.public_payload()["items"] == []
 
 
 def test_review_items_infer_one_safe_panel_for_legacy_decisions(tmp_path):
@@ -673,7 +756,7 @@ def test_proposals_cannot_use_evidence_from_another_panel():
     assert proposals[0]["evidence_ids"] == ["auto-e1"]
 
 
-def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
+def test_current_evidence_failure_still_collects_history_to_resolve_anomaly(tmp_path):
     class CountingCollector:
         def __init__(self):
             self.window_calls = 0
@@ -696,7 +779,16 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
 
         async def collect_windows(self, _panel, _anchors):
             self.window_calls += 1
-            raise AssertionError("history should not run for a failed current-evidence gate")
+            return {
+                "windows": [
+                    {"window_key": "current", "start_date": "2026-08-23", "end_date": "2026-08-30", "anchor_query": '"specific reusable liner"', "status": "complete", "result_count": 3, "unique_authors": 3, "capped": False},
+                    {"window_key": "prior_1", "start_date": "2026-08-16", "end_date": "2026-08-23", "anchor_query": '"specific reusable liner"', "status": "complete", "result_count": 1, "unique_authors": 1, "capped": False},
+                    {"window_key": "prior_2", "start_date": "2026-08-09", "end_date": "2026-08-16", "anchor_query": '"specific reusable liner"', "status": "complete", "result_count": 0, "unique_authors": 0, "capped": False},
+                    {"window_key": "prior_3", "start_date": "2026-08-02", "end_date": "2026-08-09", "anchor_query": '"specific reusable liner"', "status": "complete", "result_count": 0, "unique_authors": 0, "capped": False},
+                ],
+                "evidence": [],
+                "sources": [{"platform": "x", "stage": "history", "status": "complete", "count": 4}],
+            }
 
     async def model(_system, _user):
         return '''{"candidates":[{
@@ -713,8 +805,9 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
         }],"limitations":[]}'''
 
     collector = CountingCollector()
+    store = PrivateRadarStore(tmp_path / "radar.db")
     scanner = PrivateRadarScanner(
-        PrivateRadarStore(tmp_path / "radar.db"),
+        store,
         collector,
         panels=(DEFAULT_PANELS[5],),
         llm_call_fn=model,
@@ -723,8 +816,81 @@ def test_current_evidence_failure_skips_expensive_x_history(tmp_path):
     result = asyncio.run(scanner.run())
 
     assert result["status"] == "no_qualified_leads"
-    assert collector.window_calls == 0
+    assert collector.window_calls == 1
     assert result["decisions"][0]["gates"]["behavior"]["passed"] is False
+    assert result["decisions"][0]["gates"]["anomaly"]["passed"] is True
+    queue = store.public_payload()["opportunity_queue"]
+    assert len(queue) == 1
+    assert queue[0]["status"] == "replication_underway"
+    assert queue[0]["label"] == "Specific reusable liner switch"
+    assert queue[0]["evidence_ids"] == ["single"]
+    assert queue[0]["next_action"] == "Find another independent firsthand report of the same behavior."
+    assert queue[0]["rejection_condition"] == "Reject if no other independent users appear."
+    assert queue[0]["evidence"][0]["id"] == "single"
+
+
+def test_adaptive_investigation_runs_before_model_and_replaces_late_corroboration(tmp_path):
+    events = []
+
+    class AdaptiveCollector(FakeCollector):
+        async def collect_discovery(self, panel):
+            events.append("discovery")
+            return await super().collect_discovery(panel)
+
+        async def collect_adaptive(self, panel, anchors, **bounds):
+            events.append("adaptive")
+            assert panel.panel_id == "beauty_skincare"
+            assert anchors
+            assert bounds == {
+                "max_anchors": 4,
+                "max_roots_per_platform": 2,
+                "max_comments_per_root": 20,
+                "max_depth": 2,
+            }
+            return {
+                "anchors": list(anchors),
+                "evidence": [],
+                "sources": [{
+                    "panel_id": panel.panel_id,
+                    "platform": "tiktok",
+                    "stage": "adaptive_root",
+                    "status": "complete",
+                    "count": 0,
+                }, {
+                    "panel_id": panel.panel_id,
+                    "platform": "tiktok",
+                    "stage": "adaptive_depth",
+                    "query": "silicone air fryer liner",
+                    "status": "complete",
+                    "returned_count": 3,
+                    "platform_reported_total": 3,
+                    "truncated": False,
+                    "error_category": None,
+                }],
+            }
+
+        async def collect_corroboration(self, _panel, _anchors):
+            raise AssertionError("late corroboration must be replaced by adaptive investigation")
+
+    async def model(system, user):
+        events.append("model")
+        return await _llm(system, user)
+
+    scanner = PrivateRadarScanner(
+        PrivateRadarStore(tmp_path / "radar.db"),
+        AdaptiveCollector(),
+        panels=(DEFAULT_PANELS[5],),
+        llm_call_fn=model,
+        news_check_fn=_news,
+        trajectory_check_fn=_trajectory,
+        movement_bundle_fn=_movement_bundles,
+    )
+
+    result = asyncio.run(scanner.run())
+
+    assert result["status"] == "complete"
+    assert events[:3] == ["discovery", "adaptive", "model"]
+    assert any(source.get("stage") == "adaptive_root" for source in result["sources"])
 
 
 def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
@@ -740,6 +906,7 @@ def test_private_scan_runs_end_to_end_and_persists_evidence(tmp_path):
     assert result["candidate_count"] == 1
     payload = store.public_payload()
     assert len(payload["items"]) == 1
+    assert payload["opportunity_queue"] == []
     assert len(payload["items"][0]["evidence"]) == 3
     assert payload["items"][0]["gates"]["anomaly"]["passed"] is True
     assert payload["items"][0]["trajectory"]["status"] == "complete"

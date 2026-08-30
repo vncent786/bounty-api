@@ -494,15 +494,32 @@ def _get_engine():
     global _engine
     if _engine is None:
         from social_scraper.enrichment import EnrichmentEngine
-        _engine = EnrichmentEngine(llm_call_fn=_llm_call)
+        _engine = EnrichmentEngine(llm_call_fn=_tagging_llm_call)
     return _engine
 
 
-async def _llm_call(system_prompt: str, user_prompt: str) -> str:
-    """Call the shared, provider-switchable Bounty LLM client."""
+async def _tagging_llm_call(system_prompt: str, user_prompt: str) -> str:
+    """Route mechanical enrichment to the configured tagging provider."""
     from social_scraper.llm_client import call_llm
 
-    return await call_llm(system_prompt, user_prompt, max_tokens=4000)
+    return await call_llm(
+        system_prompt,
+        user_prompt,
+        max_tokens=4000,
+        task_class="tagging",
+    )
+
+
+async def _llm_call(system_prompt: str, user_prompt: str) -> str:
+    """Route evidence interpretation to the configured triage provider."""
+    from social_scraper.llm_client import call_llm
+
+    return await call_llm(
+        system_prompt,
+        user_prompt,
+        max_tokens=4000,
+        task_class="triage",
+    )
 
 
 def _check_auth(authorization: Optional[str] = Header(None)):

@@ -151,7 +151,12 @@ class EnrichmentEngine:
         """
         from social_scraper.llm_client import call_llm
 
-        return await call_llm(system_prompt, user_prompt, max_tokens=4000)
+        return await call_llm(
+            system_prompt,
+            user_prompt,
+            max_tokens=4000,
+            task_class="tagging",
+        )
 
     @staticmethod
     def _parse_llm_response(raw: str, expected_count: int) -> list[dict]:

@@ -685,7 +685,12 @@ async def _llm_call(system_prompt: str, user_prompt: str) -> str:
     """Call the shared, provider-switchable Bounty LLM client."""
     from social_scraper.llm_client import call_llm
 
-    return await call_llm(system_prompt, user_prompt, max_tokens=4000)
+    return await call_llm(
+        system_prompt,
+        user_prompt,
+        max_tokens=4000,
+        task_class="tagging",
+    )
 
 
 # --- Radar production wiring -------------------------------------------------

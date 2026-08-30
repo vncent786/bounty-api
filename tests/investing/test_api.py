@@ -226,6 +226,11 @@ def test_private_radar_get_returns_persisted_leads_and_cited_review_items(tmp_pa
         "candidate_id": "r", "panel_id": "beauty",
         "qualification_status": "not_qualified",
         "label": "Early review", "evidence_ids": ["e1"],
+        "behaviour_type": "switching",
+        "anchor_terms": ["specific product"],
+        "summary": "One person describes switching to a specific product.",
+        "why_investigate": "Check whether more independent people are switching.",
+        "invalidation": "Reject if no additional independent users appear.",
         "gates": {
             **passing_gates,
             "behavior": {
@@ -240,6 +245,9 @@ def test_private_radar_get_returns_persisted_leads_and_cited_review_items(tmp_pa
     assert [item["label"] for item in payload["items"]] == ["Qualified shift"]
     assert [item["label"] for item in payload["review_items"]] == ["Early review"]
     assert payload["review_items"][0]["review_status"] == "needs_more_evidence"
+    assert [item["label"] for item in payload["opportunity_queue"]] == ["Early review"]
+    assert payload["opportunity_queue"][0]["status"] == "replication_underway"
+    assert payload["opportunity_queue"][0]["evidence"][0]["id"] == "e1"
 
 
 def test_private_scan_requires_owned_worker_and_refuses_railway(tmp_path, monkeypatch):

@@ -84,6 +84,11 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert "state.movementGeo" in script
     assert "Google Trends discovery" in html
     assert 'id="trend-discovery-list"' in html
+    assert 'id="opportunity-list"' in html
+    assert 'id="opportunity-status"' in html
+    assert "renderOpportunityQueue" in script
+    assert "What Bounty checks next" in script
+    assert "These are research leads, not trade-ready ideas." in html
     assert "renderTrendDiscovery" in script
     assert "movementQueryOptions" in script
     assert "movementQueryRelevant" in script
@@ -265,6 +270,23 @@ def test_private_radar_has_read_only_snapshot_mode_for_phone_review():
     )
     assert snapshot["snapshot_mode"] == "read_only"
     assert snapshot["snapshot_observed_at"]
+
+
+def test_private_radar_failure_clears_every_data_layer_instead_of_leaving_loading_states():
+    script = _script()
+
+    assert "function renderPrivateRadarFailure(message)" in script
+    failure = script[
+        script.index("function renderPrivateRadarFailure(message)"):
+        script.index("async function loadPrivateSnapshot()")
+    ]
+    assert "#opportunity-list" in failure
+    assert "#trend-discovery-list" in failure
+    assert "#social-list" in failure
+    assert "Opportunity investigations unavailable" in failure
+    assert "Google Trends discovery unavailable" in failure
+    assert "Private Radar unavailable" in failure
+    assert "renderPrivateRadarFailure(error.message)" in script
 
 
 def test_private_radar_renders_qualified_cited_leads_without_inner_html():

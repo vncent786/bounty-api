@@ -14,6 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterator, Mapping, Sequence
 
+from social_scraper.investing.adaptive_investigation import (
+    extract_observation_anchors,
+    select_adaptive_anchors,
+)
 from social_scraper.investing.qualification import is_specific_anchor, qualify_candidate
 from social_scraper.investing.trajectory import (
     derive_trajectory_query,
@@ -199,6 +203,7 @@ def is_supported_qualified(
     decision: Mapping[str, Any],
     available_evidence_ids: set[str] | None = None,
     evidence_panel_by_id: Mapping[str, str] | None = None,
+    evidence_integrity_by_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> bool:
     if decision.get("qualification_status") != "qualified" or not decision.get("candidate_id"):
         return False
@@ -214,8 +219,33 @@ def is_supported_qualified(
             for evidence_id in evidence_ids
         ):
             return False
+    if evidence_integrity_by_id is not None:
+        rows = [evidence_integrity_by_id.get(evidence_id) for evidence_id in evidence_ids]
+        if any(
+            not isinstance(row, Mapping)
+            or str(row.get("record_type") or "root") != "root"
+            or row.get("is_repost") is True
+            for row in rows
+        ):
+            return False
+        cluster_keys = [
+            str(row.get("copy_cluster_id") or "").strip()
+            for row in rows
+            if isinstance(row, Mapping)
+            and str(row.get("copy_cluster_id") or "").strip()
+        ]
+        if len(cluster_keys) != len(set(cluster_keys)):
+            return False
     gates = decision.get("gates")
     if not isinstance(gates, Mapping) or not REQUIRED_QUALIFICATION_GATES.issubset(gates):
+        return False
+    if (
+        "conversation_depth" in gates
+        and (
+            not isinstance(gates.get("conversation_depth"), Mapping)
+            or gates["conversation_depth"].get("passed") is not True
+        )
+    ):
         return False
     return all(gates[name].get("passed") is True for name in REQUIRED_QUALIFICATION_GATES)
 
@@ -283,6 +313,81 @@ def review_decision_with_current_methodology(
     return value, linked
 
 
+def summarize_candidate_depth_coverage(
+    anchor_terms: Sequence[str],
+    sources: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    """Describe bounded thread coverage without treating missing depth as complete."""
+    anchors = [
+        " ".join(re.sub(r"[^a-z0-9]+", " ", str(value).casefold()).split())
+        for value in anchor_terms
+        if str(value).strip()
+    ]
+
+    def matches(source: Mapping[str, Any]) -> bool:
+        if source.get("stage") != "adaptive_depth":
+            return False
+        query = " ".join(
+            re.sub(
+                r"[^a-z0-9]+", " ", str(source.get("query") or "").casefold()
+            ).split()
+        )
+        if not query:
+            return False
+        query_tokens = set(query.split())
+        return any(
+            anchor
+            and (
+                anchor in query
+                or query in anchor
+                or len(query_tokens & set(anchor.split())) >= 2
+            )
+            for anchor in anchors
+        )
+
+    rows = [dict(source) for source in sources if matches(source)]
+    status_counts: dict[str, int] = {}
+    for row in rows:
+        status = str(row.get("status") or "failed")
+        status_counts[status] = status_counts.get(status, 0) + 1
+    complete_roots = sum(
+        str(row.get("status") or "") in {"complete", "empty"}
+        and not bool(row.get("truncated"))
+        and not row.get("error_category")
+        for row in rows
+    )
+    partial_roots = len(rows) - complete_roots
+    metrics = {
+        "attempted_roots": len(rows),
+        "complete_roots": complete_roots,
+        "partial_roots": partial_roots,
+        "returned_records": sum(int(row.get("returned_count") or 0) for row in rows),
+        "platform_reported_total": sum(
+            int(row.get("platform_reported_total") or 0) for row in rows
+        ),
+        "truncated_roots": sum(bool(row.get("truncated")) for row in rows),
+        "failed_roots": sum(bool(row.get("error_category")) for row in rows),
+        "status_counts": status_counts,
+    }
+    if rows and partial_roots == 0:
+        return {
+            "state": "pass",
+            "passed": True,
+            "reason": "All matching bounded thread reads completed without truncation.",
+            "metrics": metrics,
+        }
+    if not rows:
+        reason = "No matching bounded comment or reply read was completed."
+    else:
+        reason = "Comment or reply coverage is partial, truncated, or unavailable."
+    return {
+        "state": "unknown",
+        "passed": None,
+        "reason": reason,
+        "metrics": metrics,
+    }
+
+
 def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str], list[str]]:
     """Classify a cited near-miss without weakening strict lead promotion."""
     gates = decision.get("gates") if isinstance(decision.get("gates"), Mapping) else {}
@@ -297,7 +402,7 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
     )
     for name in (
         "specificity", "behavior", "evidence_quality", "persistence", "breadth",
-        "anomaly", "parity", "investigability",
+        "conversation_depth", "anomaly", "parity", "investigability",
     ):
         if preflight_failed and name in {"anomaly", "parity"}:
             continue
@@ -355,6 +460,8 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
             int(quality_metrics.get("reportage_records") or 0)
             >= max(1, int(quality_metrics.get("firsthand_records") or 0))
         ) else "needs_more_evidence"
+    elif "conversation_depth" in unknown and not failed:
+        status = "needs_more_evidence"
     elif unknown & {"anomaly", "parity"} and not failed:
         status = (
             "search_movement_only"
@@ -369,6 +476,102 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
     else:
         status = "rejected"
     return status, blockers, caveats
+
+
+def build_opportunity_queue_items(
+    decisions: Sequence[Mapping[str, Any]],
+    evidence_by_id: Mapping[str, Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    next_action_by_gate = {
+        "behavior": "Find another independent firsthand report of the same behavior.",
+        "evidence_quality": "Collect stronger firsthand roots and bounded comment threads.",
+        "conversation_depth": "Complete the bounded comment and reply reads without truncation.",
+        "breadth": "Replicate the observation in another platform or community.",
+        "persistence": "Collect comparable historical and forward windows.",
+        "anomaly": "Complete an uncapped comparison with prior windows.",
+        "parity": "Check whether financial media or analysts connect the economic implication.",
+        "investigability": "Verify the company exposure and primary-source economics.",
+    }
+    values = []
+    for decision_value in decisions:
+        decision = dict(decision_value)
+        if decision.get("qualification_status") == "qualified":
+            continue
+        review_status, blockers, _caveats = candidate_review_status(decision)
+        if review_status not in {"needs_more_evidence", "search_movement_only"}:
+            continue
+        panel_id = str(decision.get("panel_id") or "")
+        evidence_ids = list(dict.fromkeys(
+            str(value) for value in decision.get("evidence_ids") or []
+        ))
+        linked = [
+            dict(evidence_by_id[eid]) for eid in evidence_ids
+            if eid in evidence_by_id
+            and str(evidence_by_id[eid].get("panel_id") or "") == panel_id
+        ]
+        anchors = [
+            str(value).strip() for value in decision.get("anchor_terms") or []
+            if str(value).strip() and is_specific_anchor(value)
+        ]
+        if (
+            not panel_id or not linked or not anchors
+            or not str(decision.get("summary") or "").strip()
+            or not str(decision.get("why_investigate") or "").strip()
+            or not str(decision.get("invalidation") or "").strip()
+        ):
+            continue
+        gates = decision.get("gates") if isinstance(decision.get("gates"), Mapping) else {}
+        unresolved = [
+            name for name in (
+                "behavior", "evidence_quality", "conversation_depth", "breadth", "persistence",
+                "anomaly", "parity", "investigability",
+            )
+            if isinstance(gates.get(name), Mapping)
+            and gates[name].get("state") in {"fail", "unknown"}
+        ]
+        next_action = next(
+            (next_action_by_gate[name] for name in unresolved if name in next_action_by_gate),
+            "Collect another independent observation and test the alternative explanation.",
+        )
+        query_lineage = sorted({
+            str(item.get("query_lineage_id")) for item in linked
+            if item.get("query_lineage_id")
+        })
+        opportunity_key = str(decision.get("candidate_id") or "").strip()
+        if not opportunity_key:
+            opportunity_key = hashlib.sha256(_json({
+                "panel_id": panel_id,
+                "label": decision.get("label"),
+                "anchors": anchors,
+            }).encode("utf-8")).hexdigest()[:24]
+        opportunity_id = "opportunity:" + hashlib.sha256(
+            f"{panel_id}|{opportunity_key}".encode("utf-8")
+        ).hexdigest()[:24]
+        values.append({
+            "id": opportunity_id,
+            "opportunity_key": opportunity_key,
+            "status": "replication_underway",
+            "panel_id": panel_id,
+            "label": str(decision.get("label") or "").strip(),
+            "behaviour_type": str(decision.get("behaviour_type") or "other"),
+            "anchor_terms": anchors[:5],
+            "observation_summary": str(decision.get("summary") or "").strip(),
+            "evidence_ids": [str(item["id"]) for item in linked],
+            "why_investigate": str(decision.get("why_investigate") or "").strip(),
+            "missing_evidence": blockers,
+            "next_action": next_action,
+            "rejection_condition": str(decision.get("invalidation") or "").strip(),
+            "query_lineage": query_lineage,
+            "payload": decision,
+        })
+    values.sort(key=lambda item: (
+        len(item.get("missing_evidence") or []),
+        -len(item.get("evidence_ids") or []),
+        str(item.get("label") or ""),
+    ))
+    for rank, item in enumerate(values, start=1):
+        item["rank"] = rank
+    return values
 
 
 class PrivateRadarStore:
@@ -434,6 +637,17 @@ class PrivateRadarStore:
                 panel_id TEXT NOT NULL,
                 platform TEXT NOT NULL,
                 external_id TEXT,
+                record_type TEXT NOT NULL DEFAULT 'root'
+                    CHECK(record_type IN ('root','comment','reply')),
+                parent_external_id TEXT,
+                root_post_external_id TEXT,
+                thread_depth INTEGER NOT NULL DEFAULT 0,
+                query_lineage_id TEXT,
+                community_id TEXT,
+                creator_id TEXT,
+                is_repost INTEGER,
+                copy_cluster_id TEXT,
+                truncated INTEGER NOT NULL DEFAULT 0,
                 url TEXT NOT NULL,
                 author TEXT,
                 text TEXT NOT NULL,
@@ -446,6 +660,36 @@ class PrivateRadarStore:
             );
             CREATE INDEX IF NOT EXISTS idx_private_radar_evidence_run
                 ON private_radar_evidence(run_id,panel_id,window_key,id);
+            CREATE TABLE IF NOT EXISTS private_radar_opportunity_queue (
+                run_id TEXT NOT NULL REFERENCES private_radar_scans(id),
+                id TEXT NOT NULL,
+                opportunity_key TEXT NOT NULL,
+                rank INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL CHECK(status IN (
+                    'seed_observation','replication_underway','retrospective_anomaly',
+                    'forward_confirming','rejected'
+                )),
+                panel_id TEXT NOT NULL,
+                label TEXT NOT NULL,
+                behaviour_type TEXT NOT NULL,
+                anchor_terms_json TEXT NOT NULL,
+                observation_summary TEXT NOT NULL,
+                evidence_ids_json TEXT NOT NULL,
+                why_investigate TEXT NOT NULL,
+                missing_evidence_json TEXT NOT NULL,
+                next_action TEXT NOT NULL,
+                rejection_condition TEXT NOT NULL,
+                query_lineage_json TEXT NOT NULL DEFAULT '[]',
+                payload_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL,
+                PRIMARY KEY(run_id,id),
+                UNIQUE(run_id,opportunity_key)
+            );
+            CREATE INDEX IF NOT EXISTS idx_private_radar_opportunities_run
+                ON private_radar_opportunity_queue(run_id,rank,id);
+            CREATE INDEX IF NOT EXISTS idx_private_radar_opportunities_status
+                ON private_radar_opportunity_queue(status,updated_at);
             CREATE TRIGGER IF NOT EXISTS private_radar_evidence_no_update
             BEFORE UPDATE ON private_radar_evidence BEGIN
                 SELECT RAISE(ABORT,'private radar evidence is immutable');
@@ -468,6 +712,27 @@ class PrivateRadarStore:
                    SET heartbeat_at=started_at
                    WHERE heartbeat_at IS NULL OR heartbeat_at=''"""
             )
+            evidence_columns = {
+                str(row[1])
+                for row in connection.execute("PRAGMA table_info(private_radar_evidence)")
+            }
+            additive_columns = {
+                "record_type": "TEXT NOT NULL DEFAULT 'root'",
+                "parent_external_id": "TEXT",
+                "root_post_external_id": "TEXT",
+                "thread_depth": "INTEGER NOT NULL DEFAULT 0",
+                "query_lineage_id": "TEXT",
+                "community_id": "TEXT",
+                "creator_id": "TEXT",
+                "is_repost": "INTEGER",
+                "copy_cluster_id": "TEXT",
+                "truncated": "INTEGER NOT NULL DEFAULT 0",
+            }
+            for name, definition in additive_columns.items():
+                if name not in evidence_columns:
+                    connection.execute(
+                        f"ALTER TABLE private_radar_evidence ADD COLUMN {name} {definition}"
+                    )
             connection.commit()
 
     def create_scan_if_idle(self, panels: Sequence[Panel] | None = None) -> tuple[str, bool]:
@@ -555,12 +820,23 @@ class PrivateRadarStore:
                     continue
                 connection.execute(
                     """INSERT OR IGNORE INTO private_radar_evidence
-                       (run_id,id,panel_id,platform,external_id,url,author,text,created_at,
+                       (run_id,id,panel_id,platform,external_id,record_type,
+                        parent_external_id,root_post_external_id,thread_depth,
+                        query_lineage_id,community_id,creator_id,is_repost,
+                        copy_cluster_id,truncated,url,author,text,created_at,
                         observed_at,window_key,query,raw_json)
-                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         run_id, item_id, str(item.get("panel_id") or "unknown"),
                         str(item.get("platform") or "unknown"), item.get("external_id"),
+                        str(item.get("record_type") or "root"),
+                        item.get("parent_external_id"),
+                        item.get("root_post_external_id") or item.get("external_id") or item_id,
+                        max(0, int(item.get("thread_depth") or 0)),
+                        item.get("query_lineage_id"), item.get("community_id"),
+                        item.get("creator_id"),
+                        None if item.get("is_repost") is None else int(bool(item.get("is_repost"))),
+                        item.get("copy_cluster_id"), int(bool(item.get("truncated"))),
                         url, item.get("author"), text[:6000], item.get("created_at"),
                         str(item.get("observed_at") or _utc_iso()), item.get("window_key"),
                         item.get("query"), _json(item),
@@ -578,7 +854,10 @@ class PrivateRadarStore:
     def evidence_for_run(self, run_id: str) -> list[dict[str, Any]]:
         with self._connect() as connection:
             rows = connection.execute(
-                """SELECT id,panel_id,platform,external_id,url,author,text,created_at,
+                """SELECT id,panel_id,platform,external_id,record_type,
+                          parent_external_id,root_post_external_id,thread_depth,
+                          query_lineage_id,community_id,creator_id,is_repost,
+                          copy_cluster_id,truncated,url,author,text,created_at,
                           observed_at,window_key,query,raw_json
                    FROM private_radar_evidence WHERE run_id=? ORDER BY rowid""",
                 (run_id,),
@@ -595,28 +874,134 @@ class PrivateRadarStore:
                 if isinstance(raw.get("engagement"), Mapping)
                 else {}
             )
+            item["record_type"] = str(item.get("record_type") or "root")
+            item["root_post_external_id"] = (
+                item.get("root_post_external_id")
+                or item.get("external_id")
+                or item.get("id")
+            )
+            item["thread_depth"] = max(0, int(item.get("thread_depth") or 0))
+            item["truncated"] = bool(item.get("truncated"))
+            item["is_repost"] = (
+                None if item.get("is_repost") is None else bool(item.get("is_repost"))
+            )
+            values.append(item)
+        return values
+
+    @staticmethod
+    def _insert_opportunities(
+        connection: sqlite3.Connection,
+        run_id: str,
+        opportunities: Sequence[Mapping[str, Any]],
+    ) -> None:
+        now = _utc_iso()
+        for source in opportunities:
+            item = dict(source)
+            connection.execute(
+                """INSERT INTO private_radar_opportunity_queue
+                   (run_id,id,opportunity_key,rank,status,panel_id,label,behaviour_type,
+                    anchor_terms_json,observation_summary,evidence_ids_json,
+                    why_investigate,missing_evidence_json,next_action,rejection_condition,
+                    query_lineage_json,payload_json,created_at,updated_at)
+                   VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                   ON CONFLICT(run_id,opportunity_key) DO UPDATE SET
+                     rank=excluded.rank,status=excluded.status,label=excluded.label,
+                     behaviour_type=excluded.behaviour_type,
+                     anchor_terms_json=excluded.anchor_terms_json,
+                     observation_summary=excluded.observation_summary,
+                     evidence_ids_json=excluded.evidence_ids_json,
+                     why_investigate=excluded.why_investigate,
+                     missing_evidence_json=excluded.missing_evidence_json,
+                     next_action=excluded.next_action,
+                     rejection_condition=excluded.rejection_condition,
+                     query_lineage_json=excluded.query_lineage_json,
+                     payload_json=excluded.payload_json,updated_at=excluded.updated_at""",
+                (
+                    run_id, str(item["id"]), str(item["opportunity_key"]),
+                    max(0, int(item.get("rank") or 0)), str(item["status"]),
+                    str(item["panel_id"]), str(item["label"]),
+                    str(item.get("behaviour_type") or "other"),
+                    _json(list(item.get("anchor_terms") or [])),
+                    str(item["observation_summary"]),
+                    _json(list(item.get("evidence_ids") or [])),
+                    str(item["why_investigate"]),
+                    _json(list(item.get("missing_evidence") or [])),
+                    str(item["next_action"]), str(item["rejection_condition"]),
+                    _json(list(item.get("query_lineage") or [])),
+                    _json(dict(item.get("payload") or {})), now, now,
+                ),
+            )
+
+    def opportunities_for_run(
+        self,
+        run_id: str,
+        *,
+        statuses: Sequence[str] | None = None,
+        limit: int = 100,
+    ) -> list[dict[str, Any]]:
+        selected = [str(value) for value in statuses or [] if str(value)]
+        query = "SELECT * FROM private_radar_opportunity_queue WHERE run_id=?"
+        params: list[Any] = [str(run_id)]
+        if selected:
+            placeholders = ",".join("?" for _ in selected)
+            query += f" AND status IN ({placeholders})"
+            params.extend(selected)
+        query += " ORDER BY rank,id LIMIT ?"
+        params.append(max(1, min(500, int(limit))))
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        values = []
+        for row in rows:
+            item = dict(row)
+            for key in (
+                "anchor_terms", "evidence_ids", "missing_evidence",
+                "query_lineage", "payload",
+            ):
+                item[key] = json.loads(str(item.pop(f"{key}_json") or "[]"))
             values.append(item)
         return values
 
     def complete_scan(
         self, run_id: str, decisions: Sequence[Mapping[str, Any]], *,
         limitations: Sequence[str], sources: Sequence[Mapping[str, Any]] | None = None,
+        opportunities: Sequence[Mapping[str, Any]] | None = None,
     ) -> dict[str, Any]:
         values = [dict(value) for value in decisions]
+        if opportunities is None:
+            evidence_by_id = {
+                str(item["id"]): item for item in self.evidence_for_run(run_id)
+            }
+            opportunity_values = build_opportunity_queue_items(values, evidence_by_id)
+        else:
+            opportunity_values = [dict(value) for value in opportunities]
         with self._transaction() as connection:
             evidence_rows = connection.execute(
-                "SELECT id,panel_id FROM private_radar_evidence WHERE run_id=?",
+                """SELECT id,panel_id,record_type,is_repost,copy_cluster_id
+                   FROM private_radar_evidence WHERE run_id=?""",
                 (run_id,),
             ).fetchall()
             available_evidence_ids = {str(row["id"]) for row in evidence_rows}
             evidence_panel_by_id = {
                 str(row["id"]): str(row["panel_id"]) for row in evidence_rows
             }
+            evidence_integrity_by_id = {
+                str(row["id"]): {
+                    "record_type": str(row["record_type"] or "root"),
+                    "is_repost": (
+                        None if row["is_repost"] is None else bool(row["is_repost"])
+                    ),
+                    "copy_cluster_id": row["copy_cluster_id"],
+                }
+                for row in evidence_rows
+            }
             qualified = [
                 value
                 for value in values
                 if is_supported_qualified(
-                    value, available_evidence_ids, evidence_panel_by_id
+                    value,
+                    available_evidence_ids,
+                    evidence_panel_by_id,
+                    evidence_integrity_by_id,
                 )
             ]
             has_incomplete_coverage = any(
@@ -633,6 +1018,7 @@ class PrivateRadarStore:
                 final_status, final_stage, error_category = (
                     "no_qualified_leads", "complete", None
                 )
+            self._insert_opportunities(connection, run_id, opportunity_values)
             cursor = connection.execute(
                 """UPDATE private_radar_scans SET completed_at=?,status=?,stage=?,
                    progress=100,candidate_count=?,decisions_json=?,limitations_json=?,
@@ -718,7 +1104,7 @@ class PrivateRadarStore:
         coverage_scan = review_scan or data_scan
         if not coverage_scan:
             return {
-                "items": [], "review_items": [],
+                "items": [], "review_items": [], "opportunity_queue": [],
                 "trend_discovery": None,
                 "last_attempt": self._public_scan(attempt), "data_scan": None,
                 "review_scan": None, "displaying_previous_data": False,
@@ -739,7 +1125,10 @@ class PrivateRadarStore:
                     saved_decision, qualified_evidence
                 )
                 if not decision or not is_supported_qualified(
-                    decision, set(qualified_evidence), evidence_panel_by_id
+                    decision,
+                    set(qualified_evidence),
+                    evidence_panel_by_id,
+                    qualified_evidence,
                 ):
                     continue
                 items.append({**decision, "evidence": linked})
@@ -757,7 +1146,10 @@ class PrivateRadarStore:
                 saved_decision, review_evidence
             )
             if not decision or not linked or is_supported_qualified(
-                decision, set(review_evidence), review_panel_by_id
+                decision,
+                set(review_evidence),
+                review_panel_by_id,
+                review_evidence,
             ):
                 continue
             review_status, blocking_reasons, caveats = candidate_review_status(decision)
@@ -774,6 +1166,22 @@ class PrivateRadarStore:
             ),
             str(item.get("label") or ""),
         ))
+        opportunity_queue = []
+        if review_scan:
+            for saved in self.opportunities_for_run(review_scan["id"]):
+                evidence_ids = [str(value) for value in saved.get("evidence_ids") or []]
+                linked = [
+                    dict(review_evidence[eid]) for eid in evidence_ids
+                    if eid in review_evidence
+                    and str(review_evidence[eid].get("panel_id") or "")
+                        == str(saved.get("panel_id") or "")
+                ]
+                if len(linked) != len(evidence_ids) or not linked:
+                    continue
+                opportunity_queue.append({
+                    key: value for key, value in saved.items()
+                    if key not in {"payload", "created_at", "updated_at"}
+                } | {"evidence": linked})
         trend_source = next(
             (
                 source for source in coverage_scan["sources"]
@@ -836,7 +1244,8 @@ class PrivateRadarStore:
                 value["failed"] += 1
             value["reported_records"] += int(source.get("count") or 0)
         coverage_summary = (
-            f"{len(items)} trade-ready leads and {len(review_items)} reviewed subjects "
+            f"{len(items)} trade-ready leads, {len(opportunity_queue)} active investigations, "
+            f"and {len(review_items)} reviewed subjects "
             f"from {coverage_scan['evidence_count']} stored evidence records"
         )
         if funnel["query_scopes"]:
@@ -857,6 +1266,7 @@ class PrivateRadarStore:
         return {
             "items": items,
             "review_items": review_items,
+            "opportunity_queue": opportunity_queue,
             "trend_discovery": trend_discovery,
             "last_attempt": self._public_scan(attempt),
             "data_scan": self._public_scan(data_scan),
@@ -920,6 +1330,11 @@ async def propose_candidates(
         "records": [{
             "id": item.get("id"), "panel_id": item.get("panel_id"),
             "platform": item.get("platform"), "author": item.get("author"),
+            "record_type": item.get("record_type") or "root",
+            "parent_external_id": item.get("parent_external_id"),
+            "root_post_external_id": item.get("root_post_external_id"),
+            "query_lineage_id": item.get("query_lineage_id"),
+            "truncated": bool(item.get("truncated")),
             "text": str(item.get("text") or "")[:1200], "created_at": item.get("created_at"),
         } for item in balanced_records],
     }
@@ -930,7 +1345,6 @@ async def propose_candidates(
     }
     panel_ids = {panel.panel_id for panel in panels}
     accepted = []
-    seen_panels = set()
     for raw in parsed["candidates"][:MAX_SHORTLIST_CANDIDATES]:
         if not isinstance(raw, Mapping):
             continue
@@ -950,7 +1364,6 @@ async def propose_candidates(
         ]
         if (
             value.get("panel_id") not in panel_ids
-            or value.get("panel_id") in seen_panels
             or not str(value.get("label") or "").strip()
             or not ids
             or any(eid not in known_ids for eid in requested_ids)
@@ -970,7 +1383,6 @@ async def propose_candidates(
             or "Derived from the candidate's specific product and behavior anchors."
         ).strip()[:300]
         accepted.append(value)
-        seen_panels.add(value["panel_id"])
     limitations = [str(item)[:300] for item in parsed.get("limitations") or [] if isinstance(item, str)]
     return accepted, limitations
 
@@ -1015,6 +1427,11 @@ class PrivateRadarScanner:
         limitations = []
         trend_candidates = []
         trend_receipt: dict[str, Any] | None = None
+        adaptive_budget = (
+            self.collector.new_adaptive_budget()
+            if hasattr(self.collector, "new_adaptive_budget")
+            else None
+        )
         try:
             if hasattr(self.collector, "preflight"):
                 self.store.update_progress(
@@ -1041,7 +1458,13 @@ class PrivateRadarScanner:
                     run_id, stage="discovering_google_trends", progress=4,
                     sources=sources,
                 )
-                trend_result = await self.collector.collect_trend_discovery()
+                trend_result = (
+                    await self.collector.collect_trend_discovery(
+                        budget=adaptive_budget
+                    )
+                    if adaptive_budget is not None
+                    else await self.collector.collect_trend_discovery()
+                )
                 trend_candidates = list(trend_result.get("trend_candidates") or [])
                 trend_sources = list(trend_result.get("sources") or [])
                 sources.extend(trend_sources)
@@ -1107,11 +1530,64 @@ class PrivateRadarScanner:
                 raise PrivateRadarCoverageUnavailable(
                     "required discovery sources were unavailable or incomplete"
                 )
+            if hasattr(self.collector, "collect_adaptive"):
+                self.store.update_progress(
+                    run_id,
+                    stage="investigating_specific_observations",
+                    progress=41,
+                    sources=sources,
+                )
+                for index, panel in enumerate(self.panels):
+                    panel_roots = [
+                        item for item in current_evidence
+                        if item.get("panel_id") == panel.panel_id
+                        and str(item.get("record_type") or "root") == "root"
+                    ]
+                    anchors = select_adaptive_anchors(
+                        extract_observation_anchors(
+                            panel_roots,
+                            panel_id=panel.panel_id,
+                            seed_query=panel.search_term,
+                        ),
+                        high_support_limit=3,
+                        exploration_limit=1,
+                    )
+                    if anchors:
+                        adaptive_bounds = {
+                            "max_anchors": 4,
+                            "max_roots_per_platform": 2,
+                            "max_comments_per_root": 20,
+                            "max_depth": 2,
+                        }
+                        if adaptive_budget is not None:
+                            adaptive_bounds["budget"] = adaptive_budget
+                        adaptive = await self.collector.collect_adaptive(
+                            panel,
+                            anchors,
+                            **adaptive_bounds,
+                        )
+                        self.store.add_evidence(
+                            run_id, adaptive.get("evidence") or []
+                        )
+                        sources.extend(adaptive.get("sources") or [])
+                    self.store.update_progress(
+                        run_id,
+                        stage=f"investigating_{panel.panel_id}",
+                        progress=41 + int(8 * (index + 1) / len(self.panels)),
+                        sources=sources,
+                    )
+                current_evidence = self.store.evidence_for_run(run_id)
             if self.llm_call_fn is None:
                 from social_scraper.llm_client import call_llm
 
                 async def model(system, user):
-                    return await call_llm(system, user, max_tokens=5000, temperature=0.0)
+                    return await call_llm(
+                        system,
+                        user,
+                        max_tokens=5000,
+                        temperature=0.0,
+                        task_class="investigation",
+                    )
             else:
                 model = self.llm_call_fn
             proposals, model_limitations = await propose_candidates(
@@ -1152,9 +1628,12 @@ class PrivateRadarScanner:
             decisions = []
             for index, proposal in enumerate(proposals):
                 panel = panel_by_id[proposal["panel_id"]]
-                corroboration = await self.collector.collect_corroboration(
-                    panel, proposal["anchor_terms"]
-                )
+                if hasattr(self.collector, "collect_adaptive"):
+                    corroboration = {"evidence": [], "sources": []}
+                else:
+                    corroboration = await self.collector.collect_corroboration(
+                        panel, proposal["anchor_terms"]
+                    )
                 self.store.add_evidence(run_id, corroboration.get("evidence") or [])
                 sources.extend(corroboration.get("sources") or [])
                 all_evidence = self.store.evidence_for_run(run_id)
@@ -1181,6 +1660,8 @@ class PrivateRadarScanner:
                     if item["id"] in evidence_ids
                     and item.get("panel_id") == proposal["panel_id"]
                     and item.get("window_key") in {None, "current"}
+                    and str(item.get("record_type") or "root") == "root"
+                    and item.get("is_repost") is not True
                 ]
                 trajectory_query = str(
                     proposal.get("trajectory_query")
@@ -1222,55 +1703,53 @@ class PrivateRadarScanner:
                             "points": [],
                             "error_category": type(exc).__name__,
                         }
-                preliminary = qualify_candidate(
-                    proposal,
-                    evidence=candidate_evidence,
-                    windows=[],
-                    parity={
-                        "level": "unknown",
-                        "status": "not_checked_before_history",
-                        "articles": [],
-                    },
-                )
-                preliminary["trajectory"] = dict(trajectory)
-                if movement_bundle:
-                    preliminary["movement_bundle"] = movement_bundle
-                preflight_gates = (
-                    "specificity", "behavior", "evidence_quality", "persistence", "breadth", "investigability"
-                )
-                if any(
-                    preliminary["gates"][name]["state"] == "fail"
-                    for name in preflight_gates
-                ):
-                    decisions.append(preliminary)
-                else:
-                    historical = await self.collector.collect_windows(
+                historical = (
+                    await self.collector.collect_windows(
+                        panel,
+                        proposal["anchor_terms"],
+                        budget=adaptive_budget,
+                    )
+                    if adaptive_budget is not None
+                    else await self.collector.collect_windows(
                         panel, proposal["anchor_terms"]
                     )
-                    self.store.add_evidence(
-                        run_id, historical.get("evidence") or []
+                )
+                self.store.add_evidence(
+                    run_id, historical.get("evidence") or []
+                )
+                sources.extend(historical.get("sources") or [])
+                if self.news_check_fn is None:
+                    parity = {
+                        "level": "unknown",
+                        "status": "not_checked",
+                        "articles": [],
+                    }
+                else:
+                    parity = await self.news_check_fn(
+                        proposal["label"], proposal["anchor_terms"]
                     )
-                    sources.extend(historical.get("sources") or [])
-                    if self.news_check_fn is None:
-                        parity = {
-                            "level": "unknown",
-                            "status": "not_checked",
-                            "articles": [],
-                        }
-                    else:
-                        parity = await self.news_check_fn(
-                            proposal["label"], proposal["anchor_terms"]
-                        )
-                    decision = qualify_candidate(
-                        proposal,
-                        evidence=candidate_evidence,
-                        windows=historical.get("windows") or [],
-                        parity=parity,
+                decision = qualify_candidate(
+                    proposal,
+                    evidence=candidate_evidence,
+                    windows=historical.get("windows") or [],
+                    parity=parity,
+                )
+                if hasattr(self.collector, "collect_adaptive"):
+                    depth_gate = summarize_candidate_depth_coverage(
+                        proposal.get("anchor_terms") or [],
+                        sources,
                     )
-                    decision["trajectory"] = dict(trajectory)
-                    if movement_bundle:
-                        decision["movement_bundle"] = movement_bundle
-                    decisions.append(decision)
+                    decision["gates"]["conversation_depth"] = depth_gate
+                    decision["conversation_depth"] = dict(depth_gate["metrics"])
+                    if (
+                        depth_gate["state"] != "pass"
+                        and decision["qualification_status"] == "qualified"
+                    ):
+                        decision["qualification_status"] = "unknown_due_to_coverage"
+                decision["trajectory"] = dict(trajectory)
+                if movement_bundle:
+                    decision["movement_bundle"] = movement_bundle
+                decisions.append(decision)
                 self.store.update_progress(
                     run_id, stage="qualifying_candidates",
                     progress=55 + int(40 * (index + 1) / max(1, len(proposals))),

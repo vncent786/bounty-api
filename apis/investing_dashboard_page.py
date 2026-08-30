@@ -96,10 +96,28 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
       </div>
 
       <div class="lane-stack">
-        <section class="signal-lane trend-discovery-lane" aria-labelledby="trend-discovery-title">
+        <section class="signal-lane opportunity-lane" aria-labelledby="opportunity-title">
           <header class="lane-head">
             <div>
               <p class="lane-number">Layer 01</p>
+              <h2 id="opportunity-title">Opportunity investigations</h2>
+              <p>Specific cited observations that deserve deeper replication. These are research leads, not trade-ready ideas.</p>
+            </div>
+            <span class="lane-status" id="opportunity-status">Checking active investigations</span>
+          </header>
+          <div class="signal-list" id="opportunity-list" aria-live="polite" aria-busy="true">
+            <div class="state-panel loading-state">
+              <p class="eyebrow">Loading</p>
+              <h3>Checking the investigation queue</h3>
+              <p>Specific observations and their next research actions are loading.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="signal-lane trend-discovery-lane" aria-labelledby="trend-discovery-title">
+          <header class="lane-head">
+            <div>
+              <p class="lane-number">Layer 02</p>
               <h2 id="trend-discovery-title">Google Trends discovery</h2>
               <p>Each search-attention candidate includes source-grounded context, first-detected timing, multiple tested queries, and selectable 3-month, 1-year, and 5-year charts. Search activity is still a lead to investigate, never proof.</p>
             </div>
@@ -117,7 +135,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <section class="signal-lane social-lane" aria-labelledby="social-title">
           <header class="lane-head">
             <div>
-              <p class="lane-number">Layer 02</p>
+              <p class="lane-number">Layer 03</p>
               <h2 id="social-title">Investment signal review</h2>
               <p>Trade-ready leads stay strict. Rejected topics remain auditable with failed checks and openable sources.</p>
             </div>

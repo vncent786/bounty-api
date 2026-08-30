@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import re
 from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Mapping, Sequence
 from urllib.parse import quote
 
@@ -13,6 +14,7 @@ import httpx
 from apis.news_search import GOOGLE_NEWS_RSS, parse_google_news_rss
 from apis.social_search_api import build_default_broker
 from social_scraper.connectors.x_graphql import XConnector
+from social_scraper.investing.adaptive_investigation import make_query_lineage_id
 from social_scraper.investing.google_discovery import collect_worldwide_trend_candidates
 from social_scraper.investing.private_radar import (
     DEFAULT_PANELS,
@@ -58,9 +60,101 @@ REDDIT_PANEL_QUERIES = {
 }
 
 
+SOURCE_QUERY_RECIPE_VERSION = "camillo-source-queries/1"
+DEFAULT_ADAPTIVE_PLATFORM_LIMITS = {
+    "x": 32,
+    "tiktok": 48,
+    "instagram": 48,
+    "reddit": 48,
+    "youtube": 48,
+}
+
+
+class AdaptiveCollectionBudget:
+    """One hard per-run budget shared by fan-out, retries, and thread reads."""
+
+    def __init__(
+        self,
+        *,
+        max_attempts: int = 224,
+        per_platform_limits: Mapping[str, int] | None = None,
+    ):
+        self.max_attempts = max(0, int(max_attempts))
+        self.per_platform_limits = {
+            str(platform): max(0, int(limit))
+            for platform, limit in (
+                per_platform_limits or DEFAULT_ADAPTIVE_PLATFORM_LIMITS
+            ).items()
+        }
+        self.used_attempts = 0
+        self.used_by_platform = {
+            platform: 0 for platform in self.per_platform_limits
+        }
+        self.used_by_operation: dict[str, int] = {}
+        self.denied_attempts = 0
+
+    def reserve(self, *, platform: str, operation: str) -> bool:
+        platform_name = str(platform or "unknown")
+        platform_limit = self.per_platform_limits.get(platform_name, self.max_attempts)
+        if (
+            self.used_attempts >= self.max_attempts
+            or self.used_by_platform.get(platform_name, 0) >= platform_limit
+        ):
+            self.denied_attempts += 1
+            return False
+        self.used_attempts += 1
+        self.used_by_platform[platform_name] = (
+            self.used_by_platform.get(platform_name, 0) + 1
+        )
+        operation_name = str(operation or "unknown")
+        self.used_by_operation[operation_name] = (
+            self.used_by_operation.get(operation_name, 0) + 1
+        )
+        return True
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "max_attempts": self.max_attempts,
+            "used_attempts": self.used_attempts,
+            "remaining_attempts": max(0, self.max_attempts - self.used_attempts),
+            "per_platform_limits": dict(self.per_platform_limits),
+            "used_by_platform": dict(self.used_by_platform),
+            "used_by_operation": dict(self.used_by_operation),
+            "denied_attempts": self.denied_attempts,
+            "exhausted": self.used_attempts >= self.max_attempts,
+        }
+
+
+PANEL_SOURCE_ANCHORS = {
+    "automobiles": "car",
+    "airlines": "airline",
+    "hotels_travel": "hotel",
+    "restaurants_qsr": "restaurant",
+    "food_beverage": "grocery product",
+    "beauty_skincare": "skincare product",
+    "fashion_apparel": "clothing brand",
+    "luxury": "luxury product",
+    "retail": "retailer",
+    "consumer_technology": "consumer gadget",
+    "streaming": "streaming service",
+    "telecom": "mobile plan",
+    "fintech_payments": "payment app",
+    "fitness_wearables": "fitness tracker",
+    "pets": "pet product",
+    "household_cleaning": "cleaning product",
+}
+
+
 def panel_platform_query(panel: Panel, platform: str) -> str:
     if platform == "reddit":
         return REDDIT_PANEL_QUERIES.get(panel.panel_id, panel.name)
+    anchor = PANEL_SOURCE_ANCHORS.get(panel.panel_id, panel.name.casefold())
+    if platform == "youtube":
+        return f"why I switched {anchor}"
+    if platform == "instagram":
+        return f"{anchor} problem"
+    if platform == "tiktok":
+        return f"switching {anchor}"
     return panel.search_term
 
 
@@ -71,9 +165,6 @@ def _utc_iso() -> str:
 def _source_status(platform_result: Mapping[str, Any] | None, health: Sequence[Mapping[str, Any]]):
     result = platform_result or {}
     state = str(result.get("status") or "error")
-    if state == "ok":
-        return "complete", None
-    status = "partial" if state == "partial" else "failed"
     platform = result.get("platform")
     selected_connector = result.get("selected_connector")
     matching = [
@@ -84,9 +175,27 @@ def _source_status(platform_result: Mapping[str, Any] | None, health: Sequence[M
             or item.get("connector") == selected_connector
         )
     ]
+    if state == "ok":
+        result_error = result.get("error")
+        if result_error:
+            return "partial", result_error
+        if selected_connector and not matching:
+            return "partial", "selected_connector_health_missing"
+        selected_error = next(
+            (
+                item.get("error") or "selected_connector_unhealthy"
+                for item in reversed(matching)
+                if str(item.get("status") or "error") != "ok" or item.get("error")
+            ),
+            None,
+        )
+        if selected_error:
+            return "partial", selected_error
+        return "complete", None
+    status = "partial" if state == "partial" else "failed"
     error = next(
         (item.get("error") for item in reversed(matching) if item.get("error")),
-        None,
+        result.get("error"),
     )
     return status, error
 
@@ -118,41 +227,122 @@ def _normalise_engagement(value: Mapping[str, Any] | None) -> dict[str, int | No
     }
 
 
+def _created_at_utc(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        try:
+            parsed = parsedate_to_datetime(text)
+        except (TypeError, ValueError):
+            return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
 def _normalise_item(
     item: Mapping[str, Any], *, panel_id: str, window_key: str, query: str,
+    query_lineage_id: str | None = None,
+    window_start: datetime | None = None,
+    window_end: datetime | None = None,
+    require_timestamp: bool = False,
 ) -> dict[str, Any] | None:
     value = dict(item)
     text = str(value.get("text") or value.get("title") or "").strip()
     url = str(value.get("url") or "").strip()
     if not text or not url.startswith(("http://", "https://")):
         return None
+    created_at = value.get("created_at") or value.get("published_at")
+    parsed_created_at = _created_at_utc(created_at)
+    if require_timestamp and parsed_created_at is None:
+        return None
+    if (
+        parsed_created_at is not None
+        and (
+            (window_start is not None and parsed_created_at < window_start)
+            or (window_end is not None and parsed_created_at >= window_end)
+        )
+    ):
+        return None
+    if (
+        window_start is None
+        and window_end is None
+        and window_key == "current"
+        and parsed_created_at is not None
+        and parsed_created_at < datetime.now(timezone.utc) - timedelta(days=35)
+    ):
+        return None
     author = value.get("author") or {}
     if isinstance(author, Mapping):
         author_name = str(author.get("username") or author.get("display_name") or "").strip()
+        creator_id = str(
+            author.get("id") or author.get("external_id")
+            or author.get("author_external_id") or ""
+        ).strip() or None
     else:
         author_name = str(author or "").strip()
+        creator_id = str(
+            value.get("author_id") or value.get("author_external_id") or ""
+        ).strip() or None
+    external_id = str(value.get("post_id") or value.get("external_id") or "") or None
+    community_id = str(
+        value.get("community_id") or value.get("subreddit")
+        or (value.get("provenance") or {}).get("subreddit")
+        if isinstance(value.get("provenance"), Mapping)
+        else value.get("community_id") or value.get("subreddit") or ""
+    ).strip() or None
+    raw_repost = value.get("is_repost")
     evidence = {
         "panel_id": panel_id,
         "platform": str(value.get("platform") or "unknown"),
-        "external_id": str(value.get("post_id") or value.get("external_id") or "") or None,
+        "external_id": external_id,
+        "record_type": "root",
+        "parent_external_id": None,
+        "root_post_external_id": external_id,
+        "thread_depth": 0,
+        "query_lineage_id": query_lineage_id,
+        "community_id": community_id,
+        "creator_id": creator_id,
+        "is_repost": raw_repost if isinstance(raw_repost, bool) else None,
+        "copy_cluster_id": value.get("copy_cluster_id"),
+        "truncated": False,
         "url": url,
         "author": author_name or None,
         "text": text[:6000],
         "engagement": _normalise_engagement(value.get("engagement")),
-        "created_at": value.get("created_at") or value.get("published_at"),
+        "created_at": created_at,
         "observed_at": _utc_iso(),
         "window_key": window_key,
         "query": query,
     }
     evidence["id"] = stable_evidence_id(evidence)
+    evidence["root_post_external_id"] = external_id or evidence["id"]
     return evidence
 
 
-def _thread_evidence(record, *, panel_id: str, query: str) -> dict[str, Any] | None:
+def _thread_evidence(
+    record, *, panel_id: str, query: str,
+    query_lineage_id: str | None = None,
+    thread_result=None,
+) -> dict[str, Any] | None:
+    raw = record.raw if isinstance(getattr(record, "raw", None), Mapping) else {}
     value = {
         "panel_id": panel_id,
         "platform": record.platform,
         "external_id": record.external_id,
+        "record_type": record.record_type,
+        "parent_external_id": record.parent_external_id,
+        "root_post_external_id": record.root_post_external_id,
+        "thread_depth": int(record.depth),
+        "query_lineage_id": query_lineage_id,
+        "community_id": raw.get("community_id") or raw.get("subreddit"),
+        "creator_id": record.author_external_id,
+        "is_repost": None,
+        "copy_cluster_id": None,
+        "truncated": bool(getattr(thread_result, "truncated", False)),
         "url": record.url,
         "author": record.author_username,
         "text": record.text,
@@ -172,11 +362,26 @@ class OwnedRadarCollector:
     def __init__(
         self, broker=None, x_connector=None, trajectory_check_fn=None,
         trend_discovery_fn=None,
+        *,
+        adaptive_max_attempts: int = 224,
+        adaptive_per_platform_limits: Mapping[str, int] | None = None,
+        trend_candidate_limit: int = 8,
     ):
         self.broker = broker or build_default_broker(route_timeout_seconds=90.0)
         self.x_connector = x_connector or XConnector()
         self.trajectory_check_fn = trajectory_check_fn or check_search_trajectory
         self.trend_discovery_fn = trend_discovery_fn or collect_worldwide_trend_candidates
+        self.adaptive_max_attempts = max(0, int(adaptive_max_attempts))
+        self.adaptive_per_platform_limits = dict(
+            adaptive_per_platform_limits or DEFAULT_ADAPTIVE_PLATFORM_LIMITS
+        )
+        self.trend_candidate_limit = max(0, int(trend_candidate_limit))
+
+    def new_adaptive_budget(self) -> AdaptiveCollectionBudget:
+        return AdaptiveCollectionBudget(
+            max_attempts=self.adaptive_max_attempts,
+            per_platform_limits=self.adaptive_per_platform_limits,
+        )
 
     async def preflight(self) -> dict[str, Any]:
         """Prove every required source before starting the expensive panel sweep."""
@@ -270,10 +475,15 @@ class OwnedRadarCollector:
             "sources": sources,
         }
 
-    async def collect_trend_discovery(self) -> dict[str, Any]:
-        """Generate Google candidates first, then collect social roots for mapped panels."""
+    async def collect_trend_discovery(
+        self,
+        *,
+        budget: AdaptiveCollectionBudget | None = None,
+    ) -> dict[str, Any]:
+        """Generate Google candidates first, then collect bounded social roots."""
         discovery = await asyncio.to_thread(self.trend_discovery_fn)
         candidates = [dict(value) for value in discovery.get("candidates") or []]
+        investigated_candidates = candidates[: self.trend_candidate_limit]
         sources = [{
             "platform": "google_trends",
             "stage": "trend_discovery",
@@ -283,52 +493,81 @@ class OwnedRadarCollector:
             "geographies": list(discovery.get("geographies") or []),
             "failures": list(discovery.get("failures") or []),
             "candidates": candidates,
+            "coverage": {
+                "social_investigation_limit": self.trend_candidate_limit,
+                "social_investigated_candidates": len(investigated_candidates),
+                "social_skipped_candidates": max(
+                    0, len(candidates) - len(investigated_candidates)
+                ),
+            },
         }]
         evidence = []
         panels = {panel.panel_id: panel for panel in DEFAULT_PANELS}
-        for candidate in candidates:
+        for candidate in investigated_candidates:
             panel = panels.get(str(candidate.get("panel_id") or ""))
             keyword = str(candidate.get("keyword") or "").strip()
             if panel is None or not keyword:
                 continue
             x_query = f'"{keyword.replace(chr(34), "")}" -filter:retweets'
-            try:
-                x_result = await self.x_connector.search(
-                    x_query, count=10, time_filter="month", sort="latest"
-                )
-            except Exception as exc:
+            if budget is not None and not budget.reserve(
+                platform="x", operation="trend_candidate_search"
+            ):
                 sources.append({
                     "panel_id": panel.panel_id,
                     "platform": "x",
                     "stage": "trend_candidate",
                     "trend_keyword": keyword,
-                    "status": "failed",
+                    "status": "partial",
                     "count": 0,
-                    "error_category": type(exc).__name__,
-                    "coverage": {},
+                    "error_category": "adaptive_budget_exhausted",
+                    "coverage": {"budget": budget.snapshot()},
                 })
             else:
-                for item in x_result.items:
-                    normalized = _normalise_item(
-                        item.to_dict(), panel_id=panel.panel_id,
-                        window_key="current", query=keyword,
+                try:
+                    x_result = await self.x_connector.search(
+                        x_query, count=10, time_filter="month", sort="latest"
                     )
-                    if normalized:
-                        evidence.append(normalized)
-                sources.append({
-                    "panel_id": panel.panel_id,
-                    "platform": "x",
-                    "stage": "trend_candidate",
-                    "trend_keyword": keyword,
-                    "status": _x_source_status(x_result),
-                    "count": len(x_result.items),
-                    "error_category": x_result.health.error,
-                    "coverage": x_result.health.coverage,
-                })
+                except Exception as exc:
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "stage": "trend_candidate",
+                        "trend_keyword": keyword,
+                        "status": "failed",
+                        "count": 0,
+                        "error_category": type(exc).__name__,
+                        "coverage": (
+                            {"budget": budget.snapshot()}
+                            if budget is not None else {}
+                        ),
+                    })
+                else:
+                    for item in x_result.items:
+                        normalized = _normalise_item(
+                            item.to_dict(), panel_id=panel.panel_id,
+                            window_key="current", query=keyword,
+                        )
+                        if normalized:
+                            evidence.append(normalized)
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "stage": "trend_candidate",
+                        "trend_keyword": keyword,
+                        "status": _x_source_status(x_result),
+                        "count": len(x_result.items),
+                        "error_category": x_result.health.error,
+                        "coverage": {
+                            **x_result.health.coverage,
+                            **({"budget": budget.snapshot()} if budget is not None else {}),
+                        },
+                    })
             platform_results = await asyncio.gather(*(
                 self._broker_search(
                     panel, platform, keyword,
                     count=5, time_filter="month", sort="latest", hydrate=False,
+                    budget=budget,
+                    budget_operation="trend_candidate_search",
                 )
                 for platform in NON_X_DISCOVERY_PLATFORMS
             ))
@@ -347,6 +586,9 @@ class OwnedRadarCollector:
     async def _broker_search(
         self, panel: Panel, platform: str, query: str, *, count: int,
         time_filter: str = "week", sort: str = "latest", hydrate: bool = True,
+        query_lineage_id: str | None = None,
+        budget: AdaptiveCollectionBudget | None = None,
+        budget_operation: str = "root_search",
     ) -> dict[str, Any]:
         response = None
         platform_result = {}
@@ -355,7 +597,30 @@ class OwnedRadarCollector:
         recovered_errors = []
         attempt_count = 0
         for attempt in range(2):
-            attempt_count = attempt + 1
+            if budget is not None and not budget.reserve(
+                platform=platform,
+                operation=budget_operation if attempt == 0 else f"{budget_operation}_retry",
+            ):
+                return {
+                    "evidence": [],
+                    "roots": [],
+                    "source": {
+                        "panel_id": panel.panel_id,
+                        "platform": platform,
+                        "query": query,
+                        "query_recipe_version": SOURCE_QUERY_RECIPE_VERSION,
+                        "query_lineage_id": query_lineage_id,
+                        "status": "partial",
+                        "count": 0,
+                        "error_category": "adaptive_budget_exhausted",
+                        "coverage": {
+                            "attempt_count": attempt_count,
+                            "recovered_errors": recovered_errors,
+                            "budget": budget.snapshot(),
+                        },
+                    },
+                }
+            attempt_count += 1
             try:
                 response = await self.broker.search(
                     keyword=query,
@@ -375,10 +640,15 @@ class OwnedRadarCollector:
                         "panel_id": panel.panel_id,
                         "platform": platform,
                         "query": query,
+                        "query_recipe_version": SOURCE_QUERY_RECIPE_VERSION,
                         "status": "failed",
                         "count": 0,
                         "error_category": type(exc).__name__,
-                        "coverage": {},
+                        "coverage": {
+                            "attempt_count": attempt_count,
+                            "recovered_errors": recovered_errors,
+                            **({"budget": budget.snapshot()} if budget is not None else {}),
+                        },
                     },
                 }
             platform_result = dict(
@@ -397,7 +667,11 @@ class OwnedRadarCollector:
         evidence = []
         for item in response.get("items") or []:
             normalized = _normalise_item(
-                item, panel_id=panel.panel_id, window_key="current", query=query
+                item,
+                panel_id=panel.panel_id,
+                window_key="current",
+                query=query,
+                query_lineage_id=query_lineage_id,
             )
             if normalized:
                 evidence.append(normalized)
@@ -411,12 +685,24 @@ class OwnedRadarCollector:
                 reverse=True,
             )[:1]
             for root in ranked:
+                if budget is not None and not budget.reserve(
+                    platform=platform, operation="hydrated_thread_read"
+                ):
+                    status = "partial"
+                    error = "adaptive_budget_exhausted"
+                    continue
                 try:
                     thread = await self.broker.fetch_thread(root, max_comments=12, max_depth=2)
                 except Exception:
                     continue
                 for record in thread.records:
-                    normalized = _thread_evidence(record, panel_id=panel.panel_id, query=query)
+                    normalized = _thread_evidence(
+                        record,
+                        panel_id=panel.panel_id,
+                        query=query,
+                        query_lineage_id=query_lineage_id,
+                        thread_result=thread,
+                    )
                     if normalized:
                         evidence.append(normalized)
                 if thread.status not in {"complete", "empty"}:
@@ -425,10 +711,13 @@ class OwnedRadarCollector:
         deduped = {item["id"]: item for item in evidence}
         return {
             "evidence": list(deduped.values()),
+            "roots": [dict(item) for item in (response.get("items") or [])],
             "source": {
                 "panel_id": panel.panel_id,
                 "platform": platform,
                 "query": query,
+                "query_recipe_version": SOURCE_QUERY_RECIPE_VERSION,
+                "query_lineage_id": query_lineage_id,
                 "status": status,
                 "count": len(deduped),
                 "error_category": error,
@@ -436,6 +725,7 @@ class OwnedRadarCollector:
                     **(platform_result.get("coverage") or {}),
                     "attempt_count": attempt_count,
                     "recovered_errors": recovered_errors,
+                    **({"budget": budget.snapshot()} if budget is not None else {}),
                 },
             },
         }
@@ -500,12 +790,270 @@ class OwnedRadarCollector:
         deduped = {item["id"]: item for item in evidence}
         return {"evidence": list(deduped.values()), "sources": sources}
 
+    async def collect_adaptive(
+        self,
+        panel: Panel,
+        anchors: Sequence[Mapping[str, Any]],
+        *,
+        max_anchors: int = 4,
+        max_roots_per_platform: int = 2,
+        max_comments_per_root: int = 20,
+        max_depth: int = 2,
+        budget: AdaptiveCollectionBudget | None = None,
+    ) -> dict[str, Any]:
+        selected = [dict(value) for value in anchors[: max(0, int(max_anchors))]]
+        evidence: list[dict[str, Any]] = []
+        sources: list[dict[str, Any]] = []
+        depth_roots: dict[str, list[dict[str, Any]]] = {
+            platform: [] for platform in NON_X_DISCOVERY_PLATFORMS
+        }
+        for anchor in selected:
+            anchor_id = str(anchor.get("anchor_id") or "")
+            query = str(anchor.get("normalized_anchor") or anchor.get("anchor_text") or "").strip()
+            if not anchor_id or not query:
+                continue
+            x_query = f'"{query.replace(chr(34), "")}" -filter:retweets'
+            x_lineage = make_query_lineage_id(
+                panel_id=panel.panel_id,
+                platform="x",
+                seed_query=str(anchor.get("seed_query") or panel.search_term),
+                anchor_id=anchor_id,
+                query=x_query,
+            )
+            if budget is not None and not budget.reserve(
+                platform="x", operation="adaptive_root_search"
+            ):
+                sources.append({
+                    "panel_id": panel.panel_id,
+                    "platform": "x",
+                    "stage": "adaptive_root",
+                    "anchor_id": anchor_id,
+                    "query": x_query,
+                    "query_lineage_id": x_lineage,
+                    "status": "partial",
+                    "count": 0,
+                    "error_category": "adaptive_budget_exhausted",
+                    "coverage": {"budget": budget.snapshot()},
+                })
+            else:
+                try:
+                    x_result = await self.x_connector.search(
+                        x_query,
+                        count=8,
+                        time_filter="month",
+                        sort="latest",
+                    )
+                except Exception as exc:
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "stage": "adaptive_root",
+                        "anchor_id": anchor_id,
+                        "query": x_query,
+                        "query_lineage_id": x_lineage,
+                        "status": "failed",
+                        "count": 0,
+                        "error_category": type(exc).__name__,
+                        "coverage": (
+                            {"budget": budget.snapshot()}
+                            if budget is not None else {}
+                        ),
+                    })
+                else:
+                    for item in x_result.items:
+                        normalized = _normalise_item(
+                            item.to_dict(),
+                            panel_id=panel.panel_id,
+                            window_key="current",
+                            query=x_query,
+                            query_lineage_id=x_lineage,
+                        )
+                        if normalized:
+                            evidence.append(normalized)
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": "x",
+                        "stage": "adaptive_root",
+                        "anchor_id": anchor_id,
+                        "query": x_query,
+                        "query_lineage_id": x_lineage,
+                        "status": _x_source_status(x_result),
+                        "count": len(x_result.items),
+                        "error_category": x_result.health.error,
+                        "coverage": {
+                            **x_result.health.coverage,
+                            **({"budget": budget.snapshot()} if budget is not None else {}),
+                        },
+                    })
+
+            for platform in NON_X_DISCOVERY_PLATFORMS:
+                lineage = make_query_lineage_id(
+                    panel_id=panel.panel_id,
+                    platform=platform,
+                    seed_query=str(anchor.get("seed_query") or panel.search_term),
+                    anchor_id=anchor_id,
+                    query=query,
+                )
+                result = await self._broker_search(
+                    panel,
+                    platform,
+                    query,
+                    count=8,
+                    time_filter="month",
+                    sort="latest",
+                    hydrate=False,
+                    query_lineage_id=lineage,
+                    budget=budget,
+                    budget_operation="adaptive_root_search",
+                )
+                source = dict(result.get("source") or {})
+                source.update(
+                    stage="adaptive_root",
+                    anchor_id=anchor_id,
+                    query_lineage_id=lineage,
+                )
+                sources.append(source)
+                evidence.extend(result.get("evidence") or [])
+                for root in result.get("roots") or []:
+                    value = dict(root)
+                    value["_adaptive_query"] = query
+                    value["_adaptive_lineage"] = lineage
+                    value["_adaptive_anchor_id"] = anchor_id
+                    depth_roots.setdefault(platform, []).append(value)
+
+        for platform, roots in depth_roots.items():
+            ranked = sorted(
+                roots,
+                key=lambda item: (
+                    -int((item.get("engagement") or {}).get("comments") or 0),
+                    -int((item.get("engagement") or {}).get("likes") or 0),
+                    str(item.get("post_id") or item.get("external_id") or item.get("url") or ""),
+                ),
+            )
+            seen_roots = set()
+            selected_roots = []
+            for root in ranked:
+                root_id = str(root.get("post_id") or root.get("external_id") or root.get("url") or "")
+                if not root_id or root_id in seen_roots:
+                    continue
+                seen_roots.add(root_id)
+                selected_roots.append(root)
+                if len(selected_roots) >= max(0, int(max_roots_per_platform)):
+                    break
+            for root in selected_roots:
+                root_id = str(root.get("post_id") or root.get("external_id") or root.get("url") or "")
+                query = str(root.get("_adaptive_query") or "")
+                lineage = str(root.get("_adaptive_lineage") or "")
+                anchor_id = str(root.get("_adaptive_anchor_id") or "")
+                if budget is not None and not budget.reserve(
+                    platform=platform, operation="adaptive_thread_read"
+                ):
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": platform,
+                        "stage": "adaptive_depth",
+                        "anchor_id": anchor_id,
+                        "root_external_id": root_id,
+                        "query": query,
+                        "query_lineage_id": lineage,
+                        "status": "partial",
+                        "returned_count": 0,
+                        "truncated": True,
+                        "error_category": "adaptive_budget_exhausted",
+                        "limitations": ["Thread read skipped because the per-run adaptive budget was exhausted."],
+                        "coverage": {"budget": budget.snapshot()},
+                    })
+                    continue
+                try:
+                    thread = await self.broker.fetch_thread(
+                        root,
+                        max_comments=max(0, int(max_comments_per_root)),
+                        max_depth=max(0, int(max_depth)),
+                    )
+                except Exception as exc:
+                    sources.append({
+                        "panel_id": panel.panel_id,
+                        "platform": platform,
+                        "stage": "adaptive_depth",
+                        "anchor_id": anchor_id,
+                        "root_external_id": root_id,
+                        "query": query,
+                        "query_lineage_id": lineage,
+                        "status": "failed",
+                        "returned_count": 0,
+                        "truncated": False,
+                        "error_category": type(exc).__name__,
+                        "coverage": (
+                            {"budget": budget.snapshot()}
+                            if budget is not None else {}
+                        ),
+                    })
+                    continue
+                for record in thread.records:
+                    normalized = _thread_evidence(
+                        record,
+                        panel_id=panel.panel_id,
+                        query=query,
+                        query_lineage_id=lineage,
+                        thread_result=thread,
+                    )
+                    if normalized:
+                        evidence.append(normalized)
+                sources.append({
+                    "panel_id": panel.panel_id,
+                    "platform": platform,
+                    "stage": "adaptive_depth",
+                    "anchor_id": anchor_id,
+                    "root_external_id": root_id,
+                    "query": query,
+                    "query_lineage_id": lineage,
+                    "status": thread.status,
+                    "returned_count": len(thread.records),
+                    "platform_reported_total": thread.platform_reported_total,
+                    "truncated": bool(thread.truncated),
+                    "max_comments": int(thread.max_comments),
+                    "max_depth": int(thread.max_depth),
+                    "attempted_route": thread.attempted_route,
+                    "error_category": thread.error_category,
+                    "limitations": list(thread.limitations),
+                    "coverage": (
+                        {"budget": budget.snapshot()}
+                        if budget is not None else {}
+                    ),
+                })
+        if budget is not None:
+            budget_snapshot = budget.snapshot()
+            sources.append({
+                "panel_id": panel.panel_id,
+                "platform": "adaptive_budget",
+                "stage": "adaptive_budget",
+                "status": "partial" if budget_snapshot["denied_attempts"] else "complete",
+                "count": budget_snapshot["used_attempts"],
+                "error_category": (
+                    "adaptive_budget_exhausted"
+                    if budget_snapshot["denied_attempts"] else None
+                ),
+                "coverage": budget_snapshot,
+            })
+        deduped = {item["id"]: item for item in evidence}
+        return {
+            "anchors": selected,
+            "evidence": list(deduped.values()),
+            "sources": sources,
+        }
+
     @staticmethod
     def _anchor_query(anchor_terms: Sequence[str]) -> str:
         escaped = [str(term).replace('"', "").strip() for term in anchor_terms if str(term).strip()]
         return "(" + " OR ".join(f'"{term}"' for term in escaped[:5]) + ") -filter:retweets"
 
-    async def collect_windows(self, panel: Panel, anchor_terms: Sequence[str]):
+    async def collect_windows(
+        self,
+        panel: Panel,
+        anchor_terms: Sequence[str],
+        *,
+        budget: AdaptiveCollectionBudget | None = None,
+    ):
         now = datetime.now(timezone.utc)
         base_query = self._anchor_query(anchor_terms)
         windows = []
@@ -518,42 +1066,110 @@ class OwnedRadarCollector:
             start_date = end_date - timedelta(days=7)
             key = "current" if index == 0 else f"prior_{index}"
             query = f"{base_query} since:{start_date.isoformat()} until:{end_date.isoformat()}"
+            if budget is not None and not budget.reserve(
+                platform="x", operation="historical_window_search"
+            ):
+                budget_snapshot = budget.snapshot()
+                windows.append({
+                    "window_key": key,
+                    "start_date": start_date.isoformat(),
+                    "end_date": end_date.isoformat(),
+                    "status": "partial",
+                    "result_count": 0,
+                    "unique_authors": 0,
+                    "capped": False,
+                    "query": query,
+                    "anchor_query": base_query,
+                    "error_category": "adaptive_budget_exhausted",
+                    "missing_timestamp_count": 0,
+                    "out_of_window_count": 0,
+                })
+                sources.append({
+                    "panel_id": panel.panel_id,
+                    "platform": "x",
+                    "window_key": key,
+                    "status": "partial",
+                    "count": 0,
+                    "capped": False,
+                    "error_category": "adaptive_budget_exhausted",
+                    "coverage": {"budget": budget_snapshot},
+                })
+                continue
             result = await self.x_connector.search(query, count=40, sort="latest")
             capped = bool(result.health.coverage.get("requested_limit_reached"))
             status = _x_source_status(result)
+            window_start = datetime(
+                start_date.year, start_date.month, start_date.day,
+                tzinfo=timezone.utc,
+            )
+            window_end = datetime(
+                end_date.year, end_date.month, end_date.day,
+                tzinfo=timezone.utc,
+            )
             authors = set()
-            seen = set()
+            accepted_ids = set()
+            missing_timestamp_count = 0
+            out_of_window_count = 0
             for item in result.items:
-                if item.post_id in seen:
-                    continue
-                seen.add(item.post_id)
-                authors.add(item.author_username or item.post_id)
-                normalized = _normalise_item(
-                    item.to_dict(), panel_id=panel.panel_id,
-                    window_key=key, query=query,
+                raw = item.to_dict()
+                parsed_created_at = _created_at_utc(
+                    raw.get("created_at") or raw.get("published_at")
                 )
-                if normalized:
-                    evidence.append(normalized)
+                if parsed_created_at is None:
+                    missing_timestamp_count += 1
+                    continue
+                if not (window_start <= parsed_created_at < window_end):
+                    out_of_window_count += 1
+                    continue
+                normalized = _normalise_item(
+                    raw,
+                    panel_id=panel.panel_id,
+                    window_key=key,
+                    query=query,
+                    window_start=window_start,
+                    window_end=window_end,
+                    require_timestamp=True,
+                )
+                if not normalized or normalized["id"] in accepted_ids:
+                    continue
+                accepted_ids.add(normalized["id"])
+                author_key = str(
+                    normalized.get("creator_id") or normalized.get("author") or ""
+                ).strip()
+                if author_key:
+                    authors.add(author_key)
+                evidence.append(normalized)
+            if status == "complete" and (
+                missing_timestamp_count or out_of_window_count
+            ):
+                status = "partial"
             windows.append({
                 "window_key": key,
                 "start_date": start_date.isoformat(),
                 "end_date": end_date.isoformat(),
                 "status": status,
-                "result_count": len(seen),
+                "result_count": len(accepted_ids),
                 "unique_authors": len(authors),
                 "capped": capped,
                 "query": query,
                 "anchor_query": base_query,
                 "error_category": result.health.error,
+                "missing_timestamp_count": missing_timestamp_count,
+                "out_of_window_count": out_of_window_count,
             })
             sources.append({
                 "panel_id": panel.panel_id,
                 "platform": "x",
                 "window_key": key,
                 "status": status,
-                "count": len(seen),
+                "count": len(accepted_ids),
                 "capped": capped,
                 "error_category": result.health.error,
+                "coverage": {
+                    "missing_timestamp_count": missing_timestamp_count,
+                    "out_of_window_count": out_of_window_count,
+                    **({"budget": budget.snapshot()} if budget is not None else {}),
+                },
             })
         return {"windows": windows, "evidence": evidence, "sources": sources}
 

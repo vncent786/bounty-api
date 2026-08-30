@@ -159,3 +159,99 @@ def test_xai_provider_fails_closed_without_api_key(monkeypatch):
 
     with pytest.raises(RuntimeError, match="xai_not_configured"):
         asyncio.run(call_llm("system", "evidence"))
+
+
+def test_task_provider_routes_tagging_to_glm_without_using_global_xai(monkeypatch):
+    import json
+
+    captured = {}
+
+    def handler(request):
+        captured["url"] = str(request.url)
+        captured["authorization"] = request.headers.get("authorization")
+        captured["payload"] = json.loads(request.content)
+        return httpx.Response(200, json={
+            "choices": [{"message": {"content": "{\"tag\":\"switching\"}"}}]
+        })
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.AsyncClient
+
+    class TestClient(real_client):
+        def __init__(self, *args, **kwargs):
+            kwargs["transport"] = transport
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", TestClient)
+    monkeypatch.setenv("BOUNTY_LLM_PROVIDER", "xai")
+    monkeypatch.setenv("BOUNTY_LLM_TAGGING_PROVIDER", "glm")
+    monkeypatch.setenv("ZAI_API_KEY", "glm-key")
+    monkeypatch.setenv("GLM_MODEL", "glm-test")
+    monkeypatch.delenv("GLM_BASE_URL", raising=False)
+
+    result = asyncio.run(call_llm(
+        "system", "evidence", max_tokens=222, task_class="tagging"
+    ))
+
+    assert result == '{"tag":"switching"}'
+    assert captured["url"] == "https://api.z.ai/api/paas/v4/chat/completions"
+    assert captured["authorization"] == "Bearer glm-key"
+    assert captured["payload"]["model"] == "glm-test"
+    assert captured["payload"]["max_tokens"] == 222
+
+
+def test_glm_incomplete_reasoning_response_fails_closed(monkeypatch):
+    def handler(_request):
+        return httpx.Response(200, json={
+            "choices": [{
+                "finish_reason": "length",
+                "message": {"content": "", "reasoning_content": "unfinished"},
+            }]
+        })
+
+    transport = httpx.MockTransport(handler)
+    real_client = httpx.AsyncClient
+
+    class TestClient(real_client):
+        def __init__(self, *args, **kwargs):
+            kwargs["transport"] = transport
+            super().__init__(*args, **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", TestClient)
+    monkeypatch.setenv("BOUNTY_LLM_PROVIDER", "glm")
+    monkeypatch.setenv("ZAI_API_KEY", "glm-key")
+    monkeypatch.setenv("GLM_MODEL", "glm-test")
+
+    with pytest.raises(RuntimeError, match="glm_incomplete_response"):
+        asyncio.run(call_llm("system", "evidence", max_tokens=100))
+
+
+def test_investigation_task_override_prefers_xai_over_global_glm(monkeypatch):
+    monkeypatch.setenv("BOUNTY_LLM_PROVIDER", "glm")
+    monkeypatch.setenv("BOUNTY_LLM_INVESTIGATION_PROVIDER", "xai")
+    monkeypatch.delenv("XAI_API_KEY", raising=False)
+    monkeypatch.setenv("ZAI_API_KEY", "must-not-be-used")
+    monkeypatch.setenv("GLM_MODEL", "glm-test")
+
+    with pytest.raises(RuntimeError, match="xai_not_configured"):
+        asyncio.run(call_llm("system", "evidence", task_class="investigation"))
+
+
+def test_glm_never_uses_coding_plan_or_generic_credentials(monkeypatch):
+    monkeypatch.setenv("BOUNTY_LLM_PROVIDER", "glm")
+    monkeypatch.setenv("GLM_MODEL", "glm-test")
+    monkeypatch.delenv("ZAI_API_KEY", raising=False)
+    monkeypatch.setenv("ZAI_CODING_PLAN_API_KEY", "coding-plan-key")
+    monkeypatch.setenv("BOUNTY_LLM_API_KEY", "generic-key")
+
+    with pytest.raises(RuntimeError, match="glm_not_configured"):
+        asyncio.run(call_llm("system", "evidence"))
+
+
+def test_blank_task_provider_fails_closed(monkeypatch):
+    monkeypatch.setenv("BOUNTY_LLM_PROVIDER", "xai")
+    monkeypatch.setenv("BOUNTY_LLM_TRIAGE_PROVIDER", "   ")
+    monkeypatch.setenv("XAI_API_KEY", "must-not-be-used")
+
+    with pytest.raises(RuntimeError, match="llm_task_provider_blank"):
+        asyncio.run(call_llm("system", "evidence", task_class="triage"))

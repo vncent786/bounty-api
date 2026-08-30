@@ -1,8 +1,29 @@
 import asyncio
 
 from social_scraper.base import ConnectorResult, SocialItem, SourceHealth
-from social_scraper.investing.owned_radar import OwnedRadarCollector, _source_status
+from social_scraper.conversations.thread_reader import ThreadFetchResult, ThreadRecord
+from social_scraper.investing.owned_radar import (
+    AdaptiveCollectionBudget,
+    OwnedRadarCollector,
+    SOURCE_QUERY_RECIPE_VERSION,
+    _source_status,
+    panel_platform_query,
+)
 from social_scraper.investing.private_radar import DEFAULT_PANELS
+
+
+def test_source_native_panel_queries_are_short_and_platform_specific():
+    panel = DEFAULT_PANELS[0]
+
+    assert panel_platform_query(panel, "reddit") == "car"
+    assert panel_platform_query(panel, "tiktok") == "switching car"
+    assert panel_platform_query(panel, "instagram") == "car problem"
+    assert panel_platform_query(panel, "youtube") == "why I switched car"
+    assert len({
+        panel_platform_query(panel, platform)
+        for platform in ("reddit", "tiktok", "instagram", "youtube")
+    }) == 4
+    assert SOURCE_QUERY_RECIPE_VERSION == "camillo-source-queries/1"
 
 
 def test_source_status_does_not_attach_an_unused_fallback_error_to_a_success():
@@ -32,6 +53,40 @@ def test_source_status_does_not_attach_an_unused_fallback_error_to_a_success():
     assert error is None
 
 
+def test_source_status_fails_closed_when_the_selected_connector_errored():
+    status, error = _source_status(
+        {
+            "platform": "reddit",
+            "status": "ok",
+            "selected_connector": "reddit_mobile_owned",
+            "error": "connector_timeout",
+        },
+        [{
+            "platform": "reddit",
+            "connector": "reddit_mobile_owned",
+            "status": "error",
+            "error": "connector_timeout",
+        }],
+    )
+
+    assert status == "partial"
+    assert error == "connector_timeout"
+
+
+def test_source_status_fails_closed_when_selected_connector_health_is_missing():
+    status, error = _source_status(
+        {
+            "platform": "reddit",
+            "status": "ok",
+            "selected_connector": "reddit_mobile_owned",
+        },
+        [],
+    )
+
+    assert status == "partial"
+    assert error == "selected_connector_health_missing"
+
+
 class FakeX:
     def __init__(self):
         self.queries = []
@@ -46,13 +101,20 @@ class FakeX:
             "sort": sort,
             "region": region,
         })
+        created_at = "2026-08-26T00:00:00Z"
+        since_token = next(
+            (token for token in query.split() if token.startswith("since:")),
+            None,
+        )
+        if since_token:
+            created_at = f"{since_token.split(':', 1)[1]}T12:00:00Z"
         item = SocialItem(
             platform="x",
             post_id=f"x{len(self.queries)}",
             url=f"https://x.com/u/status/{len(self.queries)}",
             author_username=f"u{len(self.queries)}",
             text="I switched to a silicone air fryer liner",
-            created_at="2026-08-26T00:00:00Z",
+            created_at=created_at,
             views=2500,
             likes=25,
             comments=4,
@@ -122,6 +184,72 @@ def test_owned_collector_builds_four_comparable_x_windows():
     assert len(result["evidence"]) == 4
 
 
+def test_historical_windows_count_only_normalized_records_inside_each_interval():
+    class StaleWindowX(FakeX):
+        async def search(self, query, count=20, time_filter="", sort="", region=""):
+            self.queries.append(query)
+            self.search_calls.append({
+                "query": query,
+                "count": count,
+                "time_filter": time_filter,
+                "sort": sort,
+                "region": region,
+            })
+            item = SocialItem(
+                platform="x",
+                post_id=f"stale-{len(self.queries)}",
+                url=f"https://x.com/u/status/stale-{len(self.queries)}",
+                author_username=f"u{len(self.queries)}",
+                text="I switched to a silicone air fryer liner",
+                created_at="2021-01-01T00:00:00Z",
+            )
+            return ConnectorResult(
+                items=[item],
+                health=SourceHealth(
+                    platform="x",
+                    connector="x_scweet",
+                    status="ok",
+                    items_returned=1,
+                    items_requested=count,
+                    coverage={"requested_limit_reached": False},
+                ),
+            )
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=FakeBroker(), x_connector=StaleWindowX()
+    ).collect_windows(DEFAULT_PANELS[0], ["silicone air fryer liner"]))
+
+    assert result["evidence"] == []
+    assert all(window["result_count"] == 0 for window in result["windows"])
+    assert all(window["unique_authors"] == 0 for window in result["windows"])
+    assert all(window["status"] == "partial" for window in result["windows"])
+    assert all(window["out_of_window_count"] == 1 for window in result["windows"])
+
+
+def test_historical_window_calls_compete_for_the_shared_adaptive_budget():
+    x = FakeX()
+    budget = AdaptiveCollectionBudget(
+        max_attempts=2,
+        per_platform_limits={"x": 2},
+    )
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=FakeBroker(), x_connector=x
+    ).collect_windows(
+        DEFAULT_PANELS[0],
+        ["silicone air fryer liner"],
+        budget=budget,
+    ))
+
+    assert len(x.search_calls) == 2
+    assert budget.snapshot()["used_attempts"] == 2
+    assert [window["status"] for window in result["windows"]] == [
+        "complete", "complete", "partial", "partial",
+    ]
+    assert result["windows"][2]["error_category"] == "adaptive_budget_exhausted"
+    assert result["sources"][3]["coverage"]["budget"]["remaining_attempts"] == 0
+
+
 def test_owned_discovery_runs_all_platforms_before_shortlisting():
     broker = FakeBroker()
     collector = OwnedRadarCollector(broker=broker, x_connector=FakeX())
@@ -186,6 +314,146 @@ def test_owned_corroboration_includes_reddit_with_source_receipts():
     }
     assert len(result["evidence"]) == 4
     assert all(source["stage"] == "corroboration" for source in result["sources"])
+
+
+def test_adaptive_collection_is_bounded_and_preserves_thread_lineage():
+    class AdaptiveBroker(FakeBroker):
+        def __init__(self):
+            super().__init__()
+            self.thread_calls = []
+
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            platform = platforms[0]
+            self.search_calls.append({
+                "keyword": keyword, "platform": platform, "count": count,
+                "time_filter": time_filter, "sort": sort,
+            })
+            items = [
+                {
+                    "platform": platform,
+                    "post_id": f"{platform}-{keyword}-{index}",
+                    "url": f"https://example.com/{platform}-{index}",
+                    "author": {"username": f"{platform}-author-{index}"},
+                    "text": f"I switched to {keyword}",
+                    "created_at": "2026-08-30T00:00:00Z",
+                    "engagement": {"comments": 10 - index, "likes": 5},
+                }
+                for index in range(3)
+            ]
+            return {
+                "items": items,
+                "platform_results": {platform: {"status": "ok", "coverage": {}}},
+                "source_health": [{"platform": platform, "status": "ok"}],
+            }
+
+        async def fetch_thread(self, root, *, max_comments, max_depth):
+            self.thread_calls.append({
+                "platform": root["platform"], "root": root["post_id"],
+                "max_comments": max_comments, "max_depth": max_depth,
+            })
+            record = ThreadRecord(
+                platform=root["platform"],
+                external_id=f"comment-{root['post_id']}",
+                record_type="comment",
+                parent_external_id=root["post_id"],
+                root_post_external_id=root["post_id"],
+                depth=1,
+                text="I bought one too",
+                author_external_id="comment-author",
+                author_username="commenter",
+                url=f"{root['url']}#comment",
+            )
+            return ThreadFetchResult(
+                platform=root["platform"],
+                root_post_external_id=root["post_id"],
+                status="partial",
+                records=(record,),
+                truncated=True,
+                attempted_route="fixture_comments",
+                platform_reported_total=50,
+                max_comments=max_comments,
+                max_depth=max_depth,
+                limitations=("bounded",),
+            )
+
+    broker = AdaptiveBroker()
+    collector = OwnedRadarCollector(broker=broker, x_connector=FakeX())
+    anchors = [{
+        "anchor_id": "anchor-1",
+        "normalized_anchor": "silicone air fryer liner",
+        "seed_query": "household products",
+    }, {
+        "anchor_id": "anchor-2",
+        "normalized_anchor": "enzyme laundry sheet",
+        "seed_query": "household products",
+    }]
+
+    result = asyncio.run(collector.collect_adaptive(
+        DEFAULT_PANELS[-1], anchors,
+        max_anchors=2, max_roots_per_platform=2,
+        max_comments_per_root=20, max_depth=2,
+    ))
+
+    assert len(broker.thread_calls) == 8
+    assert all(call["max_comments"] == 20 for call in broker.thread_calls)
+    assert all(call["max_depth"] == 2 for call in broker.thread_calls)
+    comments = [item for item in result["evidence"] if item["record_type"] == "comment"]
+    assert len(comments) == 8
+    assert all(item["query_lineage_id"] for item in comments)
+    assert all(item["truncated"] is True for item in comments)
+    depth_receipts = [source for source in result["sources"] if source["stage"] == "adaptive_depth"]
+    assert len(depth_receipts) == 8
+    assert all(source["platform_reported_total"] == 50 for source in depth_receipts)
+
+
+def test_adaptive_collection_uses_one_hard_budget_for_searches_and_thread_reads():
+    broker = FakeBroker()
+    x = FakeX()
+    budget = AdaptiveCollectionBudget(
+        max_attempts=3,
+        per_platform_limits={
+            "x": 3,
+            "tiktok": 3,
+            "instagram": 3,
+            "reddit": 3,
+            "youtube": 3,
+        },
+    )
+    anchors = [{
+        "anchor_id": "anchor-1",
+        "normalized_anchor": "silicone air fryer liner",
+        "seed_query": "household products",
+    }, {
+        "anchor_id": "anchor-2",
+        "normalized_anchor": "enzyme laundry sheet",
+        "seed_query": "household products",
+    }]
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=broker,
+        x_connector=x,
+    ).collect_adaptive(
+        DEFAULT_PANELS[-1],
+        anchors,
+        max_anchors=2,
+        max_roots_per_platform=2,
+        max_comments_per_root=20,
+        max_depth=2,
+        budget=budget,
+    ))
+
+    assert len(x.search_calls) + len(broker.search_calls) == 3
+    assert budget.snapshot()["used_attempts"] == 3
+    assert budget.snapshot()["remaining_attempts"] == 0
+    assert any(
+        source.get("error_category") == "adaptive_budget_exhausted"
+        for source in result["sources"]
+    )
+    assert all(
+        source.get("error_category") == "adaptive_budget_exhausted"
+        for source in result["sources"]
+        if source.get("stage") == "adaptive_depth"
+    )
 
 
 def test_broker_route_exception_becomes_an_explicit_failed_source_receipt():

@@ -21,6 +21,7 @@ import sys
 import threading
 from contextlib import contextmanager
 from pathlib import Path
+from typing import Literal
 
 
 _CODEX_IMPORT_LOCK = threading.Lock()
@@ -54,7 +55,21 @@ def _move_import_path_to_front(path: str) -> None:
     sys.path.insert(0, path)
 
 
-def _provider() -> str:
+TaskClass = Literal["tagging", "triage", "investigation", "dossier"]
+_TASK_CLASSES = {"tagging", "triage", "investigation", "dossier"}
+
+
+def _provider(task_class: TaskClass | None = None) -> str:
+    if task_class is not None:
+        normalized = str(task_class).strip().lower()
+        if normalized not in _TASK_CLASSES:
+            raise RuntimeError(f"unsupported_llm_task: {normalized}")
+        key = f"BOUNTY_LLM_{normalized.upper()}_PROVIDER"
+        if key in os.environ:
+            selected = os.getenv(key, "").strip().lower()
+            if not selected:
+                raise RuntimeError(f"llm_task_provider_blank: {normalized}")
+            return selected
     return os.getenv("BOUNTY_LLM_PROVIDER", "openai_compatible").strip().lower()
 
 
@@ -64,9 +79,10 @@ async def call_llm(
     *,
     max_tokens: int = 4000,
     temperature: float = 0.1,
+    task_class: TaskClass | None = None,
 ) -> str:
     """Call the configured LLM and return plain assistant text."""
-    provider = _provider()
+    provider = _provider(task_class)
     if provider == "codex_oauth":
         return await asyncio.to_thread(
             _call_codex_oauth,
@@ -76,6 +92,13 @@ async def call_llm(
         )
     if provider == "xai":
         return await _call_xai(
+            system_prompt,
+            user_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    if provider == "glm":
+        return await _call_glm(
             system_prompt,
             user_prompt,
             max_tokens=max_tokens,
@@ -155,6 +178,56 @@ async def _call_xai(
     result = "\n".join(parts).strip()
     if not result:
         raise RuntimeError("xai_empty_response")
+    return result
+
+
+async def _call_glm(
+    system_prompt: str,
+    user_prompt: str,
+    *,
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    """Call an explicitly selected GLM model with its own credential namespace."""
+    import httpx
+
+    base_url = os.getenv(
+        "GLM_BASE_URL", "https://api.z.ai/api/paas/v4"
+    ).strip().rstrip("/")
+    api_key = os.getenv("ZAI_API_KEY", "").strip()
+    model = os.getenv("GLM_MODEL", "").strip()
+    if not api_key or not model:
+        raise RuntimeError("glm_not_configured: set ZAI_API_KEY and GLM_MODEL")
+    timeout_seconds = float(os.getenv("BOUNTY_LLM_TIMEOUT_SECONDS", "300"))
+    async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+        response = await client.post(
+            f"{base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+        )
+        response.raise_for_status()
+        data = response.json()
+    if data.get("error"):
+        raise RuntimeError("glm_error_response")
+    try:
+        choice = data["choices"][0]
+        if choice.get("finish_reason") not in {None, "stop"}:
+            raise RuntimeError("glm_incomplete_response")
+        result = choice["message"]["content"]
+    except RuntimeError:
+        raise
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError("glm_invalid_response") from exc
+    if not isinstance(result, str) or not result.strip():
+        raise RuntimeError("glm_empty_response")
     return result
 
 

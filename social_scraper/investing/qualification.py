@@ -172,6 +172,34 @@ def _evidence_is_anchor_relevant(text: Any, anchors: Sequence[str]) -> bool:
     return len(matches) >= 2
 
 
+def _independent_root_representatives(
+    items: Sequence[Mapping[str, Any]],
+) -> tuple[list[dict[str, Any]], int]:
+    """Collapse known propagation so copies cannot become independent voices."""
+    representatives: list[dict[str, Any]] = []
+    seen_clusters: set[str] = set()
+    dropped = 0
+    for source in items:
+        item = dict(source)
+        copy_cluster = _norm(item.get("copy_cluster_id"))
+        normalized_text = _norm(item.get("text"))
+        if copy_cluster:
+            cluster_key = f"copy:{copy_cluster}"
+        elif normalized_text:
+            cluster_key = f"text:{normalized_text}"
+        else:
+            cluster_key = (
+                "root:"
+                f"{item.get('platform')}:{item.get('root_post_external_id') or item.get('external_id') or item.get('url') or item.get('id')}"
+            )
+        if cluster_key in seen_clusters:
+            dropped += 1
+            continue
+        seen_clusters.add(cluster_key)
+        representatives.append(item)
+    return representatives, dropped
+
+
 def _summary_supports_anchor(summary: Any, anchors: Sequence[str]) -> bool:
     normalized_summary = _norm(summary)
     for anchor in anchors:
@@ -283,13 +311,22 @@ def qualify_candidate(
     requested_cited = [
         evidence_by_id[eid] for eid in requested_ids if eid in evidence_by_id
     ]
+    eligible_roots = [
+        item for item in requested_cited
+        if str(item.get("record_type") or "root") == "root"
+        and item.get("is_repost") is not True
+    ]
+    non_root_or_repost_dropped = len(requested_cited) - len(eligible_roots)
 
     normalized_label = _norm(label)
     normalized_anchors = [_norm(anchor) for anchor in anchors if _norm(anchor)]
-    cited = [
-        item for item in requested_cited
+    anchor_relevant_roots = [
+        item for item in eligible_roots
         if _evidence_is_anchor_relevant(item.get("text"), normalized_anchors)
     ]
+    cited, propagation_dropped = _independent_root_representatives(
+        anchor_relevant_roots
+    )
     anchor_supported = bool(normalized_anchors) and all(
         any(anchor in _norm(item.get("text")) for item in cited)
         for anchor in normalized_anchors
@@ -570,7 +607,9 @@ def qualify_candidate(
         "citation_filter": {
             "requested": len(requested_cited),
             "relevant": len(cited),
-            "dropped": max(0, len(requested_cited) - len(cited)),
+            "dropped": max(0, len(eligible_roots) - len(anchor_relevant_roots)),
+            "propagation_dropped": propagation_dropped,
+            "non_root_or_repost_dropped": non_root_or_repost_dropped,
         },
         "voice_count": len(authors),
         "platforms": sorted({str(item.get("platform")) for item in cited}),

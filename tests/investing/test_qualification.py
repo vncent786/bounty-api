@@ -72,6 +72,43 @@ def test_candidate_qualifies_only_when_every_gate_passes():
     assert result["candidate_id"]
 
 
+def test_comments_reposts_and_one_copy_cluster_cannot_inflate_independent_support():
+    evidence = [
+        {
+            **_evidence("e1", "a", "I switched to a silicone air fryer liner", "x"),
+            "record_type": "root",
+            "copy_cluster_id": "copy-1",
+        },
+        {
+            **_evidence("e2", "b", "We switched to silicone air fryer liners today", "instagram"),
+            "record_type": "root",
+            "copy_cluster_id": "copy-1",
+        },
+        {
+            **_evidence("e3", "c", "I switched to another silicone air fryer liner", "youtube"),
+            "record_type": "comment",
+            "root_post_external_id": "e1",
+        },
+        {
+            **_evidence("e4", "d", "I switched to a silicone air fryer liner", "tiktok"),
+            "record_type": "root",
+            "is_repost": True,
+        },
+    ]
+    result = qualify_candidate(
+        _proposal(evidence_ids=["e1", "e2", "e3", "e4"]),
+        evidence=evidence,
+        windows=_windows(),
+        parity={"level": "L1", "status": "niche_coverage", "articles": []},
+    )
+
+    assert result["qualification_status"] == "not_qualified"
+    assert result["gates"]["behavior"]["metrics"]["records"] == 1
+    assert result["gates"]["breadth"]["metrics"]["roots"] == 1
+    assert result["citation_filter"]["propagation_dropped"] == 1
+    assert result["citation_filter"]["non_root_or_repost_dropped"] == 2
+
+
 def test_generic_ai_and_model_failure_never_qualify():
     evidence = [
         _evidence("e1", "a", "AI is big"),

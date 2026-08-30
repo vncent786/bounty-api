@@ -416,7 +416,13 @@ async def analyze_conversation(
         from social_scraper.llm_client import call_llm
 
         async def llm_call_fn(system: str, user: str) -> str:
-            return await call_llm(system, user, max_tokens=1800, temperature=0.0)
+            return await call_llm(
+                system,
+                user,
+                max_tokens=1800,
+                temperature=0.0,
+                task_class="triage",
+            )
 
     try:
         raw_analysis = await llm_call_fn(prepared.system_prompt, prepared.user_prompt)

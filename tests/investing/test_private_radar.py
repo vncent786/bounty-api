@@ -77,6 +77,8 @@ def test_candidate_depth_coverage_passes_only_complete_matching_reads():
             "query": "silicone air fryer liner",
             "status": "complete",
             "returned_count": 8,
+            "root_record_count": 7,
+            "reply_record_count": 1,
             "platform_reported_total": 8,
             "truncated": False,
             "error_category": None,
@@ -85,6 +87,32 @@ def test_candidate_depth_coverage_passes_only_complete_matching_reads():
 
     assert gate["state"] == "pass"
     assert gate["metrics"]["complete_roots"] == 1
+
+
+def test_candidate_depth_coverage_complete_root_only_read_is_not_conversation_depth():
+    gate = summarize_candidate_depth_coverage(
+        ["silicone air fryer liner"],
+        [{
+            "stage": "adaptive_depth",
+            "platform": "tiktok",
+            "root_external_id": "video-1",
+            "query": "silicone air fryer liner",
+            "status": "complete",
+            "returned_count": 8,
+            "root_record_count": 8,
+            "reply_record_count": 0,
+            "platform_reported_total": 8,
+            "truncated": False,
+            "error_category": None,
+            "bounded_sample_target": 8,
+            "bounded_sample_complete": True,
+        }],
+    )
+
+    assert gate["state"] == "unknown"
+    assert gate["passed"] is None
+    assert gate["metrics"]["complete_roots"] == 1
+    assert gate["metrics"]["reply_records"] == 0
 
 
 def test_candidate_depth_coverage_accepts_two_independent_bounded_samples():
@@ -977,6 +1005,8 @@ def test_adaptive_investigation_runs_before_model_and_replaces_late_corroboratio
                     "query": "silicone air fryer liner",
                     "status": "complete",
                     "returned_count": 3,
+                    "root_record_count": 2,
+                    "reply_record_count": 1,
                     "platform_reported_total": 3,
                     "truncated": False,
                     "error_category": None,

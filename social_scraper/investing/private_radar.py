@@ -407,11 +407,14 @@ def summarize_candidate_depth_coverage(
         "failed_roots": sum(bool(row.get("error_category")) for row in rows),
         "status_counts": status_counts,
     }
-    if rows and partial_roots == 0:
+    if rows and partial_roots == 0 and metrics["reply_records"] > 0:
         return {
             "state": "pass",
             "passed": True,
-            "reason": "All matching bounded thread reads completed without truncation.",
+            "reason": (
+                "All matching bounded thread reads completed without truncation "
+                "and included reply evidence."
+            ),
             "metrics": metrics,
         }
     if (

@@ -87,6 +87,13 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert 'id="opportunity-list"' in html
     assert 'id="opportunity-status"' in html
     assert "renderOpportunityQueue" in script
+    assert "opportunityMovementPanel" in script
+    assert "movement-multi-line" in script
+    assert "Google Trends date/value table" in script
+    assert "movement-data-table" in script
+    assert "movement-x-label" in script
+    assert "movementTrajectoryTable" in script
+    assert "movementQueryOptions(bundle, item)" in script
     assert "What Bounty checks next" in script
     assert "These are research leads, not trade-ready ideas." in html
     assert "last 90 days" in html

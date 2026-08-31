@@ -516,6 +516,105 @@ select {
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
 }
+.opportunity-movement {
+  min-width: 0;
+  max-width: 100%;
+  margin: 18px 0 20px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+.movement-chart-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+.opportunity-movement-chart {
+  width: 680px;
+  min-width: 680px;
+  max-width: none;
+  height: 184px;
+}
+.movement-multi-line { stroke-width: 2.4; }
+.movement-tick { stroke: var(--rule); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.movement-x-label {
+  fill: var(--ink-55);
+  font: 10px var(--mono);
+}
+.movement-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin-top: 12px;
+}
+.movement-legend-item {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink-70);
+  font: 650 0.72rem / 1.4 var(--mono);
+}
+.movement-legend-item.unavailable { color: var(--ink-38); }
+.movement-swatch { width: 18px; height: 3px; flex: none; }
+.movement-legend-query { overflow-wrap: anywhere; }
+.movement-legend-status { font-weight: 500; }
+.movement-data-details {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 12px;
+  border-top: 1px solid var(--rule-faint);
+  padding-top: 10px;
+}
+.movement-data-details summary {
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--cobalt-deep);
+  font: 700 0.72rem / 44px var(--mono);
+}
+.movement-table-wrap {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--rule-faint);
+  background: var(--paper);
+}
+.movement-data-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.movement-data-table caption {
+  padding: 10px;
+  color: var(--ink-55);
+  text-align: left;
+  line-height: 1.45;
+}
+.movement-data-table th,
+.movement-data-table td {
+  padding: 7px 9px;
+  border: 1px solid var(--rule-faint);
+  text-align: right;
+  white-space: nowrap;
+}
+.movement-data-table th:first-child,
+.movement-data-table td:first-child { text-align: left; }
+.movement-data-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  color: var(--paper);
+  background: var(--ink);
+}
+.movement-data-table tbody th {
+  position: sticky;
+  left: 0;
+  background: var(--paper-deep);
+}
 .movement-query {
   margin: 6px 0 0;
   color: var(--ink-70);
@@ -1126,7 +1225,12 @@ select {
   .filter-form .secondary-action,
   .clear-filters { grid-column: 1; }
   .clear-filters { justify-self: start; }
-  .signal-row { grid-template-columns: 1fr; }
+  .signal-row {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .signal-body { min-width: 0; max-width: 100%; }
   .signal-rank { padding-top: 0; }
   .signal-actions { display: grid; grid-template-columns: 1fr; }
   .signal-actions > * { width: 100%; justify-content: center; }

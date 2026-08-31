@@ -349,9 +349,12 @@
   }
 
   function movementQueryRelevant(item, query) {
-    const candidateTokens = new Set(trendSearchTokens(
-      item?.keyword || item?.label || item?.normalized_keyword,
-    ));
+    const candidateTokens = new Set(trendSearchTokens([
+      item?.keyword,
+      item?.label,
+      item?.normalized_keyword,
+      ...asArray(item?.anchor_terms),
+    ].filter(Boolean).join(' ')));
     const queryTokens = [...new Set(trendSearchTokens(query))];
     if (candidateTokens.size < 2 || queryTokens.length < 2) return false;
     const overlap = queryTokens.filter(token => candidateTokens.has(token));
@@ -623,6 +626,251 @@
         )
       : null;
     append(panel, svg, axis, caption, assessment);
+    return panel;
+  }
+
+  function movementTrajectoryTable(lines, selectedHorizon) {
+    const details = element('details', 'movement-data-details');
+    const dates = [...new Set(lines.flatMap(line => (
+      asArray(line.trajectory?.points).map(point => String(point?.date || '')).filter(Boolean)
+    )))].sort();
+    const summary = element(
+      'summary',
+      '',
+      `Google Trends date/value table · ${selectedHorizon.toUpperCase()} · ${formatInteger(dates.length)} dates`,
+    );
+    details.append(summary);
+    const wrap = element('div', 'movement-table-wrap');
+    const table = element('table', 'movement-data-table');
+    const caption = element(
+      'caption',
+      '',
+      'Stored Google Trends index values by date. Blank cells are missing source observations; no interpolation is applied.',
+    );
+    const thead = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    headRow.append(element('th', '', 'Date'));
+    lines.forEach(line => headRow.append(element('th', '', line.query)));
+    thead.append(headRow);
+    const tbody = document.createElement('tbody');
+    const valuesByLine = lines.map(line => new Map(
+      asArray(line.trajectory?.points).map(point => [String(point?.date || ''), point?.value]),
+    ));
+    dates.forEach(date => {
+      const row = document.createElement('tr');
+      row.append(element('th', 'mono', date));
+      valuesByLine.forEach(values => {
+        const value = values.get(date);
+        row.append(element(
+          'td',
+          'mono',
+          value === null || value === undefined || !Number.isFinite(Number(value))
+            ? ''
+            : String(Math.round(Number(value))),
+        ));
+      });
+      tbody.append(row);
+    });
+    append(table, caption, thead, tbody);
+    wrap.append(table);
+    details.append(wrap);
+    return details;
+  }
+
+  function opportunityMovementPanel(item) {
+    const bundle = item?.movement_bundle && typeof item.movement_bundle === 'object'
+      ? item.movement_bundle
+      : {};
+    const panel = element('section', 'movement-panel opportunity-movement');
+    panel.append(element('p', 'field-label', 'Relevant Google searches'));
+    const queryOptions = movementQueryOptions(bundle, item);
+    const selectedGeo = state.movementGeo || String(bundle.default_geo || 'WORLDWIDE');
+    const selectedHorizon = selectedMovementHorizon(item, bundle);
+
+    const timeframe = element('div', 'movement-timeframe');
+    timeframe.append(element('span', 'field-label', 'Timeframe for this topic'));
+    const horizonPicker = element('div', 'movement-horizon-options');
+    horizonPicker.setAttribute('role', 'group');
+    horizonPicker.setAttribute('aria-label', `Timeframe for ${item?.label || 'this topic'}`);
+    movementHorizonOptions(bundle).forEach(horizon => {
+      const code = String(horizon.code);
+      const usable = queryOptions.some(option => trajectoryHasUsableMovement(
+        option?.series?.[selectedGeo]?.[code],
+      ));
+      const active = code === selectedHorizon;
+      const button = element(
+        'button',
+        `movement-horizon-option${active ? ' active' : ''}${usable ? '' : ' unavailable'}`,
+        code === '3m' ? '3M' : code === '1y' ? '1Y' : code === '5y' ? '5Y' : horizon.name || code,
+      );
+      button.type = 'button';
+      button.disabled = !usable;
+      button.title = usable ? `Show ${horizon.name || code}` : 'No usable history for this timeframe';
+      button.setAttribute('aria-pressed', active ? 'true' : 'false');
+      button.addEventListener('click', () => {
+        if (!usable) return;
+        state.movementHorizons[movementItemKey(item)] = code;
+        if (state.lastPrivatePayload) renderPrivateRadar(state.lastPrivatePayload);
+      });
+      horizonPicker.append(button);
+    });
+    timeframe.append(horizonPicker);
+    panel.append(timeframe);
+
+    const colors = ['#085ffe', '#d5522b', '#20806f', '#7751a8'];
+    const lines = [];
+    const legend = element('div', 'movement-legend');
+    queryOptions.forEach((option, optionIndex) => {
+      const trajectory = option?.series?.[selectedGeo]?.[selectedHorizon];
+      const usable = trajectoryHasUsableMovement(trajectory);
+      const color = colors[optionIndex % colors.length];
+      const legendItem = element(
+        'div',
+        `movement-legend-item${usable ? '' : ' unavailable'}`,
+      );
+      const swatch = element('span', 'movement-swatch');
+      swatch.style.backgroundColor = color;
+      append(
+        legendItem,
+        swatch,
+        element('span', 'movement-legend-query', String(option?.query || 'Unnamed query')),
+        element(
+          'span',
+          'movement-legend-status',
+          usable ? '' : 'No usable volume for this timeframe',
+        ),
+      );
+      legendItem.title = option?.reason || 'Query retained from the cited subject';
+      legend.append(legendItem);
+      if (usable) {
+        lines.push({
+          query: String(option.query),
+          reason: String(option.reason || ''),
+          color,
+          trajectory,
+        });
+      }
+    });
+    if (queryOptions.length) panel.append(legend);
+    panel.append(element(
+      'p',
+      'movement-query-caveat',
+      'Each line is a subject-preserving Google query. Values are normalized 0–100; compare timing and direction, not absolute level across separately normalized queries.',
+    ));
+
+    if (!lines.length) {
+      panel.append(element(
+        'p',
+        'movement-unavailable',
+        'No relevant 3M, 1Y, or 5Y Google series was persisted for this topic.',
+      ));
+      return panel;
+    }
+
+    const geoName = asArray(bundle.geographies).find(value => value?.code === selectedGeo)?.name
+      || (selectedGeo === 'WORLDWIDE' ? 'Worldwide' : selectedGeo || 'Worldwide');
+    const horizonName = asArray(bundle.horizons).find(value => value?.code === selectedHorizon)?.name
+      || selectedHorizon;
+    panel.append(element('p', 'movement-scope', `${geoName} · ${horizonName} · ${lines.length} relevant quer${lines.length === 1 ? 'y' : 'ies'}`));
+
+    const allPoints = lines.flatMap(line => asArray(line.trajectory?.points)).filter(point => (
+      point?.date && Number.isFinite(Number(point?.value))
+    ));
+    const timestamps = allPoints.map(point => Date.parse(String(point.date))).filter(Number.isFinite);
+    const minTime = Math.min(...timestamps);
+    const maxTime = Math.max(...timestamps);
+    const chartWidth = 680;
+    const chartHeight = 184;
+    const chartLeft = 34;
+    const chartRight = 670;
+    const chartTop = 12;
+    const chartBottom = 132;
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'movement-chart opportunity-movement-chart');
+    svg.setAttribute('viewBox', `0 0 ${chartWidth} ${chartHeight}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', `Google search interest for ${item?.label || 'this topic'} with ${lines.length} relevant query lines`);
+
+    [0, 25, 50, 75, 100].forEach(value => {
+      const y = chartBottom - (value / 100) * (chartBottom - chartTop);
+      const guide = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      guide.setAttribute('class', 'movement-guide');
+      guide.setAttribute('x1', String(chartLeft));
+      guide.setAttribute('x2', String(chartRight));
+      guide.setAttribute('y1', String(y));
+      guide.setAttribute('y2', String(y));
+      svg.append(guide);
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', 'movement-y-label');
+      label.setAttribute('x', '1');
+      label.setAttribute('y', String(y + 4));
+      label.textContent = String(value);
+      svg.append(label);
+    });
+
+    const allDates = [...new Set(allPoints.map(point => String(point.date)))].sort();
+    const tickIndices = [...new Set([0, 0.25, 0.5, 0.75, 1].map(ratio => (
+      Math.round((allDates.length - 1) * ratio)
+    )))];
+    tickIndices.forEach((dateIndex, tickIndex) => {
+      const date = allDates[dateIndex];
+      const time = Date.parse(date);
+      const x = maxTime === minTime
+        ? chartLeft
+        : chartLeft + ((time - minTime) / (maxTime - minTime)) * (chartRight - chartLeft);
+      const tick = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      tick.setAttribute('class', 'movement-tick');
+      tick.setAttribute('x1', String(x));
+      tick.setAttribute('x2', String(x));
+      tick.setAttribute('y1', String(chartBottom));
+      tick.setAttribute('y2', String(chartBottom + 5));
+      svg.append(tick);
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', 'movement-x-label');
+      label.setAttribute('x', String(x));
+      label.setAttribute('y', '154');
+      label.setAttribute(
+        'text-anchor',
+        tickIndex === 0 ? 'start' : tickIndex === tickIndices.length - 1 ? 'end' : 'middle',
+      );
+      label.textContent = date;
+      svg.append(label);
+    });
+
+    lines.forEach(lineValue => {
+      const points = asArray(lineValue.trajectory?.points).filter(point => (
+        point?.date && Number.isFinite(Number(point?.value))
+      ));
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      line.setAttribute('class', 'movement-line movement-multi-line');
+      line.setAttribute('fill', 'none');
+      line.style.stroke = lineValue.color;
+      line.setAttribute('points', points.map(point => {
+        const time = Date.parse(String(point.date));
+        const x = maxTime === minTime
+          ? chartLeft
+          : chartLeft + ((time - minTime) / (maxTime - minTime)) * (chartRight - chartLeft);
+        const y = chartBottom - (Math.max(0, Math.min(100, Number(point.value))) / 100) * (chartBottom - chartTop);
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+      }).join(' '));
+      svg.append(line);
+    });
+
+    const startDate = allDates[0] || 'unknown';
+    const endDate = allDates[allDates.length - 1] || 'unknown';
+    const caption = element(
+      'p',
+      'movement-caption',
+      `Google Trends · ${geoName} · ${horizonName} · ${startDate} to ${endDate}. Y-axis is the stored Google 0–100 index; the table below contains every collected date/value pair.`,
+    );
+    const chartWrap = element('div', 'movement-chart-wrap');
+    chartWrap.append(svg);
+    append(
+      panel,
+      chartWrap,
+      caption,
+      movementTrajectoryTable(lines, selectedHorizon),
+    );
     return panel;
   }
 
@@ -913,6 +1161,7 @@
     const taxonomy = element('p', 'taxonomy');
     taxonomy.textContent = `${String(item?.behaviour_type || 'behavior').replaceAll('_', ' ')}  /  replication underway`;
     const summary = element('p', 'social-summary', item?.observation_summary || 'No observation summary was reported.');
+    const googleMovement = opportunityMovementPanel(item);
     const reasons = element('div', 'signal-reasons opportunity-reasons');
     append(
       reasons,
@@ -938,7 +1187,7 @@
       evidenceList.append(row);
     });
     evidence.append(evidenceList);
-    append(body, heading, taxonomy, summary, reasons, evidence);
+    append(body, heading, taxonomy, summary, googleMovement, reasons, evidence);
     append(article, rank, body);
     return article;
   }

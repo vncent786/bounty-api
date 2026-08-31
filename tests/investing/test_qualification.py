@@ -1,4 +1,8 @@
-from social_scraper.investing.qualification import qualify_candidate
+from social_scraper.investing.qualification import (
+    BEHAVIOUR_PHRASES,
+    _behavior_applies_to_anchor,
+    qualify_candidate,
+)
 
 
 def _evidence(eid, author, text, platform="x", engagement=None, created_at=None):
@@ -70,6 +74,85 @@ def test_candidate_qualifies_only_when_every_gate_passes():
     assert result["qualification_status"] == "qualified"
     assert all(gate["passed"] is True for gate in result["gates"].values())
     assert result["candidate_id"]
+
+
+def test_behavior_locality_keeps_comma_separated_product_lists_in_one_claim():
+    text = "How I replaced Netflix, Hulu, Apple TV, Paramount Plus, HBO Max with a homeserver"
+    assert _behavior_applies_to_anchor(
+        text,
+        ["replaced netflix hulu apple tv paramount plus hbo max"],
+        BEHAVIOUR_PHRASES["switching"],
+        "switching",
+    ) is True
+
+
+def test_switch_from_switch_to_mold_and_avoid_language_are_valid_behavior():
+    cases = [
+        (
+            "I've officially switched from iPhone to the Samsung Galaxy Fold 8",
+            ["iphone", "samsung galaxy fold 8"],
+            "switching",
+        ),
+        (
+            "Making the choice to switch to Branch Basics for our cleaning products",
+            ["branch basics"],
+            "switching",
+        ),
+        (
+            "Let's clean my mold infested auto pet feeder",
+            ["mold infested auto pet feeder"],
+            "pain_point",
+        ),
+        (
+            "Avoid this airline after they charged for every extra",
+            ["avoid this airline"],
+            "rejection",
+        ),
+    ]
+    for text, anchors, behavior in cases:
+        assert _behavior_applies_to_anchor(
+            text,
+            anchors,
+            BEHAVIOUR_PHRASES[behavior],
+            behavior,
+        ) is True, text
+
+
+def test_new_behavior_phrases_do_not_attach_to_a_different_nearby_object():
+    assert _behavior_applies_to_anchor(
+        "I switched from Coke near silicone air fryer liners in the store.",
+        ["silicone air fryer liner"],
+        BEHAVIOUR_PHRASES["switching"],
+        "switching",
+    ) is False
+    assert _behavior_applies_to_anchor(
+        "I switched from Coke to Pepsi near silicone air fryer liner displays.",
+        ["silicone air fryer liner"],
+        BEHAVIOUR_PHRASES["switching"],
+        "switching",
+    ) is False
+    for text in (
+        "I switched to a / silicone air fryer liner",
+        "I switched to a — silicone air fryer liner",
+    ):
+        assert _behavior_applies_to_anchor(
+            text,
+            ["silicone air fryer liner"],
+            BEHAVIOUR_PHRASES["switching"],
+            "switching",
+        ) is False, text
+
+    for text in (
+        "The acme widget was mentioned, the shipping box was broken.",
+        "Acme widget is here: the shipping box is broken.",
+        "The acme widget is not broken, but the shipping box is broken.",
+    ):
+        assert _behavior_applies_to_anchor(
+            text,
+            ["acme widget"],
+            BEHAVIOUR_PHRASES["pain_point"],
+            "pain_point",
+        ) is False, text
 
 
 def test_comments_reposts_and_one_copy_cluster_cannot_inflate_independent_support():

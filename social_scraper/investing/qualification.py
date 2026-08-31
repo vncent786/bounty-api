@@ -34,16 +34,23 @@ BEHAVIOUR_PHRASES = {
     "purchase": ("i bought", "we bought", "bought", "purchased", "ordered", "buying", "repurchased"),
     "adoption": ("started using", "now use", "now have", "installed", "adopted", "trying it", "new use"),
     "switching": (
-        "switched to", "switching to", "moved from", "replaced my", "replacing",
+        "switched to", "switching to", "switch to", "switched from", "switch from",
+        "make the switch", "made the switch", "moved from", "replaced my", "replacing",
         "replaced", "instead of", "cancelling", "canceling", "cancelled", "canceled",
         "trying to cancel", "now have",
     ),
     "shortage": ("sold out", "out of stock", "can't find", "cannot find", "shortage", "restock"),
-    "rejection": ("stopped using", "stopped buying", "returned it", "cancelled", "canceled", "boycott"),
+    "rejection": (
+        "stopped using", "stopped buying", "returned it", "cancelled", "canceled",
+        "boycott", "avoid", "never again", "do not recommend", "would not use",
+        "won't use", "won t use", "won't buy", "won t buy", "won't fly", "won t fly",
+    ),
     "pain_point": (
         "problem", "issue", "doesn't work", "not working", "pain", "struggling",
         "can't find", "cannot find", "hard to find", "wouldn't open", "won't open",
-        "safety issue", "trapped",
+        "safety issue", "trapped", "mold", "mould", "infested", "did not dispense",
+        "didn't dispense", "didn t dispense", "broken", "broke", "took a dump",
+        "keeps changing", "changing throughout", "inaccurate",
     ),
     "price_change": ("price increase", "price hike", "more expensive", "cheaper", "discount"),
     "workaround": ("workaround", "hack", "temporary fix", "instead of"),
@@ -79,6 +86,31 @@ def is_specific_anchor(value: Any) -> bool:
         return False
     tokens = normalized.split()
     return not (len(tokens) == 1 and tokens[0] in GENERIC_TOKENS)
+
+
+def _contains_phrase(text: str, phrase: str) -> bool:
+    return bool(re.search(
+        rf"(?:^|\s){re.escape(phrase)}(?:$|\s)",
+        text,
+    ))
+
+
+def _punctuation_separates_behavior(
+    raw_text: str,
+    phrase: str,
+    anchor: str,
+) -> bool:
+    """Reject punctuation that disconnects a behavior phrase from its object."""
+    for separator in ("/", "—", "–"):
+        if separator not in raw_text:
+            continue
+        left, _separator, right = raw_text.partition(separator)
+        if (
+            _contains_phrase(_norm(left), phrase)
+            and anchor in _norm(right)
+        ):
+            return True
+    return False
 
 
 def _phrase_is_negated(clause: str, phrase: str) -> bool:
@@ -117,43 +149,91 @@ def _behavior_applies_to_anchor(
         r"(?:\s+(?:is|are|was|were|keep|keeps|remain|remains|always|often|"
         r"frequently|still|now|has|have|really|constantly|repeatedly)){0,2}"
     )
-    clauses = re.split(r"[,.!?;:\n\r\u2026]+", str(text or ""))
-    for raw_clause in clauses:
-        clause = _norm(raw_clause)
-        if not clause:
+    tail_bridge = (
+        r"(?:$|\s+(?:for|because|after|from|to|and|but|with|during|when|while)\b.*$)"
+    )
+    normalized_phrases = [
+        _norm(value) for value in phrases if _norm(value)
+    ]
+    sentences = re.split(r"[.!?;\n\r\u2026]+", str(text or ""))
+    for raw_sentence in sentences:
+        sentence = _norm(raw_sentence)
+        if not sentence:
             continue
+
+        # Preserve exact multi-item behavior anchors across commas, e.g.
+        # "replaced Netflix, Hulu, Apple TV". Negation still applies to the
+        # sentence containing that exact anchor.
+        for phrase in normalized_phrases:
+            if _phrase_is_negated(sentence, phrase):
+                continue
+            if any(
+                anchor
+                and anchor in sentence
+                and _contains_phrase(anchor, phrase)
+                and not _punctuation_separates_behavior(
+                    raw_sentence, phrase, anchor
+                )
+                for anchor in anchors
+            ):
+                return True
+
         if behavior == "switching" and re.search(
             r"\b(?:haven t|have not) been\s+(?:to|back to|inside|at)\b.+\bever since\b",
-            clause,
+            sentence,
         ):
-            if any(anchor and anchor in clause for anchor in anchors):
+            if any(anchor and anchor in sentence for anchor in anchors):
                 return True
-        for phrase in (_norm(value) for value in phrases):
-            if not phrase or _phrase_is_negated(clause, phrase):
+
+        # A source-to-target switch is one relation. Require the cited anchor to
+        # appear inside that relation rather than anywhere else in the sentence.
+        if behavior == "switching":
+            switch_relation = re.search(
+                r"\b(?:switched|switching|switch|moved)\s+from\b.+?\bto\b.+?"
+                r"(?=\s+(?:near|beside|alongside|while|but|and|then|where|which|"
+                r"because|for|after|with)\b|$)",
+                sentence,
+            )
+            if switch_relation and any(
+                anchor and anchor in switch_relation.group(0)
+                for anchor in anchors
+            ):
+                return True
+
+        # Commas/colons frequently separate different objects. Keep normal
+        # phrase-to-anchor matching inside those local segments.
+        for raw_clause in re.split(r"[,:]+", raw_sentence):
+            clause = _norm(raw_clause)
+            if not clause:
                 continue
-            phrase_pattern = re.escape(phrase)
-            for anchor in anchors:
-                if not anchor:
+            for phrase in normalized_phrases:
+                if _phrase_is_negated(clause, phrase):
                     continue
-                if anchor in clause and phrase in anchor:
-                    return True
-                anchor_pattern = rf"{re.escape(anchor)}s?"
-                forward = (
-                    rf"(?:^|\s){phrase_pattern}{object_bridge}\s+"
-                    rf"{anchor_pattern}$"
-                )
-                if re.search(forward, clause):
-                    return True
-                if directional:
-                    continue
-                if anchor in clause and phrase in clause:
-                    return True
-                reverse = (
-                    rf"(?:^|\s){anchor_pattern}{state_bridge}\s+"
-                    rf"{phrase_pattern}$"
-                )
-                if re.search(reverse, clause):
-                    return True
+                phrase_pattern = re.escape(phrase)
+                for anchor in anchors:
+                    if not anchor:
+                        continue
+                    anchor_pattern = rf"{re.escape(anchor)}s?"
+                    if _punctuation_separates_behavior(
+                        raw_clause, phrase, anchor
+                    ):
+                        continue
+                    forward = (
+                        rf"(?:^|\s){phrase_pattern}{object_bridge}\s+"
+                        rf"{anchor_pattern}{tail_bridge}"
+                    )
+                    if re.search(forward, clause):
+                        return True
+                    if directional:
+                        continue
+                    if anchor in clause and _contains_phrase(clause, phrase):
+                        return True
+                    reverse = (
+                        rf"(?:^|\s){anchor_pattern}{state_bridge}\s+"
+                        rf"{phrase_pattern}$"
+                    )
+                    if re.search(reverse, clause):
+                        return True
     return False
 
 

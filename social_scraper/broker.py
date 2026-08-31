@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
+from social_scraper.conversations.thread_reader import ThreadFetchResult
 
 
 @dataclass(order=True)
@@ -63,6 +64,11 @@ class SourceBroker:
         routes = list(self._routes.get(post.platform, []))
         routes.sort(key=lambda route: (route.connector.connector_name != selected, route.priority))
         last_result = None
+        authoritative_routes = {
+            "reddit_mobile_owned",
+            "authenticated",
+            "ig_auth_web",
+        }
         for route in routes:
             try:
                 result = await asyncio.wait_for(
@@ -70,17 +76,33 @@ class SourceBroker:
                     timeout=max(self.route_timeout_seconds, 90),
                 )
             except asyncio.TimeoutError:
+                timeout_result = ThreadFetchResult(
+                    platform=post.platform,
+                    root_post_external_id=post.post_id,
+                    status="unavailable",
+                    attempted_route=route.connector.connector_name,
+                    error_category=f"{post.platform}_thread_timeout",
+                    max_comments=max_comments,
+                    max_depth=max_depth,
+                    limitations=("Selected thread reader timed out.",),
+                )
+                if (
+                    route.connector.connector_name == selected
+                    and selected in authoritative_routes
+                ):
+                    return timeout_result
+                last_result = timeout_result
                 continue
             except Exception:
                 continue
             last_result = result
             if (
                 route.connector.connector_name == selected
-                and selected in {"reddit_mobile_owned"}
+                and selected in authoritative_routes
             ):
-                # The installed-client Reddit route is an explicit auth/source
-                # boundary. Do not hide its 429/auth/unavailable receipt behind an
-                # anonymous JSON, archive, or browser fallback.
+                # Owned authenticated routes are explicit source boundaries. Their
+                # rate-limit/auth/unavailable receipt is more truthful than a later
+                # search-only connector reporting that thread reads are unsupported.
                 return result
             if result.status in {"complete", "partial", "empty", "disabled"}:
                 return result

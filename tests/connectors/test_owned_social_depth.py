@@ -1,8 +1,10 @@
 import asyncio
 
-from social_scraper.base import SocialItem
+from social_scraper.base import BaseConnector, SocialItem
+from social_scraper.broker import SourceBroker
 from social_scraper.connectors.instagram_graphql import InstagramConnector
 from social_scraper.connectors.tiktok_auth import TikTokAuthConnector
+from social_scraper.conversations.thread_reader import ThreadFetchResult
 
 
 def _post(platform, post_id="p1"):
@@ -144,6 +146,58 @@ def test_instagram_owned_thread_reader_fetches_child_comments(monkeypatch):
         ("r1", "c1", 2),
     ]
     assert result.records[0].likes == 5
+
+
+def test_instagram_thread_reader_prioritizes_creator_reply_chains(monkeypatch):
+    connector = InstagramConnector()
+    child_calls = []
+
+    async def roots(_media_id, _referer, _max_comments):
+        return [{
+            "comments": [
+                {
+                    "pk": "popular",
+                    "text": "popular parent",
+                    "child_comment_count": 100,
+                    "user": {"username": "someone_else"},
+                },
+                {
+                    "pk": "creator",
+                    "text": "creator follow-up",
+                    "child_comment_count": 1,
+                    "user": {"username": "original_creator"},
+                },
+            ],
+            "comment_count": 500,
+            "has_more_comments": True,
+        }]
+
+    async def children(_media_id, parent_id, _referer, _limit):
+        child_calls.append(parent_id)
+        return [{
+            "child_comments": [{
+                "pk": f"reply-{parent_id}",
+                "text": "reply",
+                "user": {},
+            }],
+            "has_more_tail_child_comments": False,
+        }]
+
+    monkeypatch.setattr(connector, "_collect_media_comments", roots)
+    monkeypatch.setattr(connector, "_collect_child_comments", children)
+    monkeypatch.setattr(connector, "_ensure_authed", lambda: asyncio.sleep(0))
+    result = asyncio.run(connector.fetch_thread(SocialItem(
+        platform="instagram",
+        post_id="p1",
+        url="https://www.instagram.com/p/example/",
+        author_username="original_creator",
+        comments=500,
+    ), 12, 2))
+
+    assert child_calls[0] == "creator"
+    assert {record.parent_external_id for record in result.records if record.depth == 2} == {
+        "creator", "popular",
+    }
 
 
 def test_instagram_keyword_search_prefers_owned_browser_results(monkeypatch):
@@ -299,3 +353,91 @@ def test_instagram_media_parser_tolerates_missing_user_object():
     assert item.post_id == "m1"
     assert item.author_username == ""
     assert item.thumbnail_url is None
+
+
+def test_broker_does_not_mask_selected_tiktok_depth_failure_with_unsupported_fallback():
+    class AuthenticatedTikTok(BaseConnector):
+        platform = "tiktok"
+        connector_name = "authenticated"
+
+        async def search(self, *_args, **_kwargs):
+            raise AssertionError("not used")
+
+        async def health_check(self):
+            raise AssertionError("not used")
+
+        async def fetch_thread(self, post, max_comments, max_depth):
+            return ThreadFetchResult(
+                platform="tiktok",
+                root_post_external_id=post.post_id,
+                status="unavailable",
+                attempted_route="tiktok_authenticated_browser_comments",
+                error_category="tiktok_comments_unavailable",
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+
+    class SearchOnlyFallback(BaseConnector):
+        platform = "tiktok"
+        connector_name = "playwright"
+
+        async def search(self, *_args, **_kwargs):
+            raise AssertionError("not used")
+
+        async def health_check(self):
+            raise AssertionError("not used")
+
+    broker = SourceBroker()
+    broker.register(AuthenticatedTikTok(), priority=1)
+    broker.register(SearchOnlyFallback(), priority=2)
+
+    result = asyncio.run(broker.fetch_thread({
+        "platform": "tiktok",
+        "post_id": "video-1",
+        "url": "https://www.tiktok.com/@user/video/video-1",
+        "provenance": {"connector": "authenticated"},
+    }, max_comments=40, max_depth=2))
+
+    assert result.status == "unavailable"
+    assert result.error_category == "tiktok_comments_unavailable"
+    assert result.attempted_route == "tiktok_authenticated_browser_comments"
+
+
+def test_broker_records_selected_tiktok_depth_timeout_instead_of_unsupported():
+    class TimedOutTikTok(BaseConnector):
+        platform = "tiktok"
+        connector_name = "authenticated"
+
+        async def search(self, *_args, **_kwargs):
+            raise AssertionError("not used")
+
+        async def health_check(self):
+            raise AssertionError("not used")
+
+        async def fetch_thread(self, *_args, **_kwargs):
+            raise asyncio.TimeoutError
+
+    class SearchOnlyFallback(BaseConnector):
+        platform = "tiktok"
+        connector_name = "playwright"
+
+        async def search(self, *_args, **_kwargs):
+            raise AssertionError("not used")
+
+        async def health_check(self):
+            raise AssertionError("not used")
+
+    broker = SourceBroker()
+    broker.register(TimedOutTikTok(), priority=1)
+    broker.register(SearchOnlyFallback(), priority=2)
+
+    result = asyncio.run(broker.fetch_thread({
+        "platform": "tiktok",
+        "post_id": "video-1",
+        "url": "https://www.tiktok.com/@user/video/video-1",
+        "provenance": {"connector": "authenticated"},
+    }, max_comments=40, max_depth=2))
+
+    assert result.status == "unavailable"
+    assert result.error_category == "tiktok_thread_timeout"
+    assert result.attempted_route == "authenticated"

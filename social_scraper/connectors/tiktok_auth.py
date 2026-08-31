@@ -136,6 +136,13 @@ _EXTRACT_JS = """
 """
 
 
+def _root_record_budget(max_comments: int, max_depth: int) -> int:
+    maximum = max(0, int(max_comments))
+    if max_depth < 2:
+        return maximum
+    return max(1, (maximum * 2) // 3)
+
+
 def parse_count(text: str) -> int | None:
     """Convert '186.1K', '1.2M', '54.2K' to integers."""
     if not text:
@@ -469,9 +476,7 @@ class TikTokAuthConnector(BaseConnector):
         reported_total = None
         source_has_more = False
         reply_totals = {}
-        root_budget = max_comments
-        if max_depth >= 2:
-            root_budget = max(1, max_comments - max(1, max_comments // 4))
+        root_budget = _root_record_budget(max_comments, max_depth)
         for payload in root_payloads:
             total = payload.get("total")
             if isinstance(total, int):
@@ -616,7 +621,8 @@ class TikTokAuthConnector(BaseConnector):
             await asyncio.wait_for(first_root.wait(), timeout=25)
             await page.wait_for_timeout(2500)
 
-            page_budget = max(1, (max_comments + 19) // 20)
+            root_budget = _root_record_budget(max_comments, max_depth)
+            page_budget = max(1, (root_budget + 19) // 20)
             for _ in range(page_budget - 1):
                 scrolled = await page.evaluate("""
                     () => {
@@ -640,7 +646,10 @@ class TikTokAuthConnector(BaseConnector):
 
             if max_depth >= 2:
                 reply_buttons = page.locator('text=/View .* repl/i')
-                button_count = min(await reply_buttons.count(), 5)
+                reply_parent_budget = max(5, min(8, max_comments // 8))
+                button_count = min(
+                    await reply_buttons.count(), reply_parent_budget
+                )
                 for index in range(button_count):
                     try:
                         await reply_buttons.nth(index).click(force=True)

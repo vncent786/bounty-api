@@ -8,6 +8,8 @@ from social_scraper.investing.owned_radar import (
     OwnedRadarCollector,
     SOURCE_QUERY_RECIPE_VERSION,
     _source_status,
+    adaptive_thread_comment_limit,
+    bounded_thread_sample_target,
     check_movement_bundles,
     panel_platform_query,
 )
@@ -26,6 +28,17 @@ def test_source_native_panel_queries_are_short_and_platform_specific():
         for platform in ("reddit", "tiktok", "instagram", "youtube")
     }) == 4
     assert SOURCE_QUERY_RECIPE_VERSION == "camillo-source-queries/2"
+
+
+def test_owned_social_depth_budget_sets_platform_specific_bounded_targets():
+    assert adaptive_thread_comment_limit("tiktok", 10, 20) == 40
+    assert adaptive_thread_comment_limit("instagram", 30, 20) == 60
+    assert adaptive_thread_comment_limit("tiktok", None, 20) == 60
+    assert adaptive_thread_comment_limit("instagram", 50_000, 20) == 60
+    assert adaptive_thread_comment_limit("youtube", 50_000, 20) == 20
+    assert bounded_thread_sample_target("tiktok", 60) == 40
+    assert bounded_thread_sample_target("instagram", 60) == 30
+    assert bounded_thread_sample_target("youtube", 20) == 20
 
 
 def test_source_status_does_not_attach_an_unused_fallback_error_to_a_success():
@@ -164,12 +177,16 @@ class FakeBroker:
             "source_health": [{"platform": platform, "status": "ok"}],
         }
 
-    async def fetch_thread(self, *_args, **_kwargs):
-        class Thread:
-            records = ()
-            status = "empty"
-            error_category = None
-        return Thread()
+    async def fetch_thread(self, root, *, max_comments, max_depth):
+        return ThreadFetchResult(
+            platform=root["platform"],
+            root_post_external_id=root["post_id"],
+            status="empty",
+            attempted_route=f"{root['platform']}_fixture_comments",
+            platform_reported_total=0,
+            max_comments=max_comments,
+            max_depth=max_depth,
+        )
 
 
 def test_owned_collector_builds_four_comparable_x_windows():
@@ -407,7 +424,12 @@ def test_adaptive_collection_is_bounded_and_preserves_thread_lineage():
         call for call in broker.thread_calls if call["platform"] != "reddit"
     ]
     assert sorted(call["max_comments"] for call in reddit_depth_calls) == [50, 50]
-    assert all(call["max_comments"] == 20 for call in other_depth_calls)
+    assert all(
+        call["max_comments"] == (
+            40 if call["platform"] in {"tiktok", "instagram"} else 20
+        )
+        for call in other_depth_calls
+    )
     assert all(call["max_depth"] == 2 for call in broker.thread_calls)
     comments = [item for item in result["evidence"] if item["record_type"] == "comment"]
     assert len(comments) == 8
@@ -416,6 +438,108 @@ def test_adaptive_collection_is_bounded_and_preserves_thread_lineage():
     depth_receipts = [source for source in result["sources"] if source["stage"] == "adaptive_depth"]
     assert len(depth_receipts) == 8
     assert all(source["platform_reported_total"] == 50 for source in depth_receipts)
+
+
+def test_adaptive_collection_uses_unseen_roots_before_reusing_a_thread(monkeypatch):
+    monkeypatch.setattr(
+        owned_radar_module, "NON_X_DISCOVERY_PLATFORMS", ("tiktok",)
+    )
+
+    class RootBroker(FakeBroker):
+        def __init__(self):
+            super().__init__()
+            self.thread_calls = []
+
+        async def search(self, *, keyword, platforms, count, time_filter, sort):
+            platform = platforms[0]
+            self.search_calls.append({
+                "keyword": keyword,
+                "platform": platform,
+                "count": count,
+                "time_filter": time_filter,
+                "sort": sort,
+            })
+            return {
+                "items": [
+                    {
+                        "platform": platform,
+                        "post_id": root_id,
+                        "url": f"https://example.com/{root_id}",
+                        "author": {"username": root_id},
+                        "text": "I switched products",
+                        "created_at": "2026-08-30T00:00:00Z",
+                        "engagement": {"comments": comments, "likes": comments},
+                    }
+                    for root_id, comments in (("root-a", 100), ("root-b", 80))
+                ],
+                "platform_results": {platform: {"status": "ok", "coverage": {}}},
+                "source_health": [{"platform": platform, "status": "ok"}],
+            }
+
+        async def fetch_thread(self, root, *, max_comments, max_depth):
+            self.thread_calls.append(root["post_id"])
+            record = ThreadRecord(
+                platform="tiktok",
+                external_id=f"comment-{root['post_id']}",
+                record_type="comment",
+                parent_external_id=root["post_id"],
+                root_post_external_id=root["post_id"],
+                depth=1,
+                text="same switch",
+            )
+            return ThreadFetchResult(
+                platform="tiktok",
+                root_post_external_id=root["post_id"],
+                status="partial",
+                records=(record,),
+                truncated=True,
+                attempted_route="fixture",
+                platform_reported_total=100,
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+
+    broker = RootBroker()
+    collector = OwnedRadarCollector(broker=broker, x_connector=FakeX())
+    cache = {}
+    anchors = [{
+        "anchor_id": "anchor-1",
+        "normalized_anchor": "switching product",
+        "seed_query": "products",
+    }]
+
+    first = asyncio.run(collector.collect_adaptive(
+        DEFAULT_PANELS[-1], anchors,
+        max_anchors=1, max_roots_per_platform=1,
+        max_comments_per_root=20, max_depth=2,
+        thread_cache=cache,
+    ))
+    second = asyncio.run(collector.collect_adaptive(
+        DEFAULT_PANELS[-1], anchors,
+        max_anchors=1, max_roots_per_platform=1,
+        max_comments_per_root=20, max_depth=2,
+        thread_cache=cache,
+    ))
+    third = asyncio.run(collector.collect_adaptive(
+        DEFAULT_PANELS[-1], anchors,
+        max_anchors=1, max_roots_per_platform=1,
+        max_comments_per_root=20, max_depth=2,
+        thread_cache=cache,
+    ))
+
+    assert broker.thread_calls == ["root-a", "root-b"]
+    assert next(
+        source for source in first["sources"]
+        if source.get("stage") == "adaptive_depth"
+    )["cache_hit"] is False
+    assert next(
+        source for source in second["sources"]
+        if source.get("stage") == "adaptive_depth"
+    )["root_external_id"] == "root-b"
+    assert next(
+        source for source in third["sources"]
+        if source.get("stage") == "adaptive_depth"
+    )["cache_hit"] is True
 
 
 def test_adaptive_collection_uses_one_hard_budget_for_searches_and_thread_reads():
@@ -753,6 +877,57 @@ def test_owned_preflight_requires_every_release_source():
     assert tiktok_call["keyword"] == "switching skincare"
     assert tiktok_call["time_filter"] == "halfyear"
     assert tiktok_call["sort"] == "latest"
+    for platform in ("tiktok", "instagram"):
+        receipt = next(
+            source for source in result["sources"] if source["platform"] == platform
+        )
+        assert receipt["coverage"]["depth_canary"]["status"] == "empty"
+        assert receipt["coverage"]["depth_canary"]["attempted_route"].endswith(
+            "_fixture_comments"
+        )
+
+
+def test_owned_preflight_blocks_when_tiktok_search_works_but_depth_does_not():
+    class DepthFails(FakeBroker):
+        async def fetch_thread(self, root, *, max_comments, max_depth):
+            if root["platform"] == "tiktok":
+                return ThreadFetchResult(
+                    platform="tiktok",
+                    root_post_external_id=root["post_id"],
+                    status="unavailable",
+                    attempted_route="tiktok_authenticated_browser_comments",
+                    error_category="tiktok_comments_unavailable",
+                    max_comments=max_comments,
+                    max_depth=max_depth,
+                )
+            return await super().fetch_thread(
+                root, max_comments=max_comments, max_depth=max_depth
+            )
+
+    async def trajectory(query):
+        return {
+            "query": query,
+            "source": "Google Trends",
+            "status": "complete",
+            "points": [
+                {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20}
+                for index in range(30)
+            ],
+        }
+
+    result = asyncio.run(OwnedRadarCollector(
+        broker=DepthFails(),
+        x_connector=FakeX(),
+        trajectory_check_fn=trajectory,
+    ).preflight())
+
+    assert result["ok"] is False
+    assert result["error_category"] == "preflight_tiktok_unavailable"
+    receipt = next(
+        source for source in result["sources"] if source["platform"] == "tiktok"
+    )
+    assert receipt["error_category"] == "tiktok_comments_unavailable"
+    assert receipt["coverage"]["depth_canary"]["status"] == "unavailable"
 
 
 def test_owned_preflight_blocks_the_sweep_when_tiktok_cannot_return_records():

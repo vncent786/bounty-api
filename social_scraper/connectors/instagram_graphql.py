@@ -56,6 +56,13 @@ _MIN_REQUEST_INTERVAL = 2.0  # seconds between API calls (anti-ban)
 _last_request_time = 0.0
 
 
+def _root_record_budget(max_comments: int, max_depth: int) -> int:
+    maximum = max(0, int(max_comments))
+    if max_depth < 2:
+        return maximum
+    return max(1, (maximum * 2) // 3)
+
+
 def _get_env(name):
     return os.getenv(name, "").strip()
 
@@ -625,14 +632,14 @@ class InstagramConnector(BaseConnector):
         try:
             async with AsyncFileLock(_IG_LOCK_PATH):
                 await self._ensure_authed()
+                root_budget_for_fetch = _root_record_budget(
+                    max_comments, max_depth
+                )
                 root_payloads = await self._collect_media_comments(
-                    post.post_id, post.url, max_comments
+                    post.post_id, post.url, root_budget_for_fetch
                 )
                 child_payloads = {}
                 if max_depth >= 2:
-                    root_budget_for_fetch = max(
-                        1, max_comments - max(1, max_comments // 4)
-                    )
                     eligible_parents = []
                     roots_seen = 0
                     for payload in root_payloads:
@@ -649,12 +656,33 @@ class InstagramConnector(BaseConnector):
                                 and child_count > 0
                                 and parent_id
                             ):
-                                eligible_parents.append((parent_id, child_count))
+                                user = comment.get("user") or {}
+                                is_op = bool(
+                                    post.author_username
+                                    and str(user.get("username") or "").casefold()
+                                    == post.author_username.casefold()
+                                )
+                                eligible_parents.append(
+                                    (parent_id, child_count, is_op)
+                                )
+                    eligible_parents.sort(
+                        key=lambda value: (not value[2], -value[1], value[0])
+                    )
                     reply_budget = max_comments - root_budget_for_fetch
-                    for parent_id, child_count in eligible_parents[:5]:
+                    parent_budget = max(5, min(8, max_comments // 8))
+                    selected_parents = eligible_parents[:parent_budget]
+                    for index, (parent_id, child_count, _is_op) in enumerate(
+                        selected_parents
+                    ):
                         if reply_budget <= 0:
                             break
-                        limit = min(reply_budget, child_count)
+                        remaining_parents = len(selected_parents) - index
+                        fair_share = max(
+                            1,
+                            (reply_budget + remaining_parents - 1)
+                            // remaining_parents,
+                        )
+                        limit = min(reply_budget, child_count, fair_share)
                         payload_list = await self._collect_child_comments(
                             post.post_id, parent_id, post.url, limit
                         )
@@ -700,9 +728,7 @@ class InstagramConnector(BaseConnector):
         reported_total = None
         source_has_more = False
         child_totals = {}
-        root_budget = max_comments
-        if max_depth >= 2:
-            root_budget = max(1, max_comments - max(1, max_comments // 4))
+        root_budget = _root_record_budget(max_comments, max_depth)
         for payload in root_payloads:
             total = payload.get("comment_count")
             if isinstance(total, int):

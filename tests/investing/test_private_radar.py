@@ -87,6 +87,50 @@ def test_candidate_depth_coverage_passes_only_complete_matching_reads():
     assert gate["metrics"]["complete_roots"] == 1
 
 
+def test_candidate_depth_coverage_accepts_two_independent_bounded_samples():
+    gate = summarize_candidate_depth_coverage(
+        ["silicone air fryer liner"],
+        [
+            {
+                "stage": "adaptive_depth",
+                "platform": "tiktok",
+                "root_external_id": "video-1",
+                "query": "silicone air fryer liner",
+                "status": "partial",
+                "returned_count": 60,
+                "root_record_count": 40,
+                "reply_record_count": 20,
+                "platform_reported_total": 5000,
+                "truncated": True,
+                "error_category": None,
+                "bounded_sample_target": 40,
+                "bounded_sample_complete": True,
+            },
+            {
+                "stage": "adaptive_depth",
+                "platform": "instagram",
+                "root_external_id": "media-1",
+                "query": "silicone air fryer liner",
+                "status": "partial",
+                "returned_count": 45,
+                "root_record_count": 40,
+                "reply_record_count": 5,
+                "platform_reported_total": 800,
+                "truncated": True,
+                "error_category": None,
+                "bounded_sample_target": 30,
+                "bounded_sample_complete": True,
+            },
+        ],
+    )
+
+    assert gate["state"] == "pass"
+    assert gate["passed"] is True
+    assert gate["metrics"]["bounded_sufficient_roots"] == 2
+    assert gate["metrics"]["independent_root_count"] == 2
+    assert gate["metrics"]["sampled_platform_count"] == 2
+
+
 def _evidence(
     eid, text, author, platform="x", panel_id="beauty_skincare", engagement=None,
     created_at="2026-08-26T00:00:00Z",
@@ -877,12 +921,15 @@ def test_adaptive_investigation_runs_before_model_and_replaces_late_corroboratio
             events.append("adaptive")
             assert panel.panel_id == "beauty_skincare"
             assert anchors
-            assert bounds == {
+            assert {
+                key: value for key, value in bounds.items() if key != "thread_cache"
+            } == {
                 "max_anchors": 1,
                 "max_roots_per_platform": 1,
                 "max_comments_per_root": 20,
                 "max_depth": 2,
             }
+            assert isinstance(bounds["thread_cache"], dict)
             return {
                 "anchors": list(anchors),
                 "evidence": [],

@@ -6,7 +6,7 @@ import asyncio
 import re
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, MutableMapping, Sequence
 from urllib.parse import quote
 
 import httpx
@@ -81,6 +81,75 @@ DEFAULT_ADAPTIVE_PLATFORM_LIMITS = {
     "reddit": 48,
     "youtube": 48,
 }
+OWNED_SOCIAL_THREAD_MAX_COMMENTS = 60
+BOUNDED_THREAD_SAMPLE_TARGET = 40
+BOUNDED_THREAD_SAMPLE_TARGETS = {
+    "instagram": 30,
+    "tiktok": 40,
+}
+
+
+def bounded_thread_sample_target(platform: str, max_comments: int) -> int:
+    return min(
+        BOUNDED_THREAD_SAMPLE_TARGETS.get(
+            str(platform or ""), BOUNDED_THREAD_SAMPLE_TARGET
+        ),
+        max(0, int(max_comments)),
+    )
+
+
+def adaptive_thread_comment_limit(
+    platform: str,
+    reported_comments: Any,
+    requested_floor: int,
+) -> int:
+    """Allocate a larger but still bounded read to ranked owned-social threads."""
+    floor = max(0, int(requested_floor))
+    reported = (
+        reported_comments
+        if isinstance(reported_comments, int)
+        and not isinstance(reported_comments, bool)
+        and reported_comments >= 0
+        else None
+    )
+    if platform == "reddit" and reported:
+        return min(100, max(floor, reported))
+    if platform in {"tiktok", "instagram"}:
+        if reported is None or reported > 20:
+            return OWNED_SOCIAL_THREAD_MAX_COMMENTS
+        return min(
+            OWNED_SOCIAL_THREAD_MAX_COMMENTS,
+            max(floor, BOUNDED_THREAD_SAMPLE_TARGET),
+        )
+    return floor
+
+
+def bounded_thread_receipt(thread) -> dict[str, Any]:
+    root_records = sum(int(record.depth) == 1 for record in thread.records)
+    reply_records = sum(int(record.depth) > 1 for record in thread.records)
+    target = bounded_thread_sample_target(
+        thread.platform, thread.max_comments
+    )
+    complete = (
+        thread.status in {"complete", "empty"}
+        and not thread.truncated
+        and not thread.error_category
+    )
+    sample_complete = bool(
+        complete
+        or (
+            thread.status == "partial"
+            and not thread.error_category
+            and target > 0
+            and len(thread.records) >= target
+        )
+    )
+    return {
+        "root_record_count": root_records,
+        "reply_record_count": reply_records,
+        "bounded_sample_target": target,
+        "bounded_sample_complete": sample_complete,
+    }
 
 
 class AdaptiveCollectionBudget:
@@ -469,15 +538,80 @@ class OwnedRadarCollector:
             source = dict(result.get("source") or {})
             count = int(source.get("count") or 0)
             source_ok = source.get("status") == "complete" and count > 0
+            error_category = (
+                None if source_ok else source.get("error_category") or f"{platform}_empty"
+            )
+            coverage = dict(source.get("coverage") or {})
+            if source_ok and platform in {"tiktok", "instagram"}:
+                roots = sorted(
+                    [dict(root) for root in result.get("roots") or []],
+                    key=lambda root: (
+                        int((root.get("engagement") or {}).get("comments") or 0),
+                        int((root.get("engagement") or {}).get("likes") or 0),
+                    ),
+                    reverse=True,
+                )
+                if not roots:
+                    source_ok = False
+                    error_category = f"{platform}_depth_not_exercised"
+                    coverage["depth_canary"] = {
+                        "status": "unavailable",
+                        "returned_count": 0,
+                        "attempted_route": "none",
+                        "error_category": error_category,
+                    }
+                else:
+                    root = roots[0]
+                    reported_comments = (root.get("engagement") or {}).get("comments")
+                    try:
+                        thread = await self.broker.fetch_thread(
+                            root, max_comments=12, max_depth=2
+                        )
+                    except Exception as exc:
+                        source_ok = False
+                        error_category = f"{platform}_depth_{type(exc).__name__}"
+                        coverage["depth_canary"] = {
+                            "status": "unavailable",
+                            "returned_count": 0,
+                            "attempted_route": "none",
+                            "error_category": error_category,
+                        }
+                    else:
+                        depth_ok = bool(
+                            thread.status in {"complete", "partial", "empty"}
+                            and not thread.error_category
+                            and (
+                                len(thread.records) > 0
+                                or (
+                                    thread.status == "empty"
+                                    and (
+                                        not isinstance(reported_comments, int)
+                                        or reported_comments == 0
+                                    )
+                                )
+                            )
+                        )
+                        coverage["depth_canary"] = {
+                            "status": thread.status,
+                            "returned_count": len(thread.records),
+                            "platform_reported_total": thread.platform_reported_total,
+                            "truncated": bool(thread.truncated),
+                            "attempted_route": thread.attempted_route,
+                            "error_category": thread.error_category,
+                        }
+                        if not depth_ok:
+                            source_ok = False
+                            error_category = (
+                                thread.error_category
+                                or f"{platform}_depth_not_readable"
+                            )
             social_receipts.append({
                 "platform": platform,
                 "stage": "preflight",
                 "status": "complete" if source_ok else "failed",
                 "count": count,
-                "error_category": (
-                    None if source_ok else source.get("error_category") or f"{platform}_empty"
-                ),
-                "coverage": source.get("coverage") or {},
+                "error_category": None if source_ok else error_category,
+                "coverage": coverage,
             })
 
         if isinstance(trajectory, BaseException):
@@ -880,10 +1014,13 @@ class OwnedRadarCollector:
         max_comments_per_root: int = 20,
         max_depth: int = 2,
         budget: AdaptiveCollectionBudget | None = None,
+        thread_cache: MutableMapping[tuple[str, str], Any] | None = None,
     ) -> dict[str, Any]:
         selected = [dict(value) for value in anchors[: max(0, int(max_anchors))]]
         evidence: list[dict[str, Any]] = []
         sources: list[dict[str, Any]] = []
+        if thread_cache is None:
+            thread_cache = {}
         depth_roots: dict[str, list[dict[str, Any]]] = {
             platform: [] for platform in NON_X_DISCOVERY_PLATFORMS
         }
@@ -1010,34 +1147,61 @@ class OwnedRadarCollector:
                     str(item.get("post_id") or item.get("external_id") or item.get("url") or ""),
                 ),
             )
+            distinct_roots = []
             seen_roots = set()
-            selected_roots = []
             for root in ranked:
-                root_id = str(root.get("post_id") or root.get("external_id") or root.get("url") or "")
+                root_id = str(
+                    root.get("post_id")
+                    or root.get("external_id")
+                    or root.get("url")
+                    or ""
+                )
                 if not root_id or root_id in seen_roots:
                     continue
                 seen_roots.add(root_id)
-                selected_roots.append(root)
-                if len(selected_roots) >= max(0, int(max_roots_per_platform)):
-                    break
+                distinct_roots.append(root)
+            uncached_roots = [
+                root for root in distinct_roots
+                if (
+                    platform,
+                    str(
+                        root.get("post_id")
+                        or root.get("external_id")
+                        or root.get("url")
+                        or ""
+                    ),
+                ) not in thread_cache
+            ]
+            cached_roots = [
+                root for root in distinct_roots if root not in uncached_roots
+            ]
+            selected_roots = (uncached_roots + cached_roots)[
+                :max(0, int(max_roots_per_platform))
+            ]
             for root in selected_roots:
-                root_id = str(root.get("post_id") or root.get("external_id") or root.get("url") or "")
+                root_id = str(
+                    root.get("post_id")
+                    or root.get("external_id")
+                    or root.get("url")
+                    or ""
+                )
+                cache_key = (platform, root_id)
                 query = str(root.get("_adaptive_query") or "")
                 lineage = str(root.get("_adaptive_lineage") or "")
                 anchor_id = str(root.get("_adaptive_anchor_id") or "")
-                requested_comments = max(0, int(max_comments_per_root))
-                if platform == "reddit":
-                    reported_comments = (root.get("engagement") or {}).get("comments")
-                    if isinstance(reported_comments, int) and reported_comments > 0:
-                        # One installed-client request can retrieve up to 100 comments.
-                        # Match the source-reported thread size when practical rather
-                        # than truncating every Reddit conversation at an arbitrary 20.
-                        requested_comments = min(
-                            100,
-                            max(requested_comments, reported_comments),
-                        )
-                if budget is not None and not budget.reserve(
-                    platform=platform, operation="adaptive_thread_read"
+                reported_comments = (root.get("engagement") or {}).get("comments")
+                requested_comments = adaptive_thread_comment_limit(
+                    platform,
+                    reported_comments,
+                    max_comments_per_root,
+                )
+                cache_hit = cache_key in thread_cache
+                if (
+                    not cache_hit
+                    and budget is not None
+                    and not budget.reserve(
+                        platform=platform, operation="adaptive_thread_read"
+                    )
                 ):
                     sources.append({
                         "panel_id": panel.panel_id,
@@ -1049,18 +1213,31 @@ class OwnedRadarCollector:
                         "query_lineage_id": lineage,
                         "status": "partial",
                         "returned_count": 0,
+                        "root_record_count": 0,
+                        "reply_record_count": 0,
+                        "bounded_sample_target": bounded_thread_sample_target(
+                            platform, requested_comments
+                        ),
+                        "bounded_sample_complete": False,
+                        "cache_hit": False,
                         "truncated": True,
                         "error_category": "adaptive_budget_exhausted",
-                        "limitations": ["Thread read skipped because the per-run adaptive budget was exhausted."],
+                        "limitations": [
+                            "Thread read skipped because the per-run adaptive budget was exhausted."
+                        ],
                         "coverage": {"budget": budget.snapshot()},
                     })
                     continue
                 try:
-                    thread = await self.broker.fetch_thread(
-                        root,
-                        max_comments=requested_comments,
-                        max_depth=max(0, int(max_depth)),
-                    )
+                    if cache_hit:
+                        thread = thread_cache[cache_key]
+                    else:
+                        thread = await self.broker.fetch_thread(
+                            root,
+                            max_comments=requested_comments,
+                            max_depth=max(0, int(max_depth)),
+                        )
+                        thread_cache[cache_key] = thread
                 except Exception as exc:
                     sources.append({
                         "panel_id": panel.panel_id,
@@ -1072,6 +1249,13 @@ class OwnedRadarCollector:
                         "query_lineage_id": lineage,
                         "status": "failed",
                         "returned_count": 0,
+                        "root_record_count": 0,
+                        "reply_record_count": 0,
+                        "bounded_sample_target": bounded_thread_sample_target(
+                            platform, requested_comments
+                        ),
+                        "bounded_sample_complete": False,
+                        "cache_hit": False,
                         "truncated": False,
                         "error_category": type(exc).__name__,
                         "coverage": (
@@ -1100,6 +1284,8 @@ class OwnedRadarCollector:
                     "query_lineage_id": lineage,
                     "status": thread.status,
                     "returned_count": len(thread.records),
+                    **bounded_thread_receipt(thread),
+                    "cache_hit": cache_hit,
                     "platform_reported_total": thread.platform_reported_total,
                     "truncated": bool(thread.truncated),
                     "max_comments": int(thread.max_comments),

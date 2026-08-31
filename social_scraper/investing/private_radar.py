@@ -346,7 +346,29 @@ def summarize_candidate_depth_coverage(
             for anchor in anchors
         )
 
-    rows = [dict(source) for source in sources if matches(source)]
+    matching_rows = [dict(source) for source in sources if matches(source)]
+    best_by_root: dict[tuple[str, str], dict[str, Any]] = {}
+    for index, row in enumerate(matching_rows):
+        key = (
+            str(row.get("platform") or "unknown"),
+            str(row.get("root_external_id") or f"missing-{index}"),
+        )
+        existing = best_by_root.get(key)
+        score = (
+            bool(row.get("bounded_sample_complete")),
+            str(row.get("status") or "") in {"complete", "empty"}
+            and not bool(row.get("truncated")),
+            int(row.get("returned_count") or 0),
+        )
+        existing_score = (
+            bool(existing.get("bounded_sample_complete")),
+            str(existing.get("status") or "") in {"complete", "empty"}
+            and not bool(existing.get("truncated")),
+            int(existing.get("returned_count") or 0),
+        ) if existing is not None else None
+        if existing is None or score > existing_score:
+            best_by_root[key] = row
+    rows = list(best_by_root.values())
     status_counts: dict[str, int] = {}
     for row in rows:
         status = str(row.get("status") or "failed")
@@ -357,12 +379,27 @@ def summarize_candidate_depth_coverage(
         and not row.get("error_category")
         for row in rows
     )
+    bounded_sufficient_rows = [
+        row for row in rows
+        if bool(row.get("bounded_sample_complete"))
+        and not row.get("error_category")
+    ]
     partial_roots = len(rows) - complete_roots
+    sampled_platforms = {
+        str(row.get("platform") or "")
+        for row in bounded_sufficient_rows
+        if str(row.get("platform") or "")
+    }
     metrics = {
         "attempted_roots": len(rows),
+        "independent_root_count": len(rows),
         "complete_roots": complete_roots,
+        "bounded_sufficient_roots": len(bounded_sufficient_rows),
+        "sampled_platform_count": len(sampled_platforms),
         "partial_roots": partial_roots,
         "returned_records": sum(int(row.get("returned_count") or 0) for row in rows),
+        "root_records": sum(int(row.get("root_record_count") or 0) for row in rows),
+        "reply_records": sum(int(row.get("reply_record_count") or 0) for row in rows),
         "platform_reported_total": sum(
             int(row.get("platform_reported_total") or 0) for row in rows
         ),
@@ -375,6 +412,20 @@ def summarize_candidate_depth_coverage(
             "state": "pass",
             "passed": True,
             "reason": "All matching bounded thread reads completed without truncation.",
+            "metrics": metrics,
+        }
+    if (
+        len(bounded_sufficient_rows) >= 2
+        and len(sampled_platforms) >= 2
+    ):
+        return {
+            "state": "pass",
+            "passed": True,
+            "reason": (
+                "At least two independent bounded thread samples met the coverage "
+                "target across two platforms; larger source conversations remain "
+                "explicitly truncated."
+            ),
             "metrics": metrics,
         }
     if not rows:
@@ -1569,6 +1620,7 @@ class PrivateRadarScanner:
                     panel_order=[panel.panel_id for panel in self.panels],
                     max_total=20,
                 )
+                thread_cache: dict[tuple[str, str], Any] = {}
                 for index, panel in enumerate(self.panels):
                     anchors = planned_anchors.get(panel.panel_id) or []
                     if anchors:
@@ -1577,6 +1629,7 @@ class PrivateRadarScanner:
                             "max_roots_per_platform": 1,
                             "max_comments_per_root": 20,
                             "max_depth": 2,
+                            "thread_cache": thread_cache,
                         }
                         if adaptive_budget is not None:
                             adaptive_bounds["budget"] = adaptive_budget

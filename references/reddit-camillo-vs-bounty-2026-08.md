@@ -1,6 +1,6 @@
 # Chris Camillo social-arbitrage process vs Bounty
 
-**Research date:** 2026-08-31  
+**Research date:** 2026-08-31
 **Question:** Has Bounty automated Chris Camillo's social-arbitrage process end to end?
 
 ## Verdict
@@ -92,27 +92,27 @@ The conceptual exit is when the original information gap closes, the catalyst is
 
 ## Reddit's strongest warnings
 
-1. **Survivorship and confirmation bias:** success stories omit failed attempts and followers.  
-   https://www.reddit.com/r/investing/comments/16b5v4/this_guy_turned_20k_into_2_million_with/  
+1. **Survivorship and confirmation bias:** success stories omit failed attempts and followers.
+   https://www.reddit.com/r/investing/comments/16b5v4/this_guy_turned_20k_into_2_million_with/
    https://www.reddit.com/r/investing/comments/kg89w8/with_how_much_the_world_has_changed_the_past_30/
 
-2. **Social attention is not commercial demand:** marketing, memes and bots can create volume without incremental economics.  
-   https://www.reddit.com/r/stocks/comments/nky43y/my_big_bet_on_molson_coors_beverage_company_tap/  
+2. **Social attention is not commercial demand:** marketing, memes and bots can create volume without incremental economics.
+   https://www.reddit.com/r/stocks/comments/nky43y/my_big_bet_on_molson_coors_beverage_company_tap/
    https://www.reddit.com/r/investing/comments/lcke1j/the_validity_of_memeing_as_a_form_of_financial/
 
-3. **Trend-to-company materiality can be tiny:** a real product trend may be immaterial, cannibalistic, low margin or overwhelmed by other segments.  
-   https://www.reddit.com/r/stocks/comments/nky43y/my_big_bet_on_molson_coors_beverage_company_tap/  
+3. **Trend-to-company materiality can be tiny:** a real product trend may be immaterial, cannibalistic, low margin or overwhelmed by other segments.
+   https://www.reddit.com/r/stocks/comments/nky43y/my_big_bet_on_molson_coors_beverage_company_tap/
    https://www.reddit.com/r/wallstreetbets/comments/o6dyij/plya_so_you_wanna_be_a_playa/
 
-4. **Correct information can still produce the wrong trade:** expectations, valuation, timing, implied volatility and liquidity matter.  
+4. **Correct information can still produce the wrong trade:** expectations, valuation, timing, implied volatility and liquidity matter.
    https://www.reddit.com/r/wallstreetbets/comments/o6dyij/plya_so_you_wanna_be_a_playa/
 
-5. **Automation may compress the edge:** institutions already buy credit-card, web, mobile and channel-check data; public strategies become crowded.  
-   https://www.reddit.com/r/wallstreetbets/comments/1652mz8/how_i_think_about_retail_vs_wall_street_where/  
+5. **Automation may compress the edge:** institutions already buy credit-card, web, mobile and channel-check data; public strategies become crowded.
+   https://www.reddit.com/r/wallstreetbets/comments/1652mz8/how_i_think_about_retail_vs_wall_street_where/
    https://www.reddit.com/r/stocks/comments/1is1rrv/what_is_so_difficult_about_beating_the_market/
 
-6. **Automated sentiment is fragile:** sarcasm, changing memes, bots and coordinated promotion need provenance and human review.  
-   https://www.reddit.com/r/stocks/comments/lcjm4r/do_you_think_memeing_is_a_legitimate_way_of/  
+6. **Automated sentiment is fragile:** sarcasm, changing memes, bots and coordinated promotion need provenance and human review.
+   https://www.reddit.com/r/stocks/comments/lcjm4r/do_you_think_memeing_is_a_legitimate_way_of/
    https://www.reddit.com/r/investing/comments/lcke1j/the_validity_of_memeing_as_a_form_of_financial/
 
 ## Bounty comparison

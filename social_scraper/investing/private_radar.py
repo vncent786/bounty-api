@@ -417,14 +417,15 @@ def summarize_candidate_depth_coverage(
     if (
         len(bounded_sufficient_rows) >= 2
         and len(sampled_platforms) >= 2
+        and metrics["reply_records"] > 0
     ):
         return {
             "state": "pass",
             "passed": True,
             "reason": (
                 "At least two independent bounded thread samples met the coverage "
-                "target across two platforms; larger source conversations remain "
-                "explicitly truncated."
+                "target across two platforms and included reply evidence; larger "
+                "source conversations remain explicitly truncated."
             ),
             "metrics": metrics,
         }
@@ -1499,7 +1500,10 @@ class PrivateRadarScanner:
                 self.store.update_progress(
                     run_id, stage="checking_mandatory_sources", progress=1
                 )
-                preflight = await self.collector.preflight()
+                preflight = await self.collector.preflight(**(
+                    {"budget": adaptive_budget}
+                    if adaptive_budget is not None else {}
+                ))
                 sources.extend(preflight.get("sources") or [])
                 self.store.update_progress(
                     run_id,

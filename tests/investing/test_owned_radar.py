@@ -887,6 +887,36 @@ def test_owned_preflight_requires_every_release_source():
         )
 
 
+def test_owned_preflight_counts_search_and_depth_canaries_in_the_run_budget():
+    async def trajectory(query):
+        return {
+            "query": query,
+            "source": "Google Trends",
+            "status": "complete",
+            "points": [
+                {"date": f"2026-06-{(index % 28) + 1:02d}", "value": 20}
+                for index in range(30)
+            ],
+        }
+
+    collector = OwnedRadarCollector(
+        broker=FakeBroker(),
+        x_connector=FakeX(),
+        trajectory_check_fn=trajectory,
+    )
+    budget = collector.new_adaptive_budget()
+    result = asyncio.run(collector.preflight(budget=budget))
+
+    assert result["ok"] is True
+    snapshot = budget.snapshot()
+    assert snapshot["used_attempts"] == 8
+    assert snapshot["used_by_operation"] == {
+        "preflight_depth": 2,
+        "preflight_search": 5,
+        "preflight_trajectory": 1,
+    }
+
+
 def test_owned_preflight_blocks_when_tiktok_search_works_but_depth_does_not():
     class DepthFails(FakeBroker):
         async def fetch_thread(self, root, *, max_comments, max_depth):

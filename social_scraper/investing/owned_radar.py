@@ -481,12 +481,34 @@ class OwnedRadarCollector:
             per_platform_limits=self.adaptive_per_platform_limits,
         )
 
-    async def preflight(self) -> dict[str, Any]:
+    async def preflight(
+        self,
+        *,
+        budget: AdaptiveCollectionBudget | None = None,
+    ) -> dict[str, Any]:
         """Prove every required source before starting the expensive panel sweep."""
         panel = DEFAULT_PANELS[0]
-        x_task = self.x_connector.search(
-            panel.x_query_slices[0], count=3, time_filter="week", sort="latest"
-        )
+
+        async def preflight_x():
+            if budget is not None and not budget.reserve(
+                platform="x", operation="preflight_search"
+            ):
+                raise RuntimeError("adaptive_budget_exhausted")
+            return await self.x_connector.search(
+                panel.x_query_slices[0],
+                count=3,
+                time_filter="week",
+                sort="latest",
+            )
+
+        async def preflight_trajectory():
+            if budget is not None and not budget.reserve(
+                platform="google_trends", operation="preflight_trajectory"
+            ):
+                raise RuntimeError("adaptive_budget_exhausted")
+            return await self.trajectory_check_fn("home gym")
+
+        x_task = preflight_x()
         social_platforms = tuple(NON_X_DISCOVERY_PLATFORMS)
         social_tasks = [
             self._broker_search(
@@ -500,10 +522,12 @@ class OwnedRadarCollector:
                 sort="latest",
                 hydrate=False,
                 retry_empty=(platform == "tiktok"),
+                budget=budget,
+                budget_operation="preflight_search",
             )
             for platform in social_platforms
         ]
-        trajectory_task = self.trajectory_check_fn("home gym")
+        trajectory_task = preflight_trajectory()
         results = await asyncio.gather(
             x_task, trajectory_task, *social_tasks, return_exceptions=True
         )
@@ -563,13 +587,11 @@ class OwnedRadarCollector:
                 else:
                     root = roots[0]
                     reported_comments = (root.get("engagement") or {}).get("comments")
-                    try:
-                        thread = await self.broker.fetch_thread(
-                            root, max_comments=12, max_depth=2
-                        )
-                    except Exception as exc:
+                    if budget is not None and not budget.reserve(
+                        platform=platform, operation="preflight_depth"
+                    ):
                         source_ok = False
-                        error_category = f"{platform}_depth_{type(exc).__name__}"
+                        error_category = "adaptive_budget_exhausted"
                         coverage["depth_canary"] = {
                             "status": "unavailable",
                             "returned_count": 0,
@@ -577,34 +599,50 @@ class OwnedRadarCollector:
                             "error_category": error_category,
                         }
                     else:
-                        depth_ok = bool(
-                            thread.status in {"complete", "partial", "empty"}
-                            and not thread.error_category
-                            and (
-                                len(thread.records) > 0
-                                or (
-                                    thread.status == "empty"
-                                    and (
-                                        not isinstance(reported_comments, int)
-                                        or reported_comments == 0
+                        try:
+                            thread = await self.broker.fetch_thread(
+                                root, max_comments=12, max_depth=2
+                            )
+                        except Exception as exc:
+                            source_ok = False
+                            error_category = f"{platform}_depth_{type(exc).__name__}"
+                            coverage["depth_canary"] = {
+                                "status": "unavailable",
+                                "returned_count": 0,
+                                "attempted_route": "none",
+                                "error_category": error_category,
+                            }
+                        else:
+                            depth_ok = bool(
+                                thread.status in {"complete", "partial", "empty"}
+                                and not thread.error_category
+                                and (
+                                    len(thread.records) > 0
+                                    or (
+                                        thread.status == "empty"
+                                        and (
+                                            not isinstance(reported_comments, int)
+                                            or reported_comments == 0
+                                        )
                                     )
                                 )
                             )
-                        )
-                        coverage["depth_canary"] = {
-                            "status": thread.status,
-                            "returned_count": len(thread.records),
-                            "platform_reported_total": thread.platform_reported_total,
-                            "truncated": bool(thread.truncated),
-                            "attempted_route": thread.attempted_route,
-                            "error_category": thread.error_category,
-                        }
-                        if not depth_ok:
-                            source_ok = False
-                            error_category = (
-                                thread.error_category
-                                or f"{platform}_depth_not_readable"
-                            )
+                            coverage["depth_canary"] = {
+                                "status": thread.status,
+                                "returned_count": len(thread.records),
+                                "platform_reported_total": thread.platform_reported_total,
+                                "truncated": bool(thread.truncated),
+                                "attempted_route": thread.attempted_route,
+                                "error_category": thread.error_category,
+                            }
+                            if not depth_ok:
+                                source_ok = False
+                                error_category = (
+                                    thread.error_category
+                                    or f"{platform}_depth_not_readable"
+                                )
+                    if budget is not None:
+                        coverage["budget"] = budget.snapshot()
             social_receipts.append({
                 "platform": platform,
                 "stage": "preflight",

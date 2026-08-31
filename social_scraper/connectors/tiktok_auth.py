@@ -143,6 +143,31 @@ def _root_record_budget(max_comments: int, max_depth: int) -> int:
     return max(1, (maximum * 2) // 3)
 
 
+def _root_page_budget(root_budget: int) -> int:
+    target = max(0, int(root_budget))
+    pages = max(1, (target + 19) // 20)
+    # Ranked pages often overlap or contain fewer than 20 usable records. One
+    # bounded extra scroll lets the parser reach its target without raising the
+    # final record cap.
+    return pages + (1 if target > 20 else 0)
+
+
+def _comment_payload_key(payload: dict) -> tuple:
+    cursor = payload.get("cursor")
+    if cursor not in {None, ""}:
+        return ("cursor", str(cursor))
+    comment_ids = tuple(
+        str(comment.get("cid") or comment.get("id") or "")
+        for comment in payload.get("comments") or []
+    )
+    return (
+        "content",
+        len(comment_ids),
+        comment_ids,
+        bool(payload.get("has_more")),
+    )
+
+
 def parse_count(text: str) -> int | None:
     """Convert '186.1K', '1.2M', '54.2K' to integers."""
     if not text:
@@ -596,7 +621,7 @@ class TikTokAuthConnector(BaseConnector):
                 query = parse_qs(urlsplit(response.url).query)
                 if "/reply/" in response.url:
                     parent_id = str((query.get("comment_id") or [""])[0])
-                    key = (parent_id, payload.get("cursor"))
+                    key = (parent_id, _comment_payload_key(payload))
                     if key in seen_reply_keys:
                         return
                     seen_reply_keys.add(key)
@@ -605,7 +630,7 @@ class TikTokAuthConnector(BaseConnector):
                         "payload": payload,
                     })
                 else:
-                    key = payload.get("cursor")
+                    key = _comment_payload_key(payload)
                     if key in seen_root_cursors:
                         return
                     seen_root_cursors.add(key)
@@ -622,7 +647,7 @@ class TikTokAuthConnector(BaseConnector):
             await page.wait_for_timeout(2500)
 
             root_budget = _root_record_budget(max_comments, max_depth)
-            page_budget = max(1, (root_budget + 19) // 20)
+            page_budget = _root_page_budget(root_budget)
             for _ in range(page_budget - 1):
                 scrolled = await page.evaluate("""
                     () => {

@@ -3,7 +3,11 @@ import asyncio
 from social_scraper.base import BaseConnector, SocialItem
 from social_scraper.broker import SourceBroker
 from social_scraper.connectors.instagram_graphql import InstagramConnector
-from social_scraper.connectors.tiktok_auth import TikTokAuthConnector
+from social_scraper.connectors.tiktok_auth import (
+    TikTokAuthConnector,
+    _comment_payload_key,
+    _root_page_budget,
+)
 from social_scraper.conversations.thread_reader import ThreadFetchResult
 
 
@@ -14,6 +18,16 @@ def _post(platform, post_id="p1"):
         url=f"https://example.test/{platform}/{post_id}",
         comments=10,
     )
+
+
+def test_tiktok_cursorless_comment_pages_dedupe_by_content_not_none_cursor():
+    first = {"comments": [{"cid": "c1"}], "cursor": None}
+    second = {"comments": [{"cid": "c2"}], "cursor": None}
+
+    assert _comment_payload_key(first) != _comment_payload_key(second)
+    assert _comment_payload_key(first) == _comment_payload_key(dict(first))
+    assert _root_page_budget(20) == 1
+    assert _root_page_budget(40) == 3
 
 
 def test_tiktok_owned_thread_reader_keeps_root_reply_relationships(monkeypatch):

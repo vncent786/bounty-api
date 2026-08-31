@@ -131,6 +131,37 @@ def test_candidate_depth_coverage_accepts_two_independent_bounded_samples():
     assert gate["metrics"]["sampled_platform_count"] == 2
 
 
+def test_candidate_depth_coverage_does_not_pass_root_only_bounded_samples():
+    rows = []
+    for platform, root_id, target in (
+        ("tiktok", "video-1", 40),
+        ("instagram", "media-1", 30),
+    ):
+        rows.append({
+            "stage": "adaptive_depth",
+            "platform": platform,
+            "root_external_id": root_id,
+            "query": "silicone air fryer liner",
+            "status": "partial",
+            "returned_count": target,
+            "root_record_count": target,
+            "reply_record_count": 0,
+            "platform_reported_total": 500,
+            "truncated": True,
+            "error_category": None,
+            "bounded_sample_target": target,
+            "bounded_sample_complete": True,
+        })
+
+    gate = summarize_candidate_depth_coverage(
+        ["silicone air fryer liner"], rows
+    )
+
+    assert gate["state"] == "unknown"
+    assert gate["passed"] is None
+    assert gate["metrics"]["reply_records"] == 0
+
+
 def _evidence(
     eid, text, author, platform="x", panel_id="beauty_skincare", engagement=None,
     created_at="2026-08-26T00:00:00Z",

@@ -16,6 +16,7 @@ from typing import Any, Awaitable, Callable, Iterator, Mapping, Sequence
 
 from social_scraper.investing.adaptive_investigation import (
     extract_observation_anchors,
+    plan_adaptive_anchor_batches,
     select_adaptive_anchors,
 )
 from social_scraper.investing.qualification import is_specific_anchor, qualify_candidate
@@ -413,13 +414,18 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
         if reason and reason not in blockers:
             blockers.append(reason)
 
+    has_citation_filter = isinstance(decision.get("citation_filter"), Mapping)
     citation_filter = (
         decision.get("citation_filter")
-        if isinstance(decision.get("citation_filter"), Mapping)
+        if has_citation_filter
         else {}
     )
     dropped = int(citation_filter.get("dropped") or 0)
-    relevant = int(citation_filter.get("relevant") or 0)
+    relevant = (
+        int(citation_filter.get("relevant") or 0)
+        if has_citation_filter else
+        len([value for value in decision.get("evidence_ids") or [] if str(value)])
+    )
     if dropped:
         caveats.append(
             f"{dropped} cited record{'s were' if dropped != 1 else ' was'} removed because "
@@ -451,30 +457,33 @@ def candidate_review_status(decision: Mapping[str, Any]) -> tuple[str, list[str]
         if isinstance(gates.get("evidence_quality"), Mapping)
         else {}
     )
-    if relevant < 2 and dropped > 0:
-        status = "rejected"
-    elif failed & {"specificity", "anomaly", "parity", "investigability"}:
-        status = "rejected"
-    elif "evidence_quality" in failed:
-        status = "rejected" if (
-            int(quality_metrics.get("reportage_records") or 0)
-            >= max(1, int(quality_metrics.get("firsthand_records") or 0))
-        ) else "needs_more_evidence"
-    elif "conversation_depth" in unknown and not failed:
-        status = "needs_more_evidence"
-    elif unknown & {"anomaly", "parity"} and not failed:
-        status = (
-            "search_movement_only"
-            if trajectory_is_usable(decision.get("trajectory"))
-            else "rejected"
+    behavior_supported = (
+        isinstance(gates.get("behavior"), Mapping)
+        and (
+            gates["behavior"].get("state") == "pass"
+            or int(behavior_metrics.get("records") or 0) >= 1
         )
-    elif (
-        ("behavior" in failed and int(behavior_metrics.get("records") or 0) >= 1)
-        or ("breadth" in failed and int(breadth_metrics.get("authors") or 0) >= 1)
-    ):
-        status = "needs_more_evidence"
-    else:
+    )
+    reportage_dominated = (
+        "evidence_quality" in failed
+        and int(quality_metrics.get("reportage_records") or 0)
+        >= max(1, int(quality_metrics.get("firsthand_records") or 0))
+    )
+    if relevant < 1:
         status = "rejected"
+    elif "specificity" in failed or not behavior_supported:
+        status = "rejected"
+    elif reportage_dominated:
+        status = "rejected"
+    elif unknown & {"anomaly", "parity"} and not failed and trajectory_is_usable(
+        decision.get("trajectory")
+    ):
+        status = "search_movement_only"
+    else:
+        # Persistence, breadth, depth, anomaly, parity, and company-investigability
+        # are trade-stage questions. A specific cited behavior remains visible while
+        # those questions are unresolved or fail, with the reasons shown explicitly.
+        status = "needs_more_evidence"
     return status, blockers, caveats
 
 
@@ -874,6 +883,8 @@ class PrivateRadarStore:
                 if isinstance(raw.get("engagement"), Mapping)
                 else {}
             )
+            item["age_days"] = raw.get("age_days")
+            item["recency_bucket"] = raw.get("recency_bucket")
             item["record_type"] = str(item.get("record_type") or "root")
             item["root_post_external_id"] = (
                 item.get("root_post_external_id")
@@ -1537,25 +1548,33 @@ class PrivateRadarScanner:
                     progress=41,
                     sources=sources,
                 )
-                for index, panel in enumerate(self.panels):
+                panel_anchor_candidates = {}
+                for panel in self.panels:
                     panel_roots = [
                         item for item in current_evidence
                         if item.get("panel_id") == panel.panel_id
                         and str(item.get("record_type") or "root") == "root"
                     ]
-                    anchors = select_adaptive_anchors(
+                    panel_anchor_candidates[panel.panel_id] = select_adaptive_anchors(
                         extract_observation_anchors(
                             panel_roots,
                             panel_id=panel.panel_id,
                             seed_query=panel.search_term,
                         ),
-                        high_support_limit=3,
+                        high_support_limit=1,
                         exploration_limit=1,
                     )
+                planned_anchors = plan_adaptive_anchor_batches(
+                    panel_anchor_candidates,
+                    panel_order=[panel.panel_id for panel in self.panels],
+                    max_total=20,
+                )
+                for index, panel in enumerate(self.panels):
+                    anchors = planned_anchors.get(panel.panel_id) or []
                     if anchors:
                         adaptive_bounds = {
-                            "max_anchors": 4,
-                            "max_roots_per_platform": 2,
+                            "max_anchors": len(anchors),
+                            "max_roots_per_platform": 1,
                             "max_comments_per_root": 20,
                             "max_depth": 2,
                         }

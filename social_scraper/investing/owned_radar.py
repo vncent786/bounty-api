@@ -15,7 +15,10 @@ from apis.news_search import GOOGLE_NEWS_RSS, parse_google_news_rss
 from apis.social_search_api import build_default_broker
 from social_scraper.connectors.x_graphql import XConnector
 from social_scraper.investing.adaptive_investigation import make_query_lineage_id
-from social_scraper.investing.google_discovery import collect_worldwide_trend_candidates
+from social_scraper.investing.google_discovery import (
+    MOVEMENT_GEOGRAPHIES,
+    collect_worldwide_trend_candidates,
+)
 from social_scraper.investing.private_radar import (
     DEFAULT_PANELS,
     NON_X_DISCOVERY_PLATFORMS,
@@ -60,7 +63,11 @@ REDDIT_PANEL_QUERIES = {
 }
 
 
-SOURCE_QUERY_RECIPE_VERSION = "camillo-source-queries/1"
+SOURCE_QUERY_RECIPE_VERSION = "camillo-source-queries/2"
+DISCOVERY_LOOKBACK_DAYS = 90
+# Connectors do not expose a 90-day option consistently. Request the next wider
+# source-native window, then enforce the exact 90-day boundary locally.
+DISCOVERY_TIME_FILTER = "halfyear"
 SOURCE_PREFLIGHT_QUERIES = {
     # Verified production-shape query with current TikTok results. The first
     # consumer panel's "switching car" can legitimately return only stale rows,
@@ -68,7 +75,7 @@ SOURCE_PREFLIGHT_QUERIES = {
     "tiktok": "switching skincare",
 }
 DEFAULT_ADAPTIVE_PLATFORM_LIMITS = {
-    "x": 32,
+    "x": 64,
     "tiktok": 48,
     "instagram": 48,
     "reddit": 48,
@@ -82,7 +89,7 @@ class AdaptiveCollectionBudget:
     def __init__(
         self,
         *,
-        max_attempts: int = 224,
+        max_attempts: int = 240,
         per_platform_limits: Mapping[str, int] | None = None,
     ):
         self.max_attempts = max(0, int(max_attempts))
@@ -255,6 +262,7 @@ def _normalise_item(
     window_start: datetime | None = None,
     window_end: datetime | None = None,
     require_timestamp: bool = False,
+    max_age_days: int | None = DISCOVERY_LOOKBACK_DAYS,
 ) -> dict[str, Any] | None:
     value = dict(item)
     text = str(value.get("text") or value.get("title") or "").strip()
@@ -273,12 +281,19 @@ def _normalise_item(
         )
     ):
         return None
+    age_days = None
+    if parsed_created_at is not None:
+        age_days = max(
+            0,
+            (datetime.now(timezone.utc) - parsed_created_at).days,
+        )
     if (
         window_start is None
         and window_end is None
         and window_key == "current"
-        and parsed_created_at is not None
-        and parsed_created_at < datetime.now(timezone.utc) - timedelta(days=35)
+        and age_days is not None
+        and max_age_days is not None
+        and age_days > max(0, int(max_age_days))
     ):
         return None
     author = value.get("author") or {}
@@ -320,6 +335,14 @@ def _normalise_item(
         "text": text[:6000],
         "engagement": _normalise_engagement(value.get("engagement")),
         "created_at": created_at,
+        "age_days": age_days,
+        "recency_bucket": (
+            "timestamp_missing"
+            if age_days is None else
+            "last_30_days" if age_days <= 30 else
+            "last_90_days" if age_days <= DISCOVERY_LOOKBACK_DAYS else
+            "historical"
+        ),
         "observed_at": _utc_iso(),
         "window_key": window_key,
         "query": query,
@@ -369,9 +392,9 @@ class OwnedRadarCollector:
         self, broker=None, x_connector=None, trajectory_check_fn=None,
         trend_discovery_fn=None,
         *,
-        adaptive_max_attempts: int = 224,
+        adaptive_max_attempts: int = 240,
         adaptive_per_platform_limits: Mapping[str, int] | None = None,
-        trend_candidate_limit: int = 8,
+        trend_candidate_limit: int = 4,
     ):
         self.broker = broker or build_default_broker(route_timeout_seconds=90.0)
         self.x_connector = x_connector or XConnector()
@@ -404,7 +427,7 @@ class OwnedRadarCollector:
                     platform, panel_platform_query(panel, platform)
                 ),
                 count=3,
-                time_filter="month",
+                time_filter=DISCOVERY_TIME_FILTER,
                 sort="latest",
                 hydrate=False,
                 retry_empty=(platform == "tiktok"),
@@ -534,7 +557,7 @@ class OwnedRadarCollector:
             else:
                 try:
                     x_result = await self.x_connector.search(
-                        x_query, count=10, time_filter="month", sort="latest"
+                        x_query, count=10, time_filter=DISCOVERY_TIME_FILTER, sort="latest"
                     )
                 except Exception as exc:
                     sources.append({
@@ -574,7 +597,7 @@ class OwnedRadarCollector:
             platform_results = await asyncio.gather(*(
                 self._broker_search(
                     panel, platform, keyword,
-                    count=5, time_filter="month", sort="latest", hydrate=False,
+                    count=5, time_filter=DISCOVERY_TIME_FILTER, sort="latest", hydrate=False,
                     budget=budget,
                     budget_operation="trend_candidate_search",
                 )
@@ -794,7 +817,7 @@ class OwnedRadarCollector:
         for query_index, query in enumerate(queries):
             try:
                 x_result = await self.x_connector.search(
-                    query, count=30, time_filter="month", sort="latest"
+                    query, count=30, time_filter=DISCOVERY_TIME_FILTER, sort="latest"
                 )
             except Exception as exc:
                 sources.append({
@@ -833,7 +856,7 @@ class OwnedRadarCollector:
                 platform,
                 panel_platform_query(panel, platform),
                 count=8,
-                time_filter="month",
+                time_filter=DISCOVERY_TIME_FILTER,
                 sort="latest",
                 hydrate=False,
             )
@@ -897,7 +920,7 @@ class OwnedRadarCollector:
                     x_result = await self.x_connector.search(
                         x_query,
                         count=8,
-                        time_filter="month",
+                        time_filter=DISCOVERY_TIME_FILTER,
                         sort="latest",
                     )
                 except Exception as exc:
@@ -956,7 +979,7 @@ class OwnedRadarCollector:
                     platform,
                     query,
                     count=8,
-                    time_filter="month",
+                    time_filter=DISCOVERY_TIME_FILTER,
                     sort="latest",
                     hydrate=False,
                     query_lineage_id=lineage,
@@ -1240,7 +1263,7 @@ class OwnedRadarCollector:
                 platform,
                 query,
                 count=5,
-                time_filter="month",
+                time_filter=DISCOVERY_TIME_FILTER,
                 sort="latest",
                 hydrate=True,
             )
@@ -1263,7 +1286,13 @@ async def check_search_trajectory(query: str) -> dict[str, Any]:
 async def check_movement_bundles(
     candidates: Sequence[Mapping[str, Any]],
 ) -> list[dict[str, Any]]:
-    return await asyncio.to_thread(collect_movement_bundles, candidates)
+    # Worldwide history answers the initial durability question. Additional
+    # countries are progressive enrichment, not a prerequisite for discovery.
+    return await asyncio.to_thread(
+        collect_movement_bundles,
+        candidates,
+        geographies=MOVEMENT_GEOGRAPHIES[:1],
+    )
 
 
 async def check_news_parity(label: str, anchors: Sequence[str]) -> dict[str, Any]:

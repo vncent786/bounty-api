@@ -1,6 +1,7 @@
 from social_scraper.investing.adaptive_investigation import (
     extract_observation_anchors,
     make_query_lineage_id,
+    plan_adaptive_anchor_batches,
     select_adaptive_anchors,
 )
 
@@ -136,3 +137,38 @@ def test_query_lineage_is_stable_and_changes_with_query():
     assert first == same
     assert first != changed
     assert len(first) == 24
+
+
+def test_global_adaptive_plan_covers_each_panel_before_four_exploration_slots():
+    panel_order = [f"panel-{index}" for index in range(16)]
+    panel_anchors = {
+        panel_id: [{
+            "anchor_id": f"{panel_id}-primary",
+            "normalized_anchor": f"{panel_id} primary product",
+            "support_count": 5,
+            "engagement_total": 100,
+        }, {
+            "anchor_id": f"{panel_id}-explore",
+            "normalized_anchor": f"{panel_id} unusual product",
+            "support_count": 1,
+            "engagement_total": index,
+        }]
+        for index, panel_id in enumerate(panel_order)
+    }
+
+    planned = plan_adaptive_anchor_batches(
+        panel_anchors,
+        panel_order=panel_order,
+        max_total=20,
+    )
+
+    assert sum(len(values) for values in planned.values()) == 20
+    assert all(planned[panel_id][0]["anchor_id"].endswith("-primary") for panel_id in panel_order)
+    exploration = [
+        item["anchor_id"]
+        for values in planned.values()
+        for item in values[1:]
+    ]
+    assert exploration == [
+        "panel-0-explore", "panel-1-explore", "panel-2-explore", "panel-3-explore",
+    ]

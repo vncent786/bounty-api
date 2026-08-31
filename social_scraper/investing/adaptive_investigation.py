@@ -232,6 +232,46 @@ def _token_similarity(left: str, right: str) -> float:
     return len(a & b) / max(1, len(a | b))
 
 
+def plan_adaptive_anchor_batches(
+    panel_anchors: Mapping[str, Sequence[Mapping[str, Any]]],
+    *,
+    panel_order: Sequence[str],
+    max_total: int = 20,
+) -> dict[str, list[dict[str, Any]]]:
+    """Cover panels once, then spend a small reserve on quiet exploration anchors."""
+    limit = max(0, int(max_total))
+    planned: dict[str, list[dict[str, Any]]] = {
+        str(panel_id): [] for panel_id in panel_order
+    }
+    used = 0
+    for panel_id in panel_order:
+        values = [dict(value) for value in panel_anchors.get(str(panel_id), ())]
+        if not values or used >= limit:
+            continue
+        planned[str(panel_id)].append(values[0])
+        used += 1
+
+    extras = []
+    for panel_index, panel_id in enumerate(panel_order):
+        for value in panel_anchors.get(str(panel_id), ())[1:]:
+            item = dict(value)
+            extras.append((
+                int(item.get("engagement_total") or 0),
+                -int(item.get("support_count") or 0),
+                panel_index,
+                str(item.get("anchor_id") or ""),
+                str(panel_id),
+                item,
+            ))
+    extras.sort(key=lambda row: row[:-1])
+    for _engagement, _support, _panel_index, _anchor_id, panel_id, item in extras:
+        if used >= limit:
+            break
+        planned[panel_id].append(item)
+        used += 1
+    return planned
+
+
 def select_adaptive_anchors(
     anchors: Sequence[Mapping[str, Any]], *,
     high_support_limit: int = 4,

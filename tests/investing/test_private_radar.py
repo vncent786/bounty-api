@@ -264,7 +264,7 @@ def test_supported_qualified_rejects_an_explicit_unknown_depth_gate():
     assert is_supported_qualified(decision) is False
 
 
-def test_review_requires_visible_movement_before_entering_the_worklist():
+def test_review_keeps_specific_cited_subject_when_comparable_movement_is_missing():
     gates = _passing_gates()
     gates["anomaly"] = {
         "state": "unknown", "passed": None,
@@ -273,7 +273,7 @@ def test_review_requires_visible_movement_before_entering_the_worklist():
     decision = {"gates": gates, "citation_filter": {"relevant": 3, "dropped": 0}}
 
     status, _blockers, _caveats = candidate_review_status(decision)
-    assert status == "rejected"
+    assert status == "needs_more_evidence"
 
     decision["trajectory"] = {
         "status": "complete",
@@ -284,6 +284,42 @@ def test_review_requires_visible_movement_before_entering_the_worklist():
     }
     status, _blockers, _caveats = candidate_review_status(decision)
     assert status == "search_movement_only"
+
+
+def test_trade_stage_parity_and_investigability_failures_remain_in_opportunity_queue():
+    for gate_name, reason in (
+        ("parity", "The sampled implication already has financial coverage."),
+        ("investigability", "Company exposure is not yet verified."),
+        ("persistence", "The behavior has not yet persisted across two weeks."),
+    ):
+        gates = _passing_gates()
+        gates[gate_name] = {
+            "state": "fail", "passed": False, "reason": reason, "metrics": {},
+        }
+        decision = {
+            "gates": gates,
+            "citation_filter": {"relevant": 1, "dropped": 4},
+        }
+
+        status, blockers, _caveats = candidate_review_status(decision)
+
+        assert status == "needs_more_evidence", gate_name
+        assert reason in blockers
+
+
+def test_specificity_failure_still_rejects_an_opportunity_seed():
+    gates = _passing_gates()
+    gates["specificity"] = {
+        "state": "fail", "passed": False,
+        "reason": "The subject is generic or unsupported.", "metrics": {},
+    }
+
+    status, _blockers, _caveats = candidate_review_status({
+        "gates": gates,
+        "citation_filter": {"relevant": 3, "dropped": 0},
+    })
+
+    assert status == "rejected"
 
 
 def test_reportage_dominated_quality_failure_is_rejected_not_watchlisted():
@@ -842,8 +878,8 @@ def test_adaptive_investigation_runs_before_model_and_replaces_late_corroboratio
             assert panel.panel_id == "beauty_skincare"
             assert anchors
             assert bounds == {
-                "max_anchors": 4,
-                "max_roots_per_platform": 2,
+                "max_anchors": 1,
+                "max_roots_per_platform": 1,
                 "max_comments_per_root": 20,
                 "max_depth": 2,
             }

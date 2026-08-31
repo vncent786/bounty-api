@@ -6,6 +6,7 @@ Google Trends is a movement sensor, not behavioral evidence. Values are normaliz
 
 from __future__ import annotations
 
+import os
 import re
 from collections import Counter
 from typing import Any, Mapping, Sequence
@@ -23,6 +24,16 @@ _QUERY_STOPWORDS = {
     "streaming", "the", "their", "this", "to", "true", "using", "with",
     "adoption", "recall", "trying", "membership",
 }
+
+
+def _google_request_delay() -> float:
+    try:
+        return max(
+            1.0,
+            float(os.getenv("BOUNTY_GOOGLE_TRENDS_REQUEST_DELAY", "16")),
+        )
+    except ValueError:
+        return 16.0
 
 
 def _norm(value: Any) -> str:
@@ -170,7 +181,7 @@ def collect_search_trajectory(
     try:
         if trends is None:
             from trendspy import Trends
-            trends = Trends(request_delay=4.0)
+            trends = Trends(request_delay=_google_request_delay())
         frame = trends.interest_over_time(
             [query],
             timeframe=timeframe,
@@ -281,7 +292,7 @@ def collect_movement_bundles(
     """Collect multiple transparent queries across selectable geographies/horizons."""
     if trends is None:
         from trendspy import Trends
-        trends = Trends(request_delay=8.0)
+        trends = Trends(request_delay=_google_request_delay())
 
     baskets = [build_trajectory_query_basket(candidate) for candidate in candidates]
     bundles: list[dict[str, Any]] = []

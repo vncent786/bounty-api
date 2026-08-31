@@ -89,6 +89,7 @@ def test_private_radar_separates_trade_ready_watch_and_rejected_states_without_s
     assert "renderOpportunityQueue" in script
     assert "What Bounty checks next" in script
     assert "These are research leads, not trade-ready ideas." in html
+    assert "last 90 days" in html
     assert "renderTrendDiscovery" in script
     assert "movementQueryOptions" in script
     assert "movementQueryRelevant" in script

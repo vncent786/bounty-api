@@ -22,13 +22,13 @@ from apis.news_search import GOOGLE_NEWS_RSS, parse_google_news_rss
 from social_scraper.investing.google_discovery import build_trend_context
 from social_scraper.investing.private_radar import (
     PrivateRadarStore,
+    build_opportunity_queue_items,
     candidate_review_status,
     is_supported_qualified,
     review_decision_with_current_methodology,
 )
 from social_scraper.investing.trajectory import (
     collect_movement_bundles,
-    collect_search_trajectory,
     derive_trajectory_query,
     select_default_movement_query,
     trajectory_is_usable,
@@ -212,7 +212,7 @@ def _recheck_decisions(
     store: PrivateRadarStore,
     scan: dict[str, Any],
     *,
-    trajectory_provider=collect_search_trajectory,
+    trajectory_provider=None,
     movement_bundles: list[dict[str, Any]] | None = None,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     evidence = store.evidence_for_run(scan["id"])
@@ -241,7 +241,18 @@ def _recheck_decisions(
                 candidate_saved.get("trajectory_query")
                 or derive_trajectory_query(candidate_saved)
             ).strip()
-            candidate_saved["trajectory"] = trajectory_provider(trajectory_query)
+            candidate_saved["trajectory"] = (
+                trajectory_provider(trajectory_query)
+                if trajectory_provider is not None
+                else {
+                    "query": trajectory_query,
+                    "source": "Google Trends",
+                    "status": "failed",
+                    "normalized": True,
+                    "points": [],
+                    "error_category": "not_persisted",
+                }
+            )
         decision, linked_records = review_decision_with_current_methodology(
             candidate_saved, evidence_by_id
         )
@@ -274,8 +285,73 @@ def _recheck_decisions(
     return qualified, reviewed
 
 
+def _recheck_opportunities(
+    store: PrivateRadarStore,
+    scan: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Rebuild the opportunity lane from immutable evidence under current rules."""
+    evidence = store.evidence_for_run(scan["id"])
+    evidence_by_id = {str(item["id"]): item for item in evidence}
+    rechecked = []
+    decision_by_key = {}
+    for saved in scan.get("decisions") or []:
+        decision, linked = review_decision_with_current_methodology(
+            dict(saved), evidence_by_id
+        )
+        if decision and linked:
+            if not isinstance(decision.get("trajectory"), dict):
+                trajectory_query = str(
+                    decision.get("trajectory_query")
+                    or derive_trajectory_query(decision)
+                ).strip()
+                decision["trajectory"] = {
+                    "query": trajectory_query,
+                    "source": "Google Trends",
+                    "status": "failed",
+                    "normalized": True,
+                    "points": [],
+                    "error_category": "not_persisted",
+                }
+            if not isinstance(decision.get("movement_bundle"), dict):
+                decision["movement_bundle"] = {
+                    "source": "Google Trends",
+                    "status": "not_persisted",
+                    "query_options": [],
+                    "series": {},
+                }
+            rechecked.append(decision)
+            decision_by_key[str(decision.get("candidate_id") or "")] = decision
+    opportunities = build_opportunity_queue_items(rechecked, evidence_by_id)
+    values = []
+    for item in opportunities:
+        evidence_ids = [str(value) for value in item.get("evidence_ids") or []]
+        linked = [
+            _snapshot_evidence(evidence_by_id[evidence_id])
+            for evidence_id in evidence_ids
+            if evidence_id in evidence_by_id
+        ]
+        if len(linked) != len(evidence_ids) or not linked:
+            continue
+        source_decision = decision_by_key.get(
+            str(item.get("opportunity_key") or ""),
+            {},
+        )
+        values.append({
+            key: value for key, value in item.items()
+            if key not in {"payload"}
+        } | {
+            "evidence": linked,
+            "trajectory": dict(source_decision.get("trajectory") or {}),
+            "movement_bundle": dict(source_decision.get("movement_bundle") or {}),
+        })
+    return values
+
+
 def build_snapshot(
-    db_path: Path, *, movement_provider=collect_movement_bundles,
+    db_path: Path,
+    *,
+    movement_provider=None,
+    refresh_external: bool = False,
 ) -> dict[str, Any]:
     store = PrivateRadarStore(db_path)
     scan = store.latest_attempt()
@@ -287,8 +363,10 @@ def build_snapshot(
         dict(value) for value in trend_discovery.get("candidates") or []
         if isinstance(value, dict)
     ]
-    if trend_candidates:
-        asyncio.run(_refresh_trend_context(trend_candidates))
+    for candidate in trend_candidates:
+        if not isinstance(candidate.get("context"), dict):
+            candidate["context"] = build_trend_context(candidate)
+            candidate["context_mode"] = "deterministic_persisted_context"
     saved_decisions = [
         dict(value) for value in scan.get("decisions") or []
         if isinstance(value, dict)
@@ -300,33 +378,34 @@ def build_snapshot(
         }
         for candidate in trend_candidates
     ] + saved_decisions
-    trend_cache, decision_cache = _existing_movement_bundles(scan["id"])
-    movement_bundles: list[dict[str, Any] | None] = [None] * len(movement_inputs)
-    trend_count = len(trend_candidates)
-    for index, candidate in enumerate(trend_candidates):
-        cached = trend_cache.get(str(candidate.get("keyword") or ""))
-        if cached:
-            movement_bundles[index] = select_default_movement_query(cached)
-    for offset, decision in enumerate(saved_decisions, start=trend_count):
-        cached = decision_cache.get(str(decision.get("candidate_id") or ""))
-        if cached:
-            movement_bundles[offset] = select_default_movement_query(cached)
+    movement_bundles: list[dict[str, Any] | None] = []
+    for value in movement_inputs:
+        bundle = value.get("movement_bundle")
+        movement_bundles.append(
+            select_default_movement_query(dict(bundle))
+            if isinstance(bundle, dict) and bundle.get("query_options")
+            else None
+        )
     missing_indices = [
         index for index, bundle in enumerate(movement_bundles) if bundle is None
     ]
-    if missing_indices:
-        fresh = list(movement_provider([movement_inputs[index] for index in missing_indices]))
+    if refresh_external and missing_indices:
+        provider = movement_provider or collect_movement_bundles
+        fresh = list(provider([movement_inputs[index] for index in missing_indices]))
         if len(fresh) != len(missing_indices):
             raise RuntimeError("Google movement backfill returned an incomplete bundle set")
         for index, bundle in zip(missing_indices, fresh):
-            movement_bundles[index] = select_default_movement_query(bundle)
-    if any(bundle is None for bundle in movement_bundles):
-        raise RuntimeError("Google movement backfill left an unresolved bundle")
-    resolved_bundles = [dict(bundle) for bundle in movement_bundles if bundle is not None]
+            movement_bundles[index] = select_default_movement_query(dict(bundle))
+    resolved_bundles = [
+        dict(bundle) if isinstance(bundle, dict) else {}
+        for bundle in movement_bundles
+    ]
+    trend_count = len(trend_candidates)
     for candidate, bundle in zip(
         trend_candidates, resolved_bundles[:trend_count]
     ):
-        candidate["movement_bundle"] = bundle
+        if bundle:
+            candidate["movement_bundle"] = bundle
     if payload.get("trend_discovery") is not None:
         payload["trend_discovery"]["candidates"] = trend_candidates
     qualified, reviewed = _recheck_decisions(
@@ -334,15 +413,18 @@ def build_snapshot(
         scan,
         movement_bundles=resolved_bundles[trend_count:],
     )
-    if not qualified and not reviewed:
+    opportunities = _recheck_opportunities(store, scan)
+    if not qualified and not reviewed and not opportunities:
         raise RuntimeError(
-            "the latest scan has no cited subjects with usable search movement"
+            "the latest scan has no cited subjects or opportunity investigations"
         )
     payload["items"] = qualified
     payload["review_items"] = reviewed
+    payload["opportunity_queue"] = opportunities
     payload["review_scan"] = store._public_scan(scan)
     payload["coverage"]["summary"] = (
-        f"{len(qualified)} trade-ready leads and {len(reviewed)} reviewed subjects "
+        f"{len(qualified)} trade-ready leads, {len(opportunities)} active investigations, "
+        f"and {len(reviewed)} reviewed subjects "
         f"from {scan['evidence_count']} stored evidence records; "
         + payload["coverage"]["summary"].split(";", 1)[-1].strip()
     )
@@ -353,8 +435,9 @@ def build_snapshot(
         "performed": True,
         "source_run_id": scan["id"],
         "new_social_collection": False,
-        "google_context_refreshed": True,
-        "google_movement_refreshed": True,
+        "google_context_refreshed": False,
+        "google_movement_refreshed": bool(refresh_external),
+        "google_movement_reused_from_scan": True,
         "refreshed_at": datetime.now(timezone.utc).isoformat(),
     }
     return payload

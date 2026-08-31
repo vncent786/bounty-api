@@ -2,11 +2,13 @@ import asyncio
 
 from social_scraper.base import ConnectorResult, SocialItem, SourceHealth
 from social_scraper.conversations.thread_reader import ThreadFetchResult, ThreadRecord
+import social_scraper.investing.owned_radar as owned_radar_module
 from social_scraper.investing.owned_radar import (
     AdaptiveCollectionBudget,
     OwnedRadarCollector,
     SOURCE_QUERY_RECIPE_VERSION,
     _source_status,
+    check_movement_bundles,
     panel_platform_query,
 )
 from social_scraper.investing.private_radar import DEFAULT_PANELS
@@ -23,7 +25,7 @@ def test_source_native_panel_queries_are_short_and_platform_specific():
         panel_platform_query(panel, platform)
         for platform in ("reddit", "tiktok", "instagram", "youtube")
     }) == 4
-    assert SOURCE_QUERY_RECIPE_VERSION == "camillo-source-queries/1"
+    assert SOURCE_QUERY_RECIPE_VERSION == "camillo-source-queries/2"
 
 
 def test_source_status_does_not_attach_an_unused_fallback_error_to_a_success():
@@ -271,8 +273,8 @@ def test_owned_discovery_runs_all_platforms_before_shortlisting():
         "tiktok", "instagram", "reddit", "youtube",
     }
     assert all(source["stage"] == "discovery" for source in result["sources"])
-    assert all(call["time_filter"] == "month" for call in collector.x_connector.search_calls)
-    assert all(call["time_filter"] == "month" for call in broker.search_calls)
+    assert all(call["time_filter"] == "halfyear" for call in collector.x_connector.search_calls)
+    assert all(call["time_filter"] == "halfyear" for call in broker.search_calls)
     reddit_call = next(call for call in broker.search_calls if call["platform"] == "reddit")
     assert reddit_call["keyword"] == "car"
 
@@ -739,7 +741,7 @@ def test_owned_preflight_requires_every_release_source():
         if call["platform"] == "tiktok"
     )
     assert tiktok_call["keyword"] == "switching skincare"
-    assert tiktok_call["time_filter"] == "month"
+    assert tiktok_call["time_filter"] == "halfyear"
     assert tiktok_call["sort"] == "latest"
 
 
@@ -814,3 +816,24 @@ def test_owned_preflight_records_a_source_exception_without_starting_a_scan():
         "count": 0,
         "error_category": "RuntimeError",
     }
+
+
+def test_initial_google_movement_collection_is_worldwide_only(monkeypatch):
+    captured = {}
+
+    def fake_collect(candidates, **kwargs):
+        captured["candidates"] = list(candidates)
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(
+        owned_radar_module,
+        "collect_movement_bundles",
+        fake_collect,
+    )
+
+    result = asyncio.run(check_movement_bundles([{"label": "Specific behavior"}]))
+
+    assert result == []
+    assert len(captured["geographies"]) == 1
+    assert captured["geographies"][0]["code"] == ""

@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 
 from social_scraper.investing.trajectory import (
+    _google_request_delay,
     build_trajectory_query_basket,
     collect_movement_bundles,
     collect_search_trajectory,
@@ -57,6 +58,17 @@ class FakeTrends:
             "headers": headers,
         })
         return FakeFrame(queries[0], self.values)
+
+
+def test_google_request_delay_defaults_to_trendspy_recommended_16_seconds(monkeypatch):
+    monkeypatch.delenv("BOUNTY_GOOGLE_TRENDS_REQUEST_DELAY", raising=False)
+    assert _google_request_delay() == 16.0
+
+    monkeypatch.setenv("BOUNTY_GOOGLE_TRENDS_REQUEST_DELAY", "20")
+    assert _google_request_delay() == 20.0
+
+    monkeypatch.setenv("BOUNTY_GOOGLE_TRENDS_REQUEST_DELAY", "invalid")
+    assert _google_request_delay() == 16.0
 
 
 def test_trajectory_query_prefers_repeated_specific_phrases():

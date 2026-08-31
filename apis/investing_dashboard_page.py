@@ -60,7 +60,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <div>
           <p class="eyebrow">01 / Private information-arbitrage desk</p>
           <h1 id="radar-title">Find specific behavior shifts before they become consensus.</h1>
-          <p>Run an owned-source scan. Only candidates that pass historical, behavior, breadth, citation, and information-parity checks appear here.</p>
+          <p>Preserve valid behavior evidence from the last 90 days. Specific cited observations enter Opportunity Investigations even when strict trade gates are still unresolved.</p>
         </div>
         <button class="primary-action" id="reload-radar" type="button">Run private scan</button>
       </header>
@@ -101,7 +101,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
             <div>
               <p class="lane-number">Layer 01</p>
               <h2 id="opportunity-title">Opportunity investigations</h2>
-              <p>Specific cited observations that deserve deeper replication. These are research leads, not trade-ready ideas.</p>
+              <p>Specific cited behavior from the last 90 days that deserves deeper replication. These are research leads, not trade-ready ideas.</p>
             </div>
             <span class="lane-status" id="opportunity-status">Checking active investigations</span>
           </header>

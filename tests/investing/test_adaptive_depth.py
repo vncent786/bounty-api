@@ -1,4 +1,5 @@
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 from social_scraper.conversations.thread_reader import ThreadFetchResult, ThreadRecord
 from social_scraper.investing.owned_radar import _normalise_item, _thread_evidence
@@ -47,6 +48,35 @@ def test_stale_ranked_search_root_does_not_count_as_current_evidence():
     )
 
     assert value is None
+
+
+def test_current_discovery_keeps_90_days_and_rejects_older_rows():
+    now = datetime.now(timezone.utc)
+
+    def normalize(age_days):
+        return _normalise_item(
+            {
+                "platform": "tiktok",
+                "post_id": f"root-{age_days}",
+                "url": f"https://tiktok.com/root-{age_days}",
+                "author": {"username": "person"},
+                "text": "I switched to a silicone air fryer liner",
+                "created_at": (
+                    now - timedelta(days=age_days)
+                ).isoformat(),
+            },
+            panel_id="household_cleaning",
+            window_key="current",
+            query="silicone air fryer liner",
+        )
+
+    retained = normalize(89)
+    rejected = normalize(91)
+
+    assert retained is not None
+    assert retained["recency_bucket"] == "last_90_days"
+    assert retained["age_days"] == 89
+    assert rejected is None
 
 
 def test_thread_evidence_preserves_relationships_and_truncation():

@@ -1025,6 +1025,17 @@ class OwnedRadarCollector:
                 query = str(root.get("_adaptive_query") or "")
                 lineage = str(root.get("_adaptive_lineage") or "")
                 anchor_id = str(root.get("_adaptive_anchor_id") or "")
+                requested_comments = max(0, int(max_comments_per_root))
+                if platform == "reddit":
+                    reported_comments = (root.get("engagement") or {}).get("comments")
+                    if isinstance(reported_comments, int) and reported_comments > 0:
+                        # One installed-client request can retrieve up to 100 comments.
+                        # Match the source-reported thread size when practical rather
+                        # than truncating every Reddit conversation at an arbitrary 20.
+                        requested_comments = min(
+                            100,
+                            max(requested_comments, reported_comments),
+                        )
                 if budget is not None and not budget.reserve(
                     platform=platform, operation="adaptive_thread_read"
                 ):
@@ -1047,7 +1058,7 @@ class OwnedRadarCollector:
                 try:
                     thread = await self.broker.fetch_thread(
                         root,
-                        max_comments=max(0, int(max_comments_per_root)),
+                        max_comments=requested_comments,
                         max_depth=max(0, int(max_depth)),
                     )
                 except Exception as exc:

@@ -1,8 +1,11 @@
 import asyncio
 import json
+import threading
 from datetime import datetime, timezone
 
 from social_scraper.broker import SourceBroker
+from social_scraper.base import BaseConnector, SocialItem
+from social_scraper.conversations.thread_reader import ThreadFetchResult
 from social_scraper.connectors.reddit_mobile import (
     RedditMobileConnector,
     load_or_create_device_id,
@@ -25,6 +28,29 @@ POST = {
     "is_self": True,
     "link_flair_text": "Analysis",
 }
+
+THREAD_PAYLOAD = [
+    {"kind": "Listing", "data": {"children": [{"kind": "t3", "data": POST}]}},
+    {"kind": "Listing", "data": {"children": [{
+        "kind": "t1",
+        "data": {
+            "id": "c1", "parent_id": "t3_abc123", "author_fullname": "t2_user1",
+            "author": "user1", "body": "I switched too", "score": 8,
+            "created_utc": 1_785_733_200,
+            "permalink": "/r/stocks/comments/abc123/earnings_revision/c1/",
+            "replies": {"kind": "Listing", "data": {"children": [{
+                "kind": "t1",
+                "data": {
+                    "id": "c2", "parent_id": "t1_c1", "author": "user2",
+                    "body": "Same reason here", "score": 3,
+                    "created_utc": 1_785_736_800,
+                    "permalink": "/r/stocks/comments/abc123/earnings_revision/c2/",
+                    "replies": "",
+                },
+            }]}},
+        },
+    }]}}
+]
 
 
 class FakeResponse:
@@ -210,3 +236,234 @@ def test_rejected_token_is_refreshed_once(tmp_path):
     assert [method for method, _ in calls] == ["POST", "GET", "POST", "GET"]
     assert result.health.status == "ok"
     assert result.items[0].post_id == "abc123"
+
+
+def test_mobile_installed_client_hydrates_comment_tree_without_developer_oauth(
+    tmp_path, monkeypatch,
+):
+    for name in (
+        "REDDIT_CLIENT_ID", "REDDIT_CLIENT_SECRET", "REDDIT_USERNAME", "REDDIT_PASSWORD",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url, kwargs))
+        if method == "POST":
+            assert "access-token/loid" in url
+            assert kwargs["headers"]["Authorization"].startswith("Basic ")
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        assert url.endswith("/comments/abc123")
+        assert kwargs["headers"]["Authorization"] == f"Bearer {'x' * 100}"
+        assert kwargs["params"]["depth"] == 2
+        return FakeResponse(200, THREAD_PAYLOAD)
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    post = SocialItem(
+        platform="reddit",
+        post_id="abc123",
+        url="https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+        comments=4,
+    )
+
+    result = asyncio.run(connector.fetch_thread(post, max_comments=20, max_depth=2))
+
+    assert result.status == "partial"
+    assert result.attempted_route == "reddit_mobile_installed_client_comments"
+    assert result.error_category is None
+    assert result.platform_reported_total == 4
+    assert [record.external_id for record in result.records] == ["c1", "c2"]
+    assert result.records[1].parent_external_id == "c1"
+    assert [method for method, _url, _kwargs in calls] == ["POST", "GET"]
+
+
+def test_mobile_thread_caps_request_and_parser_output_at_100(tmp_path):
+    request_limits = []
+    comments = []
+    for index in range(101):
+        comments.append({
+            "kind": "t1",
+            "data": {
+                "id": f"c{index}", "parent_id": "t3_abc123",
+                "author": f"user{index}", "body": f"comment {index}",
+                "score": index, "created_utc": 1_785_733_200 + index,
+                "permalink": f"/r/stocks/comments/abc123/earnings_revision/c{index}/",
+                "replies": "",
+            },
+        })
+    post = {**POST, "num_comments": 101}
+    payload = [
+        {"kind": "Listing", "data": {"children": [{"kind": "t3", "data": post}]}},
+        {"kind": "Listing", "data": {"children": comments}},
+    ]
+
+    def request(method, url, **kwargs):
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        request_limits.append(kwargs["params"]["limit"])
+        return FakeResponse(200, payload)
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    root = SocialItem(
+        platform="reddit", post_id="abc123",
+        url="https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+        comments=101,
+    )
+
+    result = asyncio.run(connector.fetch_thread(root, max_comments=500, max_depth=2))
+
+    assert request_limits == [100]
+    assert result.max_comments == 100
+    assert result.returned_count == 100
+    assert result.status == "partial"
+    assert result.truncated is True
+
+
+def test_broker_prefers_mobile_installed_client_for_reddit_thread_depth(tmp_path):
+    calls = []
+
+    def request(method, url, **kwargs):
+        calls.append((method, url))
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        return FakeResponse(200, THREAD_PAYLOAD)
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    broker = SourceBroker()
+    broker.register(connector, priority=1)
+    item = {
+        "platform": "reddit", "post_id": "abc123",
+        "url": "https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+        "engagement": {"comments": 4},
+        "provenance": {"connector": "reddit_mobile_owned"},
+    }
+
+    result = asyncio.run(broker.fetch_thread(item, max_comments=20, max_depth=2))
+
+    assert result.attempted_route == "reddit_mobile_installed_client_comments"
+    assert result.returned_count == 2
+    assert calls == [("POST", "https://www.reddit.com/auth/v2/oauth/access-token/loid"),
+                     ("GET", "https://oauth.reddit.com/comments/abc123")]
+
+
+def test_mobile_thread_rate_limit_is_explicit(tmp_path):
+    def request(method, url, **kwargs):
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        return FakeResponse(429, {})
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    post = SocialItem(
+        platform="reddit", post_id="abc123",
+        url="https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+    )
+
+    result = asyncio.run(connector.fetch_thread(post, max_comments=20, max_depth=2))
+
+    assert result.status == "unavailable"
+    assert result.error_category == "reddit_mobile_rate_limited"
+    assert result.attempted_route == "reddit_mobile_installed_client_comments"
+
+
+def test_broker_does_not_mask_selected_mobile_thread_failure_with_fallback(tmp_path):
+    class FallbackConnector(BaseConnector):
+        platform = "reddit"
+        connector_name = "fallback_reddit"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def search(self, keyword, count=20, time_filter="", sort="", region=""):
+            raise AssertionError("not used")
+
+        async def health_check(self):
+            raise AssertionError("not used")
+
+        async def fetch_thread(self, post, max_comments, max_depth):
+            self.calls += 1
+            return ThreadFetchResult(
+                platform="reddit", root_post_external_id=post.post_id,
+                status="complete", attempted_route="masked_fallback",
+                max_comments=max_comments, max_depth=max_depth,
+            )
+
+    def request(method, url, **kwargs):
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        return FakeResponse(429, {})
+
+    mobile = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    fallback = FallbackConnector()
+    broker = SourceBroker()
+    broker.register(mobile, priority=1)
+    broker.register(fallback, priority=2)
+    item = {
+        "platform": "reddit", "post_id": "abc123",
+        "url": "https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+        "provenance": {"connector": "reddit_mobile_owned"},
+    }
+
+    result = asyncio.run(broker.fetch_thread(item, max_comments=20, max_depth=2))
+
+    assert result.status == "unavailable"
+    assert result.error_category == "reddit_mobile_rate_limited"
+    assert result.attempted_route == "reddit_mobile_installed_client_comments"
+    assert fallback.calls == 0
+
+
+def test_mobile_thread_cancellation_waits_for_bounded_worker_cleanup(tmp_path):
+    started = threading.Event()
+    release = threading.Event()
+
+    def request(method, url, **kwargs):
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        started.set()
+        assert release.wait(timeout=5)
+        return FakeResponse(200, THREAD_PAYLOAD)
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    post = SocialItem(
+        platform="reddit", post_id="abc123",
+        url="https://www.reddit.com/r/stocks/comments/abc123/earnings_revision/",
+    )
+
+    async def run_probe():
+        task = asyncio.create_task(
+            connector.fetch_thread(post, max_comments=20, max_depth=2)
+        )
+        assert await asyncio.to_thread(started.wait, 2)
+        task.cancel()
+        await asyncio.sleep(0.05)
+        completed_before_release = task.done()
+        release.set()
+        try:
+            await task
+        except asyncio.CancelledError:
+            cancelled = True
+        else:
+            cancelled = False
+        return completed_before_release, cancelled
+
+    completed_before_release, cancelled = asyncio.run(run_probe())
+
+    assert completed_before_release is False
+    assert cancelled is True

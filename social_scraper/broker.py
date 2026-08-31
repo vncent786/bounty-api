@@ -74,6 +74,14 @@ class SourceBroker:
             except Exception:
                 continue
             last_result = result
+            if (
+                route.connector.connector_name == selected
+                and selected in {"reddit_mobile_owned"}
+            ):
+                # The installed-client Reddit route is an explicit auth/source
+                # boundary. Do not hide its 429/auth/unavailable receipt behind an
+                # anonymous JSON, archive, or browser fallback.
+                return result
             if result.status in {"complete", "partial", "empty", "disabled"}:
                 return result
         if last_result is not None:

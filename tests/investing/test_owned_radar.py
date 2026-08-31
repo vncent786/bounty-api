@@ -338,7 +338,10 @@ def test_adaptive_collection_is_bounded_and_preserves_thread_lineage():
                     "author": {"username": f"{platform}-author-{index}"},
                     "text": f"I switched to {keyword}",
                     "created_at": "2026-08-30T00:00:00Z",
-                    "engagement": {"comments": 10 - index, "likes": 5},
+                    "engagement": {
+                        "comments": (50 - index) if platform == "reddit" else (10 - index),
+                        "likes": 5,
+                    },
                 }
                 for index in range(3)
             ]
@@ -397,7 +400,14 @@ def test_adaptive_collection_is_bounded_and_preserves_thread_lineage():
     ))
 
     assert len(broker.thread_calls) == 8
-    assert all(call["max_comments"] == 20 for call in broker.thread_calls)
+    reddit_depth_calls = [
+        call for call in broker.thread_calls if call["platform"] == "reddit"
+    ]
+    other_depth_calls = [
+        call for call in broker.thread_calls if call["platform"] != "reddit"
+    ]
+    assert sorted(call["max_comments"] for call in reddit_depth_calls) == [50, 50]
+    assert all(call["max_comments"] == 20 for call in other_depth_calls)
     assert all(call["max_depth"] == 2 for call in broker.thread_calls)
     comments = [item for item in result["evidence"] if item["record_type"] == "comment"]
     assert len(comments) == 8

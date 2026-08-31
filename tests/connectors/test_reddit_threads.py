@@ -1,4 +1,5 @@
 import asyncio
+import copy
 
 from social_scraper.base import SocialItem
 from social_scraper.connectors.reddit import RedditConnector, parse_reddit_json_thread
@@ -44,8 +45,68 @@ def test_reddit_json_parser_preserves_reply_tree_and_more_placeholder():
     assert result.platform_reported_total == 5
     assert [record.external_id for record in result.records] == ["c1", "c2"]
     assert result.records[0].parent_external_id == "p1"
+    assert result.records[0].url == (
+        "https://www.reddit.com/r/test/comments/p1/topic/c1/"
+    )
     assert result.records[1].parent_external_id == "c1"
+    assert result.records[1].url == (
+        "https://www.reddit.com/r/test/comments/p1/topic/c2/"
+    )
+    assert result.records[1].record_type == "reply"
     assert result.records[1].depth == 2
+
+
+def test_reddit_thread_parser_drops_noncanonical_absolute_comment_url():
+    payload = copy.deepcopy(REDDIT_JSON)
+    payload[1]["data"]["children"][0]["data"]["permalink"] = (
+        "http://evil.example/comments/c1"
+    )
+
+    result = parse_reddit_json_thread(
+        post_id="p1", payload=payload, max_comments=10, max_depth=3,
+    )
+
+    assert result.records[0].external_id == "c1"
+    assert result.records[0].url is None
+
+
+def test_reddit_thread_parser_rejects_boolean_score_and_timestamp():
+    payload = copy.deepcopy(REDDIT_JSON)
+    comment = payload[1]["data"]["children"][0]["data"]
+    comment["score"] = True
+    comment["created_utc"] = True
+
+    result = parse_reddit_json_thread(
+        post_id="p1", payload=payload, max_comments=10, max_depth=3,
+    )
+
+    assert result.records[0].likes is None
+    assert result.records[0].published_at is None
+
+
+def test_reddit_thread_parser_enforces_hard_100_record_cap():
+    payload = copy.deepcopy(REDDIT_JSON)
+    template = payload[1]["data"]["children"][0]
+    comments = []
+    for index in range(101):
+        comment = copy.deepcopy(template)
+        data = comment["data"]
+        data["id"] = f"c{index}"
+        data["parent_id"] = "t3_p1"
+        data["permalink"] = f"/r/test/comments/p1/topic/c{index}/"
+        data["replies"] = ""
+        comments.append(comment)
+    payload[0]["data"]["children"][0]["data"]["num_comments"] = 101
+    payload[1]["data"]["children"] = comments
+
+    result = parse_reddit_json_thread(
+        post_id="p1", payload=payload, max_comments=500, max_depth=3,
+    )
+
+    assert result.max_comments == 100
+    assert result.returned_count == 100
+    assert result.status == "partial"
+    assert result.truncated is True
 
 
 def test_reddit_depth_bound_excludes_reply_without_reparenting():

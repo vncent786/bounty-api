@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 import weakref
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable, Optional
@@ -28,6 +29,7 @@ except ImportError:
     CURL_CFFI_AVAILABLE = False
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
+from social_scraper.conversations.thread_reader import ThreadFetchResult
 from social_scraper.connectors.reddit_camoufox import POST_PATH_RE, SUBREDDIT_RE, validate_reddit_url
 from social_scraper.proxy_config import build_playwright_proxy
 
@@ -251,7 +253,7 @@ class RedditMobileConnector(BaseConnector):
         return session.request(method, url, **kwargs)
 
     @staticmethod
-    def _json_response(response):
+    def _json_value_response(response):
         content = response.content
         if len(content) > _MAX_RESPONSE_BYTES:
             raise RuntimeError("Reddit response exceeded size limit")
@@ -259,6 +261,13 @@ class RedditMobileConnector(BaseConnector):
         if "json" not in content_type:
             raise RuntimeError("Reddit response was not JSON")
         payload = response.json()
+        if not isinstance(payload, (dict, list)):
+            raise RuntimeError("Reddit returned invalid JSON")
+        return payload
+
+    @classmethod
+    def _json_response(cls, response):
+        payload = cls._json_value_response(response)
         if not isinstance(payload, dict):
             raise RuntimeError("Reddit returned invalid JSON")
         return payload
@@ -569,6 +578,169 @@ class RedditMobileConnector(BaseConnector):
         finally:
             if not self.request_fn:
                 session.close()
+
+    def _fetch_thread_payload_unlocked(
+        self, post_id: str, max_comments: int, max_depth: int,
+    ):
+        if self.request_fn:
+            session = object()
+        else:
+            session = curl_requests.Session(impersonate="chrome")
+        proxy = _proxy_url()
+        proxies = {"http": proxy, "https": proxy} if proxy else None
+        headers = self._device_headers()
+        try:
+            self._ensure_token(session, headers, proxies)
+            refreshed_after_401 = False
+            while True:
+                oauth_headers = dict(headers)
+                oauth_headers.update(self._oauth_headers)
+                oauth_headers["Authorization"] = f"Bearer {self._token}"
+                response = self._request(
+                    session,
+                    "GET",
+                    f"{OAUTH_ORIGIN}/comments/{post_id}",
+                    params={
+                        "limit": min(max(1, int(max_comments)), 100),
+                        "depth": max(1, int(max_depth)),
+                        "sort": "confidence",
+                        "raw_json": 1,
+                    },
+                    headers=oauth_headers,
+                    proxies=proxies,
+                    timeout=35,
+                )
+                if response.status_code == 429:
+                    raise RedditMobileRateLimitError(
+                        "Reddit installed-client comments rate limited"
+                    )
+                if response.status_code == 401 and not refreshed_after_401:
+                    self._invalidate_token()
+                    self._ensure_token(session, headers, proxies)
+                    refreshed_after_401 = True
+                    continue
+                if response.status_code == 401:
+                    raise RedditMobileAuthError(
+                        "Reddit installed-client comments token rejected"
+                    )
+                if response.status_code != 200:
+                    raise RuntimeError("Reddit installed-client comments failed")
+                payload = self._json_value_response(response)
+                if not isinstance(payload, list) or len(payload) < 2:
+                    raise RuntimeError(
+                        "Reddit installed-client comments returned invalid JSON"
+                    )
+                return payload
+        finally:
+            if not self.request_fn:
+                session.close()
+
+    def _fetch_thread_payload(
+        self, post_id: str, max_comments: int, max_depth: int,
+    ):
+        with _MOBILE_SYNC_LOCK:
+            return self._fetch_thread_payload_unlocked(
+                post_id, max_comments, max_depth
+            )
+
+    async def fetch_thread(
+        self, post: SocialItem, max_comments: int, max_depth: int,
+    ) -> ThreadFetchResult:
+        """Hydrate Reddit comments through the no-developer-key installed client."""
+        route = "reddit_mobile_installed_client_comments"
+        max_comments = min(100, max(0, int(max_comments)))
+        max_depth = max(0, int(max_depth))
+        post_id = str(post.post_id or "").lower()
+        if post.platform != "reddit" or not post_id or not post.url:
+            return ThreadFetchResult(
+                platform="reddit",
+                root_post_external_id=post_id or "unknown",
+                status="error",
+                attempted_route=route,
+                error_category="invalid_reddit_post",
+                max_comments=max(0, int(max_comments)),
+                max_depth=max(0, int(max_depth)),
+            )
+        try:
+            canonical = validate_reddit_url(post.url)
+            match = POST_PATH_RE.fullmatch(urlsplit(canonical).path)
+            if not match or match.group(2).lower() != post_id:
+                raise ValueError("Reddit post identity mismatch")
+        except Exception:
+            return ThreadFetchResult(
+                platform="reddit",
+                root_post_external_id=post_id,
+                status="error",
+                attempted_route=route,
+                error_category="invalid_reddit_post",
+                max_comments=max(0, int(max_comments)),
+                max_depth=max(0, int(max_depth)),
+            )
+        if max_comments <= 0 or max_depth <= 0:
+            return ThreadFetchResult(
+                platform="reddit",
+                root_post_external_id=post_id,
+                status="empty",
+                attempted_route=route,
+                max_comments=max(0, int(max_comments)),
+                max_depth=max(0, int(max_depth)),
+            )
+        if not CURL_CFFI_AVAILABLE and self.request_fn is None:
+            return ThreadFetchResult(
+                platform="reddit",
+                root_post_external_id=post_id,
+                status="unavailable",
+                attempted_route=route,
+                error_category="reddit_mobile_not_installed",
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+        try:
+            async with _gate_for_current_loop():
+                worker = asyncio.create_task(asyncio.to_thread(
+                    self._fetch_thread_payload,
+                    post_id,
+                    max_comments,
+                    max_depth,
+                ))
+                try:
+                    payload = await asyncio.shield(worker)
+                except asyncio.CancelledError:
+                    # asyncio.to_thread cannot stop a live synchronous HTTP call.
+                    # Hold the connector gate until the bounded request exits so a
+                    # cancelled broker timeout cannot overlap this token/session.
+                    try:
+                        await asyncio.shield(worker)
+                    except Exception:
+                        pass
+                    raise
+            from social_scraper.connectors.reddit import parse_reddit_json_thread
+
+            result = parse_reddit_json_thread(
+                post_id=post_id,
+                payload=payload,
+                max_comments=max_comments,
+                max_depth=max_depth,
+            )
+            return replace(result, attempted_route=route)
+        except RedditMobileRateLimitError:
+            error = "reddit_mobile_rate_limited"
+        except RedditMobileAuthError:
+            error = "reddit_mobile_auth_failed"
+        except Exception:
+            error = "reddit_mobile_unavailable"
+        return ThreadFetchResult(
+            platform="reddit",
+            root_post_external_id=post_id,
+            status="unavailable",
+            attempted_route=route,
+            error_category=error,
+            max_comments=max_comments,
+            max_depth=max_depth,
+            limitations=(
+                "Reddit installed-client comment hydration was unavailable.",
+            ),
+        )
 
     async def health_check(self):
         return SourceHealth(

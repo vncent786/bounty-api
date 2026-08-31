@@ -5,6 +5,7 @@ Wraps the existing Reddit logic into the new connector interface.
 """
 
 import json
+import re
 import time
 import urllib.request
 import urllib.parse
@@ -21,9 +22,46 @@ def _reddit_external_id(value) -> str:
     return value.split("_", 1)[1] if "_" in value else value
 
 
+def _canonical_reddit_comment_url(
+    value, *, post_id: str, comment_id: str,
+) -> str | None:
+    """Validate a canonical Reddit comment permalink without accepting other hosts."""
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.startswith("/"):
+        text = f"https://www.reddit.com{text}"
+    try:
+        parts = urllib.parse.urlsplit(text)
+        if parts.scheme != "https" or parts.hostname not in {
+            "reddit.com", "www.reddit.com", "old.reddit.com", "m.reddit.com",
+        }:
+            return None
+        segments = [segment for segment in parts.path.split("/") if segment]
+        if (
+            len(segments) != 6
+            or segments[0].lower() != "r"
+            or segments[2].lower() != "comments"
+            or segments[3].lower() != str(post_id).lower()
+            or segments[5].lower() != str(comment_id).lower()
+            or not all(re.fullmatch(r"[A-Za-z0-9_-]+", segment) for segment in segments)
+        ):
+            return None
+        from social_scraper.connectors.reddit_camoufox import validate_reddit_url
+
+        thread_url = validate_reddit_url(
+            "https://www.reddit.com/" + "/".join(segments[:5]) + "/"
+        )
+        return f"{thread_url.rstrip('/')}/{segments[5]}/"
+    except Exception:
+        return None
+
+
 def parse_reddit_json_thread(
     *, post_id: str, payload: list, max_comments: int, max_depth: int
 ) -> ThreadFetchResult:
+    max_comments = min(100, max(0, int(max_comments)))
+    max_depth = max(0, int(max_depth))
     reported_total = None
     if payload and isinstance(payload[0], dict):
         posts = payload[0].get("data", {}).get("children", [])
@@ -54,11 +92,13 @@ def parse_reddit_json_thread(
             parent = _reddit_external_id(data.get("parent_id")) or post_id
             timestamp = data.get("created_utc")
             published_at = None
-            if isinstance(timestamp, (int, float)):
+            if type(timestamp) in {int, float}:
                 published_at = datetime.fromtimestamp(timestamp, timezone.utc).isoformat()
-            permalink = str(data.get("permalink") or "")
-            if permalink and not permalink.startswith("http"):
-                permalink = f"https://www.reddit.com{permalink}"
+            permalink = _canonical_reddit_comment_url(
+                data.get("permalink"),
+                post_id=post_id,
+                comment_id=external_id,
+            )
             records.append(ThreadRecord(
                 platform="reddit", external_id=external_id,
                 record_type="comment" if depth == 1 else "reply",
@@ -70,7 +110,7 @@ def parse_reddit_json_thread(
                 ),
                 author_username=(str(data.get("author")) if data.get("author") else None),
                 url=permalink or None, published_at=published_at,
-                likes=data.get("score") if isinstance(data.get("score"), int) else None,
+                likes=data.get("score") if type(data.get("score")) is int else None,
                 raw=data,
             ))
             replies = data.get("replies")
@@ -116,7 +156,7 @@ def parse_reddit_hydrated_thread(
             text=raw.get("text") if isinstance(raw.get("text"), str) else None,
             author_username=(str(raw.get("author")) if raw.get("author") else None),
             url=raw.get("url") if isinstance(raw.get("url"), str) else None,
-            likes=raw.get("score") if isinstance(raw.get("score"), int) else None,
+            likes=raw.get("score") if type(raw.get("score")) is int else None,
             raw=raw,
         ))
     reported_total = hydrated.get("platform_reported_total")

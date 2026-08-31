@@ -121,7 +121,7 @@ The conceptual exit is when the original information gap closes, the catalyst is
 |---|---|---|
 | Broad observation of consumer/cultural change | Automated 90-day collection across X, TikTok, Instagram, Reddit and YouTube, Google discovery, and 16 consumer panels | **Partial.** Strong public-digital coverage, but panel-bounded and missing physical/store, survey and commerce feeds. |
 | Specific behavior extraction | Deterministic anchor/behavior matching, citations, repost/copy-cluster controls and Opportunity Investigations | **Automated.** This is one of Bounty's strongest areas. |
-| Independent social replication | Multi-platform roots plus bounded thread/comment attempts | **Partial.** Latest scan attempted 62 depth reads, but Reddit had 14 unsupported reads; TikTok had 11 partial and 5 unsupported; Instagram had 16 partial; only 2 YouTube depth reads completed. |
+| Independent social replication | Multi-platform roots plus bounded thread/comment attempts. Reddit now hydrates exact comments/replies through the no-developer-key installed Android client route and requests source-reported thread size up to 100 in one budgeted call. | **Partial but no longer unsupported on Reddit.** Live Reddit canary retrieved 48 canonical comments/replies across depth 1/2 from 49 reported; the missing/deeper item remained explicit truncation. TikTok/Instagram depth can still be partial. |
 | Search validation | Relevant multi-query Google Trends with independent 3M/1Y/5Y controls, dated axes and full date/value tables | **Automated for Worldwide.** Country expansion remains progressive/on demand. |
 | Historical anomaly and persistence | Comparable historical windows and deterministic gates | **Partial.** Six of seven latest proposals had unknown anomaly; current evidence does not yet support durable acceleration. |
 | Commerce/channel confirmation | No integrated Amazon rank, web traffic, app-rank, sell-out, store availability, booking, shipping, survey or transaction feeds | **Missing.** Reddit examples make this a core validation stage, not optional polish. |
@@ -152,7 +152,7 @@ Latest live output: run `298287239a9a486391ae0085ae8cc5b5`, 5 Opportunity Invest
 
 ### P0. Finish conversation replication
 
-- Wire Reddit OAuth `/comments/{post_id}` into the production conversation reader. This research run hydrated 119 threads and 3,202 comments through that route, while the latest Radar scan still marked 14 Reddit depth reads unsupported.
+- **Reddit completed after this audit:** production now uses the Redlib-derived installed Android client token flow for exact `/comments/{post_id}` hydration, with no developer/researcher OAuth credentials, one bounded request, canonical URLs, parent/reply depth, fail-closed selected-route errors and explicit truncation above the source/100-record bound.
 - Complete TikTok/Instagram root-comment hydration or keep it explicitly partial.
 - Preserve OP replies, top-comment context, readable/blank counts and truncation.
 

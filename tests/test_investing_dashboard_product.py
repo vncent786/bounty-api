@@ -26,10 +26,12 @@ def test_investing_shell_uses_standalone_assets_and_radar_first_navigation():
     assert html == INVESTING_DASHBOARD_HTML
     assert '<link rel="stylesheet" href="/investing-dashboard.css">' in html
     assert '<script src="/investing-dashboard.js" defer></script>' in html
+    assert '<script src="/investing-tracker.js" defer></script>' in html
     assert '<section class="view active" id="view-radar"' in html
 
-    labels = ["Radar", "Research", "Monitors", "Usage"]
-    positions = [html.index(f'data-view="{label.lower()}"') for label in labels]
+    labels = ["Radar", "Research", "Tracker", "Usage"]
+    view_names = ["radar", "research", "monitors", "usage"]
+    positions = [html.index(f'data-view="{view}"') for view in view_names]
     assert positions == sorted(positions)
     assert all(label in html for label in labels)
 

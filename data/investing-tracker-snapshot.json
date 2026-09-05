@@ -1,0 +1,1528 @@
+{
+  "schema_version": "bounty-investment-tracker/1",
+  "generated_at": "2026-09-05T07:08:51.847916+00:00",
+  "status": "complete",
+  "production_deployment": "unchanged",
+  "taxonomy": {
+    "primary_states": [
+      "INVESTIGATING",
+      "PURSUE",
+      "WATCH",
+      "TREND_NOTE",
+      "STANDING_MONITOR",
+      "REJECTED",
+      "ARCHIVED"
+    ],
+    "rule": "Each idea has one primary state. Monitoring is a separate activity attached to that idea.",
+    "definitions": {
+      "INVESTIGATING": "Research is active; no final verdict yet.",
+      "PURSUE": "Current evidence supports an actionable asymmetric thesis.",
+      "WATCH": "A real path survives with a finite promotion, kill and expiry plan.",
+      "TREND_NOTE": "The observation is real but lacks a material listed path or differentiated catalyst.",
+      "STANDING_MONITOR": "Known or user-supplied thesis tracked separately from blind discovery yield.",
+      "REJECTED": "A core thesis, materiality, parity, event or implementation gate failed.",
+      "ARCHIVED": "Historical result retained for audit but not active under the current contract."
+    }
+  },
+  "summary": {
+    "primary_state_counts": {
+      "INVESTIGATING": 0,
+      "PURSUE": 0,
+      "WATCH": 8,
+      "TREND_NOTE": 3,
+      "STANDING_MONITOR": 2,
+      "REJECTED": 18,
+      "ARCHIVED": 1
+    },
+    "backlog_lineages": 217,
+    "monitor_jobs": 8,
+    "active_monitor_jobs": 1,
+    "paused_monitor_jobs": 7,
+    "trade_ready_now": false
+  },
+  "ideas": [
+    {
+      "idea_id": "overnight::australian_grocery_carried_watch",
+      "title": "Australian grocery cross-shopping",
+      "primary_state": "WATCH",
+      "instruments": [
+        "ASX:MTS"
+      ],
+      "why": "ACCC and issuer filings verify market structure and Metcash's IGA wholesale relationship; no spend-transfer numerator exists.",
+      "detail": "No new primary evidence converted cross-shopping anecdotes into retailer-specific basket migration. Coles and Woolworths still reported sales/share strength; Metcash remains the most faithful independent-grocer channel.",
+      "signals": [
+        {
+          "query": "supermarket shopping habits shift australia",
+          "rising": "+3,800%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=supermarket+shopping+habits+shift+australia&date=now+7-d"
+        }
+      ],
+      "catalyst": "Retailer-specific transaction/basket data or Metcash food-volume/private-label acceleration.",
+      "transition_plan": {
+        "missing_assertion": "Cost-driven cross-shopping creates sustained, material spend transfer into Metcash-supplied independents.",
+        "resolution_source": [
+          "Representative retailer-specific transaction or basket data",
+          "Metcash Food volume, scan-sales, private-label and margin disclosure",
+          "Dated MTS price and expectations comparison"
+        ],
+        "next_check": {
+          "event": "Next Metcash trading update or result with Food volume and private-label evidence"
+        },
+        "promotion_condition": [
+          "Representative data shows sustained spend transfer rather than occasional deal shopping",
+          "The transfer is material to Metcash Food volume or margin",
+          "The implication exceeds expectations and remains underreacted"
+        ],
+        "kill_condition": [
+          "Coles and Woolworths maintain or gain share without independent-channel acceleration",
+          "Behavior remains occasional hybrid cross-shopping",
+          "Metcash volume and margin do not benefit"
+        ],
+        "expiry": {
+          "event": "Two successive Metcash updates without measurable independent-channel acceleration"
+        }
+      },
+      "next_check": {
+        "event": "Next Metcash trading update or result with Food volume and private-label evidence"
+      },
+      "kill_condition": [
+        "Coles and Woolworths maintain or gain share without independent-channel acceleration",
+        "Behavior remains occasional hybrid cross-shopping",
+        "Metcash volume and margin do not benefit"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "overnight::college_football_streaming_carried_watch",
+      "title": "College-football streaming choice",
+      "primary_state": "WATCH",
+      "instruments": [
+        "NYSE:FUBO"
+      ],
+      "why": "Fubo management explicitly names college football as a seasonal subscriber/revenue driver; Disney controls scarce rights and 70% of the combined Fubo structure.",
+      "detail": "No new primary evidence isolated college-football subscribers, churn, ARPU or margin. The authoritative social evidence still supports real subscriptions, switching and workarounds across fragmented services.",
+      "signals": [
+        {
+          "query": "best college football streaming service",
+          "rising": "+80%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=best+college+football+streaming+service&date=now+7-d"
+        }
+      ],
+      "catalyst": "2026 season disclosures that isolate paid conversion, churn, ARPU or contribution, or a rights/packaging change.",
+      "transition_plan": {
+        "missing_assertion": "College-football packaging produces sustainable, above-expectation subscriber contribution for Fubo after rights costs.",
+        "resolution_source": [
+          "Fubo results covering the 2026 college-football season",
+          "Paid conversion, churn, ARPU and contribution disclosures",
+          "Rights or packaging changes and dated FUBO price"
+        ],
+        "next_check": {
+          "event": "Next Fubo results that cover a meaningful portion of the 2026 season"
+        },
+        "promotion_condition": [
+          "Fubo shows incremental paid conversion or retention attributable to the sports package",
+          "Contribution remains material after rights costs",
+          "The outcome exceeds expectations at an executable price"
+        ],
+        "kill_condition": [
+          "No service emerges as an economic winner",
+          "Rights costs consume the subscriber benefit",
+          "No college-football KPI or differentiated implication appears"
+        ],
+        "expiry": {
+          "event": "First full-year Fubo result covering the 2026 college-football season"
+        }
+      },
+      "next_check": {
+        "event": "Next Fubo results that cover a meaningful portion of the 2026 season"
+      },
+      "kill_condition": [
+        "No service emerges as an economic winner",
+        "Rights costs consume the subscriber benefit",
+        "No college-football KPI or differentiated implication appears"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "round2::current_airline_delay_compensation",
+      "title": "Current airline delay and compensation economics",
+      "primary_state": "WATCH",
+      "instruments": [
+        "LSE:IAG (also Spanish exchanges)",
+        "Xetra:TUI1",
+        "Euronext Paris:AF (market-data symbol AIR.PA)"
+      ],
+      "why": "A dated current European network disruption exists, but no carrier-specific affected-flight, passenger, claim or care-cost count was found. IAG has the strongest exact path and a finite 6 November Q3 check; TUI and Air France-KLM remain context, not separate live trades.",
+      "detail": null,
+      "signals": [
+        {
+          "query": "tui flight delay claim",
+          "rising": "+140%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=tui+flight+delay+claim&date=now+7-d"
+        },
+        {
+          "query": "tui flight delay form",
+          "rising": "+110%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=tui+flight+delay+form&date=now+7-d"
+        },
+        {
+          "query": "tui flight delay compensation",
+          "rising": "+90%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=tui+flight+delay+compensation&date=now+7-d"
+        },
+        {
+          "query": "tui flight delay",
+          "rising": "+80%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=tui+flight+delay&date=now+7-d"
+        },
+        {
+          "query": "air france flight delay compensation",
+          "rising": "+70%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=air+france+flight+delay+compensation&date=now+7-d"
+        },
+        {
+          "query": "british airways flight delay compensation",
+          "rising": "+50%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=british+airways+flight+delay+compensation&date=now+7-d"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": {
+        "missing_assertion": "The 24-30 August/ongoing disruption created BA/IAG-specific compensation, care, rebooking or capacity costs above IAG's July plan and dated consensus.",
+        "resolution_source": "EUROCONTROL weekly reports, IAG/BA operational notices or RNS, IAG Q3 release and updated IAG official consensus.",
+        "next_check": "Check the next published EUROCONTROL weekly overview and issuer notices; hard checkpoint 6 November 2026 IAG Q3, with price review after the first full trading session.",
+        "promotion_condition": "Primary carrier-level counts plus a defensible cost/revenue bound that moves IAG outside dated guidance/consensus, with a still-unabsorbed price implication and feasible common-stock risk plan.",
+        "kill_condition": "No carrier-specific cost disclosure, normalization before material impact, extraordinary-circumstance/operational mitigation contains costs, or the effect remains inside guidance and price.",
+        "expiry": "9 November 2026 after the first complete post-Q3 LSE session."
+      },
+      "next_check": "Check the next published EUROCONTROL weekly overview and issuer notices; hard checkpoint 6 November 2026 IAG Q3, with price review after the first full trading session.",
+      "kill_condition": "No carrier-specific cost disclosure, normalization before material impact, extraordinary-circumstance/operational mitigation contains costs, or the effect remains inside guidance and price.",
+      "source_run": "expansion-2026-09-05-dd-round-2",
+      "source_artifact": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
+      "updated_at": "2026-09-05T03:58:44.301776+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "round2::firstrand_fnb_banking_app",
+      "title": "FirstRand / FNB banking app",
+      "primary_state": "WATCH",
+      "instruments": [
+        "JSE:FSR"
+      ],
+      "why": "The app-to-listed-parent mechanism is real and FNB is material to FirstRand, but app-attributable earnings and a differentiated expectation are not disclosed. The 10 September FY2026 result is a finite resolution event.",
+      "detail": "The frozen run observed +60% seven-day Rising for the exact FNB banking-app query. FirstRand's latest H1 disclosure separately reported 390 million app transactions, up 8%, 8.0 million digitally active customers and R49.7 billion transacted through 6.2 million activated virtual cards.",
+      "signals": [
+        {
+          "query": "fnb banking app",
+          "rising": "+60%",
+          "geography": "WORLDWIDE",
+          "url": "https://trends.google.com/trends/explore?q=fnb+banking+app&date=now+7-d"
+        }
+      ],
+      "catalyst": "FirstRand FY2026 results on 10 September 2026, followed by the first complete market session and any management presentation/call detail.",
+      "transition_plan": {
+        "missing_assertion": "Incremental FNB app engagement is producing material FirstRand earnings beyond activity already embedded in management disclosure and expectations.",
+        "resolution_source": "FirstRand FY2026 release, FNB segment analysis, management presentation/call and a dated consensus comparison.",
+        "next_check": "10 September 2026 FY2026 results; complete the price/consensus check after the first full JSE session on 11 September 2026.",
+        "promotion_condition": "Fresh app-specific or tightly attributable digital economics, a defensible group earnings bridge, an implication above dated expectations, and a feasible FSR common-stock entry/risk plan.",
+        "kill_condition": "No attribution, no expectation gap, deteriorating economics, or no executable common-stock route.",
+        "expiry": "11 September 2026 after the first complete post-results session."
+      },
+      "next_check": "10 September 2026 FY2026 results; complete the price/consensus check after the first full JSE session on 11 September 2026.",
+      "kill_condition": "No attribution, no expectation gap, deteriorating economics, or no executable common-stock route.",
+      "source_run": "expansion-2026-09-05-dd-round-2",
+      "source_artifact": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
+      "updated_at": "2026-09-05T03:58:44.301776+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "overnight::meta_alberta_data_center",
+      "title": "Meta Alberta power supply",
+      "primary_state": "WATCH",
+      "instruments": [
+        "TSX:CPX",
+        "NASDAQ:META"
+      ],
+      "why": "Primary Meta and Capital Power releases verify the project and contract. Meta plans dry cooling with no operational cooling-water use, so the water-supplier angle is contradicted for this site.",
+      "detail": "Meta broke ground on a 1 GW Alberta AI data centre with more than CAD13 billion investment; Capital Power signed a greater-than-10-year 250 MW energy-supply agreement for load expected in the second half of 2028.",
+      "signals": [
+        {
+          "query": "meta ai data center alberta",
+          "rising": [
+            "+70%"
+          ],
+          "geography": [
+            "CA"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=meta+ai+data+center+alberta&date=now+7-d&geo=CA"
+        }
+      ],
+      "catalyst": "Construction/load milestones, CPX contract-economics disclosure and confirmed second-half-2028 energisation.",
+      "transition_plan": {
+        "missing_assertion": "Capital Power's Meta Alberta agreement creates material, above-expectation EBITDA or cash flow at acceptable contract risk.",
+        "resolution_source": [
+          "Capital Power filings and earnings commentary on contract economics",
+          "Construction, load and energisation milestones",
+          "Dated CPX price and consensus comparison"
+        ],
+        "next_check": {
+          "event": "Next Capital Power results or project milestone with Alberta contract economics"
+        },
+        "promotion_condition": [
+          "A defensible CPX revenue, EBITDA, or cash-flow bound is disclosed or calculable",
+          "Economics exceed what price and consensus reflect",
+          "Construction and second-half-2028 energisation remain on track"
+        ],
+        "kill_condition": [
+          "Project delay, downsize, or cancellation",
+          "Poor or immaterial contract economics",
+          "The implication is fully reflected in CPX price"
+        ],
+        "expiry": {
+          "event": "Project cancellation or first energisation without material CPX economics"
+        }
+      },
+      "next_check": {
+        "event": "Next Capital Power results or project milestone with Alberta contract economics"
+      },
+      "kill_condition": [
+        "Project delay, downsize, or cancellation",
+        "Poor or immaterial contract economics",
+        "The implication is fully reflected in CPX price"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "overnight::singapore_airlines_cabin_refresh",
+      "title": "Singapore Airlines premium-cabin refresh",
+      "primary_state": "WATCH",
+      "instruments": [
+        "SGX:C6L"
+      ],
+      "why": "Primary SIA sources verify the programme and timing. FY2025/26 group revenue was SGD20.522 billion, operating profit SGD2.375 billion, passenger load factor 87.7% and passenger yield 10.4 Singapore cents per RPK.",
+      "detail": "Search interest rose around a new Singapore Airlines Business Class product; SIA says it will unveil next-generation long-haul cabins toward end-2026 under a previously announced SGD1.1 billion, 41-aircraft A350 retrofit.",
+      "signals": [
+        {
+          "query": "singapore airlines new business class",
+          "rising": "+110%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=singapore+airlines+new+business+class&date=now+7-d"
+        }
+      ],
+      "catalyst": "End-2026 cabin unveiling, followed by retrofit deployment and premium-yield/load-factor disclosure.",
+      "transition_plan": {
+        "missing_assertion": "The premium-cabin refresh can lift yield or premium demand enough to exceed expectations after retrofit costs.",
+        "resolution_source": [
+          "Official end-2026 cabin unveiling and retrofit schedule",
+          "Cabin-specific booking or premium-yield evidence",
+          "SIA results covering deployed aircraft and dated C6L price"
+        ],
+        "next_check": {
+          "event": "Official end-2026 cabin unveiling"
+        },
+        "promotion_condition": [
+          "Deployment timing is confirmed",
+          "Booking or yield evidence supports a material premium relative to the public programme",
+          "Expected return exceeds retrofit and execution risk at the current price"
+        ],
+        "kill_condition": [
+          "Unveiling or retrofit delay",
+          "No premium booking or yield benefit",
+          "Cost overruns, fuel, capacity, or geopolitical effects dominate"
+        ],
+        "expiry": {
+          "event": "First SIA reporting period with enough deployed aircraft to test premium yield"
+        }
+      },
+      "next_check": {
+        "event": "Official end-2026 cabin unveiling"
+      },
+      "kill_condition": [
+        "Unveiling or retrofit delay",
+        "No premium booking or yield benefit",
+        "Cost overruns, fuel, capacity, or geopolitical effects dominate"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "overnight::singapore_liquid_cooling_carried_watch",
+      "title": "Singapore liquid cooling",
+      "primary_state": "WATCH",
+      "instruments": [
+        "SGX:BN4"
+      ],
+      "why": "The existing primary-sourced mechanism is preserved; no supplier order, liquid-cooling revenue, margin or project return was added.",
+      "detail": "No gate-resolving evidence was found beyond the authoritative package: SS 726:2026, Keppel's 50 MW capacity award and named liquid-cooling projects remain real.",
+      "signals": [
+        {
+          "query": "liquid cooling data center",
+          "rising": "+40%",
+          "geography": [
+            "SG"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=liquid+cooling+data+center&date=now+7-d&geo=SG"
+        }
+      ],
+      "catalyst": "Named customer order or capacity conversion with project economics.",
+      "transition_plan": {
+        "missing_assertion": "Singapore's new liquid-cooling standard converts into a material listed-company customer order or capacity economics.",
+        "resolution_source": [
+          "Keppel customer/order or project economics",
+          "Singapore capacity-conversion announcements",
+          "BN4 results and dated price response"
+        ],
+        "next_check": {
+          "event": "Next named Singapore liquid-cooling customer order or Keppel capacity conversion"
+        },
+        "promotion_condition": [
+          "A listed path has a verified customer or deployment",
+          "Revenue or margin can be bounded at a material level",
+          "The result exceeds public expectations and remains underreacted"
+        ],
+        "kill_condition": [
+          "The standard does not drive deployment",
+          "Projects are delayed",
+          "Liquid cooling remains an immaterial fit-out component"
+        ],
+        "expiry": {
+          "date": "2026-12-31",
+          "event": "Analyst deadline for a named listed-company order before downgrade to backlog"
+        }
+      },
+      "next_check": {
+        "event": "Next named Singapore liquid-cooling customer order or Keppel capacity conversion"
+      },
+      "kill_condition": [
+        "The standard does not drive deployment",
+        "Projects are delayed",
+        "Liquid cooling remains an immaterial fit-out component"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "overnight::sonos_fy26_product_launch",
+      "title": "Sonos Beam Ultra / Ace Ultra launch",
+      "primary_state": "WATCH",
+      "instruments": [
+        "NASDAQ:SONO"
+      ],
+      "why": "Primary Sonos IR verifies the products, prices, dates and Nasdaq listing. Q2 FY2026 revenue was USD282 million, up 8% year over year.",
+      "detail": "Sonos opened pre-orders on 1 September for Beam Ultra and Ace Ultra at USD699 and USD449, with general availability on 29 September; the frozen run separately saw Rising searches for Sonos headphones and the new product pair.",
+      "signals": [
+        {
+          "query": "sonos new headphones and soundbar",
+          "rising": "+3,500%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=sonos+new+headphones+and+soundbar&date=now+7-d"
+        },
+        {
+          "query": "sonos headphones",
+          "rising": "+60%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=sonos+headphones&date=now+7-d"
+        }
+      ],
+      "catalyst": "29 September 2026 general availability, then early sell-through/review evidence and the next earnings update.",
+      "transition_plan": {
+        "missing_assertion": "Beam Ultra and Ace Ultra demand is above public expectations and large enough to change Sonos earnings or valuation.",
+        "resolution_source": [
+          "Independent paid-behavior and retailer sell-through after general availability",
+          "Sonos filings or guidance covering the launch",
+          "Dated SONO price and volume relative to the modelled impact"
+        ],
+        "next_check": {
+          "date": "2026-09-30",
+          "event": "First full day after 29 September general availability"
+        },
+        "promotion_condition": [
+          "Launch occurs on time",
+          "Independent sell-through or paid behavior supports demand above the public launch announcement",
+          "A source-backed scenario is material to Sonos",
+          "The current price still offers asymmetric upside with defined risk"
+        ],
+        "kill_condition": [
+          "Launch delay or cancellation",
+          "Weak sell-through, reviews, elevated returns, or renewed app problems",
+          "Modelled contribution is immaterial or fully reflected in price"
+        ],
+        "expiry": {
+          "event": "First Sonos earnings release that includes a meaningful sales period after general availability"
+        }
+      },
+      "next_check": {
+        "date": "2026-09-30",
+        "event": "First full day after 29 September general availability"
+      },
+      "kill_condition": [
+        "Launch delay or cancellation",
+        "Weak sell-through, reviews, elevated returns, or renewed app problems",
+        "Modelled contribution is immaterial or fully reflected in price"
+      ],
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "active",
+        "jobs": [
+          {
+            "job_id": "a978661772ff",
+            "name": "Bounty Watch transition monitor",
+            "enabled": true,
+            "state": "scheduled",
+            "schedule": "15 8 * * *",
+            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "historical::7eb524cc3150eb02e7dc8e50",
+      "title": "HOLY soft drink",
+      "primary_state": "TREND_NOTE",
+      "instruments": [
+        "No verified listed exposure"
+      ],
+      "why": "HOLY is a private German company and no primary-sourced, plausibly material listed path was found.",
+      "next_check": "Independent repeat purchasing outside creator or affiliate communities",
+      "kill_condition": "Repeat purchasing fails to replicate outside the concentrated creator community.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": null
+    },
+    {
+      "idea_id": "round2::modine_canada_data_center_cooling",
+      "title": "Modine / Canadian data-center cooling demand",
+      "primary_state": "TREND_NOTE",
+      "instruments": [
+        "NYSE:MOD",
+        "Nasdaq Stockholm:MTRS"
+      ],
+      "why": "Global cooling demand and issuer exposure are verified, but no Canadian project, customer or order was found. The global thesis is already explicit in results, the $4bn agreement, backlog and sharp event reactions; the Canadian Rising lead supplies no differentiated security-level catalyst.",
+      "detail": "Canada showed +150% seven-day Rising for a category query. Modine has a Calgary manufacturing footprint, but the primary record names no Canadian end-customer or project. The strongest disclosed demand is a global/US hyperscale agreement and large US colocation orders at Munters.",
+      "signals": [
+        {
+          "query": "data center cooling companies",
+          "rising": "+150%",
+          "geography": "CA",
+          "url": "https://trends.google.com/trends/explore?q=data+center+cooling+companies&date=now+7-d"
+        }
+      ],
+      "catalyst": "A named Canadian data-center customer/project/order or an issuer filing that isolates Canadian production, shipment value and timing; absent that, only ordinary quarterly backlog/margin conversion remains.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "No Canada-specific primary evidence; hyperscale agreement proves nonbinding or converts below plan; component bottlenecks persist; or cooling growth fails to recover margins.",
+      "source_run": "expansion-2026-09-05-dd-round-2",
+      "source_artifact": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
+      "updated_at": "2026-09-05T03:58:44.301776+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "historical::4c0eb334c106ee61cd932cdb",
+      "title": "Noise Clutch headphones",
+      "primary_state": "TREND_NOTE",
+      "instruments": [
+        "No direct listed exposure; Amber Enterprises India Ltd. is an indirect watch path only"
+      ],
+      "why": "Noise/Nexxbase is private. Amber's Stelltek relationship is real, but no filing ties Clutch production or revenue to Stelltek and Stelltek reported zero turnover in FY2023-24 and FY2024-25.",
+      "next_check": "Amber filing that identifies Clutch or Noise audio production at Stelltek",
+      "kill_condition": "No independent delivered-use replication, no Clutch attribution, or continued immaterial Stelltek economics.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": null
+    },
+    {
+      "idea_id": "standing::chewy",
+      "title": "Chewy",
+      "primary_state": "STANDING_MONITOR",
+      "instruments": [
+        "NYSE:CHWY"
+      ],
+      "why": "User-supplied standing thesis and depth-calibration case; it does not count as blind discovery yield.",
+      "source_run": "standing-monitor",
+      "updated_at": "",
+      "monitoring": {
+        "status": "paused",
+        "jobs": [
+          {
+            "job_id": "19efa5815687",
+            "name": "Chewy Q2 FY2026 frozen-thesis update",
+            "enabled": false,
+            "state": "paused",
+            "schedule": "once at 2026-09-09 21:15",
+            "next_run_at": "2026-09-09T21:15:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "standing::ghost-aw-kdp",
+      "title": "GHOST Energy x A&W / KDP",
+      "primary_state": "STANDING_MONITOR",
+      "instruments": [
+        "NASDAQ:KDP"
+      ],
+      "why": "User-supplied standing thesis and calibration case; it does not count as blind discovery yield.",
+      "source_run": "standing-monitor",
+      "updated_at": "2026-09-05T10:56:23.556372+08:00",
+      "monitoring": {
+        "status": "paused",
+        "jobs": [
+          {
+            "job_id": "2b14c57d71e3",
+            "name": "GHOST A&W store availability panel",
+            "enabled": false,
+            "state": "paused",
+            "schedule": "every 1440m",
+            "next_run_at": "2026-09-06T08:28:21.154079+08:00",
+            "last_run_at": "2026-09-05T08:28:21.154079+08:00",
+            "last_status": "ok"
+          },
+          {
+            "job_id": "cf5893b05d59",
+            "name": "GHOST A&W native Walmart panel",
+            "enabled": false,
+            "state": "paused",
+            "schedule": "every 1440m",
+            "next_run_at": "2026-09-06T10:56:23.556372+08:00",
+            "last_run_at": "2026-09-05T10:56:23.556372+08:00",
+            "last_status": "ok"
+          },
+          {
+            "job_id": "da16ea8a40c0",
+            "name": "KDP Barclays GHOST monitor update",
+            "enabled": false,
+            "state": "paused",
+            "schedule": "once at 2026-09-11 09:00",
+            "next_run_at": "2026-09-11T09:00:00+08:00",
+            "last_run_at": null,
+            "last_status": null
+          },
+          {
+            "job_id": "5159128f97f8",
+            "name": "GHOST A&W trends, conversations and parity watch",
+            "enabled": false,
+            "state": "paused",
+            "schedule": "30 10 * * *",
+            "next_run_at": "2026-09-06T10:30:00+08:00",
+            "last_run_at": "2026-09-05T10:54:34.541303+08:00",
+            "last_status": "ok"
+          }
+        ]
+      }
+    },
+    {
+      "idea_id": "fresh::suppliers",
+      "title": "AI data-center optical and silicon suppliers",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "Marvell (NASDAQ:MRVL)",
+        "Lumentum (NASDAQ:LITE)",
+        "Corning (NYSE:GLW)"
+      ],
+      "why": "The economic links are excellent. The information edge is not.",
+      "detail": "Marvell, Lumentum and Corning all have official AI data-center customer, product or growth evidence. Those same links, purchase commitments and capacity plans are explicit in company disclosures. The system found real suppliers, then correctly rejected them for high parity and missing price underreaction.",
+      "signals": [
+        {
+          "query": "Corning +2,650% worldwide; Lumentum +170% worldwide; Marvell +2,000% US",
+          "url": "https://trends.google.com/trends/explore?q=corning+nvidia+ai+data+center+partnership&date=now+7-d"
+        },
+        {
+          "query": "Corning +2,650% worldwide; Lumentum +170% worldwide; Marvell +2,000% US",
+          "url": "https://trends.google.com/trends/explore?q=lumentum+ai+data+center+demand&date=now+7-d"
+        },
+        {
+          "query": "Corning +2,650% worldwide; Lumentum +170% worldwide; Marvell +2,000% US",
+          "url": "https://trends.google.com/trends/explore?q=marvell+data+center+sales+growth&date=now+7-d&geo=US"
+        }
+      ],
+      "source_run": "sop-v2-2026-09-04T1135Z",
+      "source_artifact": "artifacts/investing-discovery/sop-v2-2026-09-04T1135Z/fresh-run-comparison.json",
+      "updated_at": "2026-09-04",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::ai_data_center_skilled_trades",
+      "title": "AI data-centre skilled-trades bottleneck",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NYSE:PWR"
+      ],
+      "why": "Quanta reported Q2 revenue USD9.56 billion, total backlog USD53.4 billion and raised 2026 revenue guidance to USD39.3-39.7 billion; Q1 electric backlog was USD40.1 billion, driven partly by new large-load awards.",
+      "detail": "US searches rose for data-centre skilled trades; Quanta directly links craft-skilled labour and training to large-load project execution.",
+      "signals": [
+        {
+          "query": "ai data center skilled trades demand",
+          "rising": [
+            "+550%"
+          ],
+          "geography": [
+            "US"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=ai+data+center+skilled+trades+demand&date=now+7-d&geo=US"
+        }
+      ],
+      "catalyst": "Further large-load awards or disclosure of data-centre-specific revenue, labour pricing and margin.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Backlog delays/cancellations, hyperscale capex slows, or labour scarcity hurts margins rather than pricing.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::australia_data_center_water",
+      "title": "Australia data-centre water constraint",
+      "primary_state": "REJECTED",
+      "instruments": [],
+      "why": "The operating constraint is official; Sydney Water is unlisted, and no exact listed operator water contract, cost or supplier order was verified.",
+      "detail": "Sydney Water says data centres have high water demand and is prioritising recycled water, infrastructure planning and fair pricing.",
+      "signals": [
+        {
+          "query": "ai data center water usage",
+          "rising": [
+            "+80%"
+          ],
+          "geography": [
+            "AU"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=ai+data+center+water+usage&date=now+7-d&geo=AU"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "No named facility economics or listed pass-through.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::australia_ev_tax_change",
+      "title": "Australia EV tax-concession review",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NASDAQ:TSLA / TSE:7203 / XETRA:VOW3"
+      ],
+      "why": "The archived Treasury review recommends managing the programme's growing cost; no selected OEM's Australian earnings sensitivity is provided.",
+      "detail": "Australia's statutory review estimates the EV discount drove about 64,000 additional BEV sales through December 2025, while annual tax expenditure could rise from AUD1.35 billion in 2025/26 to AUD2.8 billion in 2028/29.",
+      "signals": [
+        {
+          "query": "australia electric car tax break changes",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=australia+electric+car+tax+break+changes&date=now+7-d"
+        }
+      ],
+      "catalyst": "Enacted eligibility/phase-down changes plus OEM disclosure of Australian fleet effects.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Recommendations are not adopted or issuer volumes are insensitive.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "historical::95678bf7450b4edd45a3fb63",
+      "title": "Frigidaire built-in dishwasher",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "AB Electrolux B shares, Nasdaq Stockholm: ELUX B"
+      ],
+      "why": "The signal is repair/workaround behavior, not incremental demand; failure incidence and current-model exposure are unknown, and Electrolux does not disclose Frigidaire dishwasher economics.",
+      "next_check": "Current-model multi-retailer failure evidence",
+      "kill_condition": "Failures do not replicate outside repair forums, are confined to old models, warranty rates are normal, or repair dominates replacement.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": null
+    },
+    {
+      "idea_id": "overnight::india_august_ev_registrations",
+      "title": "India August EV registrations",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NSE:M&M"
+      ],
+      "why": "A Lok Sabha answer covers PM E-DRIVE data only through 30 June and 9,583 public chargers as of 1 July; the 10 August Gazette extends PM E-DRIVE to March 2028. Neither is an August registration print.",
+      "detail": "The exact August national EV-registration claim could not be verified from an official release.",
+      "signals": [
+        {
+          "query": "india electric car registrations august 2026",
+          "rising": "+700%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=india+electric+car+registrations+august+2026&date=now+7-d"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "The candidate remains rejected unless an official August national dataset and exact issuer allocation are archived.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::kmart_anko_smart_ring",
+      "title": "Kmart / Anko smart ring",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "ASX:WES"
+      ],
+      "why": "Wesfarmers owns Kmart Group; its FY2025 results explicitly say Anko Global revenue and earnings were immaterial to Kmart Group.",
+      "detail": "Three Kmart smart-ring aliases rose, but the frozen evidence does not verify an issuer-scale product launch or paid demand.",
+      "signals": [
+        {
+          "query": "kmart smart ring nz",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=kmart+smart+ring+nz&date=now+7-d"
+        },
+        {
+          "query": "kmart smart ring",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=kmart+smart+ring&date=now+7-d"
+        },
+        {
+          "query": "kmart smart ring review",
+          "rising": "+2,700%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=kmart+smart+ring+review&date=now+7-d"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Reopen only with verified Kmart product identity plus sustained sell-through large enough to affect a disclosed category or Kmart earnings.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::mediterranean_late_summer_heat",
+      "title": "Mediterranean marine heat",
+      "primary_state": "REJECTED",
+      "instruments": [],
+      "why": "The archived bulletin is real but covers the first half, not a clean late-summer event window, and it does not map to a security.",
+      "detail": "Copernicus reports January-June Mediterranean SST of 18.07°C, 98% basin marine-heatwave coverage and about 80% in strong/severe/extreme conditions.",
+      "signals": [
+        {
+          "query": "mediterranean late summer heatwave temperatures",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=mediterranean+late+summer+heatwave+temperatures&date=now+7-d"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "No dated late-summer event or issuer-specific operational impact.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::named_data_center_projects",
+      "title": "Named data-centre projects: Yondr, Colt, PDG, Colossus and Uptown Charlotte",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NYSE:DBRG"
+      ],
+      "why": "DigitalBridge's primary release verifies Yondr ownership and more than 420 MW committed to hyperscalers. That does not create an entry: SoftBank agreed to acquire all DBRG common stock for USD16 cash, expected in second-half 2026; DBRG closed at USD15.94 on 3 September.",
+      "detail": "The named-project screen found a real listed relationship for Yondr that the first pass missed: a DigitalBridge/La Caisse acquisition. Other names were private, collided with another geography, or lacked primary issuer materiality.",
+      "signals": [
+        {
+          "query": "colossus data center",
+          "rising": [
+            "+80%"
+          ],
+          "geography": [
+            "DE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=colossus+data+center&date=now+7-d&geo=DE"
+        },
+        {
+          "query": "colt data center",
+          "rising": [
+            "+190%"
+          ],
+          "geography": [
+            "FR"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=colt+data+center&date=now+7-d&geo=FR"
+        },
+        {
+          "query": "pdg data center",
+          "rising": [
+            "+40%"
+          ],
+          "geography": [
+            "SG"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=pdg+data+center&date=now+7-d&geo=SG"
+        },
+        {
+          "query": "uptown charlotte data center project",
+          "rising": [
+            "Breakout"
+          ],
+          "geography": [
+            "US"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=uptown+charlotte+data+center+project&date=now+7-d&geo=US"
+        },
+        {
+          "query": "yondr data center",
+          "rising": [
+            "+160%"
+          ],
+          "geography": [
+            "CA"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=yondr+data+center&date=now+7-d&geo=CA"
+        }
+      ],
+      "catalyst": "SoftBank acquisition close, not the search signal.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "A project thesis cannot outrun a near-cash merger cap without a separate merger-arbitrage view; that was not established.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::norway_august_ev_registrations",
+      "title": "Norway August EV registrations",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "TSE:7203 / NYSE:XPEV / NASDAQ:TSLA / XETRA:VOW3"
+      ],
+      "why": "The official page is preserved but direct archival reset the connection; search-index extracts provided the exact totals. The milestone is penetration, not a positive market-volume shock.",
+      "detail": "OFV indexed 13,451 new passenger-car registrations for August, down 3.35% year over year, while zero-emission share reached 98.68%.",
+      "signals": [
+        {
+          "query": "norway electric car sales record",
+          "rising": "+3,200%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=norway+electric+car+sales+record&date=now+7-d"
+        }
+      ],
+      "catalyst": "Subsequent official brand/model registrations and issuer commentary showing sustained share or regional volume change.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Market volume continues to fall or company-specific volumes do not improve.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "historical::1f25c4ab9f8cdd1b53455cbd",
+      "title": "onn. 4K Pro streaming device",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "Walmart Inc. common stock, Nasdaq: WMT"
+      ],
+      "why": "The product behavior is real, but no device-level revenue, units, margin or defensible bound exists, so one low-ticket SKU cannot support a material Walmart thesis.",
+      "next_check": "Issuer or retailer disclosure of onn. units or category economics",
+      "kill_condition": "Repeated normal availability without broad repeat purchasing, or continued absence of a defensible earnings bridge.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": null
+    },
+    {
+      "idea_id": "overnight::pacific_marine_heatwave",
+      "title": "Pacific marine heatwave and El Niño",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "OSE:MOWI"
+      ],
+      "why": "The climate event is real. The multi-country Rising readings remain separately normalized and are not summed or ranked as absolute demand.",
+      "detail": "NOAA declared El Niño and a 63% chance of monitored Pacific temperatures exceeding 2.0°C, while NOAA Fisheries described possible West Coast species and salmon impacts.",
+      "signals": [
+        {
+          "query": "pacific marine heatwave and el nino",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=pacific+marine+heatwave+and+el+nino&date=now+7-d"
+        },
+        {
+          "query": "pacific marine heatwave and el nino",
+          "rising": [
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout",
+            "Breakout"
+          ],
+          "geography": [
+            "AU",
+            "CA",
+            "DE",
+            "ES",
+            "FR",
+            "GB",
+            "IN",
+            "IT",
+            "US"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=pacific+marine+heatwave+and+el+nino&date=now+7-d&geo=AU"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "No exact geography-company exposure, or the event does not affect issuer volumes, prices, mortality or costs.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "fresh::heatwave",
+      "title": "Queensland heatwave to cooling demand",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "Appliance retailers (unpromoted)",
+        "Utilities (unpromoted)",
+        "Cooling suppliers (unresolved)"
+      ],
+      "why": "The mechanism is valid. The current event was not.",
+      "detail": "Official sources support the structural link from heat to air-conditioning and electricity demand. But the BOM heatwave service was out of season and no current Queensland heatwave warning was verified. Without a current event, sell-through or load evidence, there is no company catalyst.",
+      "signals": [
+        {
+          "query": "Queensland heatwave +140% AU; qld heatwave +2,050% AU",
+          "url": "https://trends.google.com/trends/explore?q=queensland+heatwave&date=now+7-d&geo=AU"
+        },
+        {
+          "query": "Queensland heatwave +140% AU; qld heatwave +2,050% AU",
+          "url": "https://trends.google.com/trends/explore?q=qld+heatwave&date=now+7-d&geo=AU"
+        }
+      ],
+      "source_run": "sop-v2-2026-09-04T1135Z",
+      "source_artifact": "artifacts/investing-discovery/sop-v2-2026-09-04T1135Z/fresh-run-comparison.json",
+      "updated_at": "2026-09-04",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "historical::54e42c47199a16d84b7d6afb",
+      "title": "R.H. Macy & Co. fine jewelry",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "Macy's, Inc. common stock, NYSE: M"
+      ],
+      "why": "The evidence mixes stale threads, deep-discount fashion jewelry and quality complaints, while Macy's does not disclose fine-jewelry sales or item-level owned versus Marketplace economics.",
+      "next_check": "Q2 FY2026 results on 2026-09-10",
+      "kill_condition": "Do not revive a positive thesis without fresh repeated Macy's-nameplate purchases, seller attribution, low returns and category economics.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": null
+    },
+    {
+      "idea_id": "overnight::same_day_pet_food_delivery",
+      "title": "Same-day pet-food delivery",
+      "primary_state": "REJECTED",
+      "instruments": [],
+      "why": "No primary evidence bound these queries to Chewy or another listed operator; assigning NYSE:CHWY would be ticker inference from a category.",
+      "detail": "Four generic delivery-intent aliases rose; none names a provider.",
+      "signals": [
+        {
+          "query": "same day pet food delivery",
+          "rising": "+120%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=same+day+pet+food+delivery&date=now+7-d"
+        },
+        {
+          "query": "same day pet food delivery",
+          "rising": "+250%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=same+day+pet+food+delivery&date=now+7-d"
+        },
+        {
+          "query": "pet food delivery near me",
+          "rising": "+60%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=pet+food+delivery+near+me&date=now+7-d"
+        },
+        {
+          "query": "pet food delivery",
+          "rising": "+40%",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=pet+food+delivery&date=now+7-d"
+        }
+      ],
+      "catalyst": null,
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Reopen only after an exact operator/service relationship and provider-specific orders, adoption or economics are verified.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "fresh::matrix",
+      "title": "The Matrix streaming availability",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "Warner Bros. Discovery (NASDAQ:WBD)",
+        "Alphabet / YouTube (NASDAQ:GOOGL)"
+      ],
+      "why": "Consumer friction is real; the earnings path is microscopic and unresolved.",
+      "detail": "Viewers hunt across free, rental, digital, physical and subscription access. Warner Bros. Discovery is the rights-owner path, but no title-level transaction, subscription, advertising or retention data exists. This is a viewing-friction observation, not an investable signal.",
+      "signals": [
+        {
+          "query": "+80% Rising worldwide, now 7 days; history not requested",
+          "url": "https://trends.google.com/trends/explore?q=matrix+streaming+service&date=now+7-d"
+        }
+      ],
+      "source_run": "sop-v2-2026-09-04T1135Z",
+      "source_artifact": "artifacts/investing-discovery/sop-v2-2026-09-04T1135Z/fresh-run-comparison.json",
+      "updated_at": "2026-09-04",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::uk_tier1_streaming_regulation",
+      "title": "UK Tier 1 streaming regulation",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NASDAQ:NFLX"
+      ],
+      "why": "GOV.UK names Netflix, Amazon Prime Video, Disney+ and UK services and states catalogue accessibility thresholds of 80% subtitled, 10% audio-described and 5% signed. The exact compliance cost is not disclosed.",
+      "detail": "The UK announced enhanced Ofcom rules for large video-on-demand services with more than 500,000 UK users, including accessibility and content standards.",
+      "signals": [
+        {
+          "query": "labour streaming service regulation costs",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=labour+streaming+service+regulation+costs&date=now+7-d"
+        }
+      ],
+      "catalyst": "Publication/effect of final Ofcom codes and any designation list.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "Rules are narrowed/delayed, implementation costs are immaterial, or no differentiated issuer impact appears.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "overnight::us_phit_fitness_tax_bill",
+      "title": "US PHIT fitness-expense bill",
+      "primary_state": "REJECTED",
+      "instruments": [
+        "NASDAQ:PTON"
+      ],
+      "why": "Official bill text covers qualifying fitness expenses and exercise equipment, capped at USD1,000 per taxpayer or USD2,000 for joint/head-of-household returns.",
+      "detail": "The query implied a home-gym deduction, but H.R.2369 remains an introduced bill referred to House Ways and Means, not enacted policy.",
+      "signals": [
+        {
+          "query": "home gym deduction act",
+          "rising": "Breakout",
+          "geography": [
+            "WORLDWIDE"
+          ],
+          "url": "https://trends.google.com/trends/explore?q=home+gym+deduction+act&date=now+7-d"
+        }
+      ],
+      "catalyst": "Committee markup or passage with operative equipment/subscription language.",
+      "transition_plan": null,
+      "next_check": null,
+      "kill_condition": "The bill remains stalled, is narrowed or excludes relevant equipment/subscriptions.",
+      "source_run": "overnight-2026-09-05",
+      "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "updated_at": "2026-09-04T17:45:35.177897+00:00",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      }
+    },
+    {
+      "idea_id": "historical::595b16d31047bd9b789e40d8",
+      "title": "Jeju Air",
+      "primary_state": "ARCHIVED",
+      "instruments": [
+        "Jeju Air Co., Ltd.; KOSPI code 089590 (instrument code corroborated by secondary market data; exact KRX instrument page was unavailable)"
+      ],
+      "why": "The service maps directly to a listed airline and demand can matter, but the evidence does not separate Jeju Air share gain from generic Korea travel; 1H revenue recovery still produced a net loss and accident-related liabilities remain incompletely quantified.",
+      "next_check": "Route-level booking and fare evidence",
+      "kill_condition": "Passenger growth without load-factor/yield improvement, no share gain versus peers, or material unresolved accident costs.",
+      "source_run": "social-six-2026-09-03",
+      "source_artifact": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "updated_at": "2026-09-04T00:30:40Z",
+      "monitoring": {
+        "status": "unscheduled",
+        "jobs": []
+      },
+      "notes": "Historical v1 result; archived WATCH requires v2 requalification."
+    }
+  ],
+  "backlog": {
+    "primary_state": "BACKLOG",
+    "lineages": 217,
+    "source_queue_occurrences": 225,
+    "consumed_by_round2": 8,
+    "note": "Backlog counts remain visible without flooding the active idea list with uninvestigated names."
+  },
+  "monitor_jobs": [
+    {
+      "job_id": "8132f87b2fd5",
+      "name": "Bounty Watchdog",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "every 15m",
+      "next_run_at": "2026-09-05T11:29:16.830071+08:00",
+      "last_run_at": "2026-09-05T11:14:16.830071+08:00",
+      "last_status": "ok"
+    },
+    {
+      "job_id": "d02c13639e80",
+      "name": "Bounty Social Data Collector",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "*/30 * * * *",
+      "next_run_at": "2026-09-05T11:30:00+08:00",
+      "last_run_at": "2026-09-05T11:00:15.492530+08:00",
+      "last_status": "error"
+    },
+    {
+      "job_id": "2b14c57d71e3",
+      "name": "GHOST A&W store availability panel",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "every 1440m",
+      "next_run_at": "2026-09-06T08:28:21.154079+08:00",
+      "last_run_at": "2026-09-05T08:28:21.154079+08:00",
+      "last_status": "ok"
+    },
+    {
+      "job_id": "cf5893b05d59",
+      "name": "GHOST A&W native Walmart panel",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "every 1440m",
+      "next_run_at": "2026-09-06T10:56:23.556372+08:00",
+      "last_run_at": "2026-09-05T10:56:23.556372+08:00",
+      "last_status": "ok"
+    },
+    {
+      "job_id": "19efa5815687",
+      "name": "Chewy Q2 FY2026 frozen-thesis update",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "once at 2026-09-09 21:15",
+      "next_run_at": "2026-09-09T21:15:00+08:00",
+      "last_run_at": null,
+      "last_status": null
+    },
+    {
+      "job_id": "da16ea8a40c0",
+      "name": "KDP Barclays GHOST monitor update",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "once at 2026-09-11 09:00",
+      "next_run_at": "2026-09-11T09:00:00+08:00",
+      "last_run_at": null,
+      "last_status": null
+    },
+    {
+      "job_id": "5159128f97f8",
+      "name": "GHOST A&W trends, conversations and parity watch",
+      "enabled": false,
+      "state": "paused",
+      "schedule": "30 10 * * *",
+      "next_run_at": "2026-09-06T10:30:00+08:00",
+      "last_run_at": "2026-09-05T10:54:34.541303+08:00",
+      "last_status": "ok"
+    },
+    {
+      "job_id": "a978661772ff",
+      "name": "Bounty Watch transition monitor",
+      "enabled": true,
+      "state": "scheduled",
+      "schedule": "15 8 * * *",
+      "next_run_at": "2026-09-06T08:15:00+08:00",
+      "last_run_at": null,
+      "last_status": null
+    }
+  ],
+  "source_receipts": [
+    {
+      "path": "artifacts/investing-dd/social-six-2026-09-03/comparison.json",
+      "sha256": "f553392988622251ab7e7d2b97b1cfd652e42f4f94da9f421687eb400e9aad2e",
+      "modified_at": "2026-09-04T08:59:02.111560+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/sop-v2-2026-09-04T1135Z/fresh-run-comparison.json",
+      "sha256": "830cb796f534de965ee3b02b7c20169e47ab9fe73d50ae8fcf7c34bb7def725b",
+      "modified_at": "2026-09-04T16:18:31.473452+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
+      "sha256": "efed454c1cdb904a466239cf8dfe3f59e32c38f006fa57828ee58f73c65442f2",
+      "modified_at": "2026-09-04T17:45:35.241779+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/overnight-2026-09-05/watch-transition-plans.json",
+      "sha256": "aca4b3fb11038106844f6f16ae31592ab2557a976d84f82cb0f93aae08299c31",
+      "modified_at": "2026-09-05T01:35:56.853625+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
+      "sha256": "63c5480e094be6d093212a169796bb547742b38135e6a6614b2ddd3b7848bb29",
+      "modified_at": "2026-09-05T03:58:44.326732+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/status.json",
+      "sha256": "d85b465e8987196cac6445868745d4743935c7ce90deaa91bf9aff13aa9b442d",
+      "modified_at": "2026-09-05T04:07:49.549218+00:00"
+    },
+    {
+      "path": "artifacts/investing-discovery/overnight-2026-09-05/frozen-candidate-batch.json",
+      "sha256": "79012e54fcc7bec35e90c77303e760dfc138d876c5ba9af3e05abbb50e746f1d",
+      "modified_at": "2026-09-04T16:48:30.050055+00:00"
+    }
+  ]
+}

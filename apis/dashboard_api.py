@@ -612,6 +612,23 @@ async def get_investing_social_pulse():
     return _get_social_pulse_store().public_payload()
 
 
+@router.get("/investing/tracker")
+async def get_investing_tracker():
+    """Serve the private tracker from live artifacts or its packaged snapshot."""
+    from social_scraper.investing.live_tracker import build_investment_tracker
+
+    root = Path(__file__).resolve().parents[1]
+    live = build_investment_tracker(root)
+    if live.get("status") == "complete":
+        return live
+    snapshot_path = root / "data" / "investing-tracker-snapshot.json"
+    try:
+        snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return live
+    return snapshot if isinstance(snapshot, dict) else live
+
+
 def _owned_private_scan_allowed() -> bool:
     enabled = os.getenv("BOUNTY_OWNED_SOCIAL_WORKER", "").strip().lower()
     if enabled not in {"1", "true", "yes", "on"}:

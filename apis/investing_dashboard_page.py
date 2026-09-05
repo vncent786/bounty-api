@@ -18,6 +18,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Sans:wdth,wght@75..100,400..700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/investing-dashboard.css">
   <script src="/investing-dashboard.js" defer></script>
+  <script src="/investing-tracker.js" defer></script>
 </head>
 <body>
 <a class="skip-link" href="#investing-desk">Skip to investor radar</a>
@@ -41,7 +42,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
     <nav class="product-nav" aria-label="Product">
       <button class="nav-item active" type="button" data-view="radar" aria-current="page"><span>01</span>Radar</button>
       <button class="nav-item" type="button" data-view="research"><span>02</span>Research</button>
-      <button class="nav-item" type="button" data-view="monitors"><span>03</span>Monitors</button>
+      <button class="nav-item" type="button" data-view="monitors"><span>03</span>Tracker</button>
       <button class="nav-item" type="button" data-view="usage"><span>04</span>Usage</button>
     </nav>
     <section class="classic-note" aria-labelledby="classic-note-title">
@@ -275,17 +276,35 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
     <section class="view" id="view-monitors" aria-labelledby="monitors-title">
       <header class="page-head compact-head">
         <div>
-          <p class="eyebrow">03 / Standing reads</p>
-          <h1 id="monitors-title">Monitors</h1>
-          <p>Track a bounded subject over time without confusing a fresh spike for durable change.</p>
+          <p class="eyebrow">03 / One source of truth</p>
+          <h1 id="monitors-title">Investment tracker</h1>
+          <p>Every idea has one primary state. Monitoring is a separate activity, so a Watch never appears twice under two different names.</p>
         </div>
+        <button class="primary-action" id="refresh-tracker" type="button">Refresh tracker</button>
       </header>
-      <div class="state-panel development-state wide-state">
-        <p class="eyebrow">In development</p>
-        <h2>Investing monitors are not connected yet</h2>
-        <p>No monitor activity is displayed until the investing API provides it. Existing recurring research remains available in Classic Bounty.</p>
-        <a href="/dashboard/classic#monitors">Open Classic Bounty monitors</a>
+      <section class="tracker-receipt" aria-label="Investment tracker receipt">
+        <div><span>Updated</span><strong id="tracker-updated">Loading persisted research</strong></div>
+        <div><span>Trade-ready now</span><strong id="tracker-trade-ready">Checking</strong></div>
+        <div><span>Monitor activity</span><strong id="tracker-monitor-health">Checking</strong></div>
+      </section>
+      <div class="tracker-toolbar">
+        <div class="tracker-state-tabs" id="tracker-state-tabs" role="group" aria-label="Filter ideas by primary state"></div>
+        <label class="tracker-search" for="tracker-search">Find an idea or ticker
+          <input id="tracker-search" type="search" autocomplete="off" placeholder="Search SONO, FSR, liquid cooling…">
+        </label>
       </div>
+      <section class="tracker-backlog" id="tracker-backlog" aria-live="polite"></section>
+      <section class="tracker-ledger" id="tracker-ledger" aria-live="polite" aria-busy="true">
+        <div class="state-panel loading-state wide-state">
+          <p class="eyebrow">Loading</p>
+          <h2>Reconciling every current idea</h2>
+          <p>Reading completed investigations, Watches, Trend Notes, rejects, backlog and monitor jobs.</p>
+        </div>
+      </section>
+      <details class="tracker-definitions">
+        <summary>What each state means</summary>
+        <div id="tracker-definitions"></div>
+      </details>
     </section>
 
     <section class="view" id="view-usage" aria-labelledby="usage-title">

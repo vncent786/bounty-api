@@ -1232,6 +1232,42 @@ select {
 .monitor-status.paused { color: var(--warning); }
 .monitor-status.unscheduled { color: var(--ink-38); }
 .tracker-small-copy { margin: 0; color: var(--ink-55); font-size: 0.72rem; overflow-wrap: anywhere; }
+.tracker-trend-panel { grid-column: 1 / -1; min-width: 0; padding-top: 18px; border-top: 1px solid var(--rule-faint); }
+.tracker-trend-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.tracker-trend-head h4 { margin: 3px 0 0; font-size: 1rem; }
+.tracker-signal-state { display: inline-flex; min-height: 28px; padding: 5px 8px; border: 1px solid currentColor; align-items: center; font: 600 0.64rem var(--mono); letter-spacing: .05em; text-transform: uppercase; }
+.tracker-signal-state.active-trend { background: var(--cobalt); border-color: var(--cobalt); color: white; }
+.tracker-signal-state.decaying-no-new-entry { color: var(--warning); }
+.tracker-signal-state.collapsed-no-new-entry { color: var(--error); }
+.tracker-signal-state.unverified { color: var(--ink-55); }
+.tracker-trend-controls { display: grid; grid-template-columns: minmax(210px, 360px) auto; gap: 18px; align-items: end; margin-top: 14px; }
+.tracker-trend-query { display: grid; gap: 5px; color: var(--ink-55); font-size: .72rem; }
+.tracker-trend-query select { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid var(--ink); border-radius: 0; background: var(--paper-raised); }
+.tracker-trend-horizons { display: flex; border-bottom: 1px solid var(--ink); }
+.tracker-trend-horizon { min-width: 54px; min-height: 44px; padding: 8px 10px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: var(--ink-55); cursor: pointer; font-family: var(--mono); }
+.tracker-trend-horizon.active { border-bottom-color: var(--cobalt); color: var(--ink); font-weight: 700; }
+.tracker-trend-horizon.unavailable { color: var(--ink-38); cursor: not-allowed; }
+.tracker-trend-scope { margin: 10px 0 7px; color: var(--ink-55); font: .7rem var(--mono); text-transform: uppercase; letter-spacing: .05em; }
+.tracker-trend-chart-scroll { max-width: 100%; overflow-x: auto; border: 1px solid var(--rule-faint); background: var(--paper-raised); }
+.tracker-trend-chart { display: block; width: 100%; min-width: 560px; height: auto; }
+.tracker-trend-guide { stroke: var(--rule-faint); stroke-width: 1; }
+.tracker-trend-line { stroke: var(--cobalt); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
+.tracker-trend-tick { stroke: var(--ink-55); stroke-width: 1; }
+.tracker-trend-axis-label,
+.tracker-trend-date-label { fill: var(--ink-55); font-family: var(--mono); font-size: 11px; }
+.tracker-trend-caption { margin: 8px 0 0; color: var(--ink-55); font-size: .75rem; }
+.tracker-trend-assessment { margin: 10px 0 0; font-weight: 600; }
+.tracker-theme-gap { margin: 6px 0 0; color: var(--warning); font-size: .8rem; }
+.tracker-trend-empty,
+.tracker-trend-missing { padding: 14px; border: 1px solid var(--rule-faint); background: var(--paper-raised); }
+.tracker-trend-missing p { margin: 5px 0 0; color: var(--ink-55); }
+.tracker-trend-data { margin-top: 8px; }
+.tracker-trend-data summary { min-height: 42px; padding: 10px 0; cursor: pointer; color: var(--cobalt-deep); font-size: .78rem; }
+.tracker-trend-table-scroll { max-height: 360px; overflow: auto; border: 1px solid var(--rule-faint); background: var(--paper-raised); }
+.tracker-trend-table-scroll table { width: 100%; border-collapse: collapse; font-size: .74rem; }
+.tracker-trend-table-scroll th,
+.tracker-trend-table-scroll td { padding: 8px 10px; border-bottom: 1px solid var(--rule-faint); text-align: left; white-space: nowrap; }
+.tracker-trend-table-scroll th { position: sticky; top: 0; background: var(--paper-raised); font-family: var(--mono); text-transform: uppercase; }
 .tracker-row-detail { grid-column: 1 / -1; margin-top: -4px; border-top: 1px solid var(--rule-faint); }
 .tracker-row-detail summary,
 .tracker-definitions summary { min-height: 42px; padding: 10px 0; cursor: pointer; font-weight: 600; }
@@ -1361,6 +1397,10 @@ select {
   .tracker-action-cell { grid-column: 2; }
 }
 @media (max-width: 760px) {
+  .tracker-trend-head,
+  .tracker-trend-controls { display: grid; grid-template-columns: minmax(0, 1fr); }
+  .tracker-signal-state { justify-self: start; }
+  .tracker-trend-chart { min-width: 520px; }
   .tracker-receipt, .tracker-toolbar, .tracker-row, .tracker-detail-body, .tracker-definition-row { grid-template-columns: minmax(0, 1fr); }
   .tracker-receipt > div { padding: 11px 0; }
   .tracker-receipt > div + div { padding-left: 0; border-top: 1px solid var(--rule-faint); border-left: 0; }

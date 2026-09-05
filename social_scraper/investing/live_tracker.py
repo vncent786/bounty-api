@@ -179,6 +179,8 @@ def build_investment_tracker(
         "round2_status": artifacts / "investing-discovery" / "expansion-2026-09-05" / "dd-round-2" / "status.json",
         "batch": artifacts / "investing-discovery" / "overnight-2026-09-05" / "frozen-candidate-batch.json",
         "monitor_state": root / "data" / "investing-watch-monitor-state.json",
+        "tracker_trends": root / "data" / "investing-tracker-trends.json",
+        "persistence_rescore": artifacts / "investing-discovery" / "corrected-rerun-2026-09-05" / "existing-bank-rescore.json",
     }
     loaded = {key: _load(path) for key, path in source_paths.items()}
     jobs_path = Path(cron_jobs_path) if cron_jobs_path else Path("D:/Hermes/cron/jobs.json")
@@ -294,6 +296,43 @@ def build_investment_tracker(
         if item.get("primary_state") == "WATCH":
             item["monitoring"] = _monitor_summary(watch_jobs)
 
+    persistence_by_title = {
+        _text(row.get("idea")): row
+        for row in ((loaded["persistence_rescore"] or {}).get("current_watch_list") or {}).get("rows", [])
+        if isinstance(row, dict)
+    }
+    for item in ideas.values():
+        persistence = persistence_by_title.get(_text(item.get("title")))
+        if persistence:
+            raw_state = _text(persistence.get("persistence_state")).lower()
+            item["signal_state"] = (
+                "COLLAPSED_NO_NEW_ENTRY"
+                if raw_state in {"collapsed", "collapsed_event_spike"}
+                else "DECAYING_NO_NEW_ENTRY"
+                if raw_state == "stable_or_unclear_not_current"
+                else "UNVERIFIED"
+            )
+            item["active_trend"] = False
+            item["persistence_treatment"] = persistence.get("recommended_treatment")
+
+    tracker_trends = loaded["tracker_trends"] or {}
+    for row in tracker_trends.get("items", []):
+        if not isinstance(row, dict):
+            continue
+        item = ideas.get(_text(row.get("idea_id")))
+        if not item:
+            continue
+        trend_bundle = row.get("search_trends") if isinstance(row.get("search_trends"), dict) else {}
+        trend_state = trend_bundle.get("classification") if isinstance(trend_bundle.get("classification"), dict) else {}
+        theme_state = row.get("theme_assessment") if isinstance(row.get("theme_assessment"), dict) else {}
+        item["search_trends"] = trend_bundle
+        item["signal_state"] = _text(trend_state.get("state") or item.get("signal_state") or "UNVERIFIED").upper()
+        item["active_trend"] = bool(theme_state.get("active"))
+        item["theme_assessment"] = theme_state
+        item["trend_geography"] = row.get("geography_label") or row.get("geography")
+        item["economic_confirmation_required"] = row.get("economic_confirmation_required")
+        item["geography_limit"] = row.get("geography_limit")
+
     monitor_state = loaded["monitor_state"] or {}
     for row in monitor_state.get("watches", []):
         if not isinstance(row, dict):
@@ -355,6 +394,7 @@ def build_investment_tracker(
         ),
     )
     state_counts = Counter(row["primary_state"] for row in rows)
+    signal_counts = Counter(_text(row.get("signal_state") or "NOT_APPLICABLE").upper() for row in rows)
     generated = now or datetime.now(timezone.utc)
     source_receipts = [
         _artifact_receipt(path, root) for path in source_paths.values() if path.exists()
@@ -384,6 +424,8 @@ def build_investment_tracker(
             "active_monitor_jobs": sum(row["enabled"] and row["state"] in {"scheduled", "running"} for row in monitor_jobs),
             "paused_monitor_jobs": sum(row["state"] == "paused" for row in monitor_jobs),
             "trade_ready_now": state_counts.get("PURSUE", 0) > 0,
+            "decision_queue": sum(row["primary_state"] in {"PURSUE", "INVESTIGATING"} for row in rows),
+            "signal_state_counts": dict(signal_counts),
         },
         "ideas": rows,
         "backlog": {

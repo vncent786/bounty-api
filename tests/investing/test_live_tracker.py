@@ -80,6 +80,34 @@ def test_tracker_reconciles_one_primary_state_and_separate_monitor_activity(tmp_
         {"denominator": {"excluded_queue_occurrences": 225}},
     )
     write_json(
+        tmp_path / "artifacts/investing-discovery/corrected-rerun-2026-09-05/existing-bank-rescore.json",
+        {"current_watch_list": {"rows": [{
+            "idea": "Live watch",
+            "persistence_state": "unverified",
+            "recommended_treatment": "QUARANTINE_PENDING_HISTORY",
+        }]}},
+    )
+    write_json(
+        tmp_path / "data/investing-tracker-trends.json",
+        {"items": [{
+            "idea_id": "overnight::live-watch",
+            "geography": "US",
+            "geography_label": "United States",
+            "economic_confirmation_required": "Issuer sales",
+            "search_trends": {
+                "classification": {"state": "ACTIVE_TREND", "active": True},
+                "default_query": "test demand",
+                "default_geo": "US",
+                "query_options": [],
+            },
+            "theme_assessment": {
+                "state": "UNVERIFIED",
+                "active": False,
+                "reason": "Company economics are missing.",
+            },
+        }]},
+    )
+    write_json(
         tmp_path / "data/investing-watch-monitor-state.json",
         {
             "checked_at": "2026-09-06T00:15:00Z",
@@ -119,6 +147,10 @@ def test_tracker_reconciles_one_primary_state_and_separate_monitor_activity(tmp_
     assert live_watch["monitoring"]["status"] == "active"
     assert live_watch["monitoring"]["last_result"] == "NO_CHANGE"
     assert live_watch["monitoring"]["last_checked_at"] == "2026-09-06T00:15:00Z"
+    assert live_watch["signal_state"] == "ACTIVE_TREND"
+    assert live_watch["active_trend"] is False
+    assert live_watch["persistence_treatment"] == "QUARANTINE_PENDING_HISTORY"
+    assert tracker["summary"]["decision_queue"] == 0
     assert live_watch["transition_plan"]["expiry"] == {"date": "2026-09-11"}
     legacy = next(row for row in tracker["ideas"] if row["title"] == "Legacy watch")
     assert legacy["primary_state"] == "ARCHIVED"
@@ -134,3 +166,9 @@ def test_investing_dashboard_tracker_surface_is_wired():
     assert "sessionStorage.getItem(TOKEN_KEY)" in script
     assert "Authorization: `Bearer ${token}`" in script
     assert "Set the dashboard API token" in script
+    assert "DECISION_STATES" in script
+    assert "filter: 'DECISION'" in script
+    assert "Weekly Google search interest" in script
+    assert "['3m', '3M']" in script
+    assert "tracker-trend-date-label" in script
+    assert "these are not weekly search counts" in script

@@ -3,13 +3,13 @@
 
   const TOKEN_KEY = ['bounty', 'apiToken'].join('.');
   const TRACKER_URL = '/dashboard/api/investing/tracker';
-  const ACTIVE_STATES = new Set(['INVESTIGATING', 'PURSUE', 'WATCH', 'TREND_NOTE', 'STANDING_MONITOR']);
+  const DECISION_STATES = new Set(['INVESTIGATING', 'PURSUE']);
   const FILTERS = [
-    ['ACTIVE', 'Active'], ['INVESTIGATING', 'Investigating'], ['PURSUE', 'Pursue'],
+    ['DECISION', 'Decision queue'], ['ACTIVE_TREND', 'Active trends'],
     ['WATCH', 'Watch'], ['TREND_NOTE', 'Trend notes'], ['STANDING_MONITOR', 'Standing'],
     ['REJECTED', 'Rejected'], ['ARCHIVED', 'Archived'], ['ALL', 'All'],
   ];
-  const tracker = { payload: null, filter: 'ACTIVE', query: '', loading: false };
+  const tracker = { payload: null, filter: 'DECISION', query: '', loading: false, horizons: {}, queries: {} };
   const $ = selector => document.querySelector(selector);
   const list = value => Array.isArray(value) ? value.filter(Boolean) : value ? [value] : [];
 
@@ -57,7 +57,8 @@
   function filterCount(payload, filter) {
     const ideas = list(payload?.ideas);
     if (filter === 'ALL') return ideas.length;
-    if (filter === 'ACTIVE') return ideas.filter(item => ACTIVE_STATES.has(String(item?.primary_state || '').toUpperCase())).length;
+    if (filter === 'DECISION') return ideas.filter(item => DECISION_STATES.has(String(item?.primary_state || '').toUpperCase()) || item?.active_trend === true).length;
+    if (filter === 'ACTIVE_TREND') return ideas.filter(item => item?.active_trend === true).length;
     return ideas.filter(item => String(item?.primary_state || '').toUpperCase() === filter).length;
   }
 
@@ -66,7 +67,8 @@
     return list(payload?.ideas).filter(item => {
       const primary = String(item?.primary_state || '').toUpperCase();
       const stateMatch = tracker.filter === 'ALL'
-        || (tracker.filter === 'ACTIVE' && ACTIVE_STATES.has(primary))
+        || (tracker.filter === 'DECISION' && (DECISION_STATES.has(primary) || item?.active_trend === true))
+        || (tracker.filter === 'ACTIVE_TREND' && item?.active_trend === true)
         || primary === tracker.filter;
       if (!stateMatch) return false;
       if (!query) return true;
@@ -132,6 +134,203 @@
     return block;
   }
 
+  function axisDate(value) {
+    const parsed = value ? new Date(`${String(value).slice(0, 10)}T00:00:00Z`) : null;
+    if (!parsed || Number.isNaN(parsed.getTime())) return String(value || '');
+    return new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: '2-digit', timeZone: 'UTC' }).format(parsed);
+  }
+
+  function signalStateLabel(value) {
+    return {
+      ACTIVE_TREND: 'Search rising · investment not qualified',
+      DECAYING_NO_NEW_ENTRY: 'Decaying · no new entry',
+      COLLAPSED_NO_NEW_ENTRY: 'Collapsed · no new entry',
+      UNVERIFIED: 'Persistence unverified',
+    }[String(value || '').toUpperCase()] || 'Persistence unverified';
+  }
+
+  function trendOption(bundle, query) {
+    const options = list(bundle?.query_options);
+    return options.find(option => String(option?.query || '') === String(query || '')) || options[0] || null;
+  }
+
+  function trendSeries(bundle, query, horizon) {
+    const option = trendOption(bundle, query);
+    const geography = String(bundle?.default_geo || 'WORLDWIDE');
+    return option?.series?.[geography]?.[horizon] || null;
+  }
+
+  function trendClassification(bundle, query, horizon) {
+    const option = trendOption(bundle, query);
+    const geography = String(bundle?.default_geo || 'WORLDWIDE');
+    return option?.weekly_classification?.[`${geography}:${horizon}`] || {};
+  }
+
+  function trendDataTable(series) {
+    const details = node('details', 'tracker-trend-data');
+    details.append(node('summary', '', 'View weekly date and value table'));
+    const scroller = node('div', 'tracker-trend-table-scroll');
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    ['Week starting', 'Week ending', 'Interest', 'Source points'].forEach(label => header.append(node('th', '', label)));
+    head.append(header);
+    const body = document.createElement('tbody');
+    list(series?.points).forEach(point => {
+      const row = document.createElement('tr');
+      [axisDate(point?.date), axisDate(point?.week_end || point?.date), String(point?.value ?? ''), String(point?.source_point_count ?? '')]
+        .forEach(value => row.append(node('td', '', value)));
+      body.append(row);
+    });
+    table.append(head, body);
+    scroller.append(table);
+    details.append(scroller);
+    return details;
+  }
+
+  function trendSvg(points, label) {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const width = 720;
+    const height = 215;
+    const left = 44;
+    const right = 704;
+    const top = 14;
+    const bottom = 166;
+    const svg = document.createElementNS(namespace, 'svg');
+    svg.setAttribute('class', 'tracker-trend-chart');
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', label);
+    [0, 50, 100].forEach(value => {
+      const y = bottom - (value / 100) * (bottom - top);
+      const guide = document.createElementNS(namespace, 'line');
+      guide.setAttribute('class', 'tracker-trend-guide');
+      guide.setAttribute('x1', String(left));
+      guide.setAttribute('x2', String(right));
+      guide.setAttribute('y1', String(y));
+      guide.setAttribute('y2', String(y));
+      const text = document.createElementNS(namespace, 'text');
+      text.setAttribute('class', 'tracker-trend-axis-label');
+      text.setAttribute('x', '2');
+      text.setAttribute('y', String(y + 4));
+      text.textContent = String(value);
+      svg.append(guide, text);
+    });
+    const dates = points.map(point => Date.parse(`${String(point.date).slice(0, 10)}T00:00:00Z`));
+    const start = Math.min(...dates);
+    const end = Math.max(...dates);
+    const span = Math.max(1, end - start);
+    const coordinates = points.map((point, index) => {
+      const stamp = dates[index];
+      const x = left + ((stamp - start) / span) * (right - left);
+      const value = Math.max(0, Math.min(100, Number(point.value)));
+      const y = bottom - (value / 100) * (bottom - top);
+      return { x, y, point };
+    });
+    const line = document.createElementNS(namespace, 'polyline');
+    line.setAttribute('class', 'tracker-trend-line');
+    line.setAttribute('fill', 'none');
+    line.setAttribute('points', coordinates.map(value => `${value.x.toFixed(2)},${value.y.toFixed(2)}`).join(' '));
+    svg.append(line);
+    const tickIndexes = [...new Set([0, Math.round((points.length - 1) / 3), Math.round(2 * (points.length - 1) / 3), points.length - 1])];
+    tickIndexes.forEach((index, tickPosition) => {
+      const value = coordinates[index];
+      const tick = document.createElementNS(namespace, 'line');
+      tick.setAttribute('class', 'tracker-trend-tick');
+      tick.setAttribute('x1', String(value.x));
+      tick.setAttribute('x2', String(value.x));
+      tick.setAttribute('y1', String(bottom));
+      tick.setAttribute('y2', String(bottom + 5));
+      const text = document.createElementNS(namespace, 'text');
+      text.setAttribute('class', 'tracker-trend-date-label');
+      text.setAttribute('x', String(value.x));
+      text.setAttribute('y', '194');
+      text.setAttribute('text-anchor', tickPosition === 0 ? 'start' : tickPosition === tickIndexes.length - 1 ? 'end' : 'middle');
+      text.textContent = axisDate(value.point.date);
+      svg.append(tick, text);
+    });
+    return svg;
+  }
+
+  function trendPanel(item) {
+    const bundle = item?.search_trends && typeof item.search_trends === 'object' ? item.search_trends : null;
+    if (!bundle) {
+      if (item?.primary_state !== 'WATCH') return null;
+      const missing = node('section', 'tracker-trend-panel tracker-trend-missing');
+      add(missing, node('span', 'tracker-field-label', 'Google search history'), node('strong', '', 'Not collected'), node('p', '', 'This idea stays outside the decision queue until dated history is available.'));
+      return missing;
+    }
+    const ideaId = String(item?.idea_id || item?.title || 'idea');
+    const options = list(bundle.query_options);
+    const selectedQuery = tracker.queries[ideaId] || String(bundle.default_query || bundle.query || options[0]?.query || '');
+    const selectedHorizon = tracker.horizons[ideaId] || String(bundle.default_horizon || '3m');
+    const series = trendSeries(bundle, selectedQuery, selectedHorizon);
+    const classification = trendClassification(bundle, selectedQuery, selectedHorizon);
+    const panel = node('section', 'tracker-trend-panel');
+    const head = node('div', 'tracker-trend-head');
+    const copy = node('div');
+    add(copy, node('span', 'tracker-field-label', 'Weekly Google search interest'), node('h4', '', selectedQuery));
+    const stateBadge = node('span', `tracker-signal-state ${String(classification.state || 'UNVERIFIED').toLowerCase().replaceAll('_', '-')}`, signalStateLabel(classification.state));
+    add(head, copy, stateBadge);
+    panel.append(head);
+    const controls = node('div', 'tracker-trend-controls');
+    if (options.length > 1) {
+      const label = node('label', 'tracker-trend-query', 'Search');
+      const select = document.createElement('select');
+      select.setAttribute('aria-label', `Google search for ${item?.title || 'this idea'}`);
+      options.forEach(option => {
+        const choice = document.createElement('option');
+        choice.value = String(option.query);
+        choice.textContent = String(option.query);
+        choice.selected = choice.value === selectedQuery;
+        select.append(choice);
+      });
+      select.addEventListener('change', event => {
+        tracker.queries[ideaId] = event.target.value;
+        render(tracker.payload);
+      });
+      label.append(select);
+      controls.append(label);
+    }
+    const horizonGroup = node('div', 'tracker-trend-horizons');
+    horizonGroup.setAttribute('role', 'group');
+    horizonGroup.setAttribute('aria-label', `Google history timeframe for ${item?.title || 'this idea'}`);
+    [['3m', '3M'], ['1y', '1Y'], ['5y', '5Y']].forEach(([code, label]) => {
+      const available = trendSeries(bundle, selectedQuery, code)?.status === 'complete';
+      const button = node('button', `tracker-trend-horizon${code === selectedHorizon ? ' active' : ''}${available ? '' : ' unavailable'}`, label);
+      button.type = 'button';
+      button.disabled = !available;
+      button.setAttribute('aria-pressed', code === selectedHorizon ? 'true' : 'false');
+      button.title = available ? `Show ${label} history` : `${label} history unavailable`;
+      button.addEventListener('click', () => {
+        tracker.horizons[ideaId] = code;
+        render(tracker.payload);
+      });
+      horizonGroup.append(button);
+    });
+    controls.append(horizonGroup);
+    panel.append(controls);
+    const scope = `${item?.trend_geography || bundle.default_geo || 'Worldwide'} · ${selectedHorizon.toUpperCase()} · weekly average`;
+    panel.append(node('p', 'tracker-trend-scope', scope));
+    const points = list(series?.points).filter(point => Number.isFinite(Number(point?.value)) && point?.date);
+    if (series?.status !== 'complete' || !points.length) {
+      const status = String(series?.status || 'unavailable').replaceAll('_', ' ');
+      panel.append(node('div', 'tracker-trend-empty', `No chart drawn: ${status}. Missing data remain blank.`));
+    } else {
+      const chartScroll = node('div', 'tracker-trend-chart-scroll');
+      chartScroll.append(trendSvg(points, `Weekly Google search interest for ${selectedQuery}, ${scope}`));
+      panel.append(chartScroll);
+      const values = points.map(point => Number(point.value));
+      panel.append(node('p', 'tracker-trend-caption', `Latest ${integer(values[values.length - 1])} · peak ${integer(Math.max(...values))}. Google normalizes this chart from 0–100; these are not weekly search counts.`));
+      panel.append(trendDataTable(series));
+    }
+    if (classification.reason) panel.append(node('p', 'tracker-trend-assessment', classification.reason));
+    if (item?.theme_assessment?.reason) panel.append(node('p', 'tracker-theme-gap', `Still missing for an active investment idea: ${item.theme_assessment.reason}`));
+    if (item?.economic_confirmation_required) panel.append(node('p', 'tracker-theme-gap', `Economic confirmation required: ${item.economic_confirmation_required}`));
+    if (item?.geography_limit) panel.append(node('p', 'tracker-theme-gap', item.geography_limit));
+    return panel;
+  }
+
   function ideaRow(item) {
     const primary = String(item?.primary_state || 'INVESTIGATING').toUpperCase();
     const cssState = stateClass(primary);
@@ -161,6 +360,7 @@
       monitorBlock(item),
     );
 
+    const trend = trendPanel(item);
     const detail = node('details', 'tracker-row-detail');
     detail.append(node('summary', '', 'Decision details'));
     const body = node('div', 'tracker-detail-body');
@@ -172,7 +372,7 @@
     if (plan.expiry) add(body, node('span', 'tracker-field-label', 'Expiry'), node('p', '', valueText(plan.expiry)));
     add(body, node('span', 'tracker-field-label', 'Source artifact'), node('p', 'mono tracker-artifact-path', item?.source_artifact || 'Not reported'));
     detail.append(body);
-    add(article, status, thesis, action, detail);
+    add(article, status, thesis, action, trend, detail);
     return article;
   }
 
@@ -204,7 +404,12 @@
     target.setAttribute('aria-busy', 'false');
     const items = filteredIdeas(payload);
     if (!items.length) {
-      add(target, node('div', 'state-panel empty-state', 'Nothing matches this status and search.'));
+      const emptyCopy = tracker.filter === 'DECISION'
+        ? 'No idea currently passes the persistence, broad-theme and company-economics checks. Review quarantined items under Watch.'
+        : 'Change the status filter or clear the search.';
+      const empty = node('div', 'state-panel empty-state');
+      add(empty, node('p', 'eyebrow', 'Nothing actionable'), node('h3', '', tracker.filter === 'DECISION' ? 'Decision queue is empty' : 'Nothing matches this view'), node('p', '', emptyCopy));
+      target.append(empty);
       return;
     }
     items.forEach(item => target.append(ideaRow(item)));

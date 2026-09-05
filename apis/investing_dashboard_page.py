@@ -278,7 +278,7 @@ INVESTING_DASHBOARD_HTML = """<!doctype html>
         <div>
           <p class="eyebrow">03 / One source of truth</p>
           <h1 id="monitors-title">Investment tracker</h1>
-          <p>Every idea has one primary state. Monitoring is a separate activity, so a Watch never appears twice under two different names.</p>
+          <p>Every idea has one primary state. The Decision queue excludes unverified, decaying and collapsed searches; open Watch to inspect dated Google history and missing company evidence.</p>
         </div>
         <button class="primary-action" id="refresh-tracker" type="button">Refresh tracker</button>
       </header>

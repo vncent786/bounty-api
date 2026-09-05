@@ -197,7 +197,7 @@
 
     const backlog = $('#tracker-backlog');
     backlog.replaceChildren();
-    add(backlog, node('span', 'tracker-field-label', 'Research backlog'), node('strong', '', `${integer(payload?.backlog?.lineages)} uninvestigated lineages`), node('p', '', payload?.backlog?.note || 'Backlog status unavailable.'));
+    add(backlog, node('span', 'tracker-field-label', 'Research backlog'), node('strong', '', `${integer(payload?.backlog?.lineages)} ideas waiting for review`), node('p', '', payload?.backlog?.note || 'Backlog status unavailable.'));
 
     const target = $('#tracker-ledger');
     target.replaceChildren();

@@ -1,3 +1,4 @@
+import hashlib
 import json
 from pathlib import Path
 
@@ -172,3 +173,18 @@ def test_investing_dashboard_tracker_surface_is_wired():
     assert "['3m', '3M']" in script
     assert "tracker-trend-date-label" in script
     assert "these are not weekly search counts" in script
+
+
+def test_public_tracker_release_receipt_proves_private_snapshot_without_leaking_ideas():
+    root = Path(__file__).parents[2]
+    snapshot_path = root / "data" / "investing-tracker-snapshot.json"
+    receipt = json.loads((root / "public" / "investing-tracker-release.json").read_text(encoding="utf-8"))
+
+    assert receipt["schema_version"] == "bounty-investment-tracker-release/1"
+    assert receipt["tracker_snapshot_sha256"] == hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
+    assert receipt["methodology"] == "bounty-corrected-persistence-rerun/1"
+    assert receipt["decision_queue"] == 0
+    assert receipt["google_series"] == 57
+    assert receipt["failed_google_series"] == 0
+    assert "ideas" not in receipt
+    assert "D:\\" not in json.dumps(receipt)

@@ -1,0 +1,30 @@
+{
+  "schema_version": "bounty-investment-tracker-release/1",
+  "published_at": "2026-09-05T16:37:49.116592+00:00",
+  "tracker_schema_version": "bounty-investment-tracker/1",
+  "tracker_snapshot_sha256": "00bd327400b260d117270d07a4465821956f029f6b44f4dd5f6215c5fbf4f09f",
+  "methodology": "bounty-corrected-persistence-rerun/1",
+  "trend_data_built_at": "2026-09-05T15:51:54.814093+00:00",
+  "decision_queue": 0,
+  "trade_ready_now": false,
+  "primary_state_counts": {
+    "INVESTIGATING": 0,
+    "PURSUE": 0,
+    "WATCH": 8,
+    "TREND_NOTE": 3,
+    "STANDING_MONITOR": 2,
+    "REJECTED": 18,
+    "ARCHIVED": 1
+  },
+  "signal_state_counts": {
+    "UNVERIFIED": 5,
+    "ACTIVE_TREND": 2,
+    "DECAYING_NO_NEW_ENTRY": 1,
+    "NOT_APPLICABLE": 24
+  },
+  "google_series": 57,
+  "failed_google_series": 0,
+  "google_preflight": "healthy",
+  "private_data": "Token-gated. This receipt contains aggregate counts and hashes only.",
+  "receipt_sha256": "140c5139bf3f4a0e8085aa9fad0222be9f74ec8474961b82bf592743aced540e"
+}

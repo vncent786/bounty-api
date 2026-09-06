@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-06T03:43:53.690913+00:00",
+  "generated_at": "2026-09-06T03:57:12.245541+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -50283,11 +50283,11 @@
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-06T03:27:35.313010Z",
+        "as_of": "2026-09-06T03:54:38.331489Z",
         "headline": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
-          "current_read": "No exit-review trigger. US search remains elevated; conversation momentum is not yet measurable; financial coverage remains niche.",
+          "current_read": "No exit-review trigger. search direction remains incomplete; conversation momentum is not yet measurable; financial coverage remains niche.",
           "exit_review_triggered": false,
           "triggered_by": []
         },
@@ -50405,13 +50405,10 @@
         },
         "search": {
           "state": "SEARCH_BUILDING_BASELINE",
-          "status": "partial_route_fallback",
-          "current_read": "Elevated, not falling in the usable US comparison.",
-          "latest_complete_date": "2026-09-04",
-          "ratios": {
-            "ghost root beer energy drink": 1.2100840336134455,
-            "ghost a&w root beer": 1.6512455516014235
-          },
+          "status": "source_failure",
+          "current_read": "The latest search check failed; the last verified reading is preserved.",
+          "latest_complete_date": null,
+          "ratios": {},
           "history": [
             {
               "observed_at": "2026-09-04T01:47:06Z",
@@ -50453,7 +50450,7 @@
               "query_status": "empty",
               "exact_roots": 0,
               "qualifying_roots": 0,
-              "recovered_at": "2026-09-05T15:40:11.161961Z"
+              "recovered_at": "2026-09-06T03:54:38.331489Z"
             },
             "instagram": {
               "health": "healthy",
@@ -50490,6 +50487,13 @@
               "qualifying_roots": 0,
               "source_state": "source_failure",
               "comparable": false
+            },
+            {
+              "observed_at": "2026-09-06T03:52:43Z",
+              "exact_roots": 10,
+              "qualifying_roots": 0,
+              "source_state": "healthy_canaries_partial_candidate_query",
+              "comparable": false
             }
           ],
           "sentiment": {
@@ -50501,7 +50505,7 @@
           "state": "NICHE_ONLY",
           "qualifying_outlets": 0,
           "management_acknowledged": false,
-          "observed_at": "2026-09-05T02:51:56Z",
+          "observed_at": "2026-09-06T03:52:43Z",
           "history": [
             {
               "observed_at": "2026-09-04T02:42:39Z",
@@ -50514,11 +50518,17 @@
               "state": "NICHE_ONLY",
               "qualifying_outlets": 0,
               "management_acknowledged": false
+            },
+            {
+              "observed_at": "2026-09-06T03:52:43Z",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
             }
           ],
           "source_checks": {
             "official_sources": 8,
-            "sec_filings": 9,
+            "sec_filings": 13,
             "news_queries": 4,
             "earnings_call_or_transcript_checked": true
           }
@@ -50538,28 +50548,28 @@
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
-              "sha256": "53707aad98d12630d1a4d069aa9a34ed8c1d24e6cb27d33917745fc26a1e1888",
-              "modified_at": "2026-09-05T02:51:57.482584+00:00"
+              "sha256": "76bd85e46a075658e71db4d5dcdddc74e3f5ec7ff64da5b105657f83e4700a98",
+              "modified_at": "2026-09-06T03:52:43.691166+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_history.jsonl",
-              "sha256": "26036c3ecc2ff0f69447eb52bd8ad2bc7211a2a9e3b0a23a2b2a983d4642df55",
-              "modified_at": "2026-09-05T02:51:57.503798+00:00"
+              "sha256": "ef527585c1d05587020ca9f29a87dcc68e9bf0b5c8fd308f383e0d7eb8971e01",
+              "modified_at": "2026-09-06T03:52:43.724562+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
-              "sha256": "7b05ea37e4aed5734c0e56b4e610e0286417709546aadd58d9e42b82c392ab8d",
-              "modified_at": "2026-09-05T02:51:57.425343+00:00"
+              "sha256": "de34ce4c2228a19255c0c5828a02ea60b4b0bcae7cac8e965e5f67bd18b14d67",
+              "modified_at": "2026-09-06T03:52:43.650263+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_history.jsonl",
-              "sha256": "c4261deb3e5c7371fd792c421b1326283c75ba774842f07b008c311e3f1c4d93",
-              "modified_at": "2026-09-05T02:51:57.453908+00:00"
+              "sha256": "d5b1582575a22a2d0060933cf4073c0cadfeb4e71dd5623d8ea6aa1985592986",
+              "modified_at": "2026-09-06T03:52:43.672032+00:00"
             },
             {
-              "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-05T154011Z.json",
-              "sha256": "95b2d8b7eb8742064d8d8d1dbaf9392e51741a067e866e1b7ddfe25e0e867b2b",
-              "modified_at": "2026-09-05T15:40:11.161962+00:00"
+              "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-06T035438Z.json",
+              "sha256": "90e36eb1a10ea3bdc170f1070959a4255e2bc6a52cddf3cec2acc164d91eebdf",
+              "modified_at": "2026-09-06T03:54:38.331490+00:00"
             }
           ]
         }

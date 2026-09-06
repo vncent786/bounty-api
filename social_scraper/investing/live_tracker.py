@@ -297,6 +297,89 @@ def _search_ratios(search: dict[str, Any] | None, geography: str = "US") -> dict
     return {}
 
 
+def _rolling_seven_day_change_series(
+    returned_values: dict[str, Any] | None,
+    queries: list[str],
+    partial_flags: list[Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Derive rolling 7d-vs-prior-7d changes inside one normalized request.
+
+    A point is omitted when any date in its 14-day window is partial, a query
+    value is missing/non-numeric, or the prior seven-day mean is zero. Missing
+    points remain gaps; nothing is interpolated.
+    """
+    source = returned_values or {}
+    dates = source.get("dates") if isinstance(source.get("dates"), list) else []
+    partial = partial_flags if isinstance(partial_flags, list) else (
+        source.get("isPartial_flags") if isinstance(source.get("isPartial_flags"), list) else []
+    )
+    if len(dates) < 14:
+        return []
+    if len(partial) != len(dates):
+        partial = [False] * len(dates)
+    output = []
+    for index in range(13, len(dates)):
+        window_start = index - 13
+        if any(bool(value) for value in partial[window_start:index + 1]):
+            continue
+        changes: dict[str, float] = {}
+        latest_means: dict[str, float] = {}
+        prior_means: dict[str, float] = {}
+        for query in queries:
+            values = source.get(query)
+            if not isinstance(values, list) or len(values) != len(dates):
+                continue
+            latest = values[index - 6:index + 1]
+            prior = values[index - 13:index - 6]
+            if not all(isinstance(value, (int, float)) for value in latest + prior):
+                continue
+            latest_mean = sum(float(value) for value in latest) / 7
+            prior_mean = sum(float(value) for value in prior) / 7
+            if prior_mean <= 0:
+                continue
+            changes[query] = round(((latest_mean / prior_mean) - 1) * 100, 4)
+            latest_means[query] = latest_mean
+            prior_means[query] = prior_mean
+        if changes:
+            output.append({
+                "date": _text(dates[index])[:10],
+                "changes_pct": changes,
+                "latest_7_mean": latest_means,
+                "prior_7_mean": prior_means,
+                "source_window_days": 14,
+            })
+    return output
+
+
+def _verified_search_values(
+    search: dict[str, Any],
+    geography: str = "US",
+    observed_at: str | None = None,
+) -> tuple[dict[str, Any] | None, str | None, str | None, list[Any] | None, str | None]:
+    geographies = search.get("geographies") if isinstance(search.get("geographies"), dict) else {}
+    current = geographies.get(geography) if isinstance(geographies.get(geography), dict) else {}
+    current_values = current.get("returned_values") if isinstance(current.get("returned_values"), dict) else None
+    if current_values:
+        return (
+            current_values,
+            observed_at or search.get("observed_at"),
+            current.get("latest_complete_date") or search.get("latest_complete_date"),
+            current.get("isPartial_flags") if isinstance(current.get("isPartial_flags"), list) else None,
+            _text(current.get("status") or search.get("data_status") or search.get("status") or "complete").lower(),
+        )
+    last_verified = search.get("last_verified_observation") if isinstance(search.get("last_verified_observation"), dict) else {}
+    verified_geographies = last_verified.get("geographies") if isinstance(last_verified.get("geographies"), dict) else {}
+    verified = verified_geographies.get(geography) if isinstance(verified_geographies.get(geography), dict) else {}
+    verified_values = verified.get("returned_values") if isinstance(verified.get("returned_values"), dict) else None
+    return (
+        verified_values,
+        last_verified.get("observed_at"),
+        verified.get("latest_complete_date"),
+        verified.get("isPartial_flags") if isinstance(verified.get("isPartial_flags"), list) else None,
+        _text(verified.get("status") or "complete").lower() if verified_values else None,
+    )
+
+
 def _ghost_monitor_dashboard(
     root: Path,
     *,
@@ -320,8 +403,14 @@ def _ghost_monitor_dashboard(
     complete_daily = _daily_complete_availability(_load_jsonl(walmart_history_path))
     last_complete = complete_daily[-1] if complete_daily else None
     previous_complete = complete_daily[-2] if len(complete_daily) > 1 else None
-    current_counts = _availability_counts(walmart_latest)
+    latest_attempt_counts = _availability_counts(walmart_latest)
     last_complete_counts = _availability_counts(last_complete)
+    visible_snapshot = (
+        walmart_latest
+        if walmart_latest.get("coverage_status") == "complete"
+        else last_complete
+    )
+    current_counts = _availability_counts(visible_snapshot)
     availability_history = [
         {"date": _text(row.get("observed_at"))[:10], **_availability_counts(row)}
         for row in complete_daily
@@ -357,18 +446,42 @@ def _ghost_monitor_dashboard(
             "ratios": ratios,
         })
     latest_ratios = _search_ratios(search_latest)
+    if not latest_ratios and search_history:
+        latest_ratios = dict(search_history[-1].get("ratios") or {})
+    query_basket = [
+        _text(value) for value in _as_list(
+            search_latest.get("query_basket") or list(latest_ratios)
+        ) if _text(value)
+    ]
+    (
+        verified_values,
+        verified_search_at,
+        verified_complete_date,
+        verified_partial_flags,
+        verified_search_status,
+    ) = _verified_search_values(search_latest, observed_at=attention_latest.get("observed_at"))
+    rolling_search_change = _rolling_seven_day_change_series(
+        verified_values,
+        query_basket,
+        verified_partial_flags,
+    )
+    if verified_search_status:
+        visible_search_status = verified_search_status
+    elif search_history and latest_ratios:
+        visible_search_status = _text(search_history[-1].get("status") or "complete").lower()
+        verified_search_at = verified_search_at or search_history[-1].get("observed_at")
+    else:
+        visible_search_status = _text(search_latest.get("status") or "unknown").lower()
     comparison = _text(search_latest.get("current_comparison")).casefold()
     if "not_falling" in comparison or (latest_ratios and all(value >= 1 for value in latest_ratios.values())):
         search_read = "Elevated, not falling in the usable US comparison."
     elif "fall" in comparison or "cool" in comparison:
         search_read = "Search attention is weakening and needs review."
-    elif _text(search_latest.get("status")).upper() == "SOURCE_FAILURE":
-        search_read = "The latest search check failed; the last verified reading is preserved."
     else:
         search_read = "Building a comparable search baseline."
 
     conversation = attention_latest.get("conversation_attention") if isinstance(attention_latest.get("conversation_attention"), dict) else {}
-    conversation_history = []
+    conversation_by_day: dict[str, tuple[str, dict[str, Any]]] = {}
     for row in attention_rows:
         historical = row.get("conversation_attention") if isinstance(row.get("conversation_attention"), dict) else None
         if not historical:
@@ -390,19 +503,41 @@ def _ghost_monitor_dashboard(
             in {"complete", "complete_relevant", "complete_no_match", "empty"}
             for value in historical_queries.values()
         )
-        conversation_history.append({
+        terminal_states = {"complete", "complete_relevant", "complete_no_match", "empty"}
+        successful_platforms = [
+            platform for platform in ("x", "tiktok", "instagram", "reddit", "youtube")
+            if isinstance(historical_canaries.get(platform), dict)
+            and _text(historical_canaries[platform].get("status")).lower() == "healthy"
+            and isinstance(historical_queries.get(platform), dict)
+            and (
+                _text(historical_queries[platform].get("candidate_query_status")).lower() in terminal_states
+                or (
+                    _text(historical_queries[platform].get("candidate_query_status")).lower() == "partial"
+                    and int(historical_raw.get(platform) or 0) > 0
+                )
+            )
+        ]
+        point = {
             "observed_at": row.get("observed_at"),
-            "exact_roots": sum(int(value or 0) for value in historical_raw.values()),
-            "qualifying_roots": sum(int(value or 0) for value in historical_qualifying.values()),
+            "exact_roots": sum(int(historical_raw.get(platform) or 0) for platform in successful_platforms),
+            "qualifying_roots": sum(int(historical_qualifying.get(platform) or 0) for platform in successful_platforms),
+            "exact_roots_by_platform": {
+                platform: int(historical_raw.get(platform) or 0)
+                for platform in ("x", "tiktok", "instagram", "reddit", "youtube")
+            },
+            "successful_platforms": successful_platforms,
             "source_state": _text(historical.get("operational_state") or "unknown").lower(),
             "comparable": bool(canaries_healthy and queries_terminal),
-        })
-    sentiment = conversation.get("sentiment") if isinstance(conversation.get("sentiment"), dict) else None
-    if not sentiment:
-        sentiment = {
-            "status": "not_collected",
-            "note": "Positive and negative reactions both count toward buzz; no comparable sentiment history has been collected yet.",
         }
+        day = _text(row.get("observed_at"))[:10]
+        if len(day) < 10:
+            continue
+        score = _text(row.get("observed_at"))
+        prior = conversation_by_day.get(day)
+        if prior is None or score >= prior[0]:
+            conversation_by_day[day] = (score, point)
+    conversation_history = [conversation_by_day[day][1] for day in sorted(conversation_by_day)]
+    sentiment_source = conversation.get("sentiment") if isinstance(conversation.get("sentiment"), dict) else {}
     canaries = conversation.get("platform_canary_matrix") if isinstance(conversation.get("platform_canary_matrix"), dict) else {}
     queries = conversation.get("candidate_platform_queries") if isinstance(conversation.get("candidate_platform_queries"), dict) else {}
     origin = conversation.get("origin_review") if isinstance(conversation.get("origin_review"), dict) else {}
@@ -428,6 +563,49 @@ def _ghost_monitor_dashboard(
             "exact_roots": int(retry_source.get("count") or 0),
             "recovered_at": (tiktok_retry or {}).get("observed_at"),
         })
+
+    completed_platform_names = [
+        platform for platform, row in platform_rows.items()
+        if row["health"] == "healthy"
+        and (
+            row["query_status"] in {"complete", "complete_relevant", "complete_no_match", "empty"}
+            or (row["query_status"] == "partial" and row["exact_roots"] > 0)
+        )
+    ]
+    visible_platform_rows = {platform: platform_rows[platform] for platform in completed_platform_names}
+    observed_conversation_count = sum(row["exact_roots"] for row in visible_platform_rows.values())
+    completed_platform_count = len(completed_platform_names)
+    supplied_sentiment = sentiment_source.get("counts") if isinstance(sentiment_source.get("counts"), dict) else {}
+    sentiment_counts = {
+        bucket: max(0, int(supplied_sentiment.get(bucket) or 0))
+        for bucket in ("positive", "negative", "neutral", "mixed")
+    }
+    classified_sentiment = sum(sentiment_counts.values())
+    explicitly_unclassified = supplied_sentiment.get("unclassified")
+    sentiment_counts["unclassified"] = (
+        max(0, int(explicitly_unclassified))
+        if isinstance(explicitly_unclassified, (int, float))
+        else max(0, observed_conversation_count - classified_sentiment)
+    )
+    sentiment = {
+        **sentiment_source,
+        "status": _text(sentiment_source.get("status") or "not_collected").lower(),
+        "role": "secondary_context_only",
+        "counts": sentiment_counts,
+        "sample_denominator": int(
+            sentiment_source.get("sample_denominator")
+            or sentiment_source.get("total_exact_roots")
+            or observed_conversation_count
+        ),
+        "note": _text(sentiment_source.get("note")) or (
+            "Positive, negative, neutral and mixed reactions all remain context; "
+            "unclassified posts are not relabeled."
+        ),
+    }
+    conversation_headline = (
+        f"{observed_conversation_count} exact posts successfully observed across "
+        f"{completed_platform_count} completed platform checks."
+    )
 
     coverage = _load(coverage_latest_path) or {}
     coverage_history = []
@@ -464,6 +642,10 @@ def _ghost_monitor_dashboard(
     search_state = _text(search_latest.get("state") or "SEARCH_BUILDING_BASELINE").upper()
     conversation_state = _text(conversation.get("state") or "CONVERSATION_BUILDING_BASELINE").upper()
     coverage_state = _text(coverage.get("parity_state") or "unknown").upper()
+    comparable_conversation_points = max(
+        int(conversation.get("comparable_scheduled_runs") or 0),
+        sum(bool(row.get("comparable")) for row in conversation_history),
+    )
     triggered_by = []
     if search_state in {"SEARCH_SOFTENING", "SEARCH_COOLING_REVIEW"}:
         triggered_by.append("search attention fell through its frozen review rule")
@@ -488,7 +670,10 @@ def _ghost_monitor_dashboard(
             if coverage_state == "EARLY_BUSINESS_COVERAGE"
             else "financial-coverage status remains incomplete"
         )
-        thesis_read = f"No exit-review trigger. {search_phrase}; conversation momentum is not yet measurable; {coverage_phrase}."
+        thesis_read = (
+            f"No exit-review trigger. {search_phrase}; the latest observed conversation sample "
+            f"contains {observed_conversation_count} exact posts; {coverage_phrase}."
+        )
     else:
         thesis_status = "CONTINUE_MONITORING"
         thesis_read = "No exit-review trigger. Search, conversation momentum and financial coverage remain inside the frozen monitoring rules."
@@ -497,10 +682,13 @@ def _ghost_monitor_dashboard(
     elif conversation_state == "CONVERSATION_SOFTENING":
         conversation_read = "Independent conversation volume is softening; watch the next comparable run."
     elif int(conversation.get("comparable_scheduled_runs") or 0) < 2:
-        conversation_read = "Building a comparable baseline; no acceleration or decline call yet."
+        conversation_read = (
+            f"Latest observed sample: {observed_conversation_count} exact posts across successful sources. "
+            "Positive and negative reactions both count toward buzz."
+        )
     else:
         conversation_read = "No verified conversation-volume decline trigger."
-    return {
+    payload = {
         "as_of": max(observed_values, default=None),
         "headline": headline,
         "thesis_realization": {
@@ -512,29 +700,45 @@ def _ghost_monitor_dashboard(
         "availability": {
             "state": _text(((last_complete or {}).get("restock_monitor") or {}).get("availability_state") or "building_baseline").lower(),
             "current": current_counts,
+            "latest_attempt": latest_attempt_counts,
             "last_complete": last_complete_counts,
             "history": availability_history,
-            "stores": _store_rows(walmart_latest),
+            "stores": _store_rows(visible_snapshot),
             "newly_available_stores": newly_available,
             "broad_restock_at": 4,
             "full_restock_at": 6,
         },
         "search": {
             "state": _text(search_latest.get("state") or "SEARCH_BUILDING_BASELINE").upper(),
-            "status": _text(search_latest.get("status") or "unknown").lower(),
+            "status": visible_search_status,
             "current_read": search_read,
-            "latest_complete_date": search_latest.get("latest_complete_date"),
+            "latest_complete_date": verified_complete_date or search_latest.get("latest_complete_date"),
+            "last_successful_observed_at": verified_search_at,
             "ratios": latest_ratios,
             "history": search_history,
-            "query_basket": _as_list(search_latest.get("query_basket") or list(latest_ratios)),
+            "rolling_seven_day_change": rolling_search_change,
+            "query_basket": query_basket,
+            "source_health": {
+                "latest_attempt_status": _text(search_latest.get("status") or "unknown").lower(),
+                "visible_series_uses_last_verified": not bool(_search_ratios(search_latest)),
+            },
         },
         "conversations": {
             "state": _text(conversation.get("state") or "CONVERSATION_BUILDING_BASELINE").upper(),
+            "headline": conversation_headline,
             "current_read": conversation_read,
             "comparable_runs": int(conversation.get("comparable_scheduled_runs") or 0),
-            "platforms": platform_rows,
-            "exact_roots": sum(row["exact_roots"] for row in platform_rows.values()),
-            "qualifying_roots": sum(row["qualifying_roots"] for row in platform_rows.values()),
+            "comparable_history_points": comparable_conversation_points,
+            "coverage_note": (
+                "Observed volume is shown from successful sources. Coverage is not yet stable enough "
+                "for a like-for-like momentum claim."
+                if comparable_conversation_points < 2
+                else "Observed volume has at least two comparable monitoring points."
+            ),
+            "platforms": visible_platform_rows,
+            "successful_platforms": completed_platform_names,
+            "exact_roots": observed_conversation_count,
+            "qualifying_roots": sum(row["qualifying_roots"] for row in visible_platform_rows.values()),
             "history": conversation_history,
             "sentiment": sentiment,
         },
@@ -554,8 +758,38 @@ def _ghost_monitor_dashboard(
         "source_receipts": {
             "upstream_calls": 0,
             "artifacts": [_artifact_receipt(path, root) for path in source_paths],
+            "operational_attempts": [
+                {
+                    "source": "Walmart six-store availability",
+                    "observed_at": latest_attempt_counts.get("observed_at"),
+                    "status": latest_attempt_counts.get("coverage"),
+                    "usable": latest_attempt_counts.get("coverage") == "complete",
+                },
+                {
+                    "source": "Google search attention",
+                    "observed_at": attention_latest.get("observed_at"),
+                    "status": _text(search_latest.get("status") or "unknown").lower(),
+                    "usable": bool(
+                        _text(search_latest.get("status")).lower() != "source_failure"
+                        and (_search_ratios(search_latest) or verified_values)
+                    ),
+                },
+                *[
+                    {
+                        "source": f"{platform.title()} conversation check",
+                        "observed_at": attention_latest.get("observed_at"),
+                        "status": row["query_status"],
+                        "usable": False,
+                    }
+                    for platform, row in platform_rows.items()
+                    if platform not in completed_platform_names
+                ],
+            ],
         },
     }
+    if include_private_position:
+        payload["exit_monitor"] = _ghost_exit_monitor(root, payload, monitor_jobs or [])
+    return payload
 
 
 EXIT_MONITOR_SCHEMA_VERSION = "bounty-ghost-exit-monitor-view/1"

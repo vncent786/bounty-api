@@ -374,17 +374,13 @@
       add(item, node('i', `tracker-legend-key ${key}`), document.createTextNode(label));
       legend.append(item);
     });
-    const current = availability?.current || {};
-    const lastComplete = availability?.last_complete || {};
+    const current = availability?.current || availability?.last_complete || {};
     add(
       section,
       chart,
       legend,
-      node('p', 'tracker-monitor-note', `Last complete panel: ${integer(lastComplete.available)} available, ${integer(lastComplete.out_of_stock)} out of stock.`),
+      node('p', 'tracker-monitor-note', `Latest verified panel: ${integer(current.available)} available, ${integer(current.out_of_stock)} out of stock · ${timestamp(current.observed_at)}.`),
     );
-    if (current.coverage !== 'complete') {
-      section.append(node('p', 'tracker-monitor-warning', `Latest retry was incomplete: ${integer(current.unverified)} stores are unverified and remain unknown.`));
-    }
     const stores = node('div', 'tracker-store-grid');
     list(availability?.stores).forEach(store => {
       const row = node('div', `tracker-store-row ${String(store?.status || 'unverified').replaceAll('_', '-')}`);
@@ -408,25 +404,25 @@
     const right = 704;
     const top = 18;
     const bottom = 166;
-    const values = history.flatMap(point => queries.map(query => Number(point?.ratios?.[query])).filter(Number.isFinite));
-    const ceiling = Math.max(2, ...values.map(value => value * 1.08));
-    const floor = 0;
+    const values = history.flatMap(point => queries.map(query => Number(point?.changes_pct?.[query])).filter(Number.isFinite));
+    const ceiling = Math.max(25, ...values.map(value => value * 1.08));
+    const floor = Math.min(-50, ...values.map(value => value * 1.08));
     const x = index => history.length <= 1 ? (left + right) / 2 : left + (index / (history.length - 1)) * (right - left);
     const y = value => bottom - ((value - floor) / (ceiling - floor)) * (bottom - top);
     const svg = document.createElementNS(namespace, 'svg');
     svg.setAttribute('class', 'tracker-attention-chart');
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'Latest seven-day Google search interest divided by the prior seven days');
-    [[0.75, 'Cooling line'], [1, 'Prior seven days']].forEach(([value, label]) => {
+    svg.setAttribute('aria-label', 'Rolling seven-day Google search change versus the previous seven days');
+    [[-25, 'Cooling review line'], [0, 'No change versus prior seven days']].forEach(([value, label]) => {
       const guide = document.createElementNS(namespace, 'line');
-      guide.setAttribute('class', `tracker-attention-guide${value === 0.75 ? ' cooling' : ''}`);
+      guide.setAttribute('class', `tracker-attention-guide${value === -25 ? ' cooling' : ''}`);
       guide.setAttribute('x1', String(left)); guide.setAttribute('x2', String(right));
       guide.setAttribute('y1', String(y(value))); guide.setAttribute('y2', String(y(value)));
       const text = document.createElementNS(namespace, 'text');
       text.setAttribute('class', 'tracker-trend-axis-label');
       text.setAttribute('x', '2'); text.setAttribute('y', String(y(value) + 4));
-      text.textContent = value === 1 ? '1.0x' : '0.75x';
+      text.textContent = `${value}%`;
       const title = document.createElementNS(namespace, 'title');
       title.textContent = label;
       guide.append(title);
@@ -445,7 +441,7 @@
         segment = [];
       };
       history.forEach((point, index) => {
-        const value = Number(point?.ratios?.[query]);
+        const value = Number(point?.changes_pct?.[query]);
         if (!Number.isFinite(value)) {
           flush();
           return;
@@ -456,18 +452,20 @@
         circle.setAttribute('class', `tracker-attention-point query-${queryIndex + 1}`);
         circle.setAttribute('cx', String(coordinate.x)); circle.setAttribute('cy', String(coordinate.y)); circle.setAttribute('r', '4');
         const title = document.createElementNS(namespace, 'title');
-        title.textContent = `${query}: ${value.toFixed(2)}x on ${axisDate(point?.observed_at)}`;
+        title.textContent = `${query}: ${value >= 0 ? '+' : ''}${value.toFixed(1)}% through ${axisDate(point?.date)}`;
         circle.append(title);
         svg.append(circle);
       });
       flush();
     });
+    const tickIndexes = new Set([0, Math.floor((history.length - 1) / 2), history.length - 1]);
     history.forEach((point, index) => {
+      if (!tickIndexes.has(index)) return;
       const text = document.createElementNS(namespace, 'text');
       text.setAttribute('class', 'tracker-trend-date-label');
       text.setAttribute('x', String(x(index))); text.setAttribute('y', '194');
       text.setAttribute('text-anchor', index === 0 ? 'start' : index === history.length - 1 ? 'end' : 'middle');
-      text.textContent = axisDate(point?.observed_at);
+      text.textContent = axisDate(point?.date);
       svg.append(text);
     });
     return svg;
@@ -475,9 +473,16 @@
 
   function searchAttentionPanel(search) {
     const section = node('section', 'tracker-monitor-section tracker-search-attention');
-    add(section, node('span', 'tracker-field-label', 'Demand attention'), node('h5', '', 'Search attention change'), node('p', 'tracker-monitor-lead', search?.current_read || 'Search direction unavailable.'));
-    const history = list(search?.history);
-    const queries = list(search?.query_basket).length ? list(search.query_basket) : [...new Set(history.flatMap(point => Object.keys(point?.ratios || {})))];
+    add(
+      section,
+      node('span', 'tracker-field-label', 'Search attention change'),
+      node('h5', '', 'Rolling 7-day search change'),
+      node('p', 'tracker-monitor-lead', search?.current_read || 'Search direction unavailable.'),
+    );
+    const history = list(search?.rolling_seven_day_change);
+    const queries = list(search?.query_basket).length
+      ? list(search.query_basket)
+      : [...new Set(history.flatMap(point => Object.keys(point?.changes_pct || {})))];
     if (history.length && queries.length) {
       const scroll = node('div', 'tracker-attention-chart-scroll');
       scroll.append(monitorSearchSvg(history, queries));
@@ -489,28 +494,27 @@
         legend.append(item);
       });
       section.append(legend);
+      section.append(node('p', 'tracker-monitor-note', 'Each point compares the latest 7 complete days with the previous 7 days inside the same Google request. Failed and partial dates are omitted, not shown as zero.'));
       const details = node('details', 'tracker-monitor-table');
-      details.append(node('summary', '', 'View dated search comparisons'));
+      details.append(node('summary', '', 'View daily rolling changes'));
       const table = document.createElement('table');
       const head = document.createElement('thead');
       const header = document.createElement('tr');
-      ['Observed', ...queries].forEach(label => header.append(node('th', '', label)));
+      ['Through', ...queries].forEach(label => header.append(node('th', '', label)));
       head.append(header);
       const body = document.createElement('tbody');
       history.forEach(point => {
         const row = document.createElement('tr');
-        row.append(node('td', '', timestamp(point?.observed_at)));
+        row.append(node('td', '', axisDate(point?.date)));
         queries.forEach(query => {
-          const value = Number(point?.ratios?.[query]);
-          row.append(node('td', '', Number.isFinite(value) ? `${value.toFixed(2)}x` : 'Missing'));
+          const value = Number(point?.changes_pct?.[query]);
+          row.append(node('td', '', Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%` : 'Missing'));
         });
         body.append(row);
       });
       table.append(head, body);
       details.append(table);
       section.append(details);
-    } else {
-      section.append(node('p', 'tracker-monitor-warning', 'No comparable search history yet. Missing observations remain blank.'));
     }
     return section;
   }
@@ -529,7 +533,7 @@
     chart.setAttribute('role', 'img');
     chart.setAttribute('aria-label', options.ariaLabel);
     rows.forEach(reading => {
-      const day = node('div', `tracker-count-day${reading?.comparable === false ? ' source-gap' : ''}`);
+      const day = node('div', 'tracker-count-day');
       const bars = node('div', 'tracker-count-bars');
       [[options.primaryKey, 'primary'], [options.secondaryKey, 'secondary']].forEach(([key, className]) => {
         const value = Number(reading?.[key] || 0);
@@ -548,9 +552,6 @@
       legend.append(item);
     });
     add(block, chart, legend);
-    if (rows.some(row => row?.comparable === false)) {
-      block.append(node('p', 'tracker-monitor-warning', 'Outlined dates had incomplete source coverage. They remain visible but cannot prove momentum changed.'));
-    }
     return block;
   }
 
@@ -558,13 +559,13 @@
     const section = node('section', 'tracker-monitor-section tracker-conversation-panel');
     add(
       section,
-      node('span', 'tracker-field-label', 'Social evidence'),
-      node('h5', '', 'Conversation coverage'),
+      node('span', 'tracker-field-label', 'Observed conversation volume'),
+      node('h5', '', conversations?.headline || `${integer(conversations?.exact_roots)} exact posts successfully observed`),
       node('p', 'tracker-monitor-lead', conversations?.current_read || 'Conversation direction unavailable.'),
       node('p', 'tracker-monitor-note', `${integer(conversations?.exact_roots)} exact posts found · ${integer(conversations?.qualifying_roots)} independently qualifying.`),
     );
     section.append(countHistoryBlock(conversations?.history, {
-      title: 'Buzz over time',
+      title: 'Observed conversation volume over time',
       className: 'tracker-buzz-history',
       primaryKey: 'exact_roots',
       secondaryKey: 'qualifying_roots',
@@ -572,21 +573,39 @@
       ariaLabel: 'Exact and independently qualifying conversation posts by monitoring date',
       emptyCopy: 'No dated conversation-volume history yet.',
     }));
+    section.append(node('p', 'tracker-monitor-note', conversations?.coverage_note || 'Observed volume is shown from successful sources.'));
     const sentiment = conversations?.sentiment || {};
-    section.append(node('p', 'tracker-monitor-note', sentiment.status === 'not_collected'
-      ? 'Sentiment direction is not yet collected. Positive and negative both count toward buzz.'
-      : sentiment.note || 'Sentiment is context only; total buzz counts reactions of either sign.'));
+    const sentimentCounts = sentiment?.counts && typeof sentiment.counts === 'object' ? sentiment.counts : null;
+    if (sentimentCounts) {
+      const sentimentBlock = node('div', 'tracker-sentiment-block');
+      sentimentBlock.append(node('span', 'tracker-field-label', 'Sentiment mix · context only'));
+      const sentimentGrid = node('div', 'tracker-sentiment-grid');
+      [['positive', 'Positive'], ['negative', 'Negative'], ['neutral', 'Neutral'], ['mixed', 'Mixed'], ['unclassified', 'Not enough text']]
+        .forEach(([key, label]) => {
+          const cell = node('div', `tracker-sentiment-cell ${key}`);
+          add(cell, node('strong', 'mono', integer(sentimentCounts[key])), node('span', '', label));
+          sentimentGrid.append(cell);
+        });
+      add(sentimentBlock, sentimentGrid, node('p', 'tracker-monitor-note', sentiment.note || 'Positive and negative both count toward buzz.'));
+      section.append(sentimentBlock);
+    } else {
+      section.append(node('p', 'tracker-monitor-note', sentiment.status === 'not_collected'
+        ? 'Sentiment mix is pending. Positive and negative both count toward buzz.'
+        : sentiment.note || 'Sentiment is context only; total buzz counts reactions of either sign.'));
+    }
     const grid = node('div', 'tracker-platform-grid');
     Object.entries(conversations?.platforms || {}).forEach(([platform, reading]) => {
       const health = String(reading?.health || 'unknown');
       const query = String(reading?.query_status || 'not run').toLowerCase();
+      const usableBoundedSample = query === 'partial' && Number(reading?.exact_roots || 0) > 0;
+      if (health !== 'healthy' || (!['complete', 'complete_relevant', 'complete_no_match', 'empty'].includes(query) && !usableBoundedSample)) return;
       const queryLabel = {
         empty: 'No current match',
         complete: 'GHOST check complete',
         complete_relevant: 'GHOST check complete',
         complete_no_match: 'No current match',
         failed: 'GHOST check incomplete',
-        partial: 'GHOST check incomplete',
+        partial: 'Observed bounded sample',
         'not run': 'GHOST check not run',
       }[query] || query.replaceAll('_', ' ');
       const row = node('div', `tracker-platform-row health-${health}`);
@@ -596,7 +615,7 @@
       add(
         row,
         node('strong', '', platformLabel),
-        node('span', '', health === 'healthy' ? 'Source working' : 'Source problem'),
+        node('span', '', 'Observed'),
         node('span', '', queryLabel),
         node('span', 'mono', `${integer(reading?.exact_roots)} exact · ${integer(reading?.qualifying_roots)} independent`),
       );

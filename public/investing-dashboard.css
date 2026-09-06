@@ -1484,6 +1484,15 @@ select {
 .tracker-legend-key.count-primary { background: var(--cobalt); }
 .tracker-count-bar.secondary,
 .tracker-legend-key.count-secondary { background: var(--warning); }
+.tracker-sentiment-block { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--rule-faint); }
+.tracker-sentiment-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 8px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.tracker-sentiment-cell { display: grid; gap: 2px; min-width: 0; padding: 10px 8px; }
+.tracker-sentiment-cell + .tracker-sentiment-cell { border-left: 1px solid var(--rule-faint); }
+.tracker-sentiment-cell strong { font-size: .92rem; }
+.tracker-sentiment-cell span { color: var(--ink-55); font-size: .62rem; overflow-wrap: anywhere; }
+.tracker-sentiment-cell.positive strong { color: var(--cobalt-deep); }
+.tracker-sentiment-cell.negative strong { color: var(--error); }
+.tracker-sentiment-cell.mixed strong { color: var(--warning); }
 .tracker-platform-grid { margin-top: 14px; border-top: 1px solid var(--rule-faint); }
 .tracker-platform-row { display: grid; grid-template-columns: 76px minmax(96px, .7fr) minmax(90px, 1fr) auto; gap: 10px; padding: 9px 0; align-items: baseline; border-bottom: 1px solid var(--rule-faint); font-size: .72rem; }
 .tracker-platform-row > span { color: var(--ink-55); }
@@ -1523,6 +1532,7 @@ select {
   .tracker-monitor-grid { grid-template-columns: minmax(0, 1fr); }
   .tracker-monitor-section,
   .tracker-monitor-section:nth-child(even) { padding: 16px 0 18px; border-left: 0; }
+  .tracker-sentiment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .tracker-platform-row { grid-template-columns: 62px minmax(0, 1fr) auto; }
   .tracker-platform-row > span:nth-child(3) { grid-column: 2 / -1; }
   .tracker-trend-head,
@@ -1628,6 +1638,7 @@ select {
 
 @media (max-width: 480px) {
   .tracker-store-grid { grid-template-columns: minmax(0, 1fr); }
+  .tracker-sentiment-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .tracker-store-row:nth-child(even) { padding-left: 0; border-left: 0; }
   .tracker-platform-row { grid-template-columns: minmax(0, 1fr) auto; }
   .tracker-platform-row > span:nth-child(2),

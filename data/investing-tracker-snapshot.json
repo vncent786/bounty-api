@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-06T03:57:12.245541+00:00",
+  "generated_at": "2026-09-06T07:30:12.170265+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -35,8 +35,8 @@
       "ARCHIVED": 1
     },
     "backlog_lineages": 217,
-    "monitor_jobs": 10,
-    "active_monitor_jobs": 6,
+    "monitor_jobs": 9,
+    "active_monitor_jobs": 5,
     "paused_monitor_jobs": 4,
     "trade_ready_now": false,
     "decision_queue": 0,
@@ -50283,23 +50283,31 @@
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-06T03:54:38.331489Z",
+        "as_of": "2026-09-06T07:25:28.318215Z",
         "headline": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
-          "current_read": "No exit-review trigger. search direction remains incomplete; conversation momentum is not yet measurable; financial coverage remains niche.",
+          "current_read": "No exit-review trigger. US search remains elevated; the latest observed conversation sample contains 34 exact posts; financial coverage remains niche.",
           "exit_review_triggered": false,
           "triggered_by": []
         },
         "availability": {
           "state": "replenishment_started",
           "current": {
-            "observed_at": "2026-09-06T03:27:35.313010Z",
-            "coverage": "partial",
-            "available": 0,
-            "out_of_stock": 0,
+            "observed_at": "2026-09-05T02:56:22.776252Z",
+            "coverage": "complete",
+            "available": 1,
+            "out_of_stock": 5,
             "not_listed": 0,
-            "unverified": 6
+            "unverified": 0
+          },
+          "latest_attempt": {
+            "observed_at": "2026-09-06T07:25:28.318215Z",
+            "coverage": "partial",
+            "available": 1,
+            "out_of_stock": 4,
+            "not_listed": 0,
+            "unverified": 1
           },
           "last_complete": {
             "observed_at": "2026-09-05T02:56:22.776252Z",
@@ -50352,49 +50360,49 @@
               "store_id": "3081",
               "metro": "Sacramento",
               "postal_code": "95829",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:24.164025Z"
+              "status": "orderable",
+              "label": "Available",
+              "observed_at": "2026-09-05T02:55:40.103337Z"
             },
             {
               "store_id": "8930",
               "metro": "Dallas",
               "postal_code": "75248",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:22.523135Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-05T02:56:00.028379Z"
             },
             {
               "store_id": "3709",
               "metro": "Atlanta",
               "postal_code": "30316",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:22.393664Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-05T02:56:03.002492Z"
             },
             {
               "store_id": "5402",
               "metro": "Chicago",
               "postal_code": "60639",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:35.310988Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-05T02:55:40.849427Z"
             },
             {
               "store_id": "5854",
               "metro": "Miami",
               "postal_code": "33155",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:09.311995Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-05T02:55:37.781117Z"
             },
             {
               "store_id": "2516",
               "metro": "Seattle/Renton",
               "postal_code": "98057",
-              "status": "unavailable_error",
-              "label": "Collection failed",
-              "observed_at": "2026-09-06T03:27:13.858266Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-05T02:55:40.911136Z"
             }
           ],
           "newly_available_stores": [
@@ -50405,10 +50413,14 @@
         },
         "search": {
           "state": "SEARCH_BUILDING_BASELINE",
-          "status": "source_failure",
-          "current_read": "The latest search check failed; the last verified reading is preserved.",
-          "latest_complete_date": null,
-          "ratios": {},
+          "status": "complete",
+          "current_read": "Elevated, not falling in the usable US comparison.",
+          "latest_complete_date": "2026-09-04",
+          "last_successful_observed_at": "2026-09-05T02:51:56Z",
+          "ratios": {
+            "ghost root beer energy drink": 1.2100840336134455,
+            "ghost a&w root beer": 1.6512455516014235
+          },
           "history": [
             {
               "observed_at": "2026-09-04T01:47:06Z",
@@ -50429,15 +50441,479 @@
               }
             }
           ],
+          "rolling_seven_day_change": [
+            {
+              "date": "2026-08-07",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-08",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5,
+                "ghost a&w root beer": 79.7101
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-09",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5,
+                "ghost a&w root beer": 79.7101
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-10",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5,
+                "ghost a&w root beer": 79.7101
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-11",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5,
+                "ghost a&w root beer": 79.7101
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-12",
+              "changes_pct": {
+                "ghost root beer energy drink": 167.5,
+                "ghost a&w root beer": 79.7101
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.714285714285714,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-13",
+              "changes_pct": {
+                "ghost root beer energy drink": -23.0769,
+                "ghost a&w root beer": 139.1304
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 11.428571428571429,
+                "ghost a&w root beer": 23.571428571428573
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 14.857142857142858,
+                "ghost a&w root beer": 9.857142857142858
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-14",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -34.0426
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.285714285714286
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 20.142857142857142
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-15",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -24.1935
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-16",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -24.1935
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-17",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -24.1935
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-18",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -24.1935
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-19",
+              "changes_pct": {
+                "ghost root beer energy drink": -65.4206,
+                "ghost a&w root beer": -24.1935
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 15.285714285714286,
+                "ghost a&w root beer": 17.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-20",
+              "changes_pct": {
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": -39.3939
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 14.285714285714286
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 11.428571428571429,
+                "ghost a&w root beer": 23.571428571428573
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-21",
+              "changes_pct": {
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": 48.3871
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 19.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.285714285714286
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-22",
+              "changes_pct": {
+                "ghost root beer energy drink": 16.2162,
+                "ghost a&w root beer": 41.4894
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-23",
+              "changes_pct": {
+                "ghost root beer energy drink": 110.8108,
+                "ghost a&w root beer": 87.234
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 25.142857142857142
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-24",
+              "changes_pct": {
+                "ghost root beer energy drink": 181.0811,
+                "ghost a&w root beer": 125.5319
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 14.857142857142858,
+                "ghost a&w root beer": 30.285714285714285
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-25",
+              "changes_pct": {
+                "ghost root beer energy drink": 256.7568,
+                "ghost a&w root beer": 162.766
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 18.857142857142858,
+                "ghost a&w root beer": 35.285714285714285
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-26",
+              "changes_pct": {
+                "ghost root beer energy drink": 343.2432,
+                "ghost a&w root beer": 201.0638
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 23.428571428571427,
+                "ghost a&w root beer": 40.42857142857143
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.285714285714286,
+                "ghost a&w root beer": 13.428571428571429
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-27",
+              "changes_pct": {
+                "ghost a&w root beer": 179.0
+              },
+              "latest_7_mean": {
+                "ghost a&w root beer": 39.857142857142854
+              },
+              "prior_7_mean": {
+                "ghost a&w root beer": 14.285714285714286
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-28",
+              "changes_pct": {
+                "ghost a&w root beer": 103.6232
+              },
+              "latest_7_mean": {
+                "ghost a&w root beer": 40.142857142857146
+              },
+              "prior_7_mean": {
+                "ghost a&w root beer": 19.714285714285715
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-29",
+              "changes_pct": {
+                "ghost root beer energy drink": 467.4419,
+                "ghost a&w root beer": 129.3233
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 34.857142857142854,
+                "ghost a&w root beer": 43.57142857142857
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 19.0
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-30",
+              "changes_pct": {
+                "ghost root beer energy drink": 224.359,
+                "ghost a&w root beer": 93.1818
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 36.142857142857146,
+                "ghost a&w root beer": 48.57142857142857
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 25.142857142857142
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-31",
+              "changes_pct": {
+                "ghost root beer energy drink": 174.0385,
+                "ghost a&w root beer": 90.566
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 40.714285714285715,
+                "ghost a&w root beer": 57.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 14.857142857142858,
+                "ghost a&w root beer": 30.285714285714285
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-01",
+              "changes_pct": {
+                "ghost root beer energy drink": 125.0,
+                "ghost a&w root beer": 77.7328
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 42.42857142857143,
+                "ghost a&w root beer": 62.714285714285715
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 18.857142857142858,
+                "ghost a&w root beer": 35.285714285714285
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-02",
+              "changes_pct": {
+                "ghost root beer energy drink": 82.3171,
+                "ghost a&w root beer": 60.424
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 42.714285714285715,
+                "ghost a&w root beer": 64.85714285714286
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 23.428571428571427,
+                "ghost a&w root beer": 40.42857142857143
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-03",
+              "changes_pct": {
+                "ghost root beer energy drink": 43.4146,
+                "ghost a&w root beer": 65.9498
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 42.0,
+                "ghost a&w root beer": 66.14285714285714
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 29.285714285714285,
+                "ghost a&w root beer": 39.857142857142854
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-04",
+              "changes_pct": {
+                "ghost root beer energy drink": 21.0084,
+                "ghost a&w root beer": 65.1246
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 41.142857142857146,
+                "ghost a&w root beer": 66.28571428571429
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 34.0,
+                "ghost a&w root beer": 40.142857142857146
+              },
+              "source_window_days": 14
+            }
+          ],
           "query_basket": [
             "ghost root beer energy drink",
             "ghost a&w root beer"
-          ]
+          ],
+          "source_health": {
+            "latest_attempt_status": "source_failure",
+            "visible_series_uses_last_verified": true
+          }
         },
         "conversations": {
           "state": "CONVERSATION_BUILDING_BASELINE",
-          "current_read": "Building a comparable baseline; no acceleration or decline call yet.",
-          "comparable_runs": 0,
+          "headline": "34 exact posts successfully observed across 5 completed platform checks.",
+          "current_read": "Latest observed sample: 34 exact posts across successful sources. Positive and negative reactions both count toward buzz.",
+          "comparable_runs": 1,
+          "comparable_history_points": 1,
+          "coverage_note": "Observed volume is shown from successful sources. Coverage is not yet stable enough for a like-for-like momentum claim.",
           "platforms": {
             "x": {
               "health": "healthy",
@@ -50454,30 +50930,49 @@
             },
             "instagram": {
               "health": "healthy",
-              "query_status": "failed",
+              "query_status": "complete_no_match",
               "exact_roots": 0,
               "qualifying_roots": 0
             },
             "reddit": {
               "health": "healthy",
-              "query_status": "complete",
-              "exact_roots": 5,
+              "query_status": "partial",
+              "exact_roots": 19,
               "qualifying_roots": 0
             },
             "youtube": {
               "health": "healthy",
               "query_status": "complete",
-              "exact_roots": 5,
+              "exact_roots": 15,
               "qualifying_roots": 0
             }
           },
-          "exact_roots": 10,
+          "successful_platforms": [
+            "x",
+            "tiktok",
+            "instagram",
+            "reddit",
+            "youtube"
+          ],
+          "exact_roots": 34,
           "qualifying_roots": 0,
           "history": [
             {
               "observed_at": "2026-09-04T02:42:39Z",
               "exact_roots": 10,
               "qualifying_roots": 0,
+              "exact_roots_by_platform": {
+                "x": 0,
+                "tiktok": 0,
+                "instagram": 0,
+                "reddit": 5,
+                "youtube": 5
+              },
+              "successful_platforms": [
+                "x",
+                "reddit",
+                "youtube"
+              ],
               "source_state": "source_failure",
               "comparable": false
             },
@@ -50485,20 +50980,60 @@
               "observed_at": "2026-09-05T02:51:56Z",
               "exact_roots": 10,
               "qualifying_roots": 0,
+              "exact_roots_by_platform": {
+                "x": 0,
+                "tiktok": 0,
+                "instagram": 0,
+                "reddit": 5,
+                "youtube": 5
+              },
+              "successful_platforms": [
+                "x",
+                "reddit",
+                "youtube"
+              ],
               "source_state": "source_failure",
               "comparable": false
             },
             {
-              "observed_at": "2026-09-06T03:52:43Z",
-              "exact_roots": 10,
+              "observed_at": "2026-09-06T07:14:36Z",
+              "exact_roots": 34,
               "qualifying_roots": 0,
-              "source_state": "healthy_canaries_partial_candidate_query",
+              "exact_roots_by_platform": {
+                "x": 0,
+                "tiktok": 0,
+                "instagram": 0,
+                "reddit": 19,
+                "youtube": 15
+              },
+              "successful_platforms": [
+                "x",
+                "tiktok",
+                "instagram",
+                "reddit",
+                "youtube"
+              ],
+              "source_state": "successful_observed_volume_not_like_for_like",
               "comparable": false
             }
           ],
           "sentiment": {
-            "status": "not_collected",
-            "note": "Positive and negative reactions both count toward buzz; no comparable sentiment history has been collected yet."
+            "status": "partial",
+            "counts": {
+              "positive": 2,
+              "negative": 0,
+              "neutral": 1,
+              "mixed": 2,
+              "unclassified": 5
+            },
+            "classified_roots": 5,
+            "total_exact_roots": 10,
+            "note": "Positive and negative both count toward observed buzz. Sentiment is classified for 5 of the prior 10-root text sample; the widened 34-root sample is not silently relabeled.",
+            "artifact": "artifacts/dd/ghost-kdp/conversation-runs/attention-2026-09-06T0355Z-sentiment-review.json",
+            "artifact_sha256": "ab5bc22ea65aa9ece01c37214f04b412917b6c8d9c2a7e0fd932ba8306828e3d",
+            "sample_denominator": 10,
+            "observed_volume_denominator": 34,
+            "role": "secondary_context_only"
           }
         },
         "street_coverage": {
@@ -50538,23 +51073,23 @@
           "artifacts": [
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_latest.json",
-              "sha256": "e28d531faa1533e1039a625b7e13747b53a6156f9ff520deca7fbc6c236f9479",
-              "modified_at": "2026-09-06T03:27:35.319337+00:00"
+              "sha256": "acf82118b05f50aa703def2abbf0388c192d1fba92698d3b89965cf0f79615a6",
+              "modified_at": "2026-09-06T07:25:28.318215+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_history.jsonl",
-              "sha256": "4dbce38be64d8291229ad0ac15ba178c48a8babacf70e764794f86c0768ae821",
-              "modified_at": "2026-09-06T03:27:35.331787+00:00"
+              "sha256": "531b5dce8d32786306dd9516113871e31d13286c5fc5828a71347b3b6ecab61a",
+              "modified_at": "2026-09-06T07:25:28.335890+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
-              "sha256": "76bd85e46a075658e71db4d5dcdddc74e3f5ec7ff64da5b105657f83e4700a98",
-              "modified_at": "2026-09-06T03:52:43.691166+00:00"
+              "sha256": "13e48363cd184101bc4ed410e9efcefd7605fa63afd2d9de78ac135d1c6adb17",
+              "modified_at": "2026-09-06T07:14:36.881372+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_history.jsonl",
-              "sha256": "ef527585c1d05587020ca9f29a87dcc68e9bf0b5c8fd308f383e0d7eb8971e01",
-              "modified_at": "2026-09-06T03:52:43.724562+00:00"
+              "sha256": "cb94b8b4264282f21ec5e47430de69977f43faa85e51cf41073ffe31244af5b3",
+              "modified_at": "2026-09-06T07:14:36.928072+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
@@ -50570,6 +51105,20 @@
               "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-06T035438Z.json",
               "sha256": "90e36eb1a10ea3bdc170f1070959a4255e2bc6a52cddf3cec2acc164d91eebdf",
               "modified_at": "2026-09-06T03:54:38.331490+00:00"
+            }
+          ],
+          "operational_attempts": [
+            {
+              "source": "Walmart six-store availability",
+              "observed_at": "2026-09-06T07:25:28.318215Z",
+              "status": "partial",
+              "usable": false
+            },
+            {
+              "source": "Google search attention",
+              "observed_at": "2026-09-06T07:14:36Z",
+              "status": "source_failure",
+              "usable": false
             }
           ]
         }
@@ -51313,16 +51862,6 @@
       "next_run_at": "2026-09-13T06:30:00+08:00",
       "last_run_at": "2026-09-06T06:32:52.782768+08:00",
       "last_status": "error"
-    },
-    {
-      "job_id": "a8f69446d45c",
-      "name": "Finish final nine Bounty bank-history series",
-      "enabled": true,
-      "state": "scheduled",
-      "schedule": "once at 2026-09-06 13:22",
-      "next_run_at": "2026-09-06T13:22:26+08:00",
-      "last_run_at": null,
-      "last_status": null
     }
   ],
   "source_receipts": [

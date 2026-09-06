@@ -1,9 +1,13 @@
 import hashlib
 import json
+from datetime import date, timedelta
 from pathlib import Path
 
 from apis.investing_dashboard_page import INVESTING_DASHBOARD_HTML
-from social_scraper.investing.live_tracker import build_investment_tracker
+from social_scraper.investing.live_tracker import (
+    _rolling_seven_day_change_series,
+    build_investment_tracker,
+)
 
 
 def write_json(path: Path, payload: dict) -> None:
@@ -162,6 +166,26 @@ def test_tracker_reconciles_one_primary_state_and_separate_monitor_activity(tmp_
     assert legacy["primary_state"] == "ARCHIVED"
 
 
+def test_rolling_seven_day_change_uses_complete_same_request_windows():
+    queries = ["ghost root beer energy drink", "ghost a&w root beer"]
+    values = [10] * 7 + [20] * 7 + [30] * 7
+    source = {
+        "dates": [str(date(2026, 8, 15) + timedelta(days=index)) for index in range(21)],
+        queries[0]: values,
+        queries[1]: values,
+        "isPartial_flags": [False] * 20 + [True],
+    }
+
+    series = _rolling_seven_day_change_series(source, queries)
+
+    assert series[0]["date"] == "2026-08-28"
+    assert series[0]["changes_pct"] == {queries[0]: 100.0, queries[1]: 100.0}
+    assert series[-1]["date"] == "2026-09-03"
+    assert series[-1]["changes_pct"][queries[0]] == 53.8462
+    assert "2026-09-04" not in [point["date"] for point in series]
+    assert all(point["source_window_days"] == 14 for point in series)
+
+
 def test_tracker_projects_real_ghost_monitor_history(tmp_path):
     ghost = tmp_path / "artifacts/dd/ghost-kdp"
 
@@ -192,20 +216,13 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
         "restock_monitor": {"availability_state": "replenishment_started"},
     }
     latest = {
-        "observed_at": "2026-09-05T14:38:39Z",
+        "observed_at": "2026-09-06T03:27:35Z",
         "coverage_status": "partial",
-        "records": [
-            store(0, "Sacramento", "orderable"),
-            store(1, "Dallas", "unavailable_location_unverified"),
-            store(2, "Atlanta", "out_of_stock"),
-            store(3, "Chicago", "out_of_stock"),
-            store(4, "Miami", "out_of_stock"),
-            store(5, "Seattle/Renton", "unavailable_error"),
-        ],
-        "summary": {"orderable": 1, "out_of_stock": 3, "not_listed_at_store": 0, "unavailable": 2},
+        "records": [store(i, f"Store {i}", "unavailable_error") for i in range(6)],
+        "summary": {"orderable": 0, "out_of_stock": 0, "not_listed_at_store": 0, "unavailable": 6},
         "restock_monitor": {
             "state": "source_failure",
-            "availability_state": "replenishment_started",
+            "availability_state": "incomplete",
             "operational_state": "partial",
         },
     }
@@ -241,6 +258,8 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
             "qualifying_independent_roots_by_platform": {"x": 0, "tiktok": 0, "instagram": 0, "reddit": 1, "youtube": 1},
         },
     }
+    rolling_dates = [str(date(2026, 8, 15) + timedelta(days=index)) for index in range(21)]
+    rolling_values = [10] * 7 + [20] * 7 + [30] * 7
     search_two = {
         "observed_at": "2026-09-05T02:51:56Z",
         "search_attention": {
@@ -250,6 +269,12 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
             "latest_complete_date": "2026-09-04",
             "query_basket": ["ghost root beer energy drink", "ghost a&w root beer"],
             "geographies": {"US": {
+                "returned_values": {
+                    "dates": rolling_dates,
+                    "ghost root beer energy drink": rolling_values,
+                    "ghost a&w root beer": rolling_values,
+                    "isPartial_flags": [False] * 20 + [True],
+                },
                 "latest_to_prior_ratio": {
                     "ghost root beer energy drink": 1.21,
                     "ghost a&w root beer": 1.65,
@@ -283,6 +308,13 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
             "origin_review": {
                 "raw_exact_roots_by_platform": {"x": 0, "tiktok": 0, "instagram": 0, "reddit": 5, "youtube": 5},
                 "qualifying_independent_roots_by_platform": {"x": 0, "tiktok": 0, "instagram": 0, "reddit": 0, "youtube": 0},
+            },
+            "sentiment": {
+                "status": "partial",
+                "counts": {"positive": 2, "negative": 0, "neutral": 1, "mixed": 2, "unclassified": 5},
+                "classified_roots": 5,
+                "total_exact_roots": 10,
+                "note": "Positive and negative both count toward observed buzz.",
             },
         },
     }
@@ -327,30 +359,48 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
     assert monitor["headline"] == "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock."
     assert monitor["thesis_realization"] == {
         "status": "BUILDING_BASELINE",
-        "current_read": "No exit-review trigger. US search remains elevated; conversation momentum is not yet measurable; financial coverage remains niche.",
+        "current_read": "No exit-review trigger. US search remains elevated; the latest observed conversation sample contains 10 exact posts; financial coverage remains niche.",
         "exit_review_triggered": False,
         "triggered_by": [],
     }
     assert monitor["availability"]["current"] == {
-        "observed_at": "2026-09-05T14:38:39Z",
-        "coverage": "partial",
+        "observed_at": "2026-09-05T02:56:22Z",
+        "coverage": "complete",
         "available": 1,
-        "out_of_stock": 3,
+        "out_of_stock": 5,
         "not_listed": 0,
-        "unverified": 2,
+        "unverified": 0,
+    }
+    assert monitor["availability"]["latest_attempt"] == {
+        "observed_at": "2026-09-06T03:27:35Z",
+        "coverage": "partial",
+        "available": 0,
+        "out_of_stock": 0,
+        "not_listed": 0,
+        "unverified": 6,
     }
     assert monitor["availability"]["last_complete"]["out_of_stock"] == 5
     assert [point["available"] for point in monitor["availability"]["history"]] == [0, 1]
+    assert monitor["availability"]["stores"][0]["label"] == "Available"
+    assert all(row["status"] != "unavailable_error" for row in monitor["availability"]["stores"])
     assert monitor["search"]["current_read"] == "Elevated, not falling in the usable US comparison."
     assert [point["ratios"]["ghost a&w root beer"] for point in monitor["search"]["history"]] == [1.68, 1.65]
+    assert monitor["search"]["rolling_seven_day_change"][0]["changes_pct"]["ghost a&w root beer"] == 100.0
+    assert monitor["search"]["rolling_seven_day_change"][-1]["date"] == "2026-09-03"
     assert monitor["conversations"]["platforms"]["tiktok"]["health"] == "healthy"
     assert monitor["conversations"]["platforms"]["tiktok"]["query_status"] == "empty"
     assert monitor["conversations"]["exact_roots"] == 10
     assert monitor["conversations"]["qualifying_roots"] == 0
+    assert monitor["conversations"]["current_read"] == "Latest observed sample: 10 exact posts across successful sources. Positive and negative reactions both count toward buzz."
     assert [point["exact_roots"] for point in monitor["conversations"]["history"]] == [5, 10]
     assert monitor["conversations"]["sentiment"] == {
-        "status": "not_collected",
-        "note": "Positive and negative reactions both count toward buzz; no comparable sentiment history has been collected yet.",
+        "status": "partial",
+        "role": "secondary_context_only",
+        "counts": {"positive": 2, "negative": 0, "neutral": 1, "mixed": 2, "unclassified": 5},
+        "classified_roots": 5,
+        "total_exact_roots": 10,
+        "sample_denominator": 10,
+        "note": "Positive and negative both count toward observed buzz.",
     }
     assert monitor["street_coverage"]["state"] == "NICHE_ONLY"
     assert monitor["street_coverage"]["qualifying_outlets"] == 0
@@ -397,10 +447,13 @@ def test_investing_dashboard_tracker_surface_is_wired():
     assert "standingMonitorPanel" in script
     assert "no run until resumed" in script
     assert "Walmart availability over time" in script
-    assert "Search attention change" in script
-    assert "Conversation coverage" in script
-    assert "Buzz over time" in script
+    assert "Latest verified panel" in script
+    assert "Latest retry was incomplete" not in script
+    assert "Rolling 7-day search change" in script
+    assert "Observed conversation volume" in script
+    assert "conversations?.headline" in script
     assert "Positive and negative both count toward buzz" in script
+    assert "Outlined dates had incomplete source coverage" not in script
     assert "Street awareness" in script
     assert "News and management coverage over time" in script
     assert "Earnings calls checked" in script

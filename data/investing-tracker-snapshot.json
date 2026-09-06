@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-05T22:46:26.038868+00:00",
+  "generated_at": "2026-09-06T00:30:45.371355+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -112,10 +112,19 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NOT_DUE",
+        "due_reason": "Metcash's official calendar places the next FY27 half-year results on 2026-12-07. The 2026-09-09 AGM is not the saved Food-volume/private-label transition check, so the next decisive result is not due.",
+        "evidence_urls": [
+          "https://www.metcash.com/investor-centre/results-disclosure/financial-calendar/",
+          "https://www.metcash.com/investor-centre/results-disclosure/asx-announcements/",
+          "https://www.metcash.com/wp-content/uploads/2026/06/APPENDIX-4E-AND-FY26-FULL-YEAR-FINANCIAL-REPORT.pdf",
+          "https://www.accc.gov.au/system/files/supermarkets-inquiry_1.pdf"
         ]
       },
       "signal_state": "UNVERIFIED",
@@ -6532,10 +6541,18 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NO_CHANGE",
+        "due_reason": "The targeted Fubo check found an August 2026 product-packaging change and the August 5 Q3 results, but the results cover the quarter ended 2026-06-30, before a meaningful portion of the 2026 college-football season. No college-football KPI or contribution bridge was disclosed.",
+        "evidence_urls": [
+          "https://ir.fubo.tv/news/news-details/2026/FuboTV-Delivers-1-48-Billion-Global-Revenue-in-Q3-FY-2026-Record-Q3-North-America-Subscribers/default.aspx",
+          "https://ir.fubo.tv/news/news-details/2026/Fubo-Expands-College-Sports-Offering-With-Launch-of-ACCNX-and-SECN/default.aspx",
+          "https://www.sec.gov/Archives/edgar/data/1484769/000162828026053535/fubo-20260630.htm"
         ]
       },
       "signal_state": "ACTIVE_TREND",
@@ -12894,10 +12911,20 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NO_CHANGE",
+        "due_reason": "The shared EUROCONTROL latest search returned 2026-W35 as the newest listing item, matching the saved source. The IAG press-release page showed no later carrier-cost notice in the bounded check; the BA travel-news page timed out. The hard IAG Q3 checkpoint on 2026-11-06 is not due.",
+        "evidence_urls": [
+          "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
+          "https://www.eurocontrol.int/publications/series/eurocontrol-european-aviation-overview",
+          "https://www.iairgroup.com/media-centre/press-releases/",
+          "https://www.britishairways.com/content/en/information/travel-news/",
+          "https://www.iairgroup.com/investors-and-shareholders/financial-calendar/"
         ]
       },
       "signal_state": "ACTIVE_TREND",
@@ -19216,10 +19243,18 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NOT_DUE",
+        "due_reason": "The saved next check is FirstRand FY2026 results on 2026-09-10, followed by the first full JSE session on 2026-09-11. The review date is 2026-09-06, so the result is not due.",
+        "evidence_urls": [
+          "https://www.firstrand.co.za/investors/key-investor-dates/",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-analysis-of-financial-results-dec-2025.pdf",
+          "https://online.firstrand.co.za/about-fnb/legal-matters/contact-us.html"
         ]
       },
       "signal_state": "DECAYING_NO_NEW_ENTRY",
@@ -25565,10 +25600,19 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NO_CHANGE",
+        "due_reason": "A targeted Capital Power filing/results check was performed. The 2026-07-29 Q2 release repeats the existing Meta ESA terms but adds no Meta-specific revenue, EBITDA, cash-flow, or expectation bridge; no new project milestone was found.",
+        "evidence_urls": [
+          "https://www.capitalpower.com/media/media_releases/capital-power-reports-second-quarter-2026-results/",
+          "https://www.capitalpower.com/wp-content/uploads/2026/07/Capital-Power-2026-Q2-Report.pdf",
+          "https://www.capitalpower.com/media/media_releases/capital-power-enters-long-term-energy-supply-agreement-with-meta-in-alberta/",
+          "https://about.fb.com/news/2026/07/breaking-ground-on-metas-first-data-center-in-canada/"
         ]
       },
       "signal_state": "UNVERIFIED",
@@ -31250,10 +31294,17 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NOT_DUE",
+        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-06.",
+        "evidence_urls": [
+          "https://www.singaporeair.com/en_UK/sg/corporate/newsroom/press-release/2024/October-December/ne1124-241104/",
+          "https://www.singaporeair.com/content/dam/sia/web-assets/pdfs/Press_Release/NR-0226.pdf"
         ]
       },
       "signal_state": "UNVERIFIED",
@@ -37605,10 +37656,18 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NO_CHANGE",
+        "due_reason": "The targeted Keppel check found the saved 2026-08-21 provisional capacity award and the earlier liquid-cooling testbed, but no newer named customer order or capacity-conversion evidence that satisfies the saved transition rule.",
+        "evidence_urls": [
+          "https://www.enterprisesg.gov.sg/resources/media-centre/media-releases/2026/august/mr03826_singapore-launches-worlds-first-liquid-cooling-standard-for-data-centres-in-tropical-climates",
+          "https://www.keppel.com/media/keppel-awarded-50-mw-new-data-centre-capacity-under-singapores-second-data-centre-call-for-application/",
+          "https://www.keppel.com/media/keppel-and-shell-to-launch-advanced-immersion-liquid-cooling-testbed-for-more-sustainable-data-centres/"
         ]
       },
       "signal_state": "UNVERIFIED",
@@ -43774,10 +43833,17 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-06T08:15:00+08:00",
+            "next_run_at": "2026-09-07T08:15:00+08:00",
             "last_run_at": null,
             "last_status": null
           }
+        ],
+        "last_checked_at": "2026-09-06T00:26:45Z",
+        "last_result": "NOT_DUE",
+        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-06, so the launch checkpoint is not due.",
+        "evidence_urls": [
+          "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Welcomes-Beam-Ultra-and-Sonos-Ace-Ultra-to-its-System/default.aspx",
+          "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Reports-Second-Quarter-Fiscal-2026-Results/default.aspx"
         ]
       },
       "signal_state": "UNVERIFIED",
@@ -51173,7 +51239,7 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "15 8 * * *",
-      "next_run_at": "2026-09-06T08:15:00+08:00",
+      "next_run_at": "2026-09-07T08:15:00+08:00",
       "last_run_at": null,
       "last_status": null
     },
@@ -51223,6 +51289,11 @@
       "path": "artifacts/investing-discovery/overnight-2026-09-05/frozen-candidate-batch.json",
       "sha256": "79012e54fcc7bec35e90c77303e760dfc138d876c5ba9af3e05abbb50e746f1d",
       "modified_at": "2026-09-04T16:48:30.050055+00:00"
+    },
+    {
+      "path": "data/investing-watch-monitor-state.json",
+      "sha256": "f564eedaa0d80e7ca530bf6c332ed9b27579e0df7e013d2462ca40d257490e14",
+      "modified_at": "2026-09-06T00:29:58.090723+00:00"
     },
     {
       "path": "data/investing-tracker-trends.json",

@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-06T00:30:45.371355+00:00",
+  "generated_at": "2026-09-06T03:43:53.690913+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -35,9 +35,9 @@
       "ARCHIVED": 1
     },
     "backlog_lineages": 217,
-    "monitor_jobs": 9,
-    "active_monitor_jobs": 2,
-    "paused_monitor_jobs": 7,
+    "monitor_jobs": 10,
+    "active_monitor_jobs": 6,
+    "paused_monitor_jobs": 4,
     "trade_ready_now": false,
     "decision_queue": 0,
     "signal_state_counts": {
@@ -113,8 +113,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -6542,8 +6542,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -12912,8 +12912,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -19244,8 +19244,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -25601,8 +25601,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -31295,8 +31295,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -37657,8 +37657,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -43834,8 +43834,8 @@
             "state": "scheduled",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-07T08:15:00+08:00",
-            "last_run_at": null,
-            "last_status": null
+            "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+            "last_status": "ok"
           }
         ],
         "last_checked_at": "2026-09-06T00:26:45Z",
@@ -50236,9 +50236,9 @@
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-05T15:40:11.161961Z",
+      "updated_at": "2026-09-06T11:27:37.347002+08:00",
       "monitoring": {
-        "status": "paused",
+        "status": "active",
         "jobs": [
           {
             "job_id": "2b14c57d71e3",
@@ -50253,18 +50253,18 @@
           {
             "job_id": "cf5893b05d59",
             "name": "GHOST A&W native Walmart panel",
-            "enabled": false,
-            "state": "paused",
+            "enabled": true,
+            "state": "scheduled",
             "schedule": "every 1440m",
-            "next_run_at": "2026-09-06T10:56:23.556372+08:00",
-            "last_run_at": "2026-09-05T10:56:23.556372+08:00",
+            "next_run_at": "2026-09-07T11:27:37.347002+08:00",
+            "last_run_at": "2026-09-06T11:27:37.347002+08:00",
             "last_status": "ok"
           },
           {
             "job_id": "da16ea8a40c0",
             "name": "KDP Barclays GHOST monitor update",
-            "enabled": false,
-            "state": "paused",
+            "enabled": true,
+            "state": "scheduled",
             "schedule": "once at 2026-09-11 09:00",
             "next_run_at": "2026-09-11T09:00:00+08:00",
             "last_run_at": null,
@@ -50273,27 +50273,33 @@
           {
             "job_id": "5159128f97f8",
             "name": "GHOST A&W trends, conversations and parity watch",
-            "enabled": false,
-            "state": "paused",
+            "enabled": true,
+            "state": "scheduled",
             "schedule": "30 10 * * *",
-            "next_run_at": "2026-09-06T10:30:00+08:00",
+            "next_run_at": "2026-09-07T10:30:00+08:00",
             "last_run_at": "2026-09-05T10:54:34.541303+08:00",
             "last_status": "ok"
           }
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-05T15:40:11.161961Z",
+        "as_of": "2026-09-06T03:27:35.313010Z",
         "headline": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
+        "thesis_realization": {
+          "status": "BUILDING_BASELINE",
+          "current_read": "No exit-review trigger. US search remains elevated; conversation momentum is not yet measurable; financial coverage remains niche.",
+          "exit_review_triggered": false,
+          "triggered_by": []
+        },
         "availability": {
           "state": "replenishment_started",
           "current": {
-            "observed_at": "2026-09-05T14:38:39.229477Z",
+            "observed_at": "2026-09-06T03:27:35.313010Z",
             "coverage": "partial",
-            "available": 1,
-            "out_of_stock": 3,
+            "available": 0,
+            "out_of_stock": 0,
             "not_listed": 0,
-            "unverified": 2
+            "unverified": 6
           },
           "last_complete": {
             "observed_at": "2026-09-05T02:56:22.776252Z",
@@ -50346,9 +50352,9 @@
               "store_id": "3081",
               "metro": "Sacramento",
               "postal_code": "95829",
-              "status": "orderable",
-              "label": "Available",
-              "observed_at": "2026-09-05T14:38:15.568983Z"
+              "status": "unavailable_error",
+              "label": "Collection failed",
+              "observed_at": "2026-09-06T03:27:24.164025Z"
             },
             {
               "store_id": "8930",
@@ -50356,31 +50362,31 @@
               "postal_code": "75248",
               "status": "unavailable_error",
               "label": "Collection failed",
-              "observed_at": "2026-09-05T14:38:18.199135Z"
+              "observed_at": "2026-09-06T03:27:22.523135Z"
             },
             {
               "store_id": "3709",
               "metro": "Atlanta",
               "postal_code": "30316",
-              "status": "out_of_stock",
-              "label": "Out of stock",
-              "observed_at": "2026-09-05T14:38:14.220565Z"
+              "status": "unavailable_error",
+              "label": "Collection failed",
+              "observed_at": "2026-09-06T03:27:22.393664Z"
             },
             {
               "store_id": "5402",
               "metro": "Chicago",
               "postal_code": "60639",
-              "status": "out_of_stock",
-              "label": "Out of stock",
-              "observed_at": "2026-09-05T14:38:16.620357Z"
+              "status": "unavailable_error",
+              "label": "Collection failed",
+              "observed_at": "2026-09-06T03:27:35.310988Z"
             },
             {
               "store_id": "5854",
               "metro": "Miami",
               "postal_code": "33155",
-              "status": "out_of_stock",
-              "label": "Out of stock",
-              "observed_at": "2026-09-05T14:38:10.486833Z"
+              "status": "unavailable_error",
+              "label": "Collection failed",
+              "observed_at": "2026-09-06T03:27:09.311995Z"
             },
             {
               "store_id": "2516",
@@ -50388,7 +50394,7 @@
               "postal_code": "98057",
               "status": "unavailable_error",
               "label": "Collection failed",
-              "observed_at": "2026-09-05T14:38:23.959512Z"
+              "observed_at": "2026-09-06T03:27:13.858266Z"
             }
           ],
           "newly_available_stores": [
@@ -50469,26 +50475,66 @@
             }
           },
           "exact_roots": 10,
-          "qualifying_roots": 0
+          "qualifying_roots": 0,
+          "history": [
+            {
+              "observed_at": "2026-09-04T02:42:39Z",
+              "exact_roots": 10,
+              "qualifying_roots": 0,
+              "source_state": "source_failure",
+              "comparable": false
+            },
+            {
+              "observed_at": "2026-09-05T02:51:56Z",
+              "exact_roots": 10,
+              "qualifying_roots": 0,
+              "source_state": "source_failure",
+              "comparable": false
+            }
+          ],
+          "sentiment": {
+            "status": "not_collected",
+            "note": "Positive and negative reactions both count toward buzz; no comparable sentiment history has been collected yet."
+          }
         },
         "street_coverage": {
           "state": "NICHE_ONLY",
           "qualifying_outlets": 0,
           "management_acknowledged": false,
-          "observed_at": "2026-09-05T02:51:56Z"
+          "observed_at": "2026-09-05T02:51:56Z",
+          "history": [
+            {
+              "observed_at": "2026-09-04T02:42:39Z",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
+            },
+            {
+              "observed_at": "2026-09-05T02:51:56Z",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
+            }
+          ],
+          "source_checks": {
+            "official_sources": 8,
+            "sec_filings": 9,
+            "news_queries": 4,
+            "earnings_call_or_transcript_checked": true
+          }
         },
         "source_receipts": {
           "upstream_calls": 0,
           "artifacts": [
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_latest.json",
-              "sha256": "cef18a392dd4e6b8950576158cfb2866a13723728213144f4c80540519b6db83",
-              "modified_at": "2026-09-05T14:38:39.229478+00:00"
+              "sha256": "e28d531faa1533e1039a625b7e13747b53a6156f9ff520deca7fbc6c236f9479",
+              "modified_at": "2026-09-06T03:27:35.319337+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_history.jsonl",
-              "sha256": "9329f9ffbbd03c566f9762e58297917b191ac72a4cea5e3b9f4a27e9c34b7671",
-              "modified_at": "2026-09-05T14:38:39.229478+00:00"
+              "sha256": "4dbce38be64d8291229ad0ac15ba178c48a8babacf70e764794f86c0768ae821",
+              "modified_at": "2026-09-06T03:27:35.331787+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
@@ -50504,6 +50550,11 @@
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
               "sha256": "7b05ea37e4aed5734c0e56b4e610e0286417709546aadd58d9e42b82c392ab8d",
               "modified_at": "2026-09-05T02:51:57.425343+00:00"
+            },
+            {
+              "path": "artifacts/dd/ghost-kdp/coverage_history.jsonl",
+              "sha256": "c4261deb3e5c7371fd792c421b1326283c75ba774842f07b008c311e3f1c4d93",
+              "modified_at": "2026-09-05T02:51:57.453908+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-05T154011Z.json",
@@ -51196,11 +51247,11 @@
     {
       "job_id": "cf5893b05d59",
       "name": "GHOST A&W native Walmart panel",
-      "enabled": false,
-      "state": "paused",
+      "enabled": true,
+      "state": "scheduled",
       "schedule": "every 1440m",
-      "next_run_at": "2026-09-06T10:56:23.556372+08:00",
-      "last_run_at": "2026-09-05T10:56:23.556372+08:00",
+      "next_run_at": "2026-09-07T11:27:37.347002+08:00",
+      "last_run_at": "2026-09-06T11:27:37.347002+08:00",
       "last_status": "ok"
     },
     {
@@ -51216,8 +51267,8 @@
     {
       "job_id": "da16ea8a40c0",
       "name": "KDP Barclays GHOST monitor update",
-      "enabled": false,
-      "state": "paused",
+      "enabled": true,
+      "state": "scheduled",
       "schedule": "once at 2026-09-11 09:00",
       "next_run_at": "2026-09-11T09:00:00+08:00",
       "last_run_at": null,
@@ -51226,10 +51277,10 @@
     {
       "job_id": "5159128f97f8",
       "name": "GHOST A&W trends, conversations and parity watch",
-      "enabled": false,
-      "state": "paused",
+      "enabled": true,
+      "state": "scheduled",
       "schedule": "30 10 * * *",
-      "next_run_at": "2026-09-06T10:30:00+08:00",
+      "next_run_at": "2026-09-07T10:30:00+08:00",
       "last_run_at": "2026-09-05T10:54:34.541303+08:00",
       "last_status": "ok"
     },
@@ -51240,8 +51291,8 @@
       "state": "scheduled",
       "schedule": "15 8 * * *",
       "next_run_at": "2026-09-07T08:15:00+08:00",
-      "last_run_at": null,
-      "last_status": null
+      "last_run_at": "2026-09-06T08:34:05.865067+08:00",
+      "last_status": "ok"
     },
     {
       "job_id": "a8bca0a7a62a",
@@ -51252,6 +51303,16 @@
       "next_run_at": "2026-09-13T06:30:00+08:00",
       "last_run_at": "2026-09-06T06:32:52.782768+08:00",
       "last_status": "error"
+    },
+    {
+      "job_id": "a8f69446d45c",
+      "name": "Finish final nine Bounty bank-history series",
+      "enabled": true,
+      "state": "scheduled",
+      "schedule": "once at 2026-09-06 13:22",
+      "next_run_at": "2026-09-06T13:22:26+08:00",
+      "last_run_at": null,
+      "last_status": null
     }
   ],
   "source_receipts": [

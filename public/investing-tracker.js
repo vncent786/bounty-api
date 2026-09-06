@@ -125,8 +125,11 @@
     }
     if (jobs.length) {
       block.append(node('p', 'tracker-small-copy', jobs.map(job => {
-        const timing = job.next_run_at ? `next ${timestamp(job.next_run_at)}` : job.schedule || 'schedule unavailable';
-        return `${job.name}: ${job.state || 'unknown'}, ${timing}`;
+        const jobState = String(job.state || 'unknown').toLowerCase();
+        const timing = jobState === 'paused'
+          ? 'no run until resumed'
+          : job.next_run_at ? `next ${timestamp(job.next_run_at)}` : job.schedule || 'schedule unavailable';
+        return `${job.name}: ${jobState}, ${timing}`;
       }).join(' · ')));
     } else if (item?.primary_state === 'WATCH') {
       block.append(node('p', 'tracker-small-copy', 'No scheduler attached yet; the finite next check remains visible.'));
@@ -331,6 +334,355 @@
     return panel;
   }
 
+  function availabilityHistory(availability) {
+    const section = node('section', 'tracker-monitor-section tracker-availability-panel');
+    add(section, node('span', 'tracker-field-label', 'Retail distribution'), node('h5', '', 'Walmart availability over time'));
+    const history = list(availability?.history);
+    if (!history.length) {
+      section.append(node('p', 'tracker-monitor-note', 'No complete six-store history is available yet.'));
+      return section;
+    }
+    const chart = node('div', 'tracker-availability-history');
+    chart.setAttribute('role', 'img');
+    chart.setAttribute('aria-label', 'Daily count of available, out-of-stock, not-listed and unverified Walmart stores');
+    history.forEach(point => {
+      const day = node('div', 'tracker-availability-day');
+      const bar = node('div', 'tracker-availability-bar');
+      [
+        ['available', 'Available'],
+        ['out_of_stock', 'Out of stock'],
+        ['not_listed', 'Not listed'],
+        ['unverified', 'Unverified'],
+      ].forEach(([key, label]) => {
+        const count = Number(point?.[key] || 0);
+        if (!count) return;
+        const segment = node('span', `tracker-availability-segment ${key}`);
+        segment.style.flexGrow = String(count);
+        segment.title = `${label}: ${count}`;
+        segment.setAttribute('aria-label', `${label}: ${count}`);
+        bar.append(segment);
+      });
+      add(day, bar, node('span', 'mono tracker-monitor-date', axisDate(point?.date)));
+      chart.append(day);
+    });
+    const legend = node('div', 'tracker-monitor-legend');
+    [
+      ['available', 'Available'], ['out_of_stock', 'Out of stock'],
+      ['not_listed', 'Not listed'], ['unverified', 'Unverified'],
+    ].forEach(([key, label]) => {
+      const item = node('span', '');
+      add(item, node('i', `tracker-legend-key ${key}`), document.createTextNode(label));
+      legend.append(item);
+    });
+    const current = availability?.current || {};
+    const lastComplete = availability?.last_complete || {};
+    add(
+      section,
+      chart,
+      legend,
+      node('p', 'tracker-monitor-note', `Last complete panel: ${integer(lastComplete.available)} available, ${integer(lastComplete.out_of_stock)} out of stock.`),
+    );
+    if (current.coverage !== 'complete') {
+      section.append(node('p', 'tracker-monitor-warning', `Latest retry was incomplete: ${integer(current.unverified)} stores are unverified and remain unknown.`));
+    }
+    const stores = node('div', 'tracker-store-grid');
+    list(availability?.stores).forEach(store => {
+      const row = node('div', `tracker-store-row ${String(store?.status || 'unverified').replaceAll('_', '-')}`);
+      add(
+        row,
+        node('strong', '', store?.metro || 'Store'),
+        node('span', 'mono', [store?.store_id, store?.postal_code].filter(Boolean).join(' · ')),
+        node('em', '', store?.label || 'Unverified'),
+      );
+      stores.append(row);
+    });
+    section.append(stores);
+    return section;
+  }
+
+  function monitorSearchSvg(history, queries) {
+    const namespace = 'http://www.w3.org/2000/svg';
+    const width = 720;
+    const height = 210;
+    const left = 48;
+    const right = 704;
+    const top = 18;
+    const bottom = 166;
+    const values = history.flatMap(point => queries.map(query => Number(point?.ratios?.[query])).filter(Number.isFinite));
+    const ceiling = Math.max(2, ...values.map(value => value * 1.08));
+    const floor = 0;
+    const x = index => history.length <= 1 ? (left + right) / 2 : left + (index / (history.length - 1)) * (right - left);
+    const y = value => bottom - ((value - floor) / (ceiling - floor)) * (bottom - top);
+    const svg = document.createElementNS(namespace, 'svg');
+    svg.setAttribute('class', 'tracker-attention-chart');
+    svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+    svg.setAttribute('role', 'img');
+    svg.setAttribute('aria-label', 'Latest seven-day Google search interest divided by the prior seven days');
+    [[0.75, 'Cooling line'], [1, 'Prior seven days']].forEach(([value, label]) => {
+      const guide = document.createElementNS(namespace, 'line');
+      guide.setAttribute('class', `tracker-attention-guide${value === 0.75 ? ' cooling' : ''}`);
+      guide.setAttribute('x1', String(left)); guide.setAttribute('x2', String(right));
+      guide.setAttribute('y1', String(y(value))); guide.setAttribute('y2', String(y(value)));
+      const text = document.createElementNS(namespace, 'text');
+      text.setAttribute('class', 'tracker-trend-axis-label');
+      text.setAttribute('x', '2'); text.setAttribute('y', String(y(value) + 4));
+      text.textContent = value === 1 ? '1.0x' : '0.75x';
+      const title = document.createElementNS(namespace, 'title');
+      title.textContent = label;
+      guide.append(title);
+      svg.append(guide, text);
+    });
+    queries.forEach((query, queryIndex) => {
+      let segment = [];
+      const flush = () => {
+        if (segment.length > 1) {
+          const line = document.createElementNS(namespace, 'polyline');
+          line.setAttribute('class', `tracker-attention-line query-${queryIndex + 1}`);
+          line.setAttribute('fill', 'none');
+          line.setAttribute('points', segment.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join(' '));
+          svg.append(line);
+        }
+        segment = [];
+      };
+      history.forEach((point, index) => {
+        const value = Number(point?.ratios?.[query]);
+        if (!Number.isFinite(value)) {
+          flush();
+          return;
+        }
+        const coordinate = { x: x(index), y: y(value), value, point };
+        segment.push(coordinate);
+        const circle = document.createElementNS(namespace, 'circle');
+        circle.setAttribute('class', `tracker-attention-point query-${queryIndex + 1}`);
+        circle.setAttribute('cx', String(coordinate.x)); circle.setAttribute('cy', String(coordinate.y)); circle.setAttribute('r', '4');
+        const title = document.createElementNS(namespace, 'title');
+        title.textContent = `${query}: ${value.toFixed(2)}x on ${axisDate(point?.observed_at)}`;
+        circle.append(title);
+        svg.append(circle);
+      });
+      flush();
+    });
+    history.forEach((point, index) => {
+      const text = document.createElementNS(namespace, 'text');
+      text.setAttribute('class', 'tracker-trend-date-label');
+      text.setAttribute('x', String(x(index))); text.setAttribute('y', '194');
+      text.setAttribute('text-anchor', index === 0 ? 'start' : index === history.length - 1 ? 'end' : 'middle');
+      text.textContent = axisDate(point?.observed_at);
+      svg.append(text);
+    });
+    return svg;
+  }
+
+  function searchAttentionPanel(search) {
+    const section = node('section', 'tracker-monitor-section tracker-search-attention');
+    add(section, node('span', 'tracker-field-label', 'Demand attention'), node('h5', '', 'Search attention change'), node('p', 'tracker-monitor-lead', search?.current_read || 'Search direction unavailable.'));
+    const history = list(search?.history);
+    const queries = list(search?.query_basket).length ? list(search.query_basket) : [...new Set(history.flatMap(point => Object.keys(point?.ratios || {})))];
+    if (history.length && queries.length) {
+      const scroll = node('div', 'tracker-attention-chart-scroll');
+      scroll.append(monitorSearchSvg(history, queries));
+      section.append(scroll);
+      const legend = node('div', 'tracker-monitor-legend');
+      queries.forEach((query, index) => {
+        const item = node('span', '');
+        add(item, node('i', `tracker-legend-key query-${index + 1}`), document.createTextNode(query));
+        legend.append(item);
+      });
+      section.append(legend);
+      const details = node('details', 'tracker-monitor-table');
+      details.append(node('summary', '', 'View dated search comparisons'));
+      const table = document.createElement('table');
+      const head = document.createElement('thead');
+      const header = document.createElement('tr');
+      ['Observed', ...queries].forEach(label => header.append(node('th', '', label)));
+      head.append(header);
+      const body = document.createElement('tbody');
+      history.forEach(point => {
+        const row = document.createElement('tr');
+        row.append(node('td', '', timestamp(point?.observed_at)));
+        queries.forEach(query => {
+          const value = Number(point?.ratios?.[query]);
+          row.append(node('td', '', Number.isFinite(value) ? `${value.toFixed(2)}x` : 'Missing'));
+        });
+        body.append(row);
+      });
+      table.append(head, body);
+      details.append(table);
+      section.append(details);
+    } else {
+      section.append(node('p', 'tracker-monitor-warning', 'No comparable search history yet. Missing observations remain blank.'));
+    }
+    return section;
+  }
+
+  function countHistoryBlock(history, options) {
+    const rows = list(history);
+    const block = node('div', `tracker-count-history ${options.className || ''}`.trim());
+    block.append(node('h6', '', options.title));
+    if (!rows.length) {
+      block.append(node('p', 'tracker-monitor-warning', options.emptyCopy));
+      return block;
+    }
+    const values = rows.flatMap(row => [Number(row?.[options.primaryKey] || 0), Number(row?.[options.secondaryKey] || 0)]);
+    const ceiling = Math.max(1, ...values);
+    const chart = node('div', 'tracker-count-chart');
+    chart.setAttribute('role', 'img');
+    chart.setAttribute('aria-label', options.ariaLabel);
+    rows.forEach(reading => {
+      const day = node('div', `tracker-count-day${reading?.comparable === false ? ' source-gap' : ''}`);
+      const bars = node('div', 'tracker-count-bars');
+      [[options.primaryKey, 'primary'], [options.secondaryKey, 'secondary']].forEach(([key, className]) => {
+        const value = Number(reading?.[key] || 0);
+        const bar = node('span', `tracker-count-bar ${className}`);
+        bar.style.height = `${Math.max(value ? 5 : 0, (value / ceiling) * 100)}%`;
+        bar.title = `${options.labels[className]}: ${value}`;
+        bars.append(bar);
+      });
+      add(day, bars, node('span', 'mono tracker-monitor-date', axisDate(reading?.observed_at)));
+      chart.append(day);
+    });
+    const legend = node('div', 'tracker-monitor-legend');
+    [['primary', options.labels.primary], ['secondary', options.labels.secondary]].forEach(([key, label]) => {
+      const item = node('span', '');
+      add(item, node('i', `tracker-legend-key count-${key}`), document.createTextNode(label));
+      legend.append(item);
+    });
+    add(block, chart, legend);
+    if (rows.some(row => row?.comparable === false)) {
+      block.append(node('p', 'tracker-monitor-warning', 'Outlined dates had incomplete source coverage. They remain visible but cannot prove momentum changed.'));
+    }
+    return block;
+  }
+
+  function conversationPanel(conversations) {
+    const section = node('section', 'tracker-monitor-section tracker-conversation-panel');
+    add(
+      section,
+      node('span', 'tracker-field-label', 'Social evidence'),
+      node('h5', '', 'Conversation coverage'),
+      node('p', 'tracker-monitor-lead', conversations?.current_read || 'Conversation direction unavailable.'),
+      node('p', 'tracker-monitor-note', `${integer(conversations?.exact_roots)} exact posts found · ${integer(conversations?.qualifying_roots)} independently qualifying.`),
+    );
+    section.append(countHistoryBlock(conversations?.history, {
+      title: 'Buzz over time',
+      className: 'tracker-buzz-history',
+      primaryKey: 'exact_roots',
+      secondaryKey: 'qualifying_roots',
+      labels: { primary: 'Exact posts', secondary: 'Independent posts' },
+      ariaLabel: 'Exact and independently qualifying conversation posts by monitoring date',
+      emptyCopy: 'No dated conversation-volume history yet.',
+    }));
+    const sentiment = conversations?.sentiment || {};
+    section.append(node('p', 'tracker-monitor-note', sentiment.status === 'not_collected'
+      ? 'Sentiment direction is not yet collected. Positive and negative both count toward buzz.'
+      : sentiment.note || 'Sentiment is context only; total buzz counts reactions of either sign.'));
+    const grid = node('div', 'tracker-platform-grid');
+    Object.entries(conversations?.platforms || {}).forEach(([platform, reading]) => {
+      const health = String(reading?.health || 'unknown');
+      const query = String(reading?.query_status || 'not run').toLowerCase();
+      const queryLabel = {
+        empty: 'No current match',
+        complete: 'GHOST check complete',
+        complete_relevant: 'GHOST check complete',
+        complete_no_match: 'No current match',
+        failed: 'GHOST check incomplete',
+        partial: 'GHOST check incomplete',
+        'not run': 'GHOST check not run',
+      }[query] || query.replaceAll('_', ' ');
+      const row = node('div', `tracker-platform-row health-${health}`);
+      const platformLabel = {
+        x: 'X', tiktok: 'TikTok', instagram: 'Instagram', reddit: 'Reddit', youtube: 'YouTube',
+      }[platform] || platform;
+      add(
+        row,
+        node('strong', '', platformLabel),
+        node('span', '', health === 'healthy' ? 'Source working' : 'Source problem'),
+        node('span', '', queryLabel),
+        node('span', 'mono', `${integer(reading?.exact_roots)} exact · ${integer(reading?.qualifying_roots)} independent`),
+      );
+      grid.append(row);
+    });
+    section.append(grid);
+    return section;
+  }
+
+  function streetCoveragePanel(coverage) {
+    const section = node('section', 'tracker-monitor-section tracker-street-panel');
+    const outlets = Number(coverage?.qualifying_outlets || 0);
+    const management = coverage?.management_acknowledged === true;
+    const summary = outlets
+      ? `${integer(outlets)} qualifying business or financial outlets cover the exact KDP implication.`
+      : 'No qualifying business or financial outlet covers the exact KDP implication yet.';
+    add(
+      section,
+      node('span', 'tracker-field-label', 'Information parity'),
+      node('h5', '', 'Street awareness'),
+      node('p', 'tracker-monitor-lead', summary),
+      node('p', 'tracker-monitor-note', management ? 'KDP management has explicitly acknowledged A&W economics.' : 'KDP management has not attributed sales, volume, margin or guidance to A&W.'),
+      node('p', 'tracker-monitor-date', `Checked ${timestamp(coverage?.observed_at)}`),
+    );
+    section.append(countHistoryBlock(coverage?.history, {
+      title: 'News and management coverage over time',
+      className: 'tracker-news-history',
+      primaryKey: 'qualifying_outlets',
+      secondaryKey: 'management_acknowledged',
+      labels: { primary: 'Qualifying outlets', secondary: 'Management acknowledgment' },
+      ariaLabel: 'Qualifying financial outlets and management acknowledgment by monitoring date',
+      emptyCopy: 'No dated financial-news coverage history yet.',
+    }));
+    const checks = coverage?.source_checks || {};
+    section.append(node('p', 'tracker-monitor-note', [
+      `${integer(checks.official_sources)} official IR sources`,
+      `${integer(checks.sec_filings)} SEC filings`,
+      `${integer(checks.news_queries)} news searches`,
+      checks.earnings_call_or_transcript_checked ? 'Earnings calls checked' : 'Earnings-call transcript not yet verified',
+    ].join(' · ')));
+    return section;
+  }
+
+  function standingMonitorPanel(item) {
+    const monitor = item?.monitor_dashboard;
+    if (!monitor || typeof monitor !== 'object') return null;
+    const panel = node('section', 'tracker-monitor-dashboard');
+    const head = node('header', 'tracker-monitor-dashboard-head');
+    const copy = node('div');
+    const realization = monitor?.thesis_realization || {};
+    const realizationStatus = String(realization?.status || 'BUILDING_BASELINE').toUpperCase();
+    const realizationLabel = {
+      BUILDING_BASELINE: 'Building baseline',
+      CONTINUE_MONITORING: 'Continue monitoring',
+      EXIT_REVIEW: 'Exit review',
+    }[realizationStatus] || realizationStatus.replaceAll('_', ' ').toLowerCase();
+    add(
+      copy,
+      node('span', 'tracker-field-label', 'Thesis realization'),
+      node('h4', '', realization?.current_read || 'Monitoring evidence is loading.'),
+      node('p', 'tracker-monitor-note', `Latest retail change: ${monitor?.headline || 'not available.'}`),
+    );
+    const status = node('div', 'tracker-realization-status');
+    add(
+      status,
+      node('strong', `tracker-realization-badge ${realizationStatus.toLowerCase().replaceAll('_', '-')}`, realizationLabel),
+      node('span', 'tracker-monitor-asof mono', `Updated ${timestamp(monitor?.as_of)}`),
+    );
+    add(head, copy, status);
+    panel.append(head);
+    const grid = node('div', 'tracker-monitor-grid');
+    add(grid, availabilityHistory(monitor?.availability), searchAttentionPanel(monitor?.search), conversationPanel(monitor?.conversations), streetCoveragePanel(monitor?.street_coverage));
+    panel.append(grid);
+    const receipts = monitor?.source_receipts || {};
+    const audit = node('details', 'tracker-monitor-audit');
+    audit.append(node('summary', '', `Why this is real data · ${integer(list(receipts?.artifacts).length)} persisted source receipts`));
+    audit.append(node('p', 'tracker-monitor-note', `Opening or refreshing this dashboard made ${integer(receipts?.upstream_calls)} upstream source calls. Collection happens separately and is preserved with timestamps and hashes.`));
+    const receiptList = node('div', 'tracker-monitor-receipts');
+    list(receipts?.artifacts).forEach(receipt => {
+      receiptList.append(node('p', 'mono', `${receipt?.path || 'Source'} · ${String(receipt?.sha256 || '').slice(0, 12)} · ${timestamp(receipt?.modified_at)}`));
+    });
+    audit.append(receiptList);
+    panel.append(audit);
+    return panel;
+  }
+
   function ideaRow(item) {
     const primary = String(item?.primary_state || 'INVESTIGATING').toUpperCase();
     const cssState = stateClass(primary);
@@ -360,6 +712,7 @@
       monitorBlock(item),
     );
 
+    const monitorDashboard = standingMonitorPanel(item);
     const trend = trendPanel(item);
     const detail = node('details', 'tracker-row-detail');
     detail.append(node('summary', '', 'Decision details'));
@@ -372,7 +725,7 @@
     if (plan.expiry) add(body, node('span', 'tracker-field-label', 'Expiry'), node('p', '', valueText(plan.expiry)));
     add(body, node('span', 'tracker-field-label', 'Source artifact'), node('p', 'mono tracker-artifact-path', item?.source_artifact || 'Not reported'));
     detail.append(body);
-    add(article, status, thesis, action, trend, detail);
+    add(article, status, thesis, action, monitorDashboard, trend, detail);
     return article;
   }
 

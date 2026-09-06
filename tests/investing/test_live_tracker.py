@@ -309,6 +309,9 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
                 "raw_exact_roots_by_platform": {"x": 0, "tiktok": 0, "instagram": 0, "reddit": 5, "youtube": 5},
                 "qualifying_independent_roots_by_platform": {"x": 0, "tiktok": 0, "instagram": 0, "reddit": 0, "youtube": 0},
             },
+            "captured_comments_replies": 30,
+            "comments_replies_by_platform": {"x": 0, "tiktok": 10, "instagram": 5, "reddit": 0, "youtube": 15},
+            "reviewed_product_relevant_comments_replies_by_platform": {"x": 0, "tiktok": 8, "instagram": 3, "reddit": 0, "youtube": None},
             "sentiment": {
                 "status": "partial",
                 "counts": {"positive": 2, "negative": 0, "neutral": 1, "mixed": 2, "unclassified": 5},
@@ -390,8 +393,11 @@ def test_tracker_projects_real_ghost_monitor_history(tmp_path):
     assert monitor["conversations"]["platforms"]["tiktok"]["health"] == "healthy"
     assert monitor["conversations"]["platforms"]["tiktok"]["query_status"] == "empty"
     assert monitor["conversations"]["exact_roots"] == 10
+    assert monitor["conversations"]["captured_comments_replies"] == 30
+    assert monitor["conversations"]["platforms"]["tiktok"]["captured_comments_replies"] == 10
+    assert monitor["conversations"]["platforms"]["instagram"]["reviewed_product_relevant_comments_replies"] == 3
     assert monitor["conversations"]["qualifying_roots"] == 0
-    assert monitor["conversations"]["current_read"] == "Latest observed sample: 10 exact posts across successful sources. Positive and negative reactions both count toward buzz."
+    assert monitor["conversations"]["current_read"] == "Latest observed sample: 10 exact posts and 30 comments/replies across successful sources. Positive and negative reactions both count toward buzz."
     assert [point["exact_roots"] for point in monitor["conversations"]["history"]] == [5, 10]
     assert monitor["conversations"]["sentiment"] == {
         "status": "partial",
@@ -451,6 +457,7 @@ def test_investing_dashboard_tracker_surface_is_wired():
     assert "Latest retry was incomplete" not in script
     assert "Rolling 7-day search change" in script
     assert "Observed conversation volume" in script
+    assert "comments/replies observed" in script
     assert "conversations?.headline" in script
     assert "Positive and negative both count toward buzz" in script
     assert "Outlined dates had incomplete source coverage" not in script

@@ -1,0 +1,69 @@
+{
+  "schema_version": "bounty-ghost-social-deepcheck-contract/1",
+  "candidate": {
+    "display_name": "GHOST Energy x A&W Root Beer",
+    "canonical_query": "ghost root beer energy drink",
+    "node_key": "82e3858f52557baa27eb5a7c",
+    "exact_object_rule": "Retain an original post only when GHOST is tied to A&W or Root Beer by an adjacent product phrase, or a known GHOST Energy/Lifestyle identity is paired with A&W or Root Beer. Reject distant namesake collisions such as ghost hunting plus an unrelated A&W mention. Comments and replies inherit only from a retained exact original post."
+  },
+  "window": {
+    "time_filter": "halfyear",
+    "sort": "latest",
+    "root_cap_per_query": 60,
+    "comment_reply_cap_per_root": 60,
+    "max_reply_depth": 2
+  },
+  "platforms": {
+    "x": {
+      "connector": "x_scweet",
+      "canary": "nike",
+      "queries": [
+        "\"GHOST Energy\" \"A&W\" -filter:retweets",
+        "\"GHOST\" \"A&W Root Beer\" -filter:retweets",
+        "\"GHOST Root Beer\" \"energy drink\" -filter:retweets"
+      ]
+    },
+    "tiktok": {
+      "connector": "authenticated",
+      "canary": "nike",
+      "queries": [
+        "GHOST Energy A&W Root Beer",
+        "GHOST A&W Root Beer",
+        "GHOST Root Beer Energy Drink",
+        "#GhostRootBeer"
+      ]
+    },
+    "instagram": {
+      "connector": "ig_auth_web",
+      "canary": "#nike",
+      "queries": [
+        "GHOST Energy A&W Root Beer",
+        "GHOST A&W Root Beer",
+        "GHOST Root Beer Energy Drink",
+        "#ghostrootbeer",
+        "#ghostawrootbeer"
+      ]
+    }
+  },
+  "status_rules": {
+    "complete_relevant": "The authenticated query completed and returned at least one exact product post.",
+    "complete_no_match": "The authenticated query returned posts, but all failed the exact product rule.",
+    "empty": "The authenticated source exposed an explicit no-results state with zero parsed posts.",
+    "failed": "Authentication, network, parser, timeout, budget or ambiguous-zero result; never convert this to zero conversation.",
+    "bounded_partial": "A thread read returned records without a connector error but the source reported more records or the cap was reached."
+  },
+  "old_method_defect": [
+    "The prior GHOST monitor delegated to the generic candidate collector. For this canonical query that produced only one X phrase, one TikTok phrase, and a small Instagram fallback basket.",
+    "The prior widened run used collect-only mode with comment hydration disabled, so it read zero comments or replies even when a retained post could have had a thread.",
+    "Ranked bounded search and a single phrase cannot establish platform-wide absence. The corrected result reports only what the frozen authenticated queries observed within their caps."
+  ],
+  "recovery_procedure": [
+    "Preserve and hash the failed artifact; never edit it in place.",
+    "Rerun only the failed platform after its same-shape known-positive search and depth canary passes.",
+    "Run every frozen source-native product query even after one query finds a post, then deduplicate by platform and native post ID.",
+    "Apply the exact product rule before reading threads.",
+    "Read comments and replies for every retained exact post within the frozen cap and depth, recording returned count, source-reported total, truncation, route and error.",
+    "Merge retry evidence by platform and native post ID, recompute counts offline, and retain every earlier attempt in audit history.",
+    "A new wider query basket starts a new baseline and must not be described as momentum versus the old smaller basket."
+  ]
+}

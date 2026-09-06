@@ -790,6 +790,8 @@ class OwnedRadarCollector:
     async def _broker_search(
         self, panel: Panel, platform: str, query: str, *, count: int,
         time_filter: str = "week", sort: str = "latest", hydrate: bool = True,
+        hydrate_root_limit: int = 1, hydrate_comment_limit: int = 12,
+        hydrate_depth: int = 2,
         query_lineage_id: str | None = None,
         budget: AdaptiveCollectionBudget | None = None,
         budget_operation: str = "root_search",
@@ -915,6 +917,7 @@ class OwnedRadarCollector:
         if response is None:
             raise RuntimeError("broker search returned no response")
         evidence = []
+        thread_receipts = []
         for item in response.get("items") or []:
             normalized = _normalise_item(
                 item,
@@ -925,7 +928,7 @@ class OwnedRadarCollector:
             )
             if normalized:
                 evidence.append(normalized)
-        if hydrate and response.get("items"):
+        if hydrate and response.get("items") and hydrate_root_limit > 0:
             ranked = sorted(
                 response["items"],
                 key=lambda item: (
@@ -933,7 +936,7 @@ class OwnedRadarCollector:
                     (item.get("engagement") or {}).get("likes") or 0,
                 ),
                 reverse=True,
-            )[:1]
+            )[:max(0, int(hydrate_root_limit))]
             for root in ranked:
                 if budget is not None and not budget.reserve(
                     platform=platform, operation="hydrated_thread_read"
@@ -942,9 +945,35 @@ class OwnedRadarCollector:
                     error = "adaptive_budget_exhausted"
                     continue
                 try:
-                    thread = await self.broker.fetch_thread(root, max_comments=12, max_depth=2)
-                except Exception:
+                    thread = await self.broker.fetch_thread(
+                        root,
+                        max_comments=max(0, int(hydrate_comment_limit)),
+                        max_depth=max(0, int(hydrate_depth)),
+                    )
+                except Exception as exc:
+                    thread_receipts.append({
+                        "root_post_external_id": root.get("external_id") or root.get("post_id"),
+                        "url": root.get("url"),
+                        "status": "failed",
+                        "returned_count": 0,
+                        "platform_reported_total": None,
+                        "truncated": False,
+                        "error_category": type(exc).__name__,
+                    })
                     continue
+                thread_receipts.append({
+                    "root_post_external_id": thread.root_post_external_id,
+                    "url": root.get("url"),
+                    "status": thread.status,
+                    "returned_count": len(thread.records),
+                    "platform_reported_total": thread.platform_reported_total,
+                    "truncated": bool(thread.truncated),
+                    "max_comments": int(thread.max_comments),
+                    "max_depth": int(thread.max_depth),
+                    "attempted_route": thread.attempted_route,
+                    "error_category": thread.error_category,
+                    "limitations": list(thread.limitations or ()),
+                })
                 for record in thread.records:
                     normalized = _thread_evidence(
                         record,
@@ -977,6 +1006,7 @@ class OwnedRadarCollector:
                     "recovered_errors": recovered_errors,
                     "attempted_connectors": attempted_connectors,
                     "route_health": route_health,
+                    "thread_reads": thread_receipts,
                     **({"budget": budget.snapshot()} if budget is not None else {}),
                 },
             },

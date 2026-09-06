@@ -562,15 +562,15 @@
       node('span', 'tracker-field-label', 'Observed conversation volume'),
       node('h5', '', conversations?.headline || `${integer(conversations?.exact_roots)} exact posts successfully observed`),
       node('p', 'tracker-monitor-lead', conversations?.current_read || 'Conversation direction unavailable.'),
-      node('p', 'tracker-monitor-note', `${integer(conversations?.exact_roots)} exact posts found · ${integer(conversations?.qualifying_roots)} independently qualifying.`),
+      node('p', 'tracker-monitor-note', `${integer(conversations?.exact_roots)} exact posts · ${integer(conversations?.captured_comments_replies)} comments/replies observed · ${integer(conversations?.reviewed_product_relevant_comments_replies)} reviewed as product-specific.`),
     );
     section.append(countHistoryBlock(conversations?.history, {
       title: 'Observed conversation volume over time',
       className: 'tracker-buzz-history',
       primaryKey: 'exact_roots',
-      secondaryKey: 'qualifying_roots',
-      labels: { primary: 'Exact posts', secondary: 'Independent posts' },
-      ariaLabel: 'Exact and independently qualifying conversation posts by monitoring date',
+      secondaryKey: 'captured_comments_replies',
+      labels: { primary: 'Exact posts', secondary: 'Comments/replies' },
+      ariaLabel: 'Exact original posts and captured comments or replies by monitoring date',
       emptyCopy: 'No dated conversation-volume history yet.',
     }));
     section.append(node('p', 'tracker-monitor-note', conversations?.coverage_note || 'Observed volume is shown from successful sources.'));
@@ -617,7 +617,7 @@
         node('strong', '', platformLabel),
         node('span', '', 'Observed'),
         node('span', '', queryLabel),
-        node('span', 'mono', `${integer(reading?.exact_roots)} exact · ${integer(reading?.qualifying_roots)} independent`),
+        node('span', 'mono', `${integer(reading?.exact_roots)} posts · ${integer(reading?.captured_comments_replies)} comments/replies${reading?.reviewed_product_relevant_comments_replies !== null && reading?.reviewed_product_relevant_comments_replies !== undefined ? ` · ${integer(reading.reviewed_product_relevant_comments_replies)} product-specific` : ''}`),
       );
       grid.append(row);
     });

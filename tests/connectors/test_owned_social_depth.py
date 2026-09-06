@@ -2,13 +2,25 @@ import asyncio
 
 from social_scraper.base import BaseConnector, SocialItem
 from social_scraper.broker import SourceBroker
-from social_scraper.connectors.instagram_graphql import InstagramConnector
+from social_scraper.connectors.instagram_graphql import (
+    InstagramConnector,
+    _cookie_path,
+    _ig_lock_path,
+)
 from social_scraper.connectors.tiktok_auth import (
     TikTokAuthConnector,
     _comment_payload_key,
     _root_page_budget,
 )
 from social_scraper.conversations.thread_reader import ThreadFetchResult
+
+
+def test_instagram_cookie_and_lock_paths_can_be_shared_across_worktrees(monkeypatch, tmp_path):
+    cookie = tmp_path / "owned" / "ig_cookies.json"
+    monkeypatch.setenv("BOUNTY_IG_COOKIE_PATH", str(cookie))
+
+    assert _cookie_path() == cookie.resolve()
+    assert _ig_lock_path() == cookie.resolve().parent / "ig_session.lock"
 
 
 def _post(platform, post_id="p1"):
@@ -245,6 +257,74 @@ def test_instagram_keyword_search_prefers_owned_browser_results(monkeypatch):
     assert result.health.coverage["route"] == "keyword_browser_graphql"
     assert [item.post_id for item in result.items] == ["m1"]
     assert result.raw_records[0]["source_id"] == "graphql-1"
+
+
+def test_instagram_explicit_hashtag_forces_hashtag_route(monkeypatch):
+    connector = InstagramConnector()
+    tag_media = [{
+        "id": "m2",
+        "code": "code2",
+        "caption": {"text": "Nike running shoe review #nike"},
+        "like_count": 20,
+        "comment_count": 3,
+        "taken_at": 1700000000,
+        "user": {"username": "runner"},
+    }]
+
+    browser_calls = []
+
+    async def fail_browser(*_args, **_kwargs):
+        browser_calls.append(True)
+        raise AssertionError("an explicit hashtag must bypass generic keyword results")
+
+    async def tag_search(tag, count):
+        assert tag == "nike"
+        assert count == 5
+        connector._last_tag_payload = {"data": {"name": "nike"}}
+        return tag_media, 100
+
+    monkeypatch.setattr(connector, "_browser_keyword_search", fail_browser)
+    monkeypatch.setattr(connector, "_fetch_tag_data", tag_search)
+    monkeypatch.setattr(connector, "_ensure_authed", lambda: asyncio.sleep(0))
+
+    result = asyncio.run(connector.search("#nike", count=5, sort="latest"))
+
+    assert browser_calls == []
+    assert result.health.status == "ok"
+    assert result.health.coverage["route"] == "hashtag_web_info"
+    assert result.health.coverage["query"] == "#nike"
+    assert [item.post_id for item in result.items] == ["m2"]
+
+
+def test_instagram_missing_hashtag_is_explicit_empty_not_source_failure(monkeypatch):
+    connector = InstagramConnector()
+
+    class Response:
+        status_code = 404
+
+    class Session:
+        class Cookies:
+            jar = ()
+
+        cookies = Cookies()
+
+        @staticmethod
+        def get(*_args, **_kwargs):
+            return Response()
+
+    connector._session = Session()
+    monkeypatch.setattr(connector, "_throttle", lambda: None)
+    monkeypatch.setattr(connector, "_ensure_authed", lambda: asyncio.sleep(0))
+
+    result = asyncio.run(connector.search("#no_such_tag", count=5, sort="latest"))
+
+    assert result.items == []
+    assert result.health.status == "partial"
+    assert result.health.error is None
+    assert result.health.coverage["route"] == "hashtag_web_info"
+    assert result.health.coverage["tag_media_count"] == 0
+    assert result.health.coverage["tag_state"] == "not_found"
+
 
 
 def test_tiktok_skips_reply_when_parent_root_was_not_retained(monkeypatch):

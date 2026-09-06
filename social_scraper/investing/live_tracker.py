@@ -489,6 +489,9 @@ def _ghost_monitor_dashboard(
         historical_origin = historical.get("origin_review") if isinstance(historical.get("origin_review"), dict) else {}
         historical_raw = historical_origin.get("raw_exact_roots_by_platform")
         historical_qualifying = historical_origin.get("qualifying_independent_roots_by_platform")
+        historical_comments = historical.get("comments_replies_by_platform")
+        if not isinstance(historical_comments, dict):
+            historical_comments = {}
         if not isinstance(historical_raw, dict) or not isinstance(historical_qualifying, dict):
             continue
         historical_canaries = historical.get("platform_canary_matrix") if isinstance(historical.get("platform_canary_matrix"), dict) else {}
@@ -521,6 +524,7 @@ def _ghost_monitor_dashboard(
             "observed_at": row.get("observed_at"),
             "exact_roots": sum(int(historical_raw.get(platform) or 0) for platform in successful_platforms),
             "qualifying_roots": sum(int(historical_qualifying.get(platform) or 0) for platform in successful_platforms),
+            "captured_comments_replies": sum(int(historical_comments.get(platform) or 0) for platform in successful_platforms),
             "exact_roots_by_platform": {
                 platform: int(historical_raw.get(platform) or 0)
                 for platform in ("x", "tiktok", "instagram", "reddit", "youtube")
@@ -543,6 +547,8 @@ def _ghost_monitor_dashboard(
     origin = conversation.get("origin_review") if isinstance(conversation.get("origin_review"), dict) else {}
     raw_by_platform = origin.get("raw_exact_roots_by_platform") if isinstance(origin.get("raw_exact_roots_by_platform"), dict) else {}
     qualifying_by_platform = origin.get("qualifying_independent_roots_by_platform") if isinstance(origin.get("qualifying_independent_roots_by_platform"), dict) else {}
+    comments_by_platform = conversation.get("comments_replies_by_platform") if isinstance(conversation.get("comments_replies_by_platform"), dict) else {}
+    reviewed_comments_by_platform = conversation.get("reviewed_product_relevant_comments_replies_by_platform") if isinstance(conversation.get("reviewed_product_relevant_comments_replies_by_platform"), dict) else {}
     platform_rows: dict[str, dict[str, Any]] = {}
     for platform in ("x", "tiktok", "instagram", "reddit", "youtube"):
         canary = canaries.get(platform) if isinstance(canaries.get(platform), dict) else {}
@@ -552,11 +558,33 @@ def _ghost_monitor_dashboard(
             "query_status": _text(query.get("candidate_query_status") or "not run").lower(),
             "exact_roots": int(raw_by_platform.get(platform) or query.get("observed_exact_roots") or 0),
             "qualifying_roots": int(qualifying_by_platform.get(platform) or 0),
+            "captured_comments_replies": int(comments_by_platform.get(platform) or query.get("captured_comments_replies") or 0),
+            "reviewed_product_relevant_comments_replies": (
+                int(reviewed_comments_by_platform.get(platform))
+                if isinstance(reviewed_comments_by_platform.get(platform), (int, float))
+                else None
+            ),
         }
     retry_paths = sorted((ghost / "conversation-runs").glob("tiktok-targeted-retry-*.json"))
     tiktok_retry = _load(retry_paths[-1]) if retry_paths else None
     retry_source = tiktok_retry.get("source") if isinstance((tiktok_retry or {}).get("source"), dict) else {}
-    if retry_source.get("status") in {"complete", "empty"} and not retry_source.get("error_category"):
+    retry_observed_at = _text((tiktok_retry or {}).get("observed_at"))
+    attention_observed_at = _text(attention_latest.get("observed_at"))
+    current_tiktok = platform_rows["tiktok"]
+    current_tiktok_terminal = (
+        current_tiktok["health"] == "healthy"
+        and current_tiktok["query_status"]
+        in {"complete", "complete_relevant", "complete_no_match", "empty"}
+    )
+    retry_is_newer = bool(
+        retry_observed_at
+        and (not attention_observed_at or retry_observed_at > attention_observed_at)
+    )
+    if (
+        retry_source.get("status") in {"complete", "empty"}
+        and not retry_source.get("error_category")
+        and (retry_is_newer or not current_tiktok_terminal)
+    ):
         platform_rows["tiktok"].update({
             "health": "healthy",
             "query_status": _text(retry_source.get("status")).lower(),
@@ -574,6 +602,8 @@ def _ghost_monitor_dashboard(
     ]
     visible_platform_rows = {platform: platform_rows[platform] for platform in completed_platform_names}
     observed_conversation_count = sum(row["exact_roots"] for row in visible_platform_rows.values())
+    captured_comments_replies = sum(row["captured_comments_replies"] for row in visible_platform_rows.values())
+    reviewed_product_relevant_comments_replies = int(conversation.get("reviewed_product_relevant_comments_replies") or 0)
     completed_platform_count = len(completed_platform_names)
     supplied_sentiment = sentiment_source.get("counts") if isinstance(sentiment_source.get("counts"), dict) else {}
     sentiment_counts = {
@@ -603,8 +633,8 @@ def _ghost_monitor_dashboard(
         ),
     }
     conversation_headline = (
-        f"{observed_conversation_count} exact posts successfully observed across "
-        f"{completed_platform_count} completed platform checks."
+        f"{observed_conversation_count} exact posts plus {captured_comments_replies} comments/replies "
+        f"observed across {completed_platform_count} successful platform reads."
     )
 
     coverage = _load(coverage_latest_path) or {}
@@ -683,7 +713,8 @@ def _ghost_monitor_dashboard(
         conversation_read = "Independent conversation volume is softening; watch the next comparable run."
     elif int(conversation.get("comparable_scheduled_runs") or 0) < 2:
         conversation_read = (
-            f"Latest observed sample: {observed_conversation_count} exact posts across successful sources. "
+            f"Latest observed sample: {observed_conversation_count} exact posts and "
+            f"{captured_comments_replies} comments/replies across successful sources. "
             "Positive and negative reactions both count toward buzz."
         )
     else:
@@ -738,6 +769,8 @@ def _ghost_monitor_dashboard(
             "platforms": visible_platform_rows,
             "successful_platforms": completed_platform_names,
             "exact_roots": observed_conversation_count,
+            "captured_comments_replies": captured_comments_replies,
+            "reviewed_product_relevant_comments_replies": reviewed_product_relevant_comments_replies,
             "qualifying_roots": sum(row["qualifying_roots"] for row in visible_platform_rows.values()),
             "history": conversation_history,
             "sentiment": sentiment,

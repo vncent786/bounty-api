@@ -39,6 +39,14 @@ class SourceBroker:
             for platform, routes in self._routes.items()
         }
 
+    def iter_routes(self) -> tuple[ConnectorRoute, ...]:
+        """Expose registered route objects for non-mutating catalogue adapters."""
+        return tuple(
+            route
+            for platform in sorted(self._routes)
+            for route in self._routes[platform]
+        )
+
     @staticmethod
     def _thread_post(item: dict) -> SocialItem:
         author = item.get("author") if isinstance(item.get("author"), dict) else {}
@@ -430,18 +438,39 @@ class SourceBroker:
             response["_source_records"] = source_records
         return response
 
-    async def health_check_all(self) -> list[dict]:
-        """Probe every registered route with the same timeout and error sanitization."""
-        routes = [route for platform_routes in self._routes.values() for route in platform_routes]
+    async def health_check_all(
+        self, *, platforms: list[str] | None = None, reserve=None,
+    ) -> list[dict]:
+        """Probe registered routes with bounded, health-visible execution."""
+        requested = set(platforms or self._routes.keys())
+        routes = [
+            route
+            for platform, platform_routes in self._routes.items()
+            if platform in requested
+            for route in platform_routes
+        ]
+        runnable = []
+        output = []
+        for route in routes:
+            if reserve is not None and not reserve(
+                route.connector.platform, route.connector.connector_name
+            ):
+                output.append({
+                    "platform": route.connector.platform,
+                    "connector": route.connector.connector_name,
+                    "status": "error",
+                    "error": "adaptive_budget_exhausted",
+                })
+                continue
+            runnable.append(route)
         results = await asyncio.gather(
             *(
                 asyncio.wait_for(route.connector.health_check(), timeout=self.route_timeout_seconds)
-                for route in routes
+                for route in runnable
             ),
             return_exceptions=True,
         )
-        output = []
-        for route, result in zip(routes, results):
+        for route, result in zip(runnable, results):
             if isinstance(result, asyncio.TimeoutError):
                 output.append({
                     "platform": route.connector.platform,

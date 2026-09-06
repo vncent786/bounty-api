@@ -51,7 +51,7 @@ _IG_APP_ID = "936619743392459"
 _IG_BASE = "https://www.instagram.com"
 _COOKIE_PATH = Path(__file__).resolve().parents[2] / "data" / "ig_cookies.json"
 _LOGIN_LOCK = asyncio.Lock()
-_IG_LOCK_PATH = Path(__file__).resolve().parents[2] / "data" / "ig_session.lock"
+_DEFAULT_IG_LOCK_PATH = Path(__file__).resolve().parents[2] / "data" / "ig_session.lock"
 _MIN_REQUEST_INTERVAL = 2.0  # seconds between API calls (anti-ban)
 _last_request_time = 0.0
 
@@ -69,9 +69,11 @@ def _get_env(name):
 
 def _cookie_path():
     configured = _get_env("BOUNTY_IG_COOKIE_PATH")
-    if configured:
-        return Path(configured)
-    return _COOKIE_PATH
+    return Path(configured or _COOKIE_PATH).expanduser().resolve()
+
+
+def _ig_lock_path() -> Path:
+    return _cookie_path().parent / "ig_session.lock"
 
 
 def _proxy_url():
@@ -336,6 +338,16 @@ class InstagramConnector(BaseConnector):
                 },
                 timeout=45,
             )
+            if resp.status_code == 404:
+                # The authenticated tag endpoint uses 404 for a tag that does
+                # not exist. A same-session known-positive tag canary separates
+                # this explicit empty from auth, challenge, and parser failures.
+                return {
+                    "status": "ok",
+                    "tag_state": "not_found",
+                    "http_status": 404,
+                    "data": {"media_count": 0},
+                }
             if resp.status_code != 200:
                 raise RuntimeError(f"ig_http_{resp.status_code}")
             return resp.json()
@@ -630,7 +642,7 @@ class InstagramConnector(BaseConnector):
                 max_depth=max_depth,
             )
         try:
-            async with AsyncFileLock(_IG_LOCK_PATH):
+            async with AsyncFileLock(_ig_lock_path()):
                 await self._ensure_authed()
                 root_budget_for_fetch = _root_record_budget(
                     max_comments, max_depth
@@ -875,21 +887,25 @@ class InstagramConnector(BaseConnector):
             )
 
         try:
-            async with AsyncFileLock(_IG_LOCK_PATH):
+            async with AsyncFileLock(_ig_lock_path()):
                 await self._ensure_authed()
                 route = "keyword_browser_graphql"
                 media_count = None
                 raw_records = []
                 browser_error = None
-                try:
-                    media_items, raw_records = await self._browser_keyword_search(
-                        keyword, count
-                    )
-                except Exception as exc:
-                    browser_error = type(exc).__name__
+                force_hashtag = keyword.startswith("#")
+                if force_hashtag:
                     media_items = []
+                else:
+                    try:
+                        media_items, raw_records = await self._browser_keyword_search(
+                            keyword, count
+                        )
+                    except Exception as exc:
+                        browser_error = type(exc).__name__
+                        media_items = []
 
-                if not media_items:
+                if force_hashtag or not media_items:
                     tag = re.sub(r"[^A-Za-z0-9]", "", keyword).lower()
                     if not tag:
                         raise RuntimeError("ig_empty_tag")
@@ -939,6 +955,10 @@ class InstagramConnector(BaseConnector):
                 "query": keyword,
                 "tag_media_count": media_count,
             }
+            if isinstance(self._last_tag_payload, dict):
+                tag_state = self._last_tag_payload.get("tag_state")
+                if tag_state:
+                    coverage["tag_state"] = tag_state
             if browser_error:
                 coverage["keyword_browser_error"] = browser_error
             return ConnectorResult(
@@ -988,7 +1008,7 @@ class InstagramConnector(BaseConnector):
                 status="error", error="curl_cffi_not_installed",
             )
         try:
-            async with AsyncFileLock(_IG_LOCK_PATH):
+            async with AsyncFileLock(_ig_lock_path()):
                 await self._ensure_authed()
         except IGAuthError:
             return SourceHealth(

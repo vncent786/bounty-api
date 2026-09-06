@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-06T07:30:12.170265+00:00",
+  "generated_at": "2026-09-06T09:27:00.725978+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -35,8 +35,8 @@
       "ARCHIVED": 1
     },
     "backlog_lineages": 217,
-    "monitor_jobs": 9,
-    "active_monitor_jobs": 5,
+    "monitor_jobs": 10,
+    "active_monitor_jobs": 6,
     "paused_monitor_jobs": 4,
     "trade_ready_now": false,
     "decision_queue": 0,
@@ -50283,11 +50283,11 @@
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-06T07:25:28.318215Z",
+        "as_of": "2026-09-06T09:15:52.749303+00:00",
         "headline": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
-          "current_read": "No exit-review trigger. US search remains elevated; the latest observed conversation sample contains 34 exact posts; financial coverage remains niche.",
+          "current_read": "No exit-review trigger. US search remains elevated; the latest observed conversation sample contains 77 exact posts; financial coverage remains niche.",
           "exit_review_triggered": false,
           "triggered_by": []
         },
@@ -50909,42 +50909,51 @@
         },
         "conversations": {
           "state": "CONVERSATION_BUILDING_BASELINE",
-          "headline": "34 exact posts successfully observed across 5 completed platform checks.",
-          "current_read": "Latest observed sample: 34 exact posts across successful sources. Positive and negative reactions both count toward buzz.",
+          "headline": "77 exact posts plus 271 comments/replies observed across 5 successful platform reads.",
+          "current_read": "Latest observed sample: 77 exact posts and 271 comments/replies across successful sources. Positive and negative reactions both count toward buzz.",
           "comparable_runs": 1,
           "comparable_history_points": 1,
           "coverage_note": "Observed volume is shown from successful sources. Coverage is not yet stable enough for a like-for-like momentum claim.",
           "platforms": {
             "x": {
               "health": "healthy",
-              "query_status": "complete",
-              "exact_roots": 0,
-              "qualifying_roots": 0
+              "query_status": "complete_relevant",
+              "exact_roots": 4,
+              "qualifying_roots": 0,
+              "captured_comments_replies": 34,
+              "reviewed_product_relevant_comments_replies": 16
             },
             "tiktok": {
               "health": "healthy",
-              "query_status": "empty",
-              "exact_roots": 0,
+              "query_status": "complete_relevant",
+              "exact_roots": 30,
               "qualifying_roots": 0,
-              "recovered_at": "2026-09-06T03:54:38.331489Z"
+              "captured_comments_replies": 118,
+              "reviewed_product_relevant_comments_replies": 87
             },
             "instagram": {
               "health": "healthy",
-              "query_status": "complete_no_match",
-              "exact_roots": 0,
-              "qualifying_roots": 0
+              "query_status": "complete_relevant",
+              "exact_roots": 3,
+              "qualifying_roots": 0,
+              "captured_comments_replies": 30,
+              "reviewed_product_relevant_comments_replies": 6
             },
             "reddit": {
               "health": "healthy",
               "query_status": "partial",
               "exact_roots": 19,
-              "qualifying_roots": 0
+              "qualifying_roots": 0,
+              "captured_comments_replies": 0,
+              "reviewed_product_relevant_comments_replies": 0
             },
             "youtube": {
               "health": "healthy",
-              "query_status": "complete",
-              "exact_roots": 15,
-              "qualifying_roots": 0
+              "query_status": "complete_relevant",
+              "exact_roots": 21,
+              "qualifying_roots": 0,
+              "captured_comments_replies": 89,
+              "reviewed_product_relevant_comments_replies": null
             }
           },
           "successful_platforms": [
@@ -50954,13 +50963,16 @@
             "reddit",
             "youtube"
           ],
-          "exact_roots": 34,
+          "exact_roots": 77,
+          "captured_comments_replies": 271,
+          "reviewed_product_relevant_comments_replies": 109,
           "qualifying_roots": 0,
           "history": [
             {
               "observed_at": "2026-09-04T02:42:39Z",
               "exact_roots": 10,
               "qualifying_roots": 0,
+              "captured_comments_replies": 0,
               "exact_roots_by_platform": {
                 "x": 0,
                 "tiktok": 0,
@@ -50980,6 +50992,7 @@
               "observed_at": "2026-09-05T02:51:56Z",
               "exact_roots": 10,
               "qualifying_roots": 0,
+              "captured_comments_replies": 0,
               "exact_roots_by_platform": {
                 "x": 0,
                 "tiktok": 0,
@@ -50996,15 +51009,16 @@
               "comparable": false
             },
             {
-              "observed_at": "2026-09-06T07:14:36Z",
-              "exact_roots": 34,
+              "observed_at": "2026-09-06T09:15:52.749303+00:00",
+              "exact_roots": 77,
               "qualifying_roots": 0,
+              "captured_comments_replies": 271,
               "exact_roots_by_platform": {
-                "x": 0,
-                "tiktok": 0,
-                "instagram": 0,
+                "x": 4,
+                "tiktok": 30,
+                "instagram": 3,
                 "reddit": 19,
-                "youtube": 15
+                "youtube": 21
               },
               "successful_platforms": [
                 "x",
@@ -51013,27 +51027,27 @@
                 "reddit",
                 "youtube"
               ],
-              "source_state": "successful_observed_volume_not_like_for_like",
+              "source_state": "successful_deep_observation_not_like_for_like",
               "comparable": false
             }
           ],
           "sentiment": {
             "status": "partial",
             "counts": {
-              "positive": 2,
-              "negative": 0,
-              "neutral": 1,
-              "mixed": 2,
-              "unclassified": 5
+              "positive": 19,
+              "negative": 39,
+              "neutral": 40,
+              "mixed": 3,
+              "unclassified": 8
             },
-            "classified_roots": 5,
-            "total_exact_roots": 10,
-            "note": "Positive and negative both count toward observed buzz. Sentiment is classified for 5 of the prior 10-root text sample; the widened 34-root sample is not silently relabeled.",
-            "artifact": "artifacts/dd/ghost-kdp/conversation-runs/attention-2026-09-06T0355Z-sentiment-review.json",
-            "artifact_sha256": "ab5bc22ea65aa9ece01c37214f04b412917b6c8d9c2a7e0fd932ba8306828e3d",
-            "sample_denominator": 10,
-            "observed_volume_denominator": 34,
-            "role": "secondary_context_only"
+            "classified_roots": null,
+            "total_exact_roots": 77,
+            "sample_denominator": 109,
+            "observed_volume_denominator": 271,
+            "role": "secondary_context_only",
+            "note": "Sentiment covers 109 product-relevant TikTok, Instagram and X comments/replies. Reddit and YouTube comment sentiment is not silently inferred. Positive and negative both count toward buzz.",
+            "artifact": "artifacts/dd/ghost-kdp/conversation-runs/attention-2026-09-06T-deep-social-review.json",
+            "artifact_sha256": "19b139e415124c49327e993a889dc69e3c20174051e2a77c186ad8d2e8bffe98"
           }
         },
         "street_coverage": {
@@ -51083,13 +51097,13 @@
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
-              "sha256": "13e48363cd184101bc4ed410e9efcefd7605fa63afd2d9de78ac135d1c6adb17",
-              "modified_at": "2026-09-06T07:14:36.881372+00:00"
+              "sha256": "9073ec39b8448af62a43b7e05fc90e5e757257ea1e9222a3b2099bc01d68e655",
+              "modified_at": "2026-09-06T09:15:52.781290+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_history.jsonl",
-              "sha256": "cb94b8b4264282f21ec5e47430de69977f43faa85e51cf41073ffe31244af5b3",
-              "modified_at": "2026-09-06T07:14:36.928072+00:00"
+              "sha256": "e112ff948b6947b8471885884b9803105901149d4a99e29a0532e008ded08f3c",
+              "modified_at": "2026-09-06T09:15:52.781290+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
@@ -51116,7 +51130,7 @@
             },
             {
               "source": "Google search attention",
-              "observed_at": "2026-09-06T07:14:36Z",
+              "observed_at": "2026-09-06T09:15:52.749303+00:00",
               "status": "source_failure",
               "usable": false
             }
@@ -51862,6 +51876,16 @@
       "next_run_at": "2026-09-13T06:30:00+08:00",
       "last_run_at": "2026-09-06T06:32:52.782768+08:00",
       "last_status": "error"
+    },
+    {
+      "job_id": "2fb6fb89a80c",
+      "name": "Bounty investor-agent platform decision reminder",
+      "enabled": true,
+      "state": "scheduled",
+      "schedule": "once in 24h",
+      "next_run_at": "2026-09-07T16:26:53.698914+08:00",
+      "last_run_at": null,
+      "last_status": null
     }
   ],
   "source_receipts": [

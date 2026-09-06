@@ -84,6 +84,10 @@ class XConnector(BaseConnector):
             db_path=db_path,
             proxy=os.getenv("BOUNTY_X_PROXY", "").strip() or None,
             concurrency=1,
+            # A bounded Latest query must search one full interval. Scweet's
+            # default five chronological splits plus one worker otherwise hits
+            # the oldest slice first and can satisfy the limit with stale posts.
+            n_splits=1,
             daily_requests_limit=self._daily_request_limit,
             daily_tweets_limit=self._env_int("BOUNTY_X_DAILY_TWEETS_LIMIT", 8000),
             requests_per_min=self._env_int("BOUNTY_X_REQUESTS_PER_MIN", 5),
@@ -395,6 +399,9 @@ class XConnector(BaseConnector):
         search_result = await self.search(
             f"conversation_id:{conversation_id}",
             count=max_comments + 10,
+            # Candidate search uses the six-month source window. Reusing the
+            # connector's one-month default here silently loses older replies.
+            time_filter="halfyear",
             sort="latest",
         )
         if not search_result.items and search_result.health.status == "error":

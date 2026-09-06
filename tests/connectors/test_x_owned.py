@@ -58,6 +58,7 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     monkeypatch.setattr(x_graphql, "SCWEET_AVAILABLE", True)
     monkeypatch.setenv("BOUNTY_X_AUTH_TOKEN", "secret")
     monkeypatch.setenv("BOUNTY_X_SCWEET_DB", str(tmp_path / "state.db"))
+    monkeypatch.delenv("BOUNTY_X_REQUESTS_PER_MIN", raising=False)
 
     result = asyncio.run(XConnector().search(
         "running shoes", count=5, time_filter="week", sort="latest"
@@ -68,6 +69,7 @@ def test_owned_x_search_uses_conservative_scweet_config_and_preserves_raw(monkey
     assert captured["config"]["daily_tweets_limit"] == 8000
     assert captured["config"]["requests_per_min"] == 5
     assert captured["config"]["concurrency"] == 1
+    assert captured["config"]["n_splits"] == 1
     assert captured["client"]["db_path"] == str(tmp_path / "state.db")
     assert captured["search"]["display_type"] == "Latest"
     assert captured["search"]["limit"] == 5
@@ -267,6 +269,7 @@ def test_owned_x_thread_reconstructs_replies_and_skips_unknown_parent(monkeypatc
 
     async def fake_search(keyword, count=20, time_filter="", sort="", region=""):
         assert keyword == "conversation_id:root"
+        assert time_filter == "halfyear"
         return ConnectorResult(
             items=items,
             health=SourceHealth(

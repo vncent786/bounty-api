@@ -35,9 +35,26 @@ except ImportError:
     PLAYWRIGHT_AVAILABLE = False
 
 
-PROFILE = str(PROJECT / ".browser_profiles" / "tiktok_real")
-EXTENSION = str(PROJECT / ".browser_profiles" / "tiktok_proxy_ext")
-_PROFILE_LOCK_PATH = PROJECT / ".browser_profiles" / "tiktok_real.lock"
+_DEFAULT_PROFILE = PROJECT / ".browser_profiles" / "tiktok_real"
+_DEFAULT_EXTENSION = PROJECT / ".browser_profiles" / "tiktok_proxy_ext"
+
+
+def _resolved_path(value: str | Path) -> Path:
+    return Path(value).expanduser().resolve()
+
+
+def _profile_path() -> Path:
+    configured = os.getenv("BOUNTY_TIKTOK_PROFILE_PATH", "").strip()
+    return _resolved_path(configured or _DEFAULT_PROFILE)
+
+
+def _extension_path() -> Path:
+    configured = os.getenv("BOUNTY_TIKTOK_EXTENSION_PATH", "").strip()
+    return _resolved_path(configured or _DEFAULT_EXTENSION)
+
+
+def _profile_lock_path() -> Path:
+    return Path(str(_profile_path()) + ".lock")
 
 
 # JS that extracts all video data from TikTok's DOM
@@ -248,7 +265,7 @@ class TikTokAuthConnector(BaseConnector):
 
     async def search(self, keyword: str, count: int = 12, time_filter: str = "",
                      sort: str = "", region: str = "") -> ConnectorResult:
-        async with AsyncFileLock(_PROFILE_LOCK_PATH):
+        async with AsyncFileLock(_profile_lock_path()):
             return await self._search_unlocked(
                 keyword, count, time_filter, sort, region
             )
@@ -283,7 +300,7 @@ class TikTokAuthConnector(BaseConnector):
         try:
             playwright = await async_playwright().start()
             context = await playwright.chromium.launch_persistent_context(
-                PROFILE,
+                str(_profile_path()),
                 channel="chrome",
                 headless=False,
                 locale="en-US",
@@ -292,8 +309,8 @@ class TikTokAuthConnector(BaseConnector):
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--window-position=-32000,-32000",
-                    f"--load-extension={EXTENSION}",
-                    f"--disable-extensions-except={EXTENSION}",
+                    f"--load-extension={_extension_path()}",
+                    f"--disable-extensions-except={_extension_path()}",
                 ],
             )
             await Stealth().apply_stealth_async(context)
@@ -466,7 +483,7 @@ class TikTokAuthConnector(BaseConnector):
                 max_depth=max_depth,
             )
         try:
-            async with AsyncFileLock(_PROFILE_LOCK_PATH):
+            async with AsyncFileLock(_profile_lock_path()):
                 collected = await self._collect_thread_payloads(
                     post, max_comments, max_depth
                 )
@@ -595,7 +612,7 @@ class TikTokAuthConnector(BaseConnector):
         context = None
         try:
             context = await playwright.chromium.launch_persistent_context(
-                PROFILE,
+                str(_profile_path()),
                 channel="chrome",
                 headless=False,
                 locale="en-US",
@@ -604,8 +621,8 @@ class TikTokAuthConnector(BaseConnector):
                 args=[
                     "--disable-blink-features=AutomationControlled",
                     "--window-position=-32000,-32000",
-                    f"--load-extension={EXTENSION}",
-                    f"--disable-extensions-except={EXTENSION}",
+                    f"--load-extension={_extension_path()}",
+                    f"--disable-extensions-except={_extension_path()}",
                 ],
             )
             await Stealth().apply_stealth_async(context)

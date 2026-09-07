@@ -612,6 +612,39 @@ async def get_investing_social_pulse():
     return _get_social_pulse_store().public_payload()
 
 
+def _tracker_has_ghost_monitor(payload: dict | None) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    return any(
+        isinstance(item, dict)
+        and item.get("idea_id") == "standing::ghost-aw-kdp"
+        and isinstance(item.get("monitor_dashboard"), dict)
+        for item in payload.get("ideas", [])
+    )
+
+
+def _tracker_has_verified_ghost_evidence(payload: dict | None) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    for item in payload.get("ideas", []):
+        if not isinstance(item, dict) or item.get("idea_id") != "standing::ghost-aw-kdp":
+            continue
+        monitor = item.get("monitor_dashboard")
+        conversations = monitor.get("conversations") if isinstance(monitor, dict) else None
+        evidence = conversations.get("evidence") if isinstance(conversations, dict) else None
+        return isinstance(evidence, dict) and evidence.get("status") == "verified"
+    return False
+
+
+def _select_tracker_payload(live: dict, packaged: dict | None) -> dict:
+    """Prefer only a live or packaged Tracker with fully linked GHOST evidence."""
+    if live.get("status") == "complete" and _tracker_has_verified_ghost_evidence(live):
+        return live
+    if _tracker_has_verified_ghost_evidence(packaged):
+        return packaged
+    return live
+
+
 @router.get("/investing/tracker")
 async def get_investing_tracker():
     """Serve the private tracker from live artifacts or its packaged snapshot."""
@@ -619,14 +652,12 @@ async def get_investing_tracker():
 
     root = Path(__file__).resolve().parents[1]
     live = build_investment_tracker(root)
-    if live.get("status") == "complete":
-        return live
     snapshot_path = root / "data" / "investing-tracker-snapshot.json"
     try:
         snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return live
-    return snapshot if isinstance(snapshot, dict) else live
+        snapshot = None
+    return _select_tracker_payload(live, snapshot)
 
 
 def _owned_private_scan_allowed() -> bool:

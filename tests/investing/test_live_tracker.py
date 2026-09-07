@@ -476,7 +476,9 @@ def test_public_tracker_release_receipt_proves_private_snapshot_without_leaking_
     receipt = json.loads((root / "public" / "investing-tracker-release.json").read_text(encoding="utf-8"))
 
     assert receipt["schema_version"] == "bounty-investment-tracker-release/1"
-    assert receipt["tracker_snapshot_sha256"] == hashlib.sha256(snapshot_path.read_bytes()).hexdigest()
+    normalized_snapshot = snapshot_path.read_bytes().replace(b"\r\n", b"\n")
+    assert receipt["tracker_snapshot_sha256"] == hashlib.sha256(normalized_snapshot).hexdigest()
+    assert receipt["tracker_snapshot_hash_basis"] == "utf8_text_lf_normalized"
     assert receipt["methodology"] == "bounty-corrected-persistence-rerun/1"
     assert receipt["decision_queue"] == 0
     assert receipt["google_series"] == 57

@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-07T11:09:25.816692+00:00",
+  "generated_at": "2026-09-07T11:37:54.077793+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -69717,5 +69717,12 @@
       "sha256": "61748044cd5c56a832ba2da0b8997200b1707c83c6e2d8d9695241a987795b5f",
       "modified_at": "2026-09-05T15:44:37.906220+00:00"
     }
-  ]
+  ],
+  "trend_release_metadata": {
+    "methodology": "bounty-corrected-persistence-rerun/1",
+    "built_at": "2026-09-05T22:30:55.347405+00:00",
+    "requested_series": 57,
+    "terminal_series": 57,
+    "preflight_status": "healthy"
+  }
 }

@@ -42,6 +42,13 @@ A separate classifier defect was also found during repair: raw HTML script/style
 - News/RSS titles are discovery links, not directly read articles and not qualifying coverage.
 - Public sell-side references are tracked separately. Paywalled/private research is `not_observable_not_checked`.
 
+### 5. Cross-platform release hashing
+
+- Windows may materialize committed text as CRLF while Railway serves the same Git blob with LF.
+- Release receipts hash text after CRLF-to-LF normalization and declare `tracker_snapshot_hash_basis: utf8_text_lf_normalized`.
+- Deployment verification applies the same normalization to both expected and live bytes. A raw CRLF/LF mismatch is not a deployment failure.
+- Build or refresh the release receipt after the final snapshot, then test the receipt against both line-ending forms before pushing.
+
 ## Regression coverage
 
 The release must pass tests for:

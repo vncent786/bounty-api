@@ -5,6 +5,8 @@ from pathlib import Path
 
 from apis.investing_dashboard_page import INVESTING_DASHBOARD_HTML
 from social_scraper.investing.live_tracker import (
+    _daily_complete_availability,
+    _observation_day_sgt,
     _rolling_seven_day_change_series,
     build_investment_tracker,
 )
@@ -18,6 +20,24 @@ def write_json(path: Path, payload: dict) -> None:
 def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("".join(json.dumps(row) + "\n" for row in rows), encoding="utf-8")
+
+
+def test_monitor_daily_labels_use_singapore_day_without_changing_timestamp():
+    before_midnight = {
+        "observed_at": "2026-09-07T15:59:59Z",
+        "coverage_status": "complete",
+    }
+    after_midnight = {
+        "observed_at": "2026-09-07T16:00:01Z",
+        "coverage_status": "complete",
+    }
+
+    rows = _daily_complete_availability([before_midnight, after_midnight])
+
+    assert rows == [before_midnight, after_midnight]
+    assert _observation_day_sgt(before_midnight["observed_at"]) == "2026-09-07"
+    assert _observation_day_sgt(after_midnight["observed_at"]) == "2026-09-08"
+    assert rows[1]["observed_at"] == "2026-09-07T16:00:01Z"
 
 
 def test_tracker_reconciles_one_primary_state_and_separate_monitor_activity(tmp_path):

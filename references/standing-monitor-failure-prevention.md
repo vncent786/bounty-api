@@ -49,6 +49,13 @@ A separate classifier defect was also found during repair: raw HTML script/style
 - Deployment verification applies the same normalization to both expected and live bytes. A raw CRLF/LF mismatch is not a deployment failure.
 - Build or refresh the release receipt after the final snapshot, then test the receipt against both line-ending forms before pushing.
 
+### 6. Singapore daily cadence and disposable publication
+
+- The investor-facing daily monitor starts at 00:00 Asia/Singapore. The prerequisite Walmart panel runs at 23:45 so the midnight publication can consume the newest retailer observation.
+- Daily chart buckets derive from the full observation timestamp converted to Asia/Singapore. Never slice a UTC timestamp and present that date as the Singapore monitoring day.
+- Publication uses a fresh detached worktree from current `origin/main` on every run. It commits only the snapshot and sanitized release receipt, retries one non-fast-forward race, and removes the worktree afterward.
+- A long-lived deploy worktree is not an operational dependency; stale code edits in an old worktree cannot block the daily data refresh.
+
 ## Regression coverage
 
 The release must pass tests for:

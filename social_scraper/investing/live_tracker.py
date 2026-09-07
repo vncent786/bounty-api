@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 from typing import Any
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo
 
 TRACKER_SCHEMA_VERSION = "bounty-investment-tracker/1"
 PRIMARY_STATES = (
@@ -27,6 +28,7 @@ PRIMARY_STATES = (
     "REJECTED",
     "ARCHIVED",
 )
+MONITOR_TIMEZONE = ZoneInfo("Asia/Singapore")
 
 
 def _load(path: Path) -> dict[str, Any] | None:
@@ -47,6 +49,19 @@ def _sha256(path: Path) -> str | None:
 
 def _text(value: Any) -> str:
     return " ".join(str(value or "").split())
+
+
+def _observation_day_sgt(value: Any) -> str | None:
+    observed_at = _text(value)
+    if not observed_at:
+        return None
+    try:
+        parsed = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(MONITOR_TIMEZONE).date().isoformat()
 
 
 def _as_list(value: Any) -> list[Any]:
@@ -213,9 +228,9 @@ def _daily_complete_availability(rows: list[dict[str, Any]]) -> list[dict[str, A
     by_day: dict[str, dict[str, Any]] = {}
     for row in rows:
         observed_at = _text(row.get("observed_at"))
-        if row.get("coverage_status") != "complete" or len(observed_at) < 10:
+        day = _observation_day_sgt(observed_at)
+        if row.get("coverage_status") != "complete" or day is None:
             continue
-        day = observed_at[:10]
         prior = by_day.get(day)
         if prior is None or _text(row.get("observed_at")) > _text(prior.get("observed_at")):
             by_day[day] = row
@@ -879,7 +894,7 @@ def _ghost_monitor_dashboard(
     )
     current_counts = _availability_counts(visible_snapshot)
     availability_history = [
-        {"date": _text(row.get("observed_at"))[:10], **_availability_counts(row)}
+        {"date": _observation_day_sgt(row.get("observed_at")), **_availability_counts(row)}
         for row in complete_daily
     ]
     newly_available = _newly_available_stores(previous_complete, last_complete)
@@ -1027,8 +1042,8 @@ def _ghost_monitor_dashboard(
             "source_state": _text(historical.get("operational_state") or "unknown").lower(),
             "comparable": bool(canaries_healthy and queries_terminal),
         }
-        day = _text(row.get("observed_at"))[:10]
-        if len(day) < 10:
+        day = _observation_day_sgt(row.get("observed_at"))
+        if day is None:
             continue
         score = _text(row.get("observed_at"))
         prior = conversation_by_day.get(day)
@@ -1215,7 +1230,9 @@ def _ghost_monitor_dashboard(
             "qualifying_outlets": int(row.get("qualifying_independent_business_financial_outlet_count") or 0),
             "management_acknowledged": bool(row.get("management_acknowledges_a_and_w_economics")),
         }
-        day = observed_at[:10]
+        day = _observation_day_sgt(observed_at)
+        if day is None:
+            continue
         if day not in coverage_by_day or observed_at >= _text(coverage_by_day[day].get("observed_at")):
             coverage_by_day[day] = point
     coverage_history = [coverage_by_day[day] for day in sorted(coverage_by_day)]

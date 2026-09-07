@@ -1,0 +1,72 @@
+{
+  "schema_version": "bounty-standing-monitor/1",
+  "monitor_id": "standing::ghost-aw-kdp",
+  "candidate": "GHOST Energy x A&W Root Beer",
+  "business_type": "consumer_product",
+  "listed_beneficiary": "KDP",
+  "exact_implication": "GHOST x A&W Root Beer is producing sustained incremental demand, distribution, replenishment or repeat purchase that is economically relevant to GHOST and changes expectations for KDP.",
+  "window_days": 14,
+  "decision_authority": {
+    "human_review_only": true,
+    "automatic_trade_action": false
+  },
+  "search_attention": {
+    "cadence": "daily",
+    "provider": "google_trends",
+    "geography": "US",
+    "queries": [
+      "ghost root beer energy drink",
+      "ghost a&w root beer"
+    ],
+    "comparison": "latest seven complete days versus the preceding seven complete days inside the same request"
+  },
+  "public_information_parity": {
+    "cadence": "daily",
+    "official_ir": {
+      "sources": [
+        {"url": "https://investors.keurigdrpepper.com/", "title": "KDP investor relations"},
+        {"url": "https://investors.keurigdrpepper.com/events-and-presentations", "title": "KDP events and presentations"},
+        {"url": "https://investors.keurigdrpepper.com/2026-08-06-Keurig-Dr-Pepper-Reports-Q2-Results-and-Reaffirms-Guidance-for-2026", "title": "KDP Q2 2026 results"}
+      ]
+    },
+    "regulator_filings": {
+      "sec_cik": "0001418135",
+      "sources": [
+        {"url": "https://data.sec.gov/submissions/CIK0001418135.json", "title": "KDP SEC submissions"}
+      ]
+    },
+    "earnings_calls": {
+      "sources": [
+        {"url": "https://investors.keurigdrpepper.com/image/Keurig-Dr-Pepper-Inc_Second_Quarter-2026-Earnings_Transcript.pdf", "title": "KDP Q2 2026 earnings transcript", "event_date": "2026-08-06"},
+        {"url": "https://investors.keurigdrpepper.com/events-and-presentations?item=82", "title": "KDP Barclays Global Consumer Staples Conference", "event_date": "2026-09-10"}
+      ]
+    },
+    "official_product_context": {
+      "sources": [
+        {"url": "https://drinkghost.com/products/ghost%C2%AE-energy-x-a-w%C2%AE-a-w%C2%AE-root-beer", "title": "Official GHOST A&W product page"}
+      ]
+    },
+    "qualifying_business_news": {
+      "rss_queries": [
+        "\"Ghost Energy\" \"A&W Root Beer\" KDP",
+        "\"GHOST\" \"A&W\" \"Keurig Dr Pepper\"",
+        "\"GHOST A&W\" sales distribution KDP",
+        "\"GHOST Root Beer\" demand Keurig Dr Pepper"
+      ]
+    },
+    "sell_side_public_mentions": {
+      "rss_queries": [
+        "\"Keurig Dr Pepper\" analyst GHOST A&W",
+        "KDP analyst \"GHOST Energy\" demand",
+        "KDP upgrade downgrade GHOST",
+        "KDP price target GHOST Energy"
+      ],
+      "scope_note": "Public secondary reports of sell-side notes only. Paywalled and private research is not observable and is not represented as checked."
+    }
+  },
+  "operating_evidence": {
+    "retailer_availability": "Frozen exact six-store Walmart panel",
+    "independent_user_behavior": "Fixed five-platform query baskets with bounded comments and replies",
+    "repeat_purchase": "Not yet directly observed; do not infer from attention"
+  }
+}

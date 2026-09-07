@@ -373,3 +373,40 @@ def test_assets_do_not_expose_internal_diagnostics_and_css_is_responsive_warm_pa
     assert "@media (max-width: 760px)" in styles
     assert "min-height: 46px" in styles
     assert "overflow-wrap: anywhere" in styles
+
+
+def test_ghost_monitor_has_touch_chart_tooltips_complete_evidence_links_and_parity_lanes():
+    script = (ROOT / "public" / "investing-tracker.js").read_text(encoding="utf-8")
+    styles = _styles()
+
+    for marker in (
+        "tracker-chart-tooltip",
+        "pointerenter",
+        "Latest 7 complete days vs previous 7 complete days",
+        "prior_seven_day_mean_is_zero",
+        "Not comparable",
+        "Not collected",
+        "Inspect linked conversation evidence",
+        "Inspect linked sentiment classifications",
+        "safeEvidenceUrl",
+        "noopener noreferrer",
+        "Official IR",
+        "SEC filings",
+        "Earnings calls",
+        "Business news",
+        "Public sell-side mentions",
+        "Paywalled or private research is outside this public monitor",
+    ):
+        assert marker in script, marker
+
+    assert "tracker-attention-y-title" in script
+    assert "tracker-attention-x-title" in script
+    assert "dateGapDays" in script
+    for marker in (
+        ".tracker-evidence-list",
+        ".tracker-evidence-platform",
+        ".tracker-chart-tooltip",
+        ".tracker-parity-lanes",
+        ".tracker-count-bar.missing",
+    ):
+        assert marker in styles, marker

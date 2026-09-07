@@ -1,0 +1,99 @@
+{
+  "schema_version": "bounty-standing-monitor-sensors/1",
+  "purpose": "Give every standing investment monitor the same auditable attention and public-information checks while selecting operational evidence from the way the business actually earns money.",
+  "common_sensors": {
+    "google_search_attention": {
+      "required": true,
+      "role": "attention_only",
+      "contract": "Use identity-preserving queries. Compare complete windows inside one request, show dated values, leave missing dates blank, and never convert attention into sales."
+    },
+    "public_information_parity": {
+      "required": true,
+      "role": "market_awareness_and_realization",
+      "required_lanes": [
+        "official_ir",
+        "regulator_filings",
+        "earnings_calls",
+        "official_product_context",
+        "qualifying_business_news",
+        "sell_side_public_mentions"
+      ],
+      "paywalled_research": "not_observable_not_checked",
+      "contract": "Check public issuer, regulator, call, product, business-news and publicly visible sell-side evidence separately. A missing paywalled note is never represented as checked or as silence."
+    }
+  },
+  "business_types": {
+    "consumer_product": {
+      "selection_basis": "retail_sell_through_and_repeat_purchase",
+      "economic_mechanism": "A consumer sees the product, finds it in stock, buys or tries it, repeats, and the behavior reaches retailer sell-through and issuer economics.",
+      "thesis_specific_sensors": {
+        "retailer_availability": {
+          "strength": "capacity_committed_or_used",
+          "examples": ["same-store same-item availability", "verified replenishment", "distribution breadth", "stock duration"]
+        },
+        "independent_user_behavior": {
+          "strength": "attention_only",
+          "examples": ["independent exact original posts", "linked comments and replies", "trial", "switching", "complaints"]
+        },
+        "repeat_purchase": {
+          "strength": "money_committed",
+          "examples": ["verified reorder", "repeat transaction", "retailer sell-through", "subscription or loyalty repeat"]
+        },
+        "pricing_and_promotion": {
+          "strength": "capacity_committed_or_used",
+          "examples": ["same-SKU price", "discount depth", "promotion frequency", "authorized seller terms"]
+        }
+      },
+      "minimum_operational_set": [
+        "retailer_availability",
+        "independent_user_behavior",
+        "repeat_purchase"
+      ]
+    },
+    "industrial_and_data_center": {
+      "selection_basis": "orders_capacity_and_project_execution",
+      "economic_mechanism": "A buyer commits money or capacity, a project clears permits and power constraints, equipment ships or backlog converts, and the economics reach the listed supplier.",
+      "thesis_specific_sensors": {
+        "contracts_orders_backlog": {
+          "strength": "money_committed",
+          "examples": ["signed order", "contract award", "purchase commitment", "backlog conversion", "shipment"]
+        },
+        "capacity_reservations_and_use": {
+          "strength": "capacity_committed_or_used",
+          "examples": ["megawatts contracted", "capacity reservation", "facility energised", "utilization"]
+        },
+        "permits_grid_and_construction": {
+          "strength": "purchase_preparation",
+          "examples": ["building permit", "environmental approval", "grid service agreement", "verified construction milestone"]
+        },
+        "authorized_channel_inventory": {
+          "strength": "capacity_committed_or_used",
+          "examples": ["same-equipment lead time", "authorized distributor stock", "shipment timing"]
+        }
+      },
+      "minimum_operational_set": [
+        "contracts_orders_backlog",
+        "capacity_reservations_and_use",
+        "permits_grid_and_construction"
+      ],
+      "not_required_by_default": [
+        "social_conversation"
+      ]
+    }
+  },
+  "evidence_strength_order": [
+    "money_committed",
+    "capacity_committed_or_used",
+    "purchase_preparation",
+    "attention_only"
+  ],
+  "integrity_rules": [
+    "Missing and failed observations remain missing; no interpolation or zero-filling.",
+    "Every displayed count must reconcile to persisted evidence links or show a mismatch.",
+    "Comments and replies never inflate original-post counts.",
+    "Attention does not become revenue without a separately cited economic bridge.",
+    "A public-information check is downstream parity evidence, never the primary discovery edge.",
+    "Page loads read persisted artifacts and make zero upstream calls.",
+    "No monitor can place, close or resize a trade."
+  ]
+}

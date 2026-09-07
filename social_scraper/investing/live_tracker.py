@@ -10,9 +10,12 @@ from __future__ import annotations
 from collections import Counter
 from datetime import datetime, timezone
 import hashlib
+import html
 import json
 from pathlib import Path
+import re
 from typing import Any
+from urllib.parse import urlparse
 
 TRACKER_SCHEMA_VERSION = "bounty-investment-tracker/1"
 PRIMARY_STATES = (
@@ -380,6 +383,470 @@ def _verified_search_values(
     )
 
 
+def _rolling_seven_day_timeline(
+    returned_values: dict[str, Any] | None,
+    queries: list[str],
+    partial_flags: list[Any] | None = None,
+) -> list[dict[str, Any]]:
+    """Keep source dates visible while leaving unusable rolling windows blank."""
+
+    source = returned_values or {}
+    dates = source.get("dates") if isinstance(source.get("dates"), list) else []
+    partial = partial_flags if isinstance(partial_flags, list) else (
+        source.get("isPartial_flags") if isinstance(source.get("isPartial_flags"), list) else []
+    )
+    if len(dates) < 14:
+        return []
+    if len(partial) != len(dates):
+        partial = [False] * len(dates)
+    output = []
+    for index in range(13, len(dates)):
+        window_start = index - 13
+        changes: dict[str, float] = {}
+        latest_means: dict[str, float] = {}
+        prior_means: dict[str, float] = {}
+        missing_reasons: dict[str, str] = {}
+        if any(bool(value) for value in partial[window_start:index + 1]):
+            missing_reasons = {query: "partial_date_in_14_day_window" for query in queries}
+        else:
+            for query in queries:
+                values = source.get(query)
+                if not isinstance(values, list) or len(values) != len(dates):
+                    missing_reasons[query] = "series_missing_or_misaligned"
+                    continue
+                latest = values[index - 6:index + 1]
+                prior = values[index - 13:index - 6]
+                if not all(isinstance(value, (int, float)) for value in latest + prior):
+                    missing_reasons[query] = "non_numeric_value_in_14_day_window"
+                    continue
+                latest_mean = sum(float(value) for value in latest) / 7
+                prior_mean = sum(float(value) for value in prior) / 7
+                if prior_mean <= 0:
+                    missing_reasons[query] = "prior_seven_day_mean_is_zero"
+                    continue
+                changes[query] = round(((latest_mean / prior_mean) - 1) * 100, 4)
+                latest_means[query] = latest_mean
+                prior_means[query] = prior_mean
+        output.append({
+            "date": _text(dates[index])[:10],
+            "changes_pct": changes,
+            "latest_7_mean": latest_means,
+            "prior_7_mean": prior_means,
+            "missing_reasons": missing_reasons,
+            "source_window_days": 14,
+        })
+    first_usable = next(
+        (index for index, row in enumerate(output) if row["changes_pct"]),
+        len(output),
+    )
+    return output[first_usable:]
+
+
+def _safe_public_evidence_url(value: Any) -> str | None:
+    text = _text(value)
+    try:
+        parsed = urlparse(text)
+    except ValueError:
+        return None
+    return text if parsed.scheme in {"http", "https"} and parsed.netloc else None
+
+
+def _artifact_path(root: Path, value: Any) -> Path | None:
+    text = _text(value)
+    if not text:
+        return None
+    candidate = (root / text).resolve()
+    try:
+        candidate.relative_to(root.resolve())
+    except ValueError:
+        return None
+    return candidate if candidate.is_file() else None
+
+
+def _plain_evidence_text(value: Any, limit: int = 360) -> str:
+    text = html.unescape(str(value or ""))
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = " ".join(text.split())
+    return text[:limit]
+
+
+def _evidence_row(row: dict[str, Any], *, default_type: str) -> dict[str, Any] | None:
+    url = _safe_public_evidence_url(row.get("url"))
+    if not url:
+        return None
+    record_type = _text(row.get("record_type") or default_type).lower()
+    return {
+        "platform": _text(row.get("platform")).lower(),
+        "external_id": _text(row.get("external_id") or row.get("id")),
+        "record_type": record_type,
+        "root_post_external_id": _text(row.get("root_post_external_id")),
+        "parent_external_id": _text(row.get("parent_external_id")),
+        "url": url,
+        "author": _text(row.get("author")) or None,
+        "created_at": row.get("created_at"),
+        "text": _plain_evidence_text(row.get("text_snippet") or row.get("text")),
+        "content_origin": row.get("content_origin"),
+        "counts_as_independent_behavior": row.get("counts_as_independent_behavior"),
+    }
+
+
+def _dedupe_evidence(rows: list[dict[str, Any]], *, default_type: str) -> list[dict[str, Any]]:
+    output: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        row = _evidence_row(raw, default_type=default_type)
+        if not row:
+            continue
+        key = (row["platform"], row["record_type"], row["external_id"] or row["url"])
+        output[key] = row
+    return list(output.values())
+
+
+def _ghost_conversation_evidence(
+    root: Path,
+    attention: dict[str, Any],
+    platform_rows: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    artifacts = attention.get("artifacts") if isinstance(attention.get("artifacts"), dict) else {}
+    all_retained_path = _artifact_path(root, artifacts.get("all_retained_reconciliation"))
+    all_retained = _load(all_retained_path) if all_retained_path else None
+    manifest_path = _artifact_path(root, artifacts.get("social_manifest"))
+    manifest = _load(manifest_path) if manifest_path else None
+    manifest_artifacts = (
+        manifest.get("platform_artifacts")
+        if isinstance((manifest or {}).get("platform_artifacts"), dict)
+        else {}
+    )
+
+    deep_review_path = _artifact_path(root, artifacts.get("deep_social_review"))
+    deep_review = _load(deep_review_path) if deep_review_path else None
+    deep_path = None
+    for source in (deep_review or {}).get("source_artifacts") or []:
+        if not isinstance(source, dict) or "deep-comments" not in _text(source.get("path")):
+            continue
+        deep_path = _artifact_path(root, source.get("path"))
+        if deep_path:
+            break
+    deep = _load(deep_path) if deep_path else None
+    deep_rows = deep.get("evidence") if isinstance((deep or {}).get("evidence"), list) else []
+
+    platforms: dict[str, dict[str, Any]] = {}
+    all_retained_platforms = (
+        all_retained.get("platforms")
+        if isinstance((all_retained or {}).get("platforms"), dict)
+        else {}
+    )
+    for platform in ("x", "tiktok", "instagram", "reddit", "youtube"):
+        manifest_source = manifest_artifacts.get(platform) if isinstance(manifest_artifacts.get(platform), dict) else {}
+        manifest_source_path = _artifact_path(root, manifest_source.get("path"))
+        manifest_payload = _load(manifest_source_path) if manifest_source_path else None
+        manifest_result = (
+            (manifest_payload.get("platform_results") or {}).get(platform)
+            if isinstance((manifest_payload or {}).get("platform_results"), dict)
+            else {}
+        )
+        manifest_roots = manifest_result.get("exact_roots") if isinstance(manifest_result.get("exact_roots"), list) else []
+        manifest_responses = [
+            record
+            for thread in (manifest_result.get("thread_reads") or [])
+            if isinstance(thread, dict)
+            for record in (thread.get("records") or [])
+            if isinstance(record, dict)
+        ]
+        if platform in {"x", "tiktok", "instagram"}:
+            source = (
+                all_retained_platforms.get(platform)
+                if isinstance(all_retained_platforms.get(platform), dict)
+                else {}
+            )
+            originals = _dedupe_evidence(
+                source.get("originals") if isinstance(source.get("originals"), list) else [],
+                default_type="root",
+            )
+            responses = _dedupe_evidence(
+                source.get("comments_replies") if isinstance(source.get("comments_replies"), list) else [],
+                default_type="comment",
+            )
+        else:
+            originals = _dedupe_evidence(
+                [
+                    row for row in deep_rows
+                    if isinstance(row, dict)
+                    and _text(row.get("platform")).lower() == platform
+                    and _text(row.get("record_type") or "root").lower() == "root"
+                ],
+                default_type="root",
+            )
+            responses = _dedupe_evidence(
+                [
+                    row for row in deep_rows
+                    if isinstance(row, dict)
+                    and _text(row.get("platform")).lower() == platform
+                    and _text(row.get("record_type") or "root").lower() != "root"
+                ],
+                default_type="comment",
+            )
+        if not originals and manifest_roots:
+            originals = _dedupe_evidence(manifest_roots, default_type="root")
+            responses = _dedupe_evidence(manifest_responses, default_type="comment")
+        displayed = platform_rows.get(platform) or {}
+        displayed_posts = int(displayed.get("exact_roots") or 0)
+        displayed_responses = int(displayed.get("captured_comments_replies") or 0)
+        verified = (
+            len(originals) == displayed_posts
+            and len(responses) == displayed_responses
+        )
+        platforms[platform] = {
+            "count_status": "verified" if verified else "mismatch",
+            "displayed_original_posts": displayed_posts,
+            "linked_original_posts": len(originals),
+            "displayed_comments_replies": displayed_responses,
+            "linked_comments_replies": len(responses),
+            "original_posts": originals,
+            "comments_replies": responses,
+        }
+    displayed_posts = sum(row["displayed_original_posts"] for row in platforms.values())
+    displayed_responses = sum(row["displayed_comments_replies"] for row in platforms.values())
+    linked_posts = sum(row["linked_original_posts"] for row in platforms.values())
+    linked_responses = sum(row["linked_comments_replies"] for row in platforms.values())
+    verified = all(row["count_status"] == "verified" for row in platforms.values())
+    return {
+        "status": "verified" if verified else "mismatch",
+        "displayed_counts": {
+            "original_posts": displayed_posts,
+            "comments_replies": displayed_responses,
+        },
+        "persisted_link_counts": {
+            "original_posts": linked_posts,
+            "comments_replies": linked_responses,
+        },
+        "total_clickable_links": linked_posts + linked_responses,
+        "platforms": platforms,
+        "source_artifacts": [
+            _artifact_receipt(path, root)
+            for path in (all_retained_path, deep_path, manifest_path)
+            if isinstance(path, Path)
+        ],
+    }
+
+
+def _linked_sentiment(
+    root: Path,
+    attention: dict[str, Any],
+    supplied: dict[str, Any],
+    displayed_roots: int,
+    displayed_comments_replies: int,
+) -> dict[str, Any] | None:
+    artifacts = attention.get("artifacts") if isinstance(attention.get("artifacts"), dict) else {}
+    path = _artifact_path(root, artifacts.get("sentiment_review"))
+    review = _load(path) if path else None
+    if not review:
+        return None
+    buckets = ("positive", "negative", "neutral", "mixed", "unclassified")
+    response_review = review.get("schema_version") == "bounty-ghost-social-sentiment-evidence/1"
+    if response_review:
+        summary = review.get("summary") if isinstance(review.get("summary"), dict) else {}
+        raw_rows = [
+            raw for raw in review.get("reviewed_rows") or []
+            if isinstance(raw, dict) and raw.get("relevance") == "exact_product"
+        ]
+        counts_source = summary.get("sentiment") if isinstance(summary.get("sentiment"), dict) else {}
+        denominator = int(summary.get("reviewed_product_relevant_comments_replies") or 0)
+        classification_unit = "comments_replies"
+        displayed_total = displayed_comments_replies
+    else:
+        raw_rows = [raw for raw in review.get("reviews") or [] if isinstance(raw, dict)]
+        counts_source = review.get("counts") if isinstance(review.get("counts"), dict) else {}
+        denominator = int(review.get("total_exact_roots") or 0)
+        classification_unit = "original_posts"
+        displayed_total = displayed_roots
+    rows = []
+    for raw in raw_rows:
+        url = _safe_public_evidence_url(raw.get("url"))
+        label = _text(
+            raw.get("sentiment") if response_review else raw.get("label")
+        ).lower() or "unclassified"
+        if not url or label not in buckets:
+            continue
+        rows.append({
+            "platform": _text(raw.get("platform")).lower(),
+            "external_id": _text(raw.get("external_id")),
+            "record_type": _text(raw.get("record_type") or "root").lower(),
+            "url": url,
+            "label": label,
+            "basis": _plain_evidence_text(
+                raw.get("rationale") if response_review else raw.get("basis"),
+                limit=500,
+            ),
+        })
+    counts = {
+        bucket: max(0, int(counts_source.get(bucket) or 0))
+        for bucket in buckets
+    }
+    if denominator <= 0 or denominator != len(rows) or sum(counts.values()) != denominator:
+        return None
+    unreviewed = max(0, displayed_total - denominator)
+    result = {
+        "status": "complete_linked_sample",
+        "role": "secondary_context_only",
+        "classification_unit": classification_unit,
+        "sample_denominator": denominator,
+        "counts": counts,
+        "evidence": rows,
+        "coverage_note": (
+            f"{denominator} of {displayed_total} displayed comments/replies have linked exact-product classifications. "
+            f"The remaining {unreviewed} {'is' if unreviewed == 1 else 'are'} adjacent, unrelated or unreviewed, not neutral."
+            if response_review
+            else f"{denominator} of {displayed_total} displayed original posts have linked classifications. "
+            f"The remaining {unreviewed} are unreviewed, not neutral."
+        ),
+        "note": (
+            _text((review.get("method") or {}).get("claim_boundary"))
+            if response_review and isinstance(review.get("method"), dict)
+            else _text(review.get("scope"))
+        ) or "Sentiment is a linked sample and remains context only.",
+        "source_artifact": _artifact_receipt(path, root),
+    }
+    if not response_review:
+        result["withdrawn_aggregate"] = {
+            "status": "not_displayed_missing_record_level_lineage",
+            "counts": supplied.get("counts") if isinstance(supplied.get("counts"), dict) else {},
+            "sample_denominator": supplied.get("sample_denominator"),
+            "note": "The broader aggregate remains in audit but is not displayed as current sentiment because its per-record classifications were not persisted.",
+        }
+    return result
+
+
+def _coverage_lanes(coverage: dict[str, Any]) -> dict[str, Any]:
+    lanes = coverage.get("lanes") if isinstance(coverage.get("lanes"), dict) else None
+    if lanes:
+        output = {}
+        for name, raw in lanes.items():
+            if not isinstance(raw, dict):
+                continue
+            source_events = raw.get("events") if isinstance(raw.get("events"), list) else []
+            evidence = []
+            events = []
+            for source in source_events:
+                if not isinstance(source, dict):
+                    continue
+                url = _safe_public_evidence_url(source.get("url"))
+                if not url:
+                    continue
+                row = {
+                    "url": url,
+                    "title": source.get("title"),
+                    "published_at": source.get("published_at"),
+                    "attributes": {
+                        "outlet": source.get("outlet"),
+                        "exact_implication_match": source.get("exact_implication_match") is True,
+                        "qualifying": source.get("qualifying") is True,
+                    },
+                }
+                evidence.append(row)
+                if source.get("event_date"):
+                    events.append({
+                        "event_name": source.get("title") or name.replace("_", " "),
+                        "event_date": source.get("event_date"),
+                        "url": url,
+                    })
+            state = _text(raw.get("status") or raw.get("state") or "unknown").lower()
+            health = _text(raw.get("health_state") or "unknown").lower()
+            display_status = "complete" if state in {"complete", "complete_empty", "bounded_partial"} and health == "healthy" else state
+            retrieved_count = raw.get("retrieved_count")
+            retrieved_count = int(retrieved_count) if isinstance(retrieved_count, (int, float)) else len(evidence)
+            output[name] = {
+                "status": display_status,
+                "health_state": health,
+                "checked_count": int(raw.get("checked_count") or raw.get("requested_count") or 0),
+                "retrieved_count": retrieved_count,
+                "qualifying_count": int(raw.get("qualifying_count") or 0),
+                "exact_implication_match_count": int(raw.get("exact_implication_match_count") or 0),
+                "evidence": evidence,
+                "events": events,
+            }
+        return output
+    official = coverage.get("official_source_receipts") if isinstance(coverage.get("official_source_receipts"), list) else []
+    sec = coverage.get("sec_source_receipts") if isinstance(coverage.get("sec_source_receipts"), list) else []
+    qualifying = coverage.get("qualifying_independent_outlets") if isinstance(coverage.get("qualifying_independent_outlets"), list) else []
+
+    def lane(rows: list[dict[str, Any]], status: str = "complete") -> dict[str, Any]:
+        evidence = []
+        for raw in rows:
+            if not isinstance(raw, dict):
+                continue
+            url = _safe_public_evidence_url(raw.get("url") or raw.get("canonical_url"))
+            if url:
+                evidence.append({
+                    "url": url,
+                    "title": raw.get("title") or raw.get("key"),
+                    "published_at": raw.get("published_at") or raw.get("publication_timestamp"),
+                    "attributes": {
+                        "source_class": raw.get("source_class"),
+                        "outlet": raw.get("outlet"),
+                        "exact_implication_match": raw.get("qualifying") is True,
+                    },
+                })
+        return {
+            "status": status,
+            "checked_count": len(rows),
+            "retrieved_count": len(evidence),
+            "qualifying_count": sum(
+                (row.get("attributes") or {}).get("exact_implication_match") is True
+                for row in evidence
+            ),
+            "evidence": evidence,
+            "events": [],
+        }
+
+    transcript = [
+        row for row in official
+        if "transcript" in _text(row.get("source_class") or row.get("key")).casefold()
+    ]
+    product = [
+        row for row in official
+        if "brand" in _text(row.get("source_class")).casefold()
+    ]
+    ir = [row for row in official if row not in transcript and row not in product]
+    return {
+        "official_ir": lane(ir),
+        "regulator_filings": lane(sec),
+        "earnings_calls": lane(transcript),
+        "official_product_context": lane(product),
+        "qualifying_business_news": lane(qualifying),
+        "sell_side_public_mentions": lane([], status="not_run"),
+    }
+
+
+def _accepted_public_parity_pointer(row: dict[str, Any] | None) -> bool:
+    if not isinstance(row, dict):
+        return False
+    writer = row.get("writer") if isinstance(row.get("writer"), dict) else {}
+    return (
+        row.get("schema_version") == "bounty-public-information-parity/1"
+        and writer.get("writer_id") == "scripts/run_ghost_thesis_monitor.py"
+        and writer.get("writer_version") == 1
+    )
+
+
+def _accepted_linked_conversation_observation(row: dict[str, Any] | None) -> bool:
+    if not isinstance(row, dict):
+        return False
+    conversation = row.get("conversation_attention") if isinstance(row.get("conversation_attention"), dict) else {}
+    canaries = conversation.get("platform_canary_matrix") if isinstance(conversation.get("platform_canary_matrix"), dict) else {}
+    artifacts = row.get("artifacts") if isinstance(row.get("artifacts"), dict) else {}
+    comments = conversation.get("comments_replies_by_platform")
+    roots = (conversation.get("origin_review") or {}).get("raw_exact_roots_by_platform") if isinstance(conversation.get("origin_review"), dict) else None
+    return bool(
+        len(canaries) == 5
+        and all(isinstance(value, dict) and _text(value.get("status")).lower() == "healthy" for value in canaries.values())
+        and isinstance(comments, dict)
+        and isinstance(roots, dict)
+        and (artifacts.get("all_retained_reconciliation") or artifacts.get("social_manifest"))
+    )
+
+
 def _ghost_monitor_dashboard(
     root: Path,
     *,
@@ -465,6 +932,11 @@ def _ghost_monitor_dashboard(
         query_basket,
         verified_partial_flags,
     )
+    rolling_search_timeline = _rolling_seven_day_timeline(
+        verified_values,
+        query_basket,
+        verified_partial_flags,
+    )
     if verified_search_status:
         visible_search_status = verified_search_status
     elif search_history and latest_ratios:
@@ -480,9 +952,26 @@ def _ghost_monitor_dashboard(
     else:
         search_read = "Building a comparable search baseline."
 
-    conversation = attention_latest.get("conversation_attention") if isinstance(attention_latest.get("conversation_attention"), dict) else {}
+    conversation_attempt = attention_latest
+    accepted_conversation_rows = [
+        row for row in attention_rows
+        if _accepted_linked_conversation_observation(row)
+    ]
+    conversation_source = (
+        attention_latest
+        if _accepted_linked_conversation_observation(attention_latest)
+        else accepted_conversation_rows[-1]
+        if accepted_conversation_rows
+        else attention_latest
+    )
+    conversation_uses_last_verified = bool(
+        conversation_attempt and conversation_source is not conversation_attempt
+    )
+    conversation = conversation_source.get("conversation_attention") if isinstance(conversation_source.get("conversation_attention"), dict) else {}
     conversation_by_day: dict[str, tuple[str, dict[str, Any]]] = {}
     for row in attention_rows:
+        if accepted_conversation_rows and not _accepted_linked_conversation_observation(row):
+            continue
         historical = row.get("conversation_attention") if isinstance(row.get("conversation_attention"), dict) else None
         if not historical:
             continue
@@ -490,7 +979,8 @@ def _ghost_monitor_dashboard(
         historical_raw = historical_origin.get("raw_exact_roots_by_platform")
         historical_qualifying = historical_origin.get("qualifying_independent_roots_by_platform")
         historical_comments = historical.get("comments_replies_by_platform")
-        if not isinstance(historical_comments, dict):
+        comments_collected = isinstance(historical_comments, dict)
+        if not comments_collected:
             historical_comments = {}
         if not isinstance(historical_raw, dict) or not isinstance(historical_qualifying, dict):
             continue
@@ -524,7 +1014,11 @@ def _ghost_monitor_dashboard(
             "observed_at": row.get("observed_at"),
             "exact_roots": sum(int(historical_raw.get(platform) or 0) for platform in successful_platforms),
             "qualifying_roots": sum(int(historical_qualifying.get(platform) or 0) for platform in successful_platforms),
-            "captured_comments_replies": sum(int(historical_comments.get(platform) or 0) for platform in successful_platforms),
+            "captured_comments_replies": (
+                sum(int(historical_comments.get(platform) or 0) for platform in successful_platforms)
+                if comments_collected
+                else None
+            ),
             "exact_roots_by_platform": {
                 platform: int(historical_raw.get(platform) or 0)
                 for platform in ("x", "tiktok", "instagram", "reddit", "youtube")
@@ -553,12 +1047,23 @@ def _ghost_monitor_dashboard(
     for platform in ("x", "tiktok", "instagram", "reddit", "youtube"):
         canary = canaries.get(platform) if isinstance(canaries.get(platform), dict) else {}
         query = queries.get(platform) if isinstance(queries.get(platform), dict) else {}
+        captured = int(comments_by_platform.get(platform) or query.get("captured_comments_replies") or 0)
+        query_note = _text(query.get("note"))
+        thread_usable = query.get("thread_usable")
+        response_collection_status = (
+            "bounded_with_gaps" if captured and thread_usable is False
+            else "bounded" if captured
+            else "not_collected" if "unsupported" in query_note.casefold()
+            else "observed_zero"
+        )
         platform_rows[platform] = {
             "health": _text(canary.get("status") or "unknown").lower(),
             "query_status": _text(query.get("candidate_query_status") or "not run").lower(),
             "exact_roots": int(raw_by_platform.get(platform) or query.get("observed_exact_roots") or 0),
             "qualifying_roots": int(qualifying_by_platform.get(platform) or 0),
-            "captured_comments_replies": int(comments_by_platform.get(platform) or query.get("captured_comments_replies") or 0),
+            "captured_comments_replies": captured,
+            "response_collection_status": response_collection_status,
+            "note": query_note,
             "reviewed_product_relevant_comments_replies": (
                 int(reviewed_comments_by_platform.get(platform))
                 if isinstance(reviewed_comments_by_platform.get(platform), (int, float))
@@ -569,7 +1074,7 @@ def _ghost_monitor_dashboard(
     tiktok_retry = _load(retry_paths[-1]) if retry_paths else None
     retry_source = tiktok_retry.get("source") if isinstance((tiktok_retry or {}).get("source"), dict) else {}
     retry_observed_at = _text((tiktok_retry or {}).get("observed_at"))
-    attention_observed_at = _text(attention_latest.get("observed_at"))
+    attention_observed_at = _text(conversation_source.get("observed_at"))
     current_tiktok = platform_rows["tiktok"]
     current_tiktok_terminal = (
         current_tiktok["health"] == "healthy"
@@ -578,7 +1083,10 @@ def _ghost_monitor_dashboard(
     )
     retry_is_newer = bool(
         retry_observed_at
-        and (not attention_observed_at or retry_observed_at > attention_observed_at)
+        and (
+            not attention_observed_at
+            or retry_observed_at > attention_observed_at
+        )
     )
     if (
         retry_source.get("status") in {"complete", "empty"}
@@ -603,7 +1111,12 @@ def _ghost_monitor_dashboard(
     visible_platform_rows = {platform: platform_rows[platform] for platform in completed_platform_names}
     observed_conversation_count = sum(row["exact_roots"] for row in visible_platform_rows.values())
     captured_comments_replies = sum(row["captured_comments_replies"] for row in visible_platform_rows.values())
-    reviewed_product_relevant_comments_replies = int(conversation.get("reviewed_product_relevant_comments_replies") or 0)
+    supplied_reviewed = conversation.get("reviewed_product_relevant_comments_replies")
+    reviewed_product_relevant_comments_replies = (
+        int(supplied_reviewed)
+        if isinstance(supplied_reviewed, (int, float))
+        else None
+    )
     completed_platform_count = len(completed_platform_names)
     supplied_sentiment = sentiment_source.get("counts") if isinstance(sentiment_source.get("counts"), dict) else {}
     sentiment_counts = {
@@ -632,23 +1145,93 @@ def _ghost_monitor_dashboard(
             "unclassified posts are not relabeled."
         ),
     }
+    linked_sentiment = _linked_sentiment(
+        root,
+        conversation_source,
+        sentiment_source,
+        observed_conversation_count,
+        captured_comments_replies,
+    )
+    if linked_sentiment:
+        sentiment = linked_sentiment
+    conversation_evidence = _ghost_conversation_evidence(
+        root,
+        conversation_source,
+        visible_platform_rows,
+    )
     conversation_headline = (
         f"{observed_conversation_count} exact posts plus {captured_comments_replies} comments/replies "
         f"observed across {completed_platform_count} successful platform reads."
     )
 
-    coverage = _load(coverage_latest_path) or {}
-    coverage_history = []
-    for row in _load_jsonl(coverage_history_path):
-        coverage_history.append({
+    coverage_attempt = _load(coverage_latest_path) or {}
+    coverage_rows = _load_jsonl(coverage_history_path)
+    successful_coverage_states = {
+        "NICHE_ONLY",
+        "EARLY_BUSINESS_COVERAGE",
+        "EXTENSIVE_COVERAGE_REVIEW",
+    }
+    successful_coverage_rows = [
+        row for row in coverage_rows
+        if _text(row.get("parity_state")).upper() in successful_coverage_states
+    ]
+    accepted_coverage_rows = [
+        row for row in successful_coverage_rows
+        if _accepted_public_parity_pointer(row)
+    ]
+    coverage_attempt_state = _text(
+        coverage_attempt.get("parity_state") or "unknown"
+    ).upper()
+    if accepted_coverage_rows or _accepted_public_parity_pointer(coverage_attempt):
+        coverage = (
+            coverage_attempt
+            if coverage_attempt_state in successful_coverage_states
+            and _accepted_public_parity_pointer(coverage_attempt)
+            else accepted_coverage_rows[-1]
+        )
+        chart_coverage_rows = accepted_coverage_rows
+    else:
+        coverage = (
+            coverage_attempt
+            if coverage_attempt_state in successful_coverage_states
+            else successful_coverage_rows[-1]
+            if successful_coverage_rows
+            else coverage_attempt
+        )
+        chart_coverage_rows = successful_coverage_rows
+    visible_coverage_uses_last_verified = bool(
+        coverage_attempt
+        and coverage is not coverage_attempt
+    )
+    coverage_by_day: dict[str, dict[str, Any]] = {}
+    for row in chart_coverage_rows:
+        observed_at = _text(row.get("observed_at"))
+        state = _text(row.get("parity_state") or "unknown").upper()
+        if len(observed_at) < 10 or state == "SOURCE_FAILURE":
+            continue
+        point = {
             "observed_at": row.get("observed_at"),
-            "state": _text(row.get("parity_state") or "unknown").upper(),
+            "state": state,
             "qualifying_outlets": int(row.get("qualifying_independent_business_financial_outlet_count") or 0),
             "management_acknowledged": bool(row.get("management_acknowledges_a_and_w_economics")),
-        })
+        }
+        day = observed_at[:10]
+        if day not in coverage_by_day or observed_at >= _text(coverage_by_day[day].get("observed_at")):
+            coverage_by_day[day] = point
+    coverage_history = [coverage_by_day[day] for day in sorted(coverage_by_day)]
     official_sources = coverage.get("official_source_receipts") if isinstance(coverage.get("official_source_receipts"), list) else []
     sec_sources = coverage.get("sec_source_receipts") if isinstance(coverage.get("sec_source_receipts"), list) else []
     media_searches = coverage.get("media_search_receipts") if isinstance(coverage.get("media_search_receipts"), list) else []
+    coverage_lanes = _coverage_lanes(coverage)
+    paywalled_research = (
+        dict(coverage.get("paywalled_research"))
+        if isinstance(coverage.get("paywalled_research"), dict)
+        else {
+            "status": "not_observable_not_checked",
+            "checked": False,
+            "note": "Paywalled or private research is outside this public monitor and is not represented as checked.",
+        }
+    )
     transcript_checked = any(
         "transcript" in _text(source.get("source_class") or source.get("key")).casefold()
         for source in official_sources if isinstance(source, dict)
@@ -666,6 +1249,7 @@ def _ghost_monitor_dashboard(
             (last_complete or {}).get("observed_at"),
             attention_latest.get("observed_at"),
             coverage.get("observed_at"),
+            coverage_attempt.get("observed_at"),
             (tiktok_retry or {}).get("observed_at"),
         ) if value
     ]
@@ -748,7 +1332,12 @@ def _ghost_monitor_dashboard(
             "ratios": latest_ratios,
             "history": search_history,
             "rolling_seven_day_change": rolling_search_change,
+            "rolling_seven_day_timeline": rolling_search_timeline,
             "query_basket": query_basket,
+            "geography": "US",
+            "comparison_definition": (
+                "Latest 7 complete days vs previous 7 complete days inside the same Google request."
+            ),
             "source_health": {
                 "latest_attempt_status": _text(search_latest.get("status") or "unknown").lower(),
                 "visible_series_uses_last_verified": not bool(_search_ratios(search_latest)),
@@ -774,6 +1363,17 @@ def _ghost_monitor_dashboard(
             "qualifying_roots": sum(row["qualifying_roots"] for row in visible_platform_rows.values()),
             "history": conversation_history,
             "sentiment": sentiment,
+            "evidence": conversation_evidence,
+            "source_health": {
+                "latest_attempt_observed_at": conversation_attempt.get("observed_at"),
+                "latest_attempt_state": _text(
+                    ((conversation_attempt.get("conversation_attention") or {}).get("operational_state"))
+                    if isinstance(conversation_attempt.get("conversation_attention"), dict)
+                    else "unknown"
+                ).lower(),
+                "visible_observed_at": conversation_source.get("observed_at"),
+                "visible_read_uses_last_verified": conversation_uses_last_verified,
+            },
         },
         "street_coverage": {
             "state": _text(coverage.get("parity_state") or "unknown").upper(),
@@ -786,6 +1386,19 @@ def _ghost_monitor_dashboard(
                 "sec_filings": len(sec_sources),
                 "news_queries": len(media_searches),
                 "earnings_call_or_transcript_checked": transcript_checked,
+            },
+            "lanes": coverage_lanes,
+            "paywalled_research": paywalled_research,
+            "exact_implication": coverage.get("exact_implication"),
+            "source_health": {
+                "latest_attempt_state": coverage_attempt_state,
+                "latest_attempt_observed_at": coverage_attempt.get("observed_at"),
+                "visible_read_uses_last_verified": visible_coverage_uses_last_verified,
+                "source_gaps": list(
+                    (coverage_attempt.get("source_health") or {}).get("source_gaps") or []
+                    if isinstance(coverage_attempt.get("source_health"), dict)
+                    else []
+                ),
             },
         },
         "source_receipts": {
@@ -923,8 +1536,10 @@ def _ghost_exit_monitor(
 
     # --- Recompute the exit-review trigger matrix from persisted states. ---
     current_availability = availability.get("current") if isinstance(availability.get("current"), dict) else {}
+    latest_attempt_availability = availability.get("latest_attempt") if isinstance(availability.get("latest_attempt"), dict) else current_availability
     last_complete = availability.get("last_complete") if isinstance(availability.get("last_complete"), dict) else {}
     latest_coverage = _text(current_availability.get("coverage") or "unknown").lower()
+    latest_attempt_coverage = _text(latest_attempt_availability.get("coverage") or "unknown").lower()
     coverage_state = _text(coverage.get("state") or "unknown").upper()
     search_state = _text(search.get("state") or "SEARCH_BUILDING_BASELINE").upper()
     conversation_state = _text(conversations.get("state") or "CONVERSATION_BUILDING_BASELINE").upper()
@@ -1115,16 +1730,16 @@ def _ghost_exit_monitor(
         _sensor(
             "walmart_native_panel", "Retailer availability",
             observed_state=availability_state,
-            operational_state=(root_beer_state.get("operational_state") or latest_coverage),
-            latest_attempt_at=current_availability.get("observed_at"),
-            latest_attempt_result=f"{latest_coverage}; {int(current_availability.get('unverified') or 0)} of "
-                                   f"{int(current_availability.get('available') or 0) + int(current_availability.get('out_of_stock') or 0) + int(current_availability.get('not_listed') or 0) + int(current_availability.get('unverified') or 0)} stores source-failed",
+            operational_state=(root_beer_state.get("operational_state") or latest_attempt_coverage),
+            latest_attempt_at=latest_attempt_availability.get("observed_at"),
+            latest_attempt_result=f"{latest_attempt_coverage}; {int(latest_attempt_availability.get('unverified') or 0)} of "
+                                   f"{int(latest_attempt_availability.get('available') or 0) + int(latest_attempt_availability.get('out_of_stock') or 0) + int(latest_attempt_availability.get('not_listed') or 0) + int(latest_attempt_availability.get('unverified') or 0)} stores source-failed",
             last_complete_at=last_complete.get("observed_at"),
             last_complete_result=f"complete; {int(last_complete.get('available') or 0)} orderable, "
                                  f"{int(last_complete.get('out_of_stock') or 0)} out of stock",
             next_run_at=native_receipt.get("next_run_at"),
             source_gap="The latest attempt produced no usable store rows; current availability is unknown, not depleted."
-            if latest_coverage != "complete" else "none",
+            if latest_attempt_coverage != "complete" else "none",
         ),
         _sensor(
             "search_attention", "Google search direction",
@@ -1165,7 +1780,7 @@ def _ghost_exit_monitor(
         "job_last_run_at": native_receipt.get("last_run_at"),
         "job_last_status": _text(native_receipt.get("last_status") or "unknown"),
         "job_completed": True,
-        "source_success": latest_coverage == "complete",
+        "source_success": latest_attempt_coverage == "complete",
         "note": "The scheduled collection job completed operationally, but every store source observation failed. "
                 "Script completion is not source success; the last complete reading stays the evidence of record.",
     }
@@ -1502,7 +2117,11 @@ def build_investment_tracker(
     # Known theses and calibration work live separately from blind discovery.
     ghost_jobs = [row for row in monitor_jobs if "ghost" in row["name"].casefold() or "kdp" in row["name"].casefold()]
     chewy_jobs = [row for row in monitor_jobs if "chewy" in row["name"].casefold()]
-    ghost_dashboard = _ghost_monitor_dashboard(root)
+    ghost_dashboard = _ghost_monitor_dashboard(
+        root,
+        include_private_position=include_private_position,
+        monitor_jobs=ghost_jobs,
+    )
     ghost_updated = max(
         [row.get("last_run_at") or "" for row in ghost_jobs]
         + ([_text(ghost_dashboard.get("as_of"))] if ghost_dashboard else []),

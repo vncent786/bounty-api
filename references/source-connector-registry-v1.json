@@ -1,0 +1,405 @@
+{
+  "schema_version": "bounty-source-registry/1",
+  "credential_policy": {
+    "rule": "Sources name a credential profile. Secret values stay in the local environment, Railway variables, Windows Credential Manager or an authenticated browser profile. Values never enter this file, evidence, logs or reports.",
+    "local_precedence": [
+      "explicit process environment",
+      "canonical repository environment",
+      "Windows Credential Manager",
+      "registered authenticated browser or cookie path"
+    ],
+    "cloud_precedence": [
+      "Railway environment variables",
+      "mounted secret files"
+    ]
+  },
+  "credential_profiles": {
+    "none": {
+      "requirements": []
+    },
+    "x_owned_session": {
+      "requirements": [
+        {"name": "auth_token", "kind": "env", "locator": "BOUNTY_X_AUTH_TOKEN", "required": true, "sensitive": true},
+        {"name": "state_db", "kind": "path_env", "locator": "BOUNTY_X_SCWEET_DB", "required": false, "sensitive": false}
+      ]
+    },
+    "tiktok_owned_session": {
+      "requirements": [
+        {"name": "browser_profile", "kind": "path_env", "locator": "BOUNTY_TIKTOK_PROFILE_PATH", "required": true, "sensitive": false},
+        {"name": "proxy_extension", "kind": "path_env", "locator": "BOUNTY_TIKTOK_EXTENSION_PATH", "required": false, "sensitive": false}
+      ]
+    },
+    "instagram_owned_session": {
+      "requirements": [
+        {"name": "cookie_file", "kind": "path_env", "locator": "BOUNTY_IG_COOKIE_PATH", "required": true, "sensitive": false}
+      ]
+    },
+    "reddit_mobile_device": {
+      "requirements": [
+        {"name": "device_session", "kind": "runtime_managed", "locator": "reddit_mobile_device", "required": true, "sensitive": true}
+      ]
+    },
+    "oag_api": {
+      "requirements": [
+        {"name": "api_key", "kind": "env", "locator": "BOUNTY_OAG_API_KEY", "required": true, "sensitive": true}
+      ]
+    },
+    "forwardkeys_api": {
+      "requirements": [
+        {"name": "api_key", "kind": "env", "locator": "BOUNTY_FORWARDKEYS_API_KEY", "required": true, "sensitive": true}
+      ]
+    }
+  },
+  "sources": [
+    {
+      "source_id": "google_trends",
+      "display_name": "Google Trends",
+      "connector_version": "rising-search/2",
+      "capabilities": ["search.rising", "search.history"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["now 7-d", "3m", "1y", "5y"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "bounded requests with persisted cooldown and resume",
+      "limitations": ["Independently normalized values are not absolute demand or sales.", "Mainland China requires local sources."],
+      "canary": {"query": "nike", "capability": "search.rising", "geography": "WORLDWIDE", "time_window": "now 7-d", "min_records": 1},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "x_owned",
+      "display_name": "X owned authenticated route",
+      "connector_version": "x-graphql/1",
+      "capabilities": ["social.search", "social.thread"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "halfyear"],
+      "auth_profile": "x_owned_session",
+      "cost_tier": "owned",
+      "rate_limit_policy": "daily budget, account cooldown and exact-query resume",
+      "limitations": ["Posts and replies are behavior evidence only after relevance and commercial-origin review."],
+      "creator_feed_supported": false,
+      "canary": {"query": "nike", "capability": "social.search", "geography": "WORLDWIDE", "time_window": "halfyear", "min_records": 1, "options": {"count": 5}},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "tiktok_owned",
+      "display_name": "TikTok owned authenticated route",
+      "connector_version": "tiktok-auth/1",
+      "capabilities": ["social.search", "social.thread"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "halfyear"],
+      "auth_profile": "tiktok_owned_session",
+      "cost_tier": "owned",
+      "rate_limit_policy": "single-profile lock, hard timeout and resume",
+      "limitations": ["An authenticated parsed no-result is empty; a challenge page is a failure."],
+      "creator_feed_supported": false,
+      "canary": {"query": "nike", "capability": "social.search", "geography": "WORLDWIDE", "time_window": "halfyear", "min_records": 1, "options": {"count": 5}},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "instagram_owned",
+      "display_name": "Instagram owned authenticated route",
+      "connector_version": "instagram-graphql/1",
+      "capabilities": ["social.search", "social.thread"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "halfyear"],
+      "auth_profile": "instagram_owned_session",
+      "cost_tier": "owned",
+      "rate_limit_policy": "single-session lock, bounded hashtag and keyword variants",
+      "limitations": ["Generic recommendations require exact-object filtering."],
+      "creator_feed_supported": false,
+      "canary": {"query": "#nike", "capability": "social.search", "geography": "WORLDWIDE", "time_window": "halfyear", "min_records": 1, "options": {"count": 5}},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "reddit_owned",
+      "display_name": "Reddit installed-client route",
+      "connector_version": "reddit-mobile/1",
+      "capabilities": ["social.search", "social.thread"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "halfyear"],
+      "auth_profile": "reddit_mobile_device",
+      "cost_tier": "owned",
+      "rate_limit_policy": "bounded subreddit discovery and persisted cooldown",
+      "limitations": ["Reddit discussion is not a primary purchase source."],
+      "creator_feed_supported": false,
+      "canary": {"query": "running shoes", "capability": "social.search", "geography": "WORLDWIDE", "time_window": "halfyear", "min_records": 1, "options": {"count": 5}},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "youtube_public",
+      "display_name": "YouTube public search and comments",
+      "connector_version": "youtube/1",
+      "capabilities": ["social.search", "social.thread", "social.channel_feed"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "halfyear"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "bounded yt-dlp search and comment extraction",
+      "limitations": ["Titles and views alone do not prove behavior or purchases."],
+      "creator_feed_supported": true,
+      "creator_feed_route": "youtube_public.get_channel",
+      "canary": {"query": "iphone", "capability": "social.search", "geography": "WORLDWIDE", "time_window": "halfyear", "min_records": 1, "options": {"count": 5}},
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "analyst_public_web",
+      "display_name": "Public product/industry-analyst posts and newsletters",
+      "connector_version": "planned/analyst-public-web/1",
+      "capabilities": ["analyst.post", "analyst.newsletter"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["month", "halfyear"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "bounded public fetch; fail closed until adapter exists",
+      "limitations": [
+        "Public posts/newsletters only; no paywalled or private material.",
+        "Registered lane only: adapter not implemented, so collection must fail closed rather than fabricate a canary.",
+        "Analyst product discussion does not require a stock mention."
+      ],
+      "creator_feed_supported": false,
+      "canary": null,
+      "enabled": false
+    },
+    {
+      "source_id": "analyst_podcast_public",
+      "display_name": "Public podcast transcripts by product/industry analysts",
+      "connector_version": "planned/analyst-podcast-public/1",
+      "capabilities": ["analyst.podcast_transcript"],
+      "evidence_strengths": ["attention_only"],
+      "geographies": ["*"],
+      "time_windows": ["month", "halfyear"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "bounded public fetch; fail closed until adapter exists",
+      "limitations": [
+        "Official public transcripts where legally accessible; no paywalled or private material.",
+        "Registered lane only: adapter not implemented, so collection must fail closed rather than fabricate a canary."
+      ],
+      "creator_feed_supported": false,
+      "canary": null,
+      "enabled": false
+    },
+    {
+      "source_id": "public_information_parity",
+      "display_name": "Public issuer, filing, call, news and sell-side checks",
+      "connector_version": "public-parity-http/1",
+      "capabilities": [
+        "company.official_ir",
+        "regulator.filings",
+        "company.earnings_calls",
+        "company.official_product_context",
+        "news.business_financial",
+        "sell_side.public_mentions"
+      ],
+      "evidence_strengths": ["attention_only", "capacity_committed_or_used", "money_committed"],
+      "geographies": ["*"],
+      "time_windows": ["day", "week", "quarter", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "bounded serial public HTTPS checks with shared retries and hash-verified receipts",
+      "limitations": [
+        "Paywalled and private research is not fetched or represented as checked.",
+        "News-feed titles remain discovery context until a direct public article is verified.",
+        "Public information tests realization and market parity; it does not seed differentiated discovery."
+      ],
+      "canary": {
+        "query": "https://investors.keurigdrpepper.com/",
+        "capability": "company.official_ir",
+        "geography": "WORLDWIDE",
+        "time_window": "day",
+        "min_records": 1
+      },
+      "canary_ttl_seconds": 21600,
+      "enabled": true
+    },
+    {
+      "source_id": "arc_sales",
+      "display_name": "ARC settled airline sales",
+      "connector_version": "official-csv/1",
+      "capabilities": ["airline.ticket_sales"],
+      "evidence_strengths": ["money_committed"],
+      "geographies": ["US"],
+      "time_windows": ["month", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "monthly delta",
+      "limitations": ["Aggregate U.S. agency channel, not complete carrier-specific global bookings."],
+      "canary": {"query": "current totals", "capability": "airline.ticket_sales", "geography": "US", "time_window": "month", "min_records": 1},
+      "canary_ttl_seconds": 604800,
+      "enabled": true
+    },
+    {
+      "source_id": "eurocontrol",
+      "display_name": "EUROCONTROL aviation operations",
+      "connector_version": "official-html/1",
+      "capabilities": ["airline.traffic", "airline.delays", "airline.capacity"],
+      "evidence_strengths": ["capacity_committed_or_used"],
+      "geographies": ["EUROPE"],
+      "time_windows": ["week", "month"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "weekly publication delta",
+      "limitations": ["Operational traffic is not ticket revenue; issuer cost attribution remains separate."],
+      "canary": {"query": "European Aviation Overview", "capability": "airline.traffic", "geography": "EUROPE", "time_window": "week", "min_records": 1},
+      "canary_ttl_seconds": 604800,
+      "enabled": true
+    },
+    {
+      "source_id": "uk_caa",
+      "display_name": "UK CAA airline statistics",
+      "connector_version": "official-html-csv/1",
+      "capabilities": ["airline.traffic", "airline.delays", "airline.capacity"],
+      "evidence_strengths": ["capacity_committed_or_used"],
+      "geographies": ["GB"],
+      "time_windows": ["month", "quarter", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "monthly publication delta",
+      "limitations": ["Published with lag and limited to UK-reporting scope."],
+      "canary": {"query": "punctuality statistics", "capability": "airline.delays", "geography": "GB", "time_window": "month", "min_records": 1},
+      "canary_ttl_seconds": 604800,
+      "enabled": true
+    },
+    {
+      "source_id": "us_bts",
+      "display_name": "US BTS T-100 airline traffic",
+      "connector_version": "planned/1",
+      "capabilities": ["airline.traffic", "airline.capacity"],
+      "evidence_strengths": ["capacity_committed_or_used"],
+      "geographies": ["US"],
+      "time_windows": ["month", "quarter", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "monthly dataset delta",
+      "limitations": ["Lagged U.S. carrier data; some international data are delayed."],
+      "canary": {"query": "T-100", "capability": "airline.traffic", "geography": "US", "time_window": "month", "min_records": 1},
+      "canary_ttl_seconds": 604800,
+      "enabled": false
+    },
+    {
+      "source_id": "gebiz",
+      "display_name": "Singapore GeBIZ",
+      "connector_version": "planned/1",
+      "capabilities": ["procurement.tenders", "procurement.awards"],
+      "evidence_strengths": ["purchase_preparation", "money_committed"],
+      "geographies": ["SG"],
+      "time_windows": ["day", "week", "month", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "daily notice and award delta",
+      "limitations": ["Public procurement only; an open tender is not an award."],
+      "canary": {"query": "data centre", "capability": "procurement.tenders", "geography": "SG", "time_window": "year", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "eu_ted",
+      "display_name": "EU TED Open Data",
+      "connector_version": "planned/1",
+      "capabilities": ["procurement.tenders", "procurement.awards"],
+      "evidence_strengths": ["purchase_preparation", "money_committed"],
+      "geographies": ["EUROPE"],
+      "time_windows": ["day", "week", "month", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "daily open-data delta",
+      "limitations": ["Public procurement scope; private hyperscaler orders are not covered."],
+      "canary": {"query": "cooling equipment", "capability": "procurement.tenders", "geography": "EUROPE", "time_window": "year", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "sam_gov",
+      "display_name": "SAM.gov opportunities and awards",
+      "connector_version": "planned/1",
+      "capabilities": ["procurement.tenders", "procurement.awards"],
+      "evidence_strengths": ["purchase_preparation", "money_committed"],
+      "geographies": ["US"],
+      "time_windows": ["day", "week", "month", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "daily federal notice delta",
+      "limitations": ["U.S. federal demand only; separate opportunities from awards."],
+      "canary": {"query": "data center cooling", "capability": "procurement.tenders", "geography": "US", "time_window": "year", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "canadabuys",
+      "display_name": "CanadaBuys procurement data",
+      "connector_version": "planned/1",
+      "capabilities": ["procurement.tenders", "procurement.awards"],
+      "evidence_strengths": ["purchase_preparation", "money_committed"],
+      "geographies": ["CA"],
+      "time_windows": ["day", "week", "month", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "daily federal open-data delta",
+      "limitations": ["Federal scope; provinces use separate portals."],
+      "canary": {"query": "cooling", "capability": "procurement.tenders", "geography": "CA", "time_window": "year", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "issuer_disclosures",
+      "display_name": "Issuer filings and investor relations",
+      "connector_version": "planned/1",
+      "capabilities": ["company.orders", "company.backlog", "company.capacity", "company.contracts"],
+      "evidence_strengths": ["money_committed", "capacity_committed_or_used"],
+      "geographies": ["*"],
+      "time_windows": ["day", "week", "quarter", "year"],
+      "auth_profile": "none",
+      "cost_tier": "free",
+      "rate_limit_policy": "event and filing delta with issuer-specific source allowlists",
+      "limitations": ["Avoid double-counting multi-year framework agreements and already-guided backlog."],
+      "canary": {"query": "orders backlog capacity", "capability": "company.orders", "geography": "WORLDWIDE", "time_window": "year", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "oag_paid",
+      "display_name": "OAG airline schedules",
+      "connector_version": "planned/1",
+      "capabilities": ["airline.capacity", "airline.schedules"],
+      "evidence_strengths": ["capacity_committed_or_used"],
+      "geographies": ["*"],
+      "time_windows": ["day", "week", "month", "year"],
+      "auth_profile": "oag_api",
+      "cost_tier": "paid",
+      "rate_limit_policy": "account budget and cached route panels",
+      "limitations": ["Paid fallback; schedules and capacity are not settled ticket sales."],
+      "canary": {"query": "SIN-LHR", "capability": "airline.capacity", "geography": "WORLDWIDE", "time_window": "month", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    },
+    {
+      "source_id": "forwardkeys_paid",
+      "display_name": "ForwardKeys airline bookings",
+      "connector_version": "planned/1",
+      "capabilities": ["airline.ticket_sales", "airline.bookings"],
+      "evidence_strengths": ["money_committed"],
+      "geographies": ["*"],
+      "time_windows": ["week", "month", "quarter", "year"],
+      "auth_profile": "forwardkeys_api",
+      "cost_tier": "paid",
+      "rate_limit_policy": "account budget and cached market panels",
+      "limitations": ["Paid fallback; coverage and booking-window definitions must be preserved."],
+      "canary": {"query": "SIN-LHR", "capability": "airline.bookings", "geography": "WORLDWIDE", "time_window": "month", "min_records": 1},
+      "canary_ttl_seconds": 86400,
+      "enabled": false
+    }
+  ]
+}

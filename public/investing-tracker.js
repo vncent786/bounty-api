@@ -30,6 +30,34 @@
     return Number.isFinite(number) ? new Intl.NumberFormat().format(number) : '0';
   }
 
+  function safeEvidenceUrl(value) {
+    try {
+      const parsed = new URL(String(value || ''));
+      return ['http:', 'https:'].includes(parsed.protocol) ? parsed.href : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function evidenceLink(label, url, className = '') {
+    const safe = safeEvidenceUrl(url);
+    if (!safe) return null;
+    const anchor = node('a', className, label);
+    anchor.href = safe;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    return anchor;
+  }
+
+  function conversationVolumeNote(conversations) {
+    const base = `${integer(conversations?.exact_roots)} exact posts · ${integer(conversations?.captured_comments_replies)} comments/replies observed`;
+    const reviewed = conversations?.reviewed_product_relevant_comments_replies;
+    if (reviewed === null || reviewed === undefined) {
+      return `${base} · product-specific re-review pending against the corrected union.`;
+    }
+    return `${base} · ${integer(reviewed)} reviewed as product-specific.`;
+  }
+
   function timestamp(value) {
     const parsed = value ? new Date(value) : null;
     if (!parsed || Number.isNaN(parsed.getTime())) return 'Not reported';
@@ -396,40 +424,87 @@
     return section;
   }
 
-  function monitorSearchSvg(history, queries) {
+  function dateGapDays(leftDate, rightDate) {
+    const left = Date.parse(`${String(leftDate || '').slice(0, 10)}T00:00:00Z`);
+    const right = Date.parse(`${String(rightDate || '').slice(0, 10)}T00:00:00Z`);
+    return Number.isFinite(left) && Number.isFinite(right) ? Math.abs(right - left) / 86400000 : Infinity;
+  }
+
+  function searchGapReason(value) {
+    return {
+      prior_seven_day_mean_is_zero: 'the previous 7-day average was zero, so a percentage change cannot be calculated',
+      partial_date_in_14_day_window: 'the 14-day comparison includes an incomplete source date',
+      non_numeric_value_in_14_day_window: 'the 14-day comparison contains a missing value',
+      series_missing_or_misaligned: 'the source series did not align to the dated comparison window',
+    }[String(value || '')] || 'the comparison was not available';
+  }
+
+  function monitorSearchSvg(history, queries, comparisonDefinition) {
     const namespace = 'http://www.w3.org/2000/svg';
-    const width = 720;
-    const height = 210;
-    const left = 48;
-    const right = 704;
+    const width = 760;
+    const height = 254;
+    const left = 70;
+    const right = 738;
     const top = 18;
-    const bottom = 166;
+    const bottom = 194;
+    const dated = history.map((point, index) => ({ point, index, time: Date.parse(`${String(point?.date || '').slice(0, 10)}T00:00:00Z`) }))
+      .filter(row => Number.isFinite(row.time));
+    const firstTime = dated.length ? dated[0].time : 0;
+    const lastTime = dated.length ? dated[dated.length - 1].time : firstTime;
+    const x = time => lastTime === firstTime ? (left + right) / 2 : left + ((time - firstTime) / (lastTime - firstTime)) * (right - left);
     const values = history.flatMap(point => queries.map(query => Number(point?.changes_pct?.[query])).filter(Number.isFinite));
-    const ceiling = Math.max(25, ...values.map(value => value * 1.08));
-    const floor = Math.min(-50, ...values.map(value => value * 1.08));
-    const x = index => history.length <= 1 ? (left + right) / 2 : left + (index / (history.length - 1)) * (right - left);
-    const y = value => bottom - ((value - floor) / (ceiling - floor)) * (bottom - top);
+    const minimum = Math.min(-25, 0, ...values);
+    const maximum = Math.max(25, 0, ...values);
+    const roughStep = Math.max(1, (maximum - minimum) / 4);
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const normalized = roughStep / magnitude;
+    const step = (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+    const floor = Math.floor(minimum / step) * step;
+    const ceiling = Math.ceil(maximum / step) * step;
+    const y = value => bottom - ((value - floor) / Math.max(step, ceiling - floor)) * (bottom - top);
+    const frame = node('div', 'tracker-attention-chart-frame');
     const svg = document.createElementNS(namespace, 'svg');
     svg.setAttribute('class', 'tracker-attention-chart');
     svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
     svg.setAttribute('role', 'img');
-    svg.setAttribute('aria-label', 'Rolling seven-day Google search change versus the previous seven days');
-    [[-25, 'Cooling review line'], [0, 'No change versus prior seven days']].forEach(([value, label]) => {
+    svg.setAttribute('aria-label', 'Rolling seven-day Google search change versus the previous seven complete days');
+    const tooltip = node('output', 'tracker-chart-tooltip', 'Hover, focus, or tap a point for its exact date and comparison.');
+    const definition = comparisonDefinition || 'Latest 7 complete days vs previous 7 complete days inside the same Google request.';
+    const showTooltip = (query, point, value) => {
+      const latest = Number(point?.latest_7_mean?.[query]);
+      const prior = Number(point?.prior_7_mean?.[query]);
+      const means = Number.isFinite(latest) && Number.isFinite(prior)
+        ? ` Latest mean ${latest.toFixed(1)}; prior mean ${prior.toFixed(1)}.`
+        : '';
+      tooltip.textContent = `${axisDate(point?.date)} · ${query} · ${value >= 0 ? '+' : ''}${value.toFixed(1)}%. ${definition}${means}`;
+    };
+
+    for (let value = floor; value <= ceiling + (step / 2); value += step) {
       const guide = document.createElementNS(namespace, 'line');
       guide.setAttribute('class', `tracker-attention-guide${value === -25 ? ' cooling' : ''}`);
       guide.setAttribute('x1', String(left)); guide.setAttribute('x2', String(right));
       guide.setAttribute('y1', String(y(value))); guide.setAttribute('y2', String(y(value)));
-      const text = document.createElementNS(namespace, 'text');
-      text.setAttribute('class', 'tracker-trend-axis-label');
-      text.setAttribute('x', '2'); text.setAttribute('y', String(y(value) + 4));
-      text.textContent = `${value}%`;
-      const title = document.createElementNS(namespace, 'title');
-      title.textContent = label;
-      guide.append(title);
-      svg.append(guide, text);
-    });
+      const label = document.createElementNS(namespace, 'text');
+      label.setAttribute('class', 'tracker-trend-axis-label');
+      label.setAttribute('x', '60'); label.setAttribute('y', String(y(value) + 4));
+      label.setAttribute('text-anchor', 'end');
+      label.textContent = `${Math.round(value)}%`;
+      svg.append(guide, label);
+    }
+    const yTitle = document.createElementNS(namespace, 'text');
+    yTitle.setAttribute('class', 'tracker-attention-y-title');
+    yTitle.setAttribute('transform', 'translate(14 156) rotate(-90)');
+    yTitle.textContent = 'Change vs prior 7 days (%)';
+    const xTitle = document.createElementNS(namespace, 'text');
+    xTitle.setAttribute('class', 'tracker-attention-x-title');
+    xTitle.setAttribute('x', String((left + right) / 2)); xTitle.setAttribute('y', '246');
+    xTitle.setAttribute('text-anchor', 'middle');
+    xTitle.textContent = 'Through date';
+    svg.append(yTitle, xTitle);
+
     queries.forEach((query, queryIndex) => {
       let segment = [];
+      let previousDate = null;
       const flush = () => {
         if (segment.length > 1) {
           const line = document.createElementNS(namespace, 'polyline');
@@ -440,35 +515,76 @@
         }
         segment = [];
       };
-      history.forEach((point, index) => {
+      dated.forEach(({ point, time }) => {
         const value = Number(point?.changes_pct?.[query]);
         if (!Number.isFinite(value)) {
           flush();
+          previousDate = null;
+          const missing = point?.missing_reasons?.[query];
+          if (missing) {
+            const marker = document.createElementNS(namespace, 'circle');
+            marker.setAttribute('class', `tracker-attention-missing query-${queryIndex + 1}`);
+            marker.setAttribute('cx', String(x(time)));
+            marker.setAttribute('cy', String(bottom));
+            marker.setAttribute('r', '5');
+            marker.setAttribute('tabindex', '0');
+            marker.setAttribute('role', 'button');
+            const reason = searchGapReason(missing);
+            const missingLabel = `${axisDate(point?.date)} · ${query} · not comparable because ${reason}.`;
+            marker.setAttribute('aria-label', missingLabel);
+            const showMissing = () => { tooltip.textContent = missingLabel; };
+            marker.addEventListener('pointerenter', showMissing);
+            marker.addEventListener('focus', showMissing);
+            marker.addEventListener('click', showMissing);
+            marker.addEventListener('keydown', event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                showMissing();
+              }
+            });
+            svg.append(marker);
+          }
           return;
         }
-        const coordinate = { x: x(index), y: y(value), value, point };
+        if (previousDate && dateGapDays(previousDate, point?.date) > 1.5) flush();
+        const coordinate = { x: x(time), y: y(value), value, point };
         segment.push(coordinate);
+        previousDate = point?.date;
         const circle = document.createElementNS(namespace, 'circle');
         circle.setAttribute('class', `tracker-attention-point query-${queryIndex + 1}`);
-        circle.setAttribute('cx', String(coordinate.x)); circle.setAttribute('cy', String(coordinate.y)); circle.setAttribute('r', '4');
+        circle.setAttribute('cx', String(coordinate.x)); circle.setAttribute('cy', String(coordinate.y)); circle.setAttribute('r', '5');
+        circle.setAttribute('tabindex', '0');
+        circle.setAttribute('role', 'button');
+        const pointLabel = `${query}: ${value >= 0 ? '+' : ''}${value.toFixed(1)}% through ${axisDate(point?.date)}. ${definition}`;
+        circle.setAttribute('aria-label', pointLabel);
         const title = document.createElementNS(namespace, 'title');
-        title.textContent = `${query}: ${value >= 0 ? '+' : ''}${value.toFixed(1)}% through ${axisDate(point?.date)}`;
+        title.textContent = pointLabel;
         circle.append(title);
+        circle.addEventListener('pointerenter', () => showTooltip(query, point, value));
+        circle.addEventListener('focus', () => showTooltip(query, point, value));
+        circle.addEventListener('click', () => showTooltip(query, point, value));
+        circle.addEventListener('keydown', event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            showTooltip(query, point, value);
+          }
+        });
         svg.append(circle);
       });
       flush();
     });
-    const tickIndexes = new Set([0, Math.floor((history.length - 1) / 2), history.length - 1]);
-    history.forEach((point, index) => {
-      if (!tickIndexes.has(index)) return;
-      const text = document.createElementNS(namespace, 'text');
-      text.setAttribute('class', 'tracker-trend-date-label');
-      text.setAttribute('x', String(x(index))); text.setAttribute('y', '194');
-      text.setAttribute('text-anchor', index === 0 ? 'start' : index === history.length - 1 ? 'end' : 'middle');
-      text.textContent = axisDate(point?.date);
-      svg.append(text);
+    const tickIndexes = new Set([0, Math.floor((dated.length - 1) / 3), Math.floor(((dated.length - 1) * 2) / 3), dated.length - 1]);
+    dated.forEach(({ point, index, time }, datedIndex) => {
+      if (!tickIndexes.has(datedIndex)) return;
+      const label = document.createElementNS(namespace, 'text');
+      label.setAttribute('class', 'tracker-trend-date-label');
+      label.setAttribute('x', String(x(time))); label.setAttribute('y', '216');
+      label.setAttribute('text-anchor', datedIndex === 0 ? 'start' : datedIndex === dated.length - 1 ? 'end' : 'middle');
+      label.textContent = axisDate(point?.date);
+      svg.append(label);
     });
-    return svg;
+    frame.append(svg, tooltip);
+    return frame;
   }
 
   function searchAttentionPanel(search) {
@@ -479,13 +595,15 @@
       node('h5', '', 'Rolling 7-day search change'),
       node('p', 'tracker-monitor-lead', search?.current_read || 'Search direction unavailable.'),
     );
-    const history = list(search?.rolling_seven_day_change);
+    const history = list(search?.rolling_seven_day_timeline).length
+      ? list(search.rolling_seven_day_timeline)
+      : list(search?.rolling_seven_day_change);
     const queries = list(search?.query_basket).length
       ? list(search.query_basket)
       : [...new Set(history.flatMap(point => Object.keys(point?.changes_pct || {})))];
     if (history.length && queries.length) {
       const scroll = node('div', 'tracker-attention-chart-scroll');
-      scroll.append(monitorSearchSvg(history, queries));
+      scroll.append(monitorSearchSvg(history, queries, search?.comparison_definition));
       section.append(scroll);
       const legend = node('div', 'tracker-monitor-legend');
       queries.forEach((query, index) => {
@@ -494,7 +612,7 @@
         legend.append(item);
       });
       section.append(legend);
-      section.append(node('p', 'tracker-monitor-note', 'Each point compares the latest 7 complete days with the previous 7 days inside the same Google request. Failed and partial dates are omitted, not shown as zero.'));
+      section.append(node('p', 'tracker-monitor-note', `${search?.geography || 'US'} · Google web search · ${search?.comparison_definition || 'Latest 7 complete days vs previous 7 complete days inside the same Google request.'} Blank dates are missing, never zero or interpolated.`));
       const details = node('details', 'tracker-monitor-table');
       details.append(node('summary', '', 'View daily rolling changes'));
       const table = document.createElement('table');
@@ -508,13 +626,20 @@
         row.append(node('td', '', axisDate(point?.date)));
         queries.forEach(query => {
           const value = Number(point?.changes_pct?.[query]);
-          row.append(node('td', '', Number.isFinite(value) ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%` : 'Missing'));
+          const missing = point?.missing_reasons?.[query];
+          const cell = node('td', '', Number.isFinite(value)
+            ? `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`
+            : missing ? 'Not comparable' : 'Missing');
+          if (missing) cell.title = searchGapReason(missing);
+          row.append(cell);
         });
         body.append(row);
       });
       table.append(head, body);
       details.append(table);
       section.append(details);
+    } else {
+      section.append(node('p', 'tracker-monitor-warning', 'No complete 14-day comparison window is available. Missing dates remain blank.'));
     }
     return section;
   }
@@ -527,19 +652,33 @@
       block.append(node('p', 'tracker-monitor-warning', options.emptyCopy));
       return block;
     }
-    const values = rows.flatMap(row => [Number(row?.[options.primaryKey] || 0), Number(row?.[options.secondaryKey] || 0)]);
+    const values = rows.flatMap(row => [options.primaryKey, options.secondaryKey]
+      .map(key => row?.[key])
+      .filter(value => value !== null && value !== undefined && Number.isFinite(Number(value)))
+      .map(Number));
     const ceiling = Math.max(1, ...values);
     const chart = node('div', 'tracker-count-chart');
     chart.setAttribute('role', 'img');
     chart.setAttribute('aria-label', options.ariaLabel);
+    let hasMissing = false;
     rows.forEach(reading => {
       const day = node('div', 'tracker-count-day');
       const bars = node('div', 'tracker-count-bars');
       [[options.primaryKey, 'primary'], [options.secondaryKey, 'secondary']].forEach(([key, className]) => {
-        const value = Number(reading?.[key] || 0);
-        const bar = node('span', `tracker-count-bar ${className}`);
-        bar.style.height = `${Math.max(value ? 5 : 0, (value / ceiling) * 100)}%`;
-        bar.title = `${options.labels[className]}: ${value}`;
+        const raw = reading?.[key];
+        const available = raw !== null && raw !== undefined && Number.isFinite(Number(raw));
+        const bar = node('span', `tracker-count-bar ${className}${available ? '' : ' missing'}`);
+        if (available) {
+          const value = Number(raw);
+          bar.style.height = `${Math.max(value ? 5 : 0, (value / ceiling) * 100)}%`;
+          bar.title = `${options.labels[className]}: ${value}`;
+          bar.setAttribute('aria-label', `${options.labels[className]}: ${value}`);
+        } else {
+          hasMissing = true;
+          bar.textContent = '—';
+          bar.title = `${options.labels[className]}: not collected`;
+          bar.setAttribute('aria-label', `${options.labels[className]}: not collected`);
+        }
         bars.append(bar);
       });
       add(day, bars, node('span', 'mono tracker-monitor-date', axisDate(reading?.observed_at)));
@@ -551,8 +690,79 @@
       add(item, node('i', `tracker-legend-key count-${key}`), document.createTextNode(label));
       legend.append(item);
     });
+    if (hasMissing) {
+      const item = node('span', '');
+      add(item, node('i', 'tracker-legend-key count-missing'), document.createTextNode('Not collected'));
+      legend.append(item);
+    }
     add(block, chart, legend);
     return block;
+  }
+
+  function linkedEvidenceList(rows, emptyCopy) {
+    const block = node('div', 'tracker-evidence-list');
+    const values = list(rows);
+    if (!values.length) {
+      block.append(node('p', 'tracker-monitor-note', emptyCopy));
+      return block;
+    }
+    values.forEach((row, index) => {
+      const item = node('article', 'tracker-evidence-row');
+      const type = String(row?.record_type || 'post').replaceAll('_', ' ');
+      const platform = String(row?.platform || 'source');
+      const author = row?.author ? ` · @${row.author}` : '';
+      const linked = evidenceLink(`${index + 1}. ${type} · ${platform}${author}`, row?.url, 'tracker-evidence-link');
+      if (linked) item.append(linked);
+      if (row?.text) item.append(node('p', '', row.text));
+      const evidenceDetails = [row?.content_origin && String(row.content_origin).replaceAll('_', ' '), row?.created_at && axisDate(row.created_at)]
+        .filter(Boolean).join(' · ');
+      if (evidenceDetails) item.append(node('span', 'tracker-monitor-date', evidenceDetails));
+      block.append(item);
+    });
+    return block;
+  }
+
+  function conversationEvidencePanel(evidence) {
+    const details = node('details', 'tracker-conversation-evidence');
+    const linkCount = integer(evidence?.total_clickable_links);
+    details.append(node('summary', '', `Inspect linked conversation evidence · ${linkCount} source links`));
+    const verified = evidence?.status === 'verified';
+    details.append(node('p', verified ? 'tracker-evidence-verified' : 'tracker-monitor-warning', verified
+      ? 'Every displayed post and comment/reply count matches the persisted linked evidence below.'
+      : 'Displayed counts do not fully reconcile to linked evidence. Treat the affected platform rows as an audit gap.'));
+    const platformLabels = { x: 'X', tiktok: 'TikTok', instagram: 'Instagram', reddit: 'Reddit', youtube: 'YouTube' };
+    const platforms = node('div', 'tracker-evidence-platforms');
+    Object.entries(evidence?.platforms || {}).forEach(([platform, row]) => {
+      const section = node('details', `tracker-evidence-platform status-${row?.count_status || 'unknown'}`);
+      section.append(node('summary', '', `${platformLabels[platform] || platform} · ${integer(row?.linked_original_posts)} posts · ${integer(row?.linked_comments_replies)} comments/replies${row?.count_status === 'verified' ? ' · verified' : ' · mismatch'}`));
+      const columns = node('div', 'tracker-evidence-columns');
+      const posts = node('section', '');
+      add(posts, node('h6', '', `Original posts (${integer(row?.linked_original_posts)})`), linkedEvidenceList(row?.original_posts, 'No linked original posts.'));
+      const responses = node('section', '');
+      add(responses, node('h6', '', `Comments and replies (${integer(row?.linked_comments_replies)})`), linkedEvidenceList(row?.comments_replies, 'No linked comments or replies were captured.'));
+      add(columns, posts, responses);
+      section.append(columns);
+      platforms.append(section);
+    });
+    details.append(platforms);
+    return details;
+  }
+
+  function sentimentEvidencePanel(sentiment) {
+    const rows = list(sentiment?.evidence);
+    if (!rows.length) return null;
+    const details = node('details', 'tracker-sentiment-evidence');
+    details.append(node('summary', '', `Inspect linked sentiment classifications · ${integer(rows.length)} comments/replies`));
+    const evidenceList = node('div', 'tracker-evidence-list');
+    rows.forEach((row, index) => {
+      const item = node('article', `tracker-evidence-row sentiment-${String(row?.label || 'unclassified')}`);
+      const link = evidenceLink(`${index + 1}. ${String(row?.platform || 'source')} · ${String(row?.label || 'unclassified').replaceAll('_', ' ')}`, row?.url, 'tracker-evidence-link');
+      if (link) item.append(link);
+      if (row?.basis) item.append(node('p', '', row.basis));
+      evidenceList.append(item);
+    });
+    add(details, node('p', 'tracker-monitor-note', sentiment?.coverage_note || 'This is a linked sample, not a classification of every displayed post.'), evidenceList);
+    return details;
   }
 
   function conversationPanel(conversations) {
@@ -562,7 +772,7 @@
       node('span', 'tracker-field-label', 'Observed conversation volume'),
       node('h5', '', conversations?.headline || `${integer(conversations?.exact_roots)} exact posts successfully observed`),
       node('p', 'tracker-monitor-lead', conversations?.current_read || 'Conversation direction unavailable.'),
-      node('p', 'tracker-monitor-note', `${integer(conversations?.exact_roots)} exact posts · ${integer(conversations?.captured_comments_replies)} comments/replies observed · ${integer(conversations?.reviewed_product_relevant_comments_replies)} reviewed as product-specific.`),
+      node('p', 'tracker-monitor-note', conversationVolumeNote(conversations)),
     );
     section.append(countHistoryBlock(conversations?.history, {
       title: 'Observed conversation volume over time',
@@ -586,7 +796,9 @@
           add(cell, node('strong', 'mono', integer(sentimentCounts[key])), node('span', '', label));
           sentimentGrid.append(cell);
         });
-      add(sentimentBlock, sentimentGrid, node('p', 'tracker-monitor-note', sentiment.note || 'Positive and negative both count toward buzz.'));
+      add(sentimentBlock, sentimentGrid, node('p', 'tracker-monitor-note', sentiment.coverage_note || sentiment.note || 'Positive and negative both count toward buzz.'));
+      const sentimentEvidence = sentimentEvidencePanel(sentiment);
+      if (sentimentEvidence) sentimentBlock.append(sentimentEvidence);
       section.append(sentimentBlock);
     } else {
       section.append(node('p', 'tracker-monitor-note', sentiment.status === 'not_collected'
@@ -612,16 +824,21 @@
       const platformLabel = {
         x: 'X', tiktok: 'TikTok', instagram: 'Instagram', reddit: 'Reddit', youtube: 'YouTube',
       }[platform] || platform;
+      const responseStatus = String(reading?.response_collection_status || '');
+      const responseText = responseStatus === 'not_collected'
+        ? 'comments/replies not collected'
+        : `${integer(reading?.captured_comments_replies)} comments/replies${responseStatus === 'bounded_with_gaps' ? ' · bounded with gaps' : ''}`;
       add(
         row,
         node('strong', '', platformLabel),
         node('span', '', 'Observed'),
         node('span', '', queryLabel),
-        node('span', 'mono', `${integer(reading?.exact_roots)} posts · ${integer(reading?.captured_comments_replies)} comments/replies${reading?.reviewed_product_relevant_comments_replies !== null && reading?.reviewed_product_relevant_comments_replies !== undefined ? ` · ${integer(reading.reviewed_product_relevant_comments_replies)} product-specific` : ''}`),
+        node('span', 'mono', `${integer(reading?.exact_roots)} posts · ${responseText}${reading?.reviewed_product_relevant_comments_replies !== null && reading?.reviewed_product_relevant_comments_replies !== undefined ? ` · ${integer(reading.reviewed_product_relevant_comments_replies)} product-specific` : ''}`),
       );
+      if (reading?.note) row.title = reading.note;
       grid.append(row);
     });
-    section.append(grid);
+    section.append(grid, conversationEvidencePanel(conversations?.evidence || {}));
     return section;
   }
 
@@ -640,6 +857,15 @@
       node('p', 'tracker-monitor-note', management ? 'KDP management has explicitly acknowledged A&W economics.' : 'KDP management has not attributed sales, volume, margin or guidance to A&W.'),
       node('p', 'tracker-monitor-date', `Checked ${timestamp(coverage?.observed_at)}`),
     );
+    const sourceHealth = coverage?.source_health || {};
+    if (sourceHealth?.visible_read_uses_last_verified) {
+      const gaps = list(sourceHealth?.source_gaps).map(value => String(value).replaceAll('_', ' '));
+      section.append(node(
+        'p',
+        'tracker-monitor-warning',
+        `Latest public-source check at ${timestamp(sourceHealth?.latest_attempt_observed_at)} was incomplete${gaps.length ? ` (${gaps.join(', ')})` : ''}. The figures above retain the last verified check; missing coverage is not counted as silence.`,
+      ));
+    }
     section.append(countHistoryBlock(coverage?.history, {
       title: 'News and management coverage over time',
       className: 'tracker-news-history',
@@ -649,14 +875,330 @@
       ariaLabel: 'Qualifying financial outlets and management acknowledgment by monitoring date',
       emptyCopy: 'No dated financial-news coverage history yet.',
     }));
-    const checks = coverage?.source_checks || {};
-    section.append(node('p', 'tracker-monitor-note', [
-      `${integer(checks.official_sources)} official IR sources`,
-      `${integer(checks.sec_filings)} SEC filings`,
-      `${integer(checks.news_queries)} news searches`,
-      checks.earnings_call_or_transcript_checked ? 'Earnings calls checked' : 'Earnings-call transcript not yet verified',
-    ].join(' · ')));
+    const laneLabels = {
+      official_ir: 'Official IR',
+      regulator_filings: 'SEC filings',
+      earnings_calls: 'Earnings calls',
+      official_product_context: 'Official product context',
+      qualifying_business_news: 'Business news',
+      sell_side_public_mentions: 'Public sell-side mentions',
+    };
+    const lanes = node('div', 'tracker-parity-lanes');
+    const laneEntries = Object.entries(coverage?.lanes || {});
+    const completedLanes = laneEntries.filter(([, lane]) => lane?.status === 'complete').length;
+    section.append(node('p', 'tracker-monitor-note', `Daily public-source run · ${integer(completedLanes)} of ${integer(laneEntries.length)} lanes completed for this check.`));
+    laneEntries.forEach(([key, lane]) => {
+      const card = node('article', `tracker-parity-lane status-${String(lane?.status || 'unknown').replaceAll('_', '-')}`);
+      const checked = integer(lane?.checked_count);
+      const retrieved = integer(lane?.retrieved_count);
+      const qualifying = integer(lane?.qualifying_count);
+      add(card,
+        node('strong', '', laneLabels[key] || key.replaceAll('_', ' ')),
+        node('span', 'tracker-parity-status', lane?.status === 'complete' ? (key === 'earnings_calls' ? 'Earnings calls checked' : 'Checked') : String(lane?.status || 'Not checked').replaceAll('_', ' ')),
+        node('p', '', `${checked} checked · ${retrieved} directly read · ${qualifying} exact economic matches`));
+      list(lane?.events).forEach(event => {
+        const link = evidenceLink(`${event?.event_name || 'Earnings event'} · ${event?.event_date || 'date unavailable'}`, event?.url, 'tracker-parity-link');
+        if (link) card.append(link);
+      });
+      const evidence = list(lane?.evidence);
+      if (evidence.length) {
+        const detail = node('details', 'tracker-parity-evidence');
+        detail.append(node('summary', '', `Open ${integer(evidence.length)} source${evidence.length === 1 ? '' : 's'}`));
+        evidence.forEach((row, index) => {
+          const attributes = row?.attributes || {};
+          const label = row?.title || attributes?.outlet || `${laneLabels[key] || key} source ${index + 1}`;
+          const link = evidenceLink(label, row?.url, 'tracker-parity-link');
+          if (link) detail.append(link);
+        });
+        card.append(detail);
+      }
+      lanes.append(card);
+    });
+    section.append(lanes);
+    const paywalled = coverage?.paywalled_research || {};
+    section.append(node('p', 'tracker-monitor-note', paywalled.note || 'Paywalled or private research is outside this public monitor and is not represented as checked.'));
     return section;
+  }
+
+  const EXIT_STATE_LABELS = {
+    NO_EXIT_TRIGGER_VERIFIED: 'No exit trigger verified',
+    HUMAN_EXIT_REVIEW_REQUIRED: 'Human exit review required',
+    THESIS_INVALIDATION_REVIEW: 'Thesis invalidation review',
+    INFORMATION_PARITY_REVIEW: 'Information parity review',
+    EXPIRY_REVIEW: 'Expiry review',
+    DATA_INCOMPLETE: 'Data incomplete — no exit call',
+  };
+
+  function exitStateLabel(value) {
+    return EXIT_STATE_LABELS[String(value || '').toUpperCase()] || String(value || 'Unknown').replaceAll('_', ' ');
+  }
+
+  function money(value, blank) {
+    const number = Number(value);
+    return Number.isFinite(number)
+      ? new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(number)
+      : blank;
+  }
+
+  function blank() {
+    return node('span', 'tracker-exit-blank', '—');
+  }
+
+  function exitDecisionBanner(exit) {
+    const banner = exit?.decision_banner || {};
+    const state = String(banner.review_state || 'DATA_INCOMPLETE').toUpperCase();
+    const section = node('section', `tracker-exit-banner state-${state.toLowerCase().replaceAll('_', '-')}`);
+    const head = node('div', 'tracker-exit-banner-head');
+    const copy = node('div');
+    add(copy, node('span', 'tracker-field-label', 'Exit decision'), node('h4', '', exitStateLabel(state)));
+    const badges = node('div', 'tracker-exit-badges');
+    add(badges,
+      node('strong', `tracker-exit-state-badge ${state.toLowerCase().replaceAll('_', '-')}`, exitStateLabel(state)),
+      node('span', 'tracker-monitor-asof mono', `As of ${timestamp(banner.as_of)}`));
+    add(head, copy, badges);
+    add(section, head, node('p', 'tracker-exit-reason', banner.plain_english_reason || 'Decision reason unavailable.'));
+    const met = list(banner.exit_review_triggers_met);
+    const notMet = list(banner.exit_review_triggers_not_met);
+    if (met.length) {
+      const metBlock = node('div', 'tracker-exit-met');
+      add(metBlock, node('span', 'tracker-field-label', 'Exit-review triggers met'));
+      met.forEach(row => add(metBlock, node('p', '', `${String(row?.trigger || '').replaceAll('_', ' ')} — ${row?.evidence || 'no evidence recorded'} (${timestamp(row?.observed_at)})`)));
+      section.append(metBlock);
+    }
+    if (notMet.length) {
+      const notMetBlock = node('details', 'tracker-exit-notmet');
+      notMetBlock.append(node('summary', '', `Exit-review triggers not met (${notMet.length})`));
+      notMet.forEach(row => notMetBlock.append(node('p', '', `${String(row?.trigger || '').replaceAll('_', ' ')} — ${row?.evidence || 'no evidence recorded'}${row?.next_check ? ` · next check: ${row.next_check}` : ''}`)));
+      section.append(notMetBlock);
+    }
+    const gaps = list(banner.critical_data_gaps);
+    if (gaps.length) {
+      const gapBlock = node('div', 'tracker-exit-gaps');
+      add(gapBlock, node('span', 'tracker-field-label', 'Critical data gaps'));
+      gaps.forEach(row => add(gapBlock, node('p', '', `${String(row?.gap || '').replaceAll('_', ' ')}: ${row?.detail || ''}`)));
+      section.append(gapBlock);
+    }
+    add(section, node('p', 'tracker-exit-human-only', 'Human review only. No button, job or alert on this dashboard can place or close a trade.'));
+    return section;
+  }
+
+  function exitPositionClock(exit) {
+    const position = exit?.position_and_clock || {};
+    const section = node('section', 'tracker-exit-position');
+    add(section, node('span', 'tracker-field-label', 'Private position and expiry clock'));
+    const clock = node('div', 'tracker-exit-clock');
+    const days = Number(position.days_to_expiry);
+    const clockCells = [
+      ['Instrument', `${position.underlying || '?'} ${money(position.strike_usd, position.strike_usd)} ${String(position.option_right || 'call')} · ${Number(position.contracts) || 0} contracts (${Number(position.underlying_units) || 0} units)`],
+      ['Expiry', `${position.expiry || '?'} · ${Number.isFinite(days) ? `${days} calendar days left (as of ${position.days_to_expiry_as_of || '?'})` : 'days remaining unknown'}`],
+      ['Entry / cost', `Entered ${position.entry_date || '?'} · $${Number(position.premium_per_underlying_unit_usd) || 0} per unit · ${money(position.premium_paid_usd, '—')} premium paid`],
+      ['At-expiry breakeven', `${money(position.at_expiry_premium_breakeven_usd, '—')} (${position.at_expiry_premium_breakeven_formula || 'strike + premium'})`],
+      ['Contractual max loss', `${money(position.contractual_max_loss_usd, '—')} (long-call premium; contractual, not a user choice)`],
+      ['User loss cap', position.user_maximum_acceptable_loss_usd === null || position.user_maximum_acceptable_loss_usd === undefined
+        ? 'Not set by user — price-loss alert disabled'
+        : `${money(position.user_maximum_acceptable_loss_usd, '—')} (alert ${position.loss_alert_enabled ? 'enabled' : 'disabled'})`],
+      ['Next catalyst', `${position.next_catalyst || 'None scheduled'}${position.next_catalyst_scheduled_at ? ` · ${timestamp(position.next_catalyst_scheduled_at)}` : ''}`],
+      ['Intended horizon', position.intended_horizon || 'Not recorded'],
+    ];
+    clockCells.forEach(([label, value]) => {
+      const cell = node('div', 'tracker-exit-clock-cell');
+      add(cell, node('span', 'tracker-field-label', label), node('p', '', value));
+      clock.append(cell);
+    });
+    section.append(clock);
+    return section;
+  }
+
+  function exitRiskBoundaries(exit) {
+    const risk = exit?.risk_boundaries || {};
+    const section = node('section', 'tracker-exit-risk');
+    add(section, node('span', 'tracker-field-label', 'User risk and time-decay boundaries'));
+    const grid = node('div', 'tracker-exit-clock');
+    const loss = risk.maximum_acceptable_loss;
+    const cells = [
+      ['Maximum acceptable loss', typeof loss === 'number'
+        ? `${money(loss)} — price-loss alert ${risk.loss_alert_enabled ? 'enabled' : 'disabled'}`
+        : `${loss || 'Not set by user'} — price-loss alert ${risk.loss_alert_enabled ? 'enabled' : 'disabled'}`],
+      ['Pre-expiry close or roll policy', risk.pre_expiry_close_or_roll_policy || 'Not set by user'],
+      ['Time-decay review threshold', risk.time_decay_review_threshold || 'Not set by user'],
+    ];
+    cells.forEach(([label, value]) => {
+      const cell = node('div', 'tracker-exit-clock-cell');
+      add(cell, node('span', 'tracker-field-label', label), node('p', '', String(value)));
+      grid.append(cell);
+    });
+    add(section, grid, node('p', 'tracker-monitor-note', risk.rule || 'Missing boundaries stay Not set by user and disable only their own alert.'));
+    return section;
+  }
+
+  function exitTriggerMatrix(exit) {
+    const banner = exit?.decision_banner || {};
+    const rows = [...list(banner.exit_review_triggers_met), ...list(banner.exit_review_triggers_not_met)];
+    const section = node('section', 'tracker-exit-triggers');
+    add(section, node('span', 'tracker-field-label', 'Exit-review trigger matrix'), node('p', 'tracker-monitor-note', 'Each trigger is met, not met, unresolved or not set, with its evidence and timestamp. A met trigger requests human review; it never executes a trade.'));
+    const scroll = node('div', 'tracker-exit-table-scroll');
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    ['Trigger', 'Status', 'Evidence', 'Observed', 'Next check'].forEach(label => header.append(node('th', '', label)));
+    head.append(header);
+    const body = document.createElement('tbody');
+    rows.forEach(row => {
+      const tr = document.createElement('tr');
+      const status = String(row?.status || 'met').toLowerCase().replaceAll('_', ' ');
+      add(tr,
+        node('td', '', String(row?.trigger || '').replaceAll('_', ' ')),
+        node('td', `tracker-exit-status ${status.replaceAll(' ', '-')}`, status),
+        node('td', '', row?.evidence || '—'),
+        node('td', '', timestamp(row?.observed_at)),
+        node('td', '', row?.next_check || '—'));
+      body.append(tr);
+    });
+    table.append(head, body);
+    scroll.append(table);
+    section.append(scroll);
+    return section;
+  }
+
+  function exitThesisChain(exit) {
+    const chain = exit?.thesis_chain || {};
+    const section = node('section', 'tracker-exit-thesis');
+    add(section, node('span', 'tracker-field-label', 'Thesis chain'), node('p', 'tracker-exit-focal', chain.focal_proposition || 'Focal proposition unavailable.'));
+    const grid = node('div', 'tracker-exit-thesis-grid');
+    list(chain.checks).forEach(check => {
+      const state = String(check?.current_state || 'not_evaluated');
+      const card = node('article', `tracker-exit-thesis-card state-${state.toLowerCase().replaceAll('_', '-')}`);
+      add(card,
+        node('h5', '', check?.label || check?.check || 'Check'),
+        node('span', 'tracker-exit-status ' + state.toLowerCase().replaceAll('_', '-'), state.replaceAll('_', ' ')),
+        node('p', '', check?.current_evidence || 'No evidence recorded.'),
+        node('p', 'tracker-monitor-date mono', `Observed ${timestamp(check?.observed_at)} · ${check?.source || 'source not recorded'}`));
+      grid.append(card);
+    });
+    add(section, grid, node('p', 'tracker-monitor-note', chain.display_rule || 'The four checks are never collapsed into one score.'));
+    const invalidation = exit?.invalidation_review || {};
+    const invBlock = node('details', 'tracker-exit-invalidation');
+    invBlock.append(node('summary', '', `Thesis invalidation review · ${list(invalidation.triggers).length} persisted tests · ${integer(invalidation.verified_count)} verified`));
+    list(invalidation.triggers).forEach((row, index) => invBlock.append(node('p', '', `${index + 1}. ${row}`)));
+    invBlock.append(node('p', 'tracker-monitor-note', invalidation.automation_rule || 'A verified trigger requests human review. It never executes or mandates a sale.'));
+    section.append(invBlock);
+    return section;
+  }
+
+  function exitParity(exit) {
+    const parity = exit?.information_parity || {};
+    const section = node('section', 'tracker-exit-parity');
+    add(section,
+      node('span', 'tracker-field-label', 'Exact information-parity review trigger'),
+      node('p', 'tracker-exit-implication', parity.exact_implication || 'Exact implication unavailable.'),
+      node('p', 'tracker-monitor-lead', `Current state: ${parity.current_state || 'unknown'} · ${integer(parity.qualifying_outlets)} qualifying outlets · management acknowledgment ${parity.management_acknowledgment ? 'present' : 'absent'} · checked ${timestamp(parity.observed_at)}.`),
+      node('p', 'tracker-monitor-note', `Human review trigger: ${parity.human_review_trigger || 'not recorded'}`));
+    const rules = node('ul', 'tracker-exit-rules');
+    list(parity.rules).forEach(rule => rules.append(node('li', '', rule)));
+    section.append(rules);
+    return section;
+  }
+
+  function exitMarketContext(exit) {
+    const context = exit?.market_and_option_context || {};
+    const current = context.current || {};
+    const snapshot = context.last_verified_snapshot;
+    const section = node('section', 'tracker-exit-market');
+    add(section, node('span', 'tracker-field-label', 'Market and option context'));
+    const rows = [
+      ['Underlying bid / ask', [current.underlying_bid, current.underlying_ask]],
+      ['Option bid / ask / last', [current.option_bid, current.option_ask, current.option_last]],
+      ['Option market value / unrealized P&L', [current.option_market_value, current.unrealized_pnl]],
+      ['Intrinsic / extrinsic value', [current.intrinsic_value, current.extrinsic_value]],
+      ['Implied volatility', [current.implied_volatility]],
+      ['Delta / theta', [current.delta, current.theta]],
+    ];
+    const grid = node('div', 'tracker-exit-market-grid');
+    rows.forEach(([label, values]) => {
+      const cell = node('div', 'tracker-exit-market-cell');
+      add(cell, node('span', 'tracker-field-label', label));
+      const holder = node('p', '', '');
+      const parts = values.map(value => (
+        value === null || value === undefined || value === ''
+          ? null
+          : Number.isFinite(Number(value)) ? money(value) : null
+      ));
+      const hasAny = parts.some(Boolean);
+      holder.replaceChildren(document.createTextNode(hasAny ? parts.filter(Boolean).join(' / ') : ''));
+      if (!hasAny) holder.append(blank(), document.createTextNode(' not available'));
+      cell.append(holder);
+      grid.append(cell);
+    });
+    add(section, grid, node('p', 'tracker-monitor-warning', `${current.status === 'verified_current' ? 'Verified current quote.' : 'No verified current quote; every current field stays blank rather than estimated.'} ${context.currency_rule || ''} ${context.greeks_note || ''}`.trim()));
+    if (snapshot) {
+      const stale = snapshot.status_for_current_exit_decision !== 'current';
+      const block = node('div', `tracker-exit-snapshot${stale ? ' stale' : ''}`);
+      add(block,
+        node('span', 'tracker-field-label', 'Last verified market snapshot'),
+        node('strong', stale ? 'tracker-exit-stale-badge' : '', stale ? `Stale — as of ${snapshot.as_of}` : `Current — as of ${snapshot.as_of}`),
+        node('p', '', `KDP close ${money(snapshot.underlying_close, '—')} (${snapshot.underlying_close_date || snapshot.as_of}) · ${snapshot.option_symbol || 'exact contract'} bid ${money(snapshot.option_bid, '—')} ask ${money(snapshot.option_ask, '—')} spread ${money(snapshot.option_spread, '—')} · open interest ${integer(snapshot.open_interest)} · volume ${integer(snapshot.volume)} · IV ${Number.isFinite(Number(snapshot.implied_volatility)) ? Number(snapshot.implied_volatility).toFixed(4) : '—'}`),
+        node('p', 'tracker-monitor-note', stale ? 'This quote is dated context only. It cannot stand in for current P&L or an exit price.' : 'Quoted on the decision day; usable as current context.'));
+      if (snapshot.source_url) {
+        const anchor = node('a', '', 'Quote source');
+        anchor.href = snapshot.source_url;
+        anchor.target = '_blank';
+        anchor.rel = 'noreferrer';
+        block.append(anchor);
+      }
+      section.append(block);
+    }
+    return section;
+  }
+
+  function exitSourceHealth(exit) {
+    const health = exit?.data_health || {};
+    const section = node('section', 'tracker-exit-health');
+    add(section, node('span', 'tracker-field-label', 'Source health — latest attempt vs last complete'));
+    const scroll = node('div', 'tracker-exit-table-scroll');
+    const table = document.createElement('table');
+    const head = document.createElement('thead');
+    const header = document.createElement('tr');
+    ['Sensor', 'Latest attempt', 'Last complete', 'Next run', 'Source gap'].forEach(label => header.append(node('th', '', label)));
+    head.append(header);
+    const body = document.createElement('tbody');
+    list(health.sensors).forEach(sensor => {
+      const tr = document.createElement('tr');
+      add(tr,
+        node('td', '', `${sensor?.sensor || 'sensor'} · ${sensor?.operational_state || 'unknown'}`),
+        node('td', '', `${timestamp(sensor?.latest_attempt_at)} — ${sensor?.latest_attempt_result || 'unknown'}`),
+        node('td', '', `${timestamp(sensor?.last_complete_at)} — ${sensor?.last_complete_result || 'none yet'}`),
+        node('td', '', sensor?.next_run_at ? timestamp(sensor.next_run_at) : '—'),
+        node('td', '', sensor?.source_gap || 'none'));
+      body.append(tr);
+    });
+    table.append(head, body);
+    scroll.append(table);
+    section.append(scroll);
+    const separation = health.job_source_separation || {};
+    if (separation.job !== undefined) {
+      add(section, node('p', 'tracker-monitor-warning', `Job completion is separate from source success: the ${String(separation.job || 'scheduled job').replaceAll('_', ' ')} last ran ${timestamp(separation.job_last_run_at)} with status ${separation.job_last_status} (job completed: ${separation.job_completed ? 'yes' : 'no'}; source success: ${separation.source_success ? 'yes' : 'no'}). ${separation.note || ''}`));
+    }
+    const jobs = node('ul', 'tracker-exit-jobs');
+    list(health.monitor_job_states).forEach(job => {
+      jobs.append(node('li', '', `${String(job?.job || '').replaceAll('_', ' ')}: ${job?.state || 'unknown'}${job?.next_run_at ? `, next ${timestamp(job.next_run_at)}` : ''} — ${job?.note || ''}`));
+    });
+    section.append(jobs);
+    return section;
+  }
+
+  function exitMonitorPanel(exit) {
+    if (!exit || typeof exit !== 'object') return null;
+    const panel = node('div', 'tracker-exit-monitor');
+    add(panel,
+      exitDecisionBanner(exit),
+      exitPositionClock(exit),
+      exitRiskBoundaries(exit),
+      exitTriggerMatrix(exit),
+      exitThesisChain(exit),
+      exitParity(exit),
+      exitMarketContext(exit),
+      exitSourceHealth(exit));
+    return panel;
   }
 
   function standingMonitorPanel(item) {
@@ -689,10 +1231,26 @@
     const grid = node('div', 'tracker-monitor-grid');
     add(grid, availabilityHistory(monitor?.availability), searchAttentionPanel(monitor?.search), conversationPanel(monitor?.conversations), streetCoveragePanel(monitor?.street_coverage));
     panel.append(grid);
+    const exitPanel = exitMonitorPanel(monitor?.exit_monitor);
+    if (exitPanel) {
+      const exitDetails = node('details', 'tracker-exit-disclosure');
+      exitDetails.append(node('summary', '', 'Position and exit-review details'), exitPanel);
+      panel.append(exitDetails);
+    }
     const receipts = monitor?.source_receipts || {};
     const audit = node('details', 'tracker-monitor-audit');
     audit.append(node('summary', '', `Why this is real data · ${integer(list(receipts?.artifacts).length)} persisted source receipts`));
     audit.append(node('p', 'tracker-monitor-note', `Opening or refreshing this dashboard made ${integer(receipts?.upstream_calls)} upstream source calls. Collection happens separately and is preserved with timestamps and hashes.`));
+    const attempts = list(receipts?.operational_attempts);
+    if (attempts.length) {
+      const attemptList = node('div', 'tracker-monitor-attempts');
+      attemptList.append(node('span', 'tracker-field-label', 'Latest source attempts'));
+      attempts.forEach(attempt => {
+        const status = String(attempt?.status || 'unknown').replaceAll('_', ' ');
+        attemptList.append(node('p', 'tracker-monitor-note', `${attempt?.source || 'Source'} · ${status} · ${timestamp(attempt?.observed_at)} · ${attempt?.usable ? 'used in the visible result' : 'kept out of the visible result'}`));
+      });
+      audit.append(attemptList);
+    }
     const receiptList = node('div', 'tracker-monitor-receipts');
     list(receipts?.artifacts).forEach(receipt => {
       receiptList.append(node('p', 'mono', `${receipt?.path || 'Source'} · ${String(receipt?.sha256 || '').slice(0, 12)} · ${timestamp(receipt?.modified_at)}`));
@@ -714,6 +1272,10 @@
     heading.append(node('h3', '', item?.title || 'Untitled idea'));
     const instruments = list(item?.instruments).filter(Boolean);
     if (instruments.length) heading.append(node('span', 'tracker-instruments mono', instruments.join(' · ')));
+    const exitState = item?.monitor_dashboard?.exit_monitor?.decision_banner?.review_state;
+    if (exitState && !['DATA_INCOMPLETE', 'NO_EXIT_TRIGGER_VERIFIED'].includes(String(exitState).toUpperCase())) {
+      heading.append(node('span', `tracker-exit-state-badge ${String(exitState).toLowerCase().replaceAll('_', '-')}`, exitStateLabel(exitState)));
+    }
     if (item?.transition_alert) {
       heading.append(node('span', 'tracker-transition-alert', String(item.transition_alert.state || 'Review transition').replaceAll('_', ' ')));
     }

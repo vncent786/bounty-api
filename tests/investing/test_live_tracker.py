@@ -464,6 +464,7 @@ def test_investing_dashboard_tracker_surface_is_wired():
     assert "Street awareness" in script
     assert "News and management coverage over time" in script
     assert "Earnings calls checked" in script
+    assert "missing coverage is not counted as silence" in script
     css = (Path(__file__).parents[2] / "public" / "investing-dashboard.css").read_text(encoding="utf-8")
     assert ".tracker-monitor-dashboard" in css
     assert ".tracker-availability-history" in css

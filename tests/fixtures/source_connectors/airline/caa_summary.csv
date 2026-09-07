@@ -1,0 +1,5 @@
+Punctuality Matching Summary Analysis,,,,,,,,
+Run Date,Reporting Period,Reporting Airport,Origin Destination,Number Flights Matched,Number Flights Cancelled,Flights Cancelled Percent,Average Delay Minutes
+19/03/2026 08:31,202606,HEATHROW,AIRPORT TOTAL,12345,100,0.800000,12.500000
+19/03/2026 08:31,202606,HEATHROW,SCHEDULED FLIGHTS(ALL ROUTES),12000,90,0.700000,12.000000
+19/03/2026 08:31,202606,GATWICK,AIRPORT TOTAL,8000,40,0.500000,9.250000

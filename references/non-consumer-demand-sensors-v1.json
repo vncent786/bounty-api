@@ -1,0 +1,173 @@
+{
+  "schema_version": "bounty-non-consumer-demand-sensors/1",
+  "purpose": "Corroborate non-consumer investment ideas with the closest available evidence of money committed, capacity used or equipment ordered. Social discussion is optional context, not the universal proof source.",
+  "evidence_strength": [
+    {
+      "level": 1,
+      "name": "money_committed",
+      "examples": ["settled ticket sale", "signed customer order", "contract award", "purchase commitment"],
+      "interpretation": "Closest public evidence of purchase demand."
+    },
+    {
+      "level": 2,
+      "name": "capacity_committed_or_used",
+      "examples": ["fare class sells out", "load factor", "megawatts contracted", "facility energised", "backlog conversion"],
+      "interpretation": "Strong operational evidence, but check price, cancellation and margin."
+    },
+    {
+      "level": 3,
+      "name": "purchase_preparation",
+      "examples": ["tender", "permit", "grid application", "equipment qualification", "commissioning job"],
+      "interpretation": "Shows intent and project progress, not a completed purchase."
+    },
+    {
+      "level": 4,
+      "name": "attention_only",
+      "examples": ["Google Rising", "news volume", "social discussion", "generic web traffic"],
+      "interpretation": "Useful for discovery or market-awareness checks; never treated as revenue."
+    }
+  ],
+  "airlines": {
+    "question": "Are travellers actually buying tickets or using capacity, and is the change specific enough to affect one airline?",
+    "free_or_public_sources": [
+      {
+        "name": "ARC Sales Statistics",
+        "url": "https://www2.arccorp.com/articles-trends/sales-statistics/",
+        "evidence": "Monthly U.S. travel-agency ticket sales and ticketing trends based on settled transactions.",
+        "strength": "money_committed",
+        "limits": "Aggregate U.S. agency channel; not a complete carrier-specific global booking feed."
+      },
+      {
+        "name": "EUROCONTROL European Aviation Overview",
+        "url": "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
+        "evidence": "Weekly flights, airline and airport performance, traffic and delay data.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Operational traffic is not ticket revenue; carrier cost attribution still needs issuer evidence."
+      },
+      {
+        "name": "UK CAA airline and punctuality data",
+        "url": "https://www.caa.co.uk/data-and-analysis/uk-aviation-market/flight-punctuality/uk-flight-punctuality-statistics/",
+        "evidence": "Monthly punctuality plus airline route capacity, passenger, load-factor and traffic statistics.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Published with lag and UK scope."
+      },
+      {
+        "name": "US BTS T-100",
+        "url": "https://rosap.ntl.bts.gov/view/dot/39472",
+        "evidence": "Passengers, seat-miles, load factors, enplanements and carrier traffic.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Lagged and U.S.-focused; international detail may be released later."
+      },
+      {
+        "name": "US DOT Air Travel Consumer Reports",
+        "url": "https://www.transportation.gov/individuals/aviation-consumer-protection/air-travel-consumer-reports",
+        "evidence": "Delays, cancellations, complaints, oversales and service failures.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Cost exposure must still be translated into carrier economics."
+      },
+      {
+        "name": "Direct booking and fare-inventory panel",
+        "url": null,
+        "evidence": "Repeated same-flight fare, fare-class availability and schedule capture from airline or licensed GDS routes.",
+        "strength": "capacity_committed_or_used",
+        "limits": "A disappearing fare bucket can reflect inventory controls or schedule changes, not only new bookings. Seat maps are not sold-seat ledgers."
+      }
+    ],
+    "paid_fallbacks": [
+      "ForwardKeys booking and ticketing data",
+      "OAG or Cirium schedule and traffic data",
+      "IATA passenger intelligence",
+      "card-transaction panels",
+      "app-intelligence panels"
+    ],
+    "minimum_corroboration": [
+      "one transaction or capacity-use source",
+      "one independent operational or issuer source",
+      "carrier-specific economic bridge",
+      "dated expectations and price check"
+    ]
+  },
+  "industrial_and_data_centers": {
+    "question": "Has somebody committed money, power, land or equipment to the project, and which listed company is contractually exposed?",
+    "free_or_public_sources": [
+      {
+        "name": "Singapore GeBIZ",
+        "url": "https://www.gebiz.gov.sg/ptn/opportunity/BOListing.xhtml?origin=menu",
+        "evidence": "Singapore public-sector quotations, tenders and awards.",
+        "strength": "purchase_preparation",
+        "limits": "Public procurement only; an open tender is not an award."
+      },
+      {
+        "name": "EU TED and TED Open Data",
+        "url": "https://data.ted.europa.eu/",
+        "evidence": "EU public procurement notices and contract awards with reusable data.",
+        "strength": "money_committed",
+        "limits": "Coverage follows public procurement rules and misses private hyperscaler orders."
+      },
+      {
+        "name": "SAM.gov",
+        "url": "https://sam.gov/",
+        "evidence": "U.S. federal opportunities and awards.",
+        "strength": "purchase_preparation",
+        "limits": "Federal demand only; separate opportunity from awarded contract."
+      },
+      {
+        "name": "CanadaBuys procurement data",
+        "url": "https://canadabuys.canada.ca/en/procurement-and-contracting-data",
+        "evidence": "Downloadable Canadian federal tender notices and contract awards.",
+        "strength": "money_committed",
+        "limits": "Federal scope; provinces have separate portals."
+      },
+      {
+        "name": "Planning, building and environmental permits",
+        "url": null,
+        "evidence": "Approved facility size, cooling system, construction phase and named applicant or contractor.",
+        "strength": "purchase_preparation",
+        "limits": "A permit does not prove construction or a supplier award."
+      },
+      {
+        "name": "Utility large-load and interconnection records",
+        "url": null,
+        "evidence": "Megawatts requested, service agreements, substations, energisation and expected in-service dates.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Queues include projects that will never be built; require milestones and deposits or signed agreements."
+      },
+      {
+        "name": "Issuer orders, backlog and shipment disclosures",
+        "url": null,
+        "evidence": "Named customer order, purchase commitment, backlog, capacity reservation, shipment or recognised revenue.",
+        "strength": "money_committed",
+        "limits": "Avoid double-counting multi-year framework agreements and already-guided backlog."
+      },
+      {
+        "name": "Distributor quote, stock and lead-time panel",
+        "url": null,
+        "evidence": "Repeated identical equipment and fulfilment terms across authorised distributors.",
+        "strength": "capacity_committed_or_used",
+        "limits": "Inventory movement is not sales unless the same listing, seller and fulfilment mode are preserved."
+      }
+    ],
+    "paid_fallbacks": [
+      "Panjiva or ImportGenius shipment data",
+      "Dodge Construction Network or ConstructConnect project data",
+      "licensed equipment-channel sell-through",
+      "satellite construction monitoring",
+      "specialist data-center capacity databases"
+    ],
+    "minimum_corroboration": [
+      "named project or buyer",
+      "contract award, signed order, service agreement or verified construction milestone",
+      "exact listed beneficiary relationship",
+      "order/backlog or project economics",
+      "dated expectations and price check"
+    ]
+  },
+  "routing_rules": [
+    "Consumer product demand uses purchases, retailer availability and independent user behavior.",
+    "Airline demand uses settled ticket sales, fares, capacity, passenger traffic and load factors before social discussion.",
+    "Industrial demand uses awards, orders, backlog, permits, grid and commissioning evidence before social discussion.",
+    "An open tender, permit application, grid queue entry or job posting shows preparation, not completed demand.",
+    "Two weak attention sources do not equal one purchase source.",
+    "Promotion requires a company-specific economic bridge and an expectations gap, regardless of portal count."
+  ]
+}

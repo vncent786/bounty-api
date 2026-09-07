@@ -1,0 +1,180 @@
+{
+  "schema_version": "bounty-ghost-thesis-realization-monitor/1",
+  "policy_updated_at": "2026-09-06T14:06:08+08:00",
+  "policy_owner": "Vincent",
+  "monitor_id": "standing::ghost-aw-kdp",
+  "classification": "internal_investment_monitoring_policy_no_position_values",
+  "purpose": "Provide evidence-backed human-review signals for whether the GHOST Energy x A&W Root Beer thesis is being realized, weakening, or becoming widely known. The monitor does not make or execute a trade decision.",
+  "exact_implication": "GHOST x A&W Root Beer is producing sustained incremental demand, distribution, replenishment or repeat purchase that is economically relevant to GHOST and changes expectations for KDP.",
+  "decision_authority": {
+    "final_trade_decision": "Vincent",
+    "human_review_only": true,
+    "automatic_trade_action": false,
+    "automatic_order_placement_or_close": false,
+    "rule": "Every triggered state requests review. No state means buy, hold, sell, close, roll or resize automatically."
+  },
+  "evidence_axes": {
+    "search_attention": {
+      "queries": [
+        "ghost root beer energy drink",
+        "ghost a&w root beer"
+      ],
+      "geographies": [
+        "US",
+        "WORLDWIDE"
+      ],
+      "request_shape": {
+        "provider": "trendspy interest_over_time",
+        "timeframe": "today 3-m",
+        "gprop": "web",
+        "partial_dates_excluded": true
+      },
+      "comparison": "For each identity-preserving query, compare the latest seven complete days with the prior seven complete days inside the same source request. Never compare raw levels across independently normalized requests or geographies.",
+      "states": {
+        "SEARCH_BUILDING_BASELINE": "History is missing, sparse, failed or not yet repeated enough for a decline conclusion.",
+        "SEARCH_SOFTENING": "One identity-preserving query is at or below 75% of its prior-seven-day mean for two consecutive successful runs while the other query is not increasing.",
+        "SEARCH_COOLING_REVIEW": "Both identity-preserving queries are at or below 75% of their prior-seven-day means for two consecutive successful runs."
+      },
+      "review_policy": {
+        "SEARCH_SOFTENING": "Emit a human review signal and retain the next comparable check; this is not an exit instruction.",
+        "SEARCH_COOLING_REVIEW": "Set HUMAN_EXIT_REVIEW_REQUIRED. Vincent decides what to do."
+      }
+    },
+    "conversation_volume": {
+      "required_platforms": [
+        "x",
+        "tiktok",
+        "instagram",
+        "reddit",
+        "youtube"
+      ],
+      "headline_measurement": "Count every deduplicated exact original post successfully observed, separately by platform and across positive, negative, neutral, mixed and unclassified sentiment. Promotional or commercially unresolved exact posts remain in this observed-buzz total but not in the independent investing-quality subset.",
+      "investing_quality_measurement": "Separately count newly published, deduplicated, exact, independently qualifying original posts in fixed recent and prior seven-day windows by platform.",
+      "qualifying_record": "An exact original post with a publication timestamp, author or explicit missing-author state, URL and explicit reviewed commercial origin that is allowed to count as independent behavior.",
+      "excluded_from_headline_volume": [
+        "comments",
+        "replies",
+        "copied duplicates",
+        "semantically irrelevant posts"
+      ],
+      "excluded_from_independent_quality_volume": [
+        "promotional",
+        "affiliate",
+        "retailer promotional",
+        "brand-owned",
+        "copied",
+        "unknown commercial origin"
+      ],
+      "comparability": "A run is comparable only when all five production-shaped canaries are healthy, all five candidate queries are terminal, fixed windows and query identity match, and every platform used for a decline calculation is uncapped and untruncated. Missing or failed coverage is indeterminate, never zero conversation.",
+      "states": {
+        "CONVERSATION_BUILDING_BASELINE": "Fewer than two comparable scheduled runs or an open source, timestamp, origin, cap or truncation gap prevents a direction call.",
+        "CONVERSATION_SOFTENING": "At least two healthy uncapped platforms are at or below 75% of their prior-seven-day qualifying exact independent-original-post counts for two consecutive comparable runs.",
+        "CONVERSATION_COOLING_REVIEW": "At least two healthy uncapped platforms are at or below 50% of their prior-seven-day qualifying exact independent-original-post counts for two consecutive comparable runs."
+      },
+      "review_policy": {
+        "CONVERSATION_SOFTENING": "Emit a human review signal and retain the next comparable check; this is not an exit instruction.",
+        "CONVERSATION_COOLING_REVIEW": "Set HUMAN_EXIT_REVIEW_REQUIRED. Vincent decides what to do."
+      }
+    },
+    "sentiment_context": {
+      "role": "secondary_context_only",
+      "required_buckets": [
+        "positive",
+        "negative",
+        "neutral",
+        "mixed",
+        "unclassified"
+      ],
+      "rule": "Positive and negative reactions both contribute to attention and trial context. Sentiment direction never cancels conversation volume, suppresses disliked evidence, or independently triggers a trade or exit review.",
+      "minimum_display": "Show the sample denominator, platform and thread coverage, collection window, caps or truncation, and unclassified count. If comparable sentiment history was not collected, say so."
+    },
+    "thesis_strength": {
+      "required_checks": [
+        "availability_and_replenishment",
+        "repeat_purchase",
+        "incremental_vs_cannibalized_demand",
+        "kdp_materiality_and_expectations"
+      ],
+      "human_review_triggers": [
+        "Availability fades after the first allocation.",
+        "The product remains a short-lived LTO.",
+        "Review enthusiasm fails to become repeat purchase.",
+        "Heavy discounting or scarcity explains the signal.",
+        "A&W mainly cannibalizes other GHOST SKUs.",
+        "KDP energy momentum decelerates against tougher comparisons.",
+        "A&W remains too small to change GHOST or KDP expectations even in an aggressive case."
+      ],
+      "review_policy": "A verified invalidation condition sets THESIS_INVALIDATION_REVIEW. Unresolved or source-failed checks remain unresolved and cannot be treated as verified weakness."
+    },
+    "news_and_management_coverage": {
+      "window": "latest 14 calendar days",
+      "required_public_lanes": [
+        "official_ir",
+        "regulator_filings",
+        "earnings_calls",
+        "official_product_context",
+        "qualifying_business_news",
+        "sell_side_public_mentions"
+      ],
+      "paywalled_research_rule": "Paywalled or private research is outside the public monitor and must remain not_observable_not_checked, never silently counted as checked or absent.",
+      "qualifying_coverage": "Independent business or financial coverage that addresses the exact A&W-to-GHOST/KDP economic implication. Generic launch, product review, affiliate, retailer, copied or syndicated release coverage does not qualify.",
+      "states": {
+        "NICHE_ONLY": "Zero qualifying independent business or financial outlets and no explicit KDP management attribution.",
+        "EARLY_BUSINESS_COVERAGE": "One or two qualifying independent business or financial outlets in the latest 14 calendar days and no explicit KDP management attribution.",
+        "EXTENSIVE_COVERAGE_REVIEW": "At least three qualifying independent business or financial outlets in the latest 14 calendar days, or explicit KDP management attribution of A&W to sales, volume, distribution, share, margin, guidance or earnings.",
+        "SOURCE_FAILURE": "A required official, filing, transcript or public-search route failed. This is operational missingness, not market silence."
+      },
+      "review_policy": {
+        "EARLY_BUSINESS_COVERAGE": "Emit a human information-parity review signal because coverage is broadening, but do not label it extensive or issue an automatic exit instruction.",
+        "EXTENSIVE_COVERAGE_REVIEW": "Set INFORMATION_PARITY_REVIEW. Vincent decides what to do."
+      },
+      "evidence_display": "Show every qualifying outlet link and every management passage with source and timestamp, not only a count."
+    }
+  },
+  "review_state_priority": [
+    "EXPIRY_REVIEW",
+    "THESIS_INVALIDATION_REVIEW",
+    "INFORMATION_PARITY_REVIEW",
+    "HUMAN_EXIT_REVIEW_REQUIRED",
+    "DATA_INCOMPLETE",
+    "HUMAN_REVIEW_SIGNAL",
+    "NO_EXIT_TRIGGER_VERIFIED"
+  ],
+  "data_integrity": {
+    "missing_is_missing": true,
+    "interpolation_allowed": false,
+    "failed_source_is_zero": false,
+    "partial_sample_is_total_volume": false,
+    "ranked_sample_is_firehose": false,
+    "comments_or_replies_count_as_original_posts": false,
+    "require_observed_state_separate_from_operational_state": true,
+    "require_latest_attempt_separate_from_last_complete": true,
+    "require_script_completion_separate_from_source_success": true
+  },
+  "dashboard_contract": {
+    "first_screen": "Lead with successfully observed retailer, search and total exact-conversation results and how they changed. Show sentiment and independent-investing-quality counts as context. State any human review signal without allowing operational source failures to replace the surviving observed result.",
+    "sensor_freshness": "Show an independent timestamp, operational state, latest attempt and last complete comparable reading for search, conversation, sentiment, thesis checks and news or management coverage.",
+    "charts": "Retail charts use only verified complete daily samples. Search charts show a daily rolling seven-day percentage change calculated within one successful identity-preserving request. Leave failed or missing observations as gaps and never bridge non-comparable dates.",
+    "last_verified_rule": "A fully failed refresh stays behind audit while the last successful observation remains visible under its original timestamp. Never relabel the earlier observation as the failed date.",
+    "audit": "Source failures and sanitized attempt status stay inside a closed audit detail unless no usable result survives. Page load and refresh read persisted artifacts only and make zero upstream source calls.",
+    "evidence_links": "Every displayed original-post and comment/reply count must reconcile to complete clickable persisted evidence by platform or show a mismatch. Displayed sentiment must have record-level linked classifications; an aggregate without that lineage stays audit-only."
+  },
+  "runtime_acceptance": [
+    "One durable tested runner under scripts/ creates a unique immutable run directory and separate latest pointers.",
+    "The runner uses shared source connectors and receipts rather than dated tmp collectors or hardcoded final states.",
+    "Conversation collection persists publication timestamp, author, exact URL, origin, cap, truncation and source health for every original post.",
+    "Sentiment is derived only from cited collected text and remains secondary context.",
+    "News and management classification is data-driven and tests NICHE_ONLY, EARLY_BUSINESS_COVERAGE, EXTENSIVE_COVERAGE_REVIEW and SOURCE_FAILURE paths.",
+    "Thesis checks can transition from unresolved to supporting, contradicting or source failure from persisted evidence; verified contradiction requests human review.",
+    "The authenticated dashboard renders the monitoring and private decision layers without placing position values in public static assets.",
+    "Focused and full tests plus desktop 1440px and mobile 390px QA pass before deployment."
+  ],
+  "source_contracts": [
+    "artifacts/workstreams/chewy-ghost-monitoring/exit-monitor-minimum-view-v1.json",
+    "artifacts/workstreams/chewy-ghost-monitoring/status.json",
+    "artifacts/dd/ghost-kdp/dossier.md",
+    "references/source-connector-registry-v1.json",
+    "references/standing-monitor-sensor-framework-v1.json",
+    "references/ghost-standing-monitor-v1.json"
+  ]
+}

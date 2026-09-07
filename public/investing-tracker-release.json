@@ -1,8 +1,8 @@
 {
   "schema_version": "bounty-investment-tracker-release/1",
-  "published_at": "2026-09-06T09:27:01.345892+00:00",
+  "published_at": "2026-09-07T03:09:27.564220+00:00",
   "tracker_schema_version": "bounty-investment-tracker/1",
-  "tracker_snapshot_sha256": "8255cd1e3bff53ae481cfacada779ab29d6758c01cd6598741952f1f3d51135c",
+  "tracker_snapshot_sha256": "5d812f84d6d8007c323ae29d711c005f0a7ebd4c6570e9d32bb96142d6bf0062",
   "methodology": "bounty-corrected-persistence-rerun/1",
   "trend_data_built_at": "2026-09-05T22:30:55.347405+00:00",
   "decision_queue": 0,
@@ -26,5 +26,5 @@
   "failed_google_series": 0,
   "google_preflight": "healthy",
   "private_data": "Token-gated. This receipt contains aggregate counts and hashes only.",
-  "receipt_sha256": "9fd3cd030d28b5a9236618274be335dc77965e8b3191892726f24b899aaf3743"
+  "receipt_sha256": "c60105aeeb26d0ccc4bd1c19eb75be31e4abcf400db8b52ca76174a94c01665e"
 }

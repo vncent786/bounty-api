@@ -12,6 +12,11 @@ from .airline import (
     register_airline_official_sources,
 )
 from .public_parity import PublicParityConnector
+from .google_trends_interest import (
+    canonical_trendspy_gprop,
+    collect_interest_plan,
+    fetch_interest_over_time,
+)
 from .catalogue import CapabilityCatalogue, CapabilityQuery
 from .credentials import (
     CredentialAlternative,
@@ -78,6 +83,9 @@ __all__ = [
     "TimeRangeCapability",
     "build_bounty_source_catalogue",
     "canonical_json",
+    "canonical_trendspy_gprop",
+    "collect_interest_plan",
+    "fetch_interest_over_time",
     "payload_sha256",
     "redact_secrets",
     "register_airline_official_sources",

@@ -115,10 +115,15 @@ def build_auditable_fixture(root: Path) -> dict:
 
     conversation = {
         "state": "CONVERSATION_BUILDING_BASELINE",
+        "current_run_status": "complete_bounded",
         "comparable_scheduled_runs": 1,
         "platform_canary_matrix": {platform: {"status": "healthy"} for platform in PLATFORMS},
         "candidate_platform_queries": {
-            platform: {"candidate_query_status": "complete_relevant"}
+            platform: {
+                "candidate_query_status": "complete_relevant",
+                "thread_attempted": True,
+                "thread_usable": True,
+            }
             for platform in PLATFORMS
         },
         "comments_replies_by_platform": {
@@ -468,5 +473,169 @@ def test_failed_latest_social_attempt_keeps_last_fully_linked_observation_visibl
         "latest_attempt_observed_at": failed["observed_at"],
         "latest_attempt_state": "source_failure",
         "visible_observed_at": accepted["observed_at"],
+        "visible_run_status": "complete_bounded",
+        "visible_threads_usable": True,
         "visible_read_uses_last_verified": True,
     }
+
+
+def test_partial_latest_social_attempt_with_links_cannot_replace_complete_observation(tmp_path):
+    build_auditable_fixture(tmp_path)
+    ghost = tmp_path / "artifacts" / "dd" / "ghost-kdp"
+    attention_path = ghost / "attention_latest.json"
+    accepted = json.loads(attention_path.read_text(encoding="utf-8"))
+    partial = json.loads(json.dumps(accepted))
+    partial["observed_at"] = "2026-09-08T03:05:56Z"
+    conversation = partial["conversation_attention"]
+    conversation["current_run_status"] = "partial_resume_required"
+    conversation["operational_state"] = "healthy_bounded_partial"
+    conversation["candidate_platform_queries"]["tiktok"]["thread_usable"] = False
+    conversation["origin_review"]["raw_exact_roots_by_platform"] = {
+        platform: 11 for platform in PLATFORMS
+    }
+    conversation["comments_replies_by_platform"] = {
+        platform: 102 for platform in PLATFORMS
+    }
+    write_jsonl(ghost / "attention_history.jsonl", [accepted, partial])
+    write_json(attention_path, partial)
+
+    tracker = build_investment_tracker(tmp_path)
+    conversations = next(
+        item["monitor_dashboard"]["conversations"]
+        for item in tracker["ideas"]
+        if item.get("idea_id") == "standing::ghost-aw-kdp"
+    )
+
+    assert conversations["headline"] == (
+        "5 exact posts plus 3 comments/replies observed across 5 successful platform reads."
+    )
+    assert conversations["source_health"]["latest_attempt_observed_at"] == partial["observed_at"]
+    assert conversations["source_health"]["visible_observed_at"] == accepted["observed_at"]
+    assert conversations["source_health"]["visible_run_status"] == "complete_bounded"
+    assert conversations["source_health"]["visible_threads_usable"] is True
+    assert conversations["source_health"]["visible_read_uses_last_verified"] is True
+
+
+def test_registered_google_trends_pointer_replaces_stale_attention_search(tmp_path):
+    build_auditable_fixture(tmp_path)
+    ghost = tmp_path / "artifacts" / "dd" / "ghost-kdp"
+    queries = ["ghost root beer energy drink", "ghost a&w root beer"]
+    dates = [f"2026-08-{day:02d}" for day in range(19, 32)] + [
+        f"2026-09-{day:02d}" for day in range(1, 9)
+    ]
+    values = {
+        "dates": dates,
+        queries[0]: list(range(1, 22)),
+        queries[1]: [10] * 21,
+    }
+    geo = {
+        "status": "complete",
+        "requested_gprop": "web",
+        "effective_gprop": "web_default",
+        "returned_values": values,
+        "isPartial_flags": [False] * 20 + [True],
+        "latest_complete_date": "2026-09-07",
+        "latest_to_prior_ratio": {queries[0]: 17 / 10, queries[1]: 1.0},
+    }
+    success = {
+        "schema_version": "ghost-google-trends-observation/1",
+        "observed_at": "2026-09-08T04:58:47Z",
+        "observation_day_sgt": "2026-09-08",
+        "status": "complete",
+        "state": "SEARCH_BUILDING_BASELINE",
+        "current_comparison": "not_falling",
+        "query_basket": queries,
+        "latest_complete_date": "2026-09-07",
+        "geographies": {"US": geo, "WORLDWIDE": geo},
+        "writer": {
+            "writer_id": "scripts/collect_ghost_google_trends.py",
+            "writer_version": 1,
+        },
+    }
+    failure = {
+        **success,
+        "observed_at": "2026-09-09T00:02:00Z",
+        "observation_day_sgt": "2026-09-09",
+        "status": "SOURCE_FAILURE",
+        "geographies": {
+            "US": {"status": "SOURCE_FAILURE"},
+            "WORLDWIDE": {"status": "SOURCE_FAILURE"},
+        },
+    }
+    write_json(ghost / "trends_latest.json", success)
+    write_json(ghost / "trends_attempt_latest.json", failure)
+    write_jsonl(ghost / "trends_history.jsonl", [success, failure])
+
+    tracker = build_investment_tracker(tmp_path)
+    search = next(
+        item["monitor_dashboard"]["search"]
+        for item in tracker["ideas"]
+        if item.get("idea_id") == "standing::ghost-aw-kdp"
+    )
+
+    assert search["latest_complete_date"] == "2026-09-07"
+    assert search["last_successful_observed_at"] == success["observed_at"]
+    assert search["ratios"] == {queries[0]: 17 / 10, queries[1]: 1.0}
+    assert search["source_health"] == {
+        "latest_attempt_status": "source_failure",
+        "latest_attempt_observed_at": failure["observed_at"],
+        "visible_series_uses_last_verified": True,
+        "visible_writer": "scripts/collect_ghost_google_trends.py",
+        "visible_effective_gprop": "web_default",
+    }
+
+
+def test_invalid_registered_google_pointer_cannot_fall_back_to_legacy_search(tmp_path):
+    build_auditable_fixture(tmp_path)
+    ghost = tmp_path / "artifacts" / "dd" / "ghost-kdp"
+    attention_path = ghost / "attention_latest.json"
+    attention = json.loads(attention_path.read_text(encoding="utf-8"))
+    attention["search_attention"] = {
+        "status": "complete",
+        "state": "SEARCH_BUILDING_BASELINE",
+        "query_basket": ["legacy query"],
+        "geographies": {
+            "US": {
+                "status": "complete",
+                "latest_complete_date": "2026-09-08",
+                "latest_to_prior_ratio": {"legacy query": 9.9},
+                "returned_values": {
+                    "dates": ["2026-09-08"],
+                    "legacy query": [100],
+                },
+                "isPartial_flags": [False],
+            }
+        },
+    }
+    write_json(attention_path, attention)
+    invalid = {
+        "schema_version": "ghost-google-trends-observation/1",
+        "observed_at": "2026-09-09T00:02:00Z",
+        "status": "SOURCE_FAILURE",
+        "effective_gprop": "web_default",
+        "writer": {
+            "writer_id": "scripts/collect_ghost_google_trends.py",
+            "writer_version": 1,
+        },
+        "query_basket": ["ghost root beer energy drink", "ghost a&w root beer"],
+        "geographies": {
+            "US": {"status": "SOURCE_FAILURE"},
+            "WORLDWIDE": {"status": "SOURCE_FAILURE"},
+        },
+    }
+    write_json(ghost / "trends_latest.json", invalid)
+    write_json(ghost / "trends_attempt_latest.json", invalid)
+
+    tracker = build_investment_tracker(tmp_path)
+    search = next(
+        item["monitor_dashboard"]["search"]
+        for item in tracker["ideas"]
+        if item.get("idea_id") == "standing::ghost-aw-kdp"
+    )
+
+    assert search["status"] == "source_failure"
+    assert search["ratios"] == {}
+    assert search["latest_complete_date"] is None
+    assert search["last_successful_observed_at"] is None
+    assert search["source_health"]["visible_writer"] == "scripts/collect_ghost_google_trends.py"
+    assert search["source_health"]["visible_effective_gprop"] == "web_default"

@@ -850,16 +850,62 @@ def _accepted_linked_conversation_observation(row: dict[str, Any] | None) -> boo
         return False
     conversation = row.get("conversation_attention") if isinstance(row.get("conversation_attention"), dict) else {}
     canaries = conversation.get("platform_canary_matrix") if isinstance(conversation.get("platform_canary_matrix"), dict) else {}
+    queries = conversation.get("candidate_platform_queries") if isinstance(conversation.get("candidate_platform_queries"), dict) else {}
     artifacts = row.get("artifacts") if isinstance(row.get("artifacts"), dict) else {}
     comments = conversation.get("comments_replies_by_platform")
     roots = (conversation.get("origin_review") or {}).get("raw_exact_roots_by_platform") if isinstance(conversation.get("origin_review"), dict) else None
+    terminal_query_states = {"complete", "complete_relevant", "complete_no_match", "empty"}
     return bool(
-        len(canaries) == 5
+        _text(conversation.get("current_run_status")).lower()
+        in {"complete", "complete_bounded"}
+        and len(canaries) == 5
         and all(isinstance(value, dict) and _text(value.get("status")).lower() == "healthy" for value in canaries.values())
+        and len(queries) == 5
+        and all(
+            isinstance(value, dict)
+            and _text(value.get("candidate_query_status")).lower() in terminal_query_states
+            and value.get("thread_attempted") is True
+            and value.get("thread_usable") is True
+            for value in queries.values()
+        )
         and isinstance(comments, dict)
         and isinstance(roots, dict)
         and (artifacts.get("all_retained_reconciliation") or artifacts.get("social_manifest"))
     )
+
+
+def _accepted_google_trends_observation(row: dict[str, Any] | None) -> bool:
+    if not isinstance(row, dict):
+        return False
+    writer = row.get("writer") if isinstance(row.get("writer"), dict) else {}
+    queries = row.get("query_basket") if isinstance(row.get("query_basket"), list) else []
+    geographies = row.get("geographies") if isinstance(row.get("geographies"), dict) else {}
+    if not (
+        row.get("schema_version") == "ghost-google-trends-observation/1"
+        and row.get("status") == "complete"
+        and writer.get("writer_id") == "scripts/collect_ghost_google_trends.py"
+        and writer.get("writer_version") == 1
+        and queries
+        and set(geographies) == {"US", "WORLDWIDE"}
+    ):
+        return False
+    for value in geographies.values():
+        if not isinstance(value, dict) or value.get("status") != "complete":
+            return False
+        if value.get("effective_gprop") != "web_default":
+            return False
+        returned = value.get("returned_values") if isinstance(value.get("returned_values"), dict) else {}
+        dates = returned.get("dates") if isinstance(returned.get("dates"), list) else []
+        flags = value.get("isPartial_flags")
+        if not dates or not isinstance(flags, list) or len(flags) != len(dates):
+            return False
+        if any(
+            not isinstance(returned.get(query), list)
+            or len(returned.get(query)) != len(dates)
+            for query in queries
+        ):
+            return False
+    return True
 
 
 def _ghost_monitor_dashboard(
@@ -873,11 +919,15 @@ def _ghost_monitor_dashboard(
     walmart_history_path = ghost / "walmart_native_history.jsonl"
     attention_latest_path = ghost / "attention_latest.json"
     attention_history_path = ghost / "attention_history.jsonl"
+    trends_latest_path = ghost / "trends_latest.json"
+    trends_attempt_latest_path = ghost / "trends_attempt_latest.json"
+    trends_history_path = ghost / "trends_history.jsonl"
     coverage_latest_path = ghost / "coverage_latest.json"
     coverage_history_path = ghost / "coverage_history.jsonl"
     if not any(path.exists() for path in (
         walmart_latest_path, walmart_history_path, attention_latest_path,
-        attention_history_path, coverage_latest_path, coverage_history_path,
+        attention_history_path, trends_latest_path, trends_attempt_latest_path,
+        trends_history_path, coverage_latest_path, coverage_history_path,
     )):
         return None
 
@@ -914,15 +964,65 @@ def _ghost_monitor_dashboard(
 
     attention_latest = _load(attention_latest_path) or {}
     attention_rows = _load_jsonl(attention_history_path)
-    search_latest = attention_latest.get("search_attention") if isinstance(attention_latest.get("search_attention"), dict) else {}
+    registered_trends = _load(trends_latest_path) or {}
+    registered_attempt = _load(trends_attempt_latest_path) or {}
+    registered_history = [
+        row for row in _load_jsonl(trends_history_path)
+        if _accepted_google_trends_observation(row)
+    ]
+    registered_pointer_present = trends_latest_path.exists()
+    using_registered_trends = _accepted_google_trends_observation(registered_trends)
+    if using_registered_trends:
+        search_latest = registered_trends
+    elif registered_pointer_present:
+        search_latest = {
+            "status": "SOURCE_FAILURE",
+            "observed_at": registered_trends.get("observed_at"),
+            "state": "SEARCH_BUILDING_BASELINE",
+            "current_comparison": "SOURCE_FAILURE",
+            "query_basket": list(registered_trends.get("query_basket") or []),
+            "effective_gprop": registered_trends.get("effective_gprop"),
+            "writer": registered_trends.get("writer") or {},
+            "geographies": {},
+        }
+    else:
+        search_latest = (
+            attention_latest.get("search_attention")
+            if isinstance(attention_latest.get("search_attention"), dict)
+            else {}
+        )
+    attempt_writer = (
+        registered_attempt.get("writer")
+        if isinstance(registered_attempt.get("writer"), dict)
+        else {}
+    )
+    using_registered_attempt = bool(
+        registered_attempt.get("schema_version") == "ghost-google-trends-observation/1"
+        and attempt_writer.get("writer_id") == "scripts/collect_ghost_google_trends.py"
+        and attempt_writer.get("writer_version") == 1
+    )
+    search_attempt = registered_attempt if using_registered_attempt else search_latest
     search_history = []
-    for row in attention_rows:
-        search = row.get("search_attention") if isinstance(row.get("search_attention"), dict) else None
+    source_rows = (
+        registered_history
+        if using_registered_trends
+        else []
+        if registered_pointer_present
+        else attention_rows
+    )
+    for row in source_rows:
+        search = (
+            row
+            if using_registered_trends
+            else row.get("search_attention")
+            if isinstance(row.get("search_attention"), dict)
+            else None
+        )
         ratios = _search_ratios(search)
         if not search or not ratios:
             continue
         search_history.append({
-            "observed_at": row.get("observed_at"),
+            "observed_at": search.get("observed_at") or row.get("observed_at"),
             "status": _text(search.get("status") or "complete").lower(),
             "state": _text(search.get("state") or "SEARCH_BUILDING_BASELINE").upper(),
             "ratios": ratios,
@@ -941,7 +1041,14 @@ def _ghost_monitor_dashboard(
         verified_complete_date,
         verified_partial_flags,
         verified_search_status,
-    ) = _verified_search_values(search_latest, observed_at=attention_latest.get("observed_at"))
+    ) = _verified_search_values(
+        search_latest,
+        observed_at=(
+            search_latest.get("observed_at")
+            if using_registered_trends
+            else attention_latest.get("observed_at")
+        ),
+    )
     rolling_search_change = _rolling_seven_day_change_series(
         verified_values,
         query_basket,
@@ -1074,6 +1181,8 @@ def _ghost_monitor_dashboard(
         platform_rows[platform] = {
             "health": _text(canary.get("status") or "unknown").lower(),
             "query_status": _text(query.get("candidate_query_status") or "not run").lower(),
+            "thread_attempted": query.get("thread_attempted") is True,
+            "thread_usable": thread_usable is True,
             "exact_roots": int(raw_by_platform.get(platform) or query.get("observed_exact_roots") or 0),
             "qualifying_roots": int(qualifying_by_platform.get(platform) or 0),
             "captured_comments_replies": captured,
@@ -1358,9 +1467,21 @@ def _ghost_monitor_dashboard(
                 "Latest 7 complete days vs previous 7 complete days inside the same Google request."
             ),
             "source_health": {
-                "latest_attempt_status": _text(search_latest.get("status") or "unknown").lower(),
-                "latest_attempt_observed_at": attention_latest.get("observed_at"),
-                "visible_series_uses_last_verified": not bool(_search_ratios(search_latest)),
+                "latest_attempt_status": _text(search_attempt.get("status") or "unknown").lower(),
+                "latest_attempt_observed_at": search_attempt.get("observed_at"),
+                "visible_series_uses_last_verified": bool(
+                    search_attempt.get("status") != "complete"
+                    or search_attempt.get("observed_at") != search_latest.get("observed_at")
+                ),
+                "visible_writer": (
+                    (search_latest.get("writer") or {}).get("writer_id")
+                    if isinstance(search_latest.get("writer"), dict)
+                    else "legacy_attention_artifact"
+                ),
+                "visible_effective_gprop": (
+                    search_latest.get("effective_gprop")
+                    or ((search_latest.get("geographies") or {}).get("US") or {}).get("effective_gprop")
+                ),
             },
         },
         "conversations": {
@@ -1392,6 +1513,11 @@ def _ghost_monitor_dashboard(
                     else "unknown"
                 ).lower(),
                 "visible_observed_at": conversation_source.get("observed_at"),
+                "visible_run_status": _text(conversation.get("current_run_status")).lower(),
+                "visible_threads_usable": bool(
+                    len(platform_rows) == 5
+                    and all(row.get("thread_usable") is True for row in platform_rows.values())
+                ),
                 "visible_read_uses_last_verified": conversation_uses_last_verified,
             },
         },

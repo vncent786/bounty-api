@@ -15,6 +15,9 @@ from social_scraper.investing.google_discovery import (
     MOVEMENT_GEOGRAPHIES,
     MOVEMENT_HORIZONS,
 )
+from social_scraper.source_connectors.google_trends_interest import (
+    canonical_trendspy_gprop,
+)
 
 
 _QUERY_STOPWORDS = {
@@ -165,14 +168,20 @@ def collect_search_trajectory(
     trends=None,
     timeframe: str = "today 3-m",
     geo: str = "",
+    gprop: str = "",
 ) -> dict[str, Any]:
     """Fetch one comparable normalized Google Trends series."""
     query = str(query or "").strip()
+    provider_gprop, effective_gprop = canonical_trendspy_gprop(gprop)
+    requested_gprop = str(gprop or "web").strip().casefold() or "web"
     base = {
         "query": query,
         "source": "Google Trends",
         "timeframe": timeframe,
         "geo": geo,
+        "gprop": gprop,
+        "requested_gprop": requested_gprop,
+        "effective_gprop": effective_gprop,
         "normalized": True,
         "points": [],
     }
@@ -182,12 +191,14 @@ def collect_search_trajectory(
         if trends is None:
             from trendspy import Trends
             trends = Trends(request_delay=_google_request_delay())
-        frame = trends.interest_over_time(
-            [query],
-            timeframe=timeframe,
-            geo=geo,
-            headers={"referer": "https://trends.google.com/"},
-        )
+        request_kwargs = {
+            "timeframe": timeframe,
+            "geo": geo,
+            "headers": {"referer": "https://trends.google.com/"},
+        }
+        if provider_gprop is not None:
+            request_kwargs["gprop"] = provider_gprop
+        frame = trends.interest_over_time([query], **request_kwargs)
         if frame is None or len(frame) == 0 or query not in frame:
             return {**base, "status": "insufficient_search_volume", "error_category": None}
         values = frame[query].tolist()
@@ -214,13 +225,17 @@ def collect_search_trajectory(
     }
 
 
-def _frame_series(frame, query: str, *, geo: str, horizon: str, timeframe: str) -> dict[str, Any]:
+def _frame_series(
+    frame, query: str, *, geo: str, horizon: str, timeframe: str,
+    gprop: str = "",
+) -> dict[str, Any]:
     base = {
         "query": query,
         "source": "Google Trends",
         "geo": geo,
         "horizon": horizon,
         "timeframe": timeframe,
+        "gprop": gprop,
         "normalized": True,
         "points": [],
     }
@@ -288,8 +303,11 @@ def collect_movement_bundles(
     geographies: Sequence[Mapping[str, str]] = MOVEMENT_GEOGRAPHIES,
     horizons: Sequence[Mapping[str, str]] = MOVEMENT_HORIZONS,
     batch_size: int = 5,
+    gprop: str = "",
 ) -> list[dict[str, Any]]:
     """Collect multiple transparent queries across selectable geographies/horizons."""
+    provider_gprop, effective_gprop = canonical_trendspy_gprop(gprop)
+    requested_gprop = str(gprop or "web").strip().casefold() or "web"
     if trends is None:
         from trendspy import Trends
         trends = Trends(request_delay=_google_request_delay())
@@ -306,6 +324,9 @@ def collect_movement_bundles(
         bundle = {
             "query": primary_query,
             "source": "Google Trends",
+            "gprop": gprop,
+            "requested_gprop": requested_gprop,
+            "effective_gprop": effective_gprop,
             "default_query": primary_query,
             "default_geo": "WORLDWIDE",
             "default_horizon": "3m",
@@ -347,12 +368,14 @@ def collect_movement_bundles(
                 if not chunk:
                     continue
                 try:
-                    frame = trends.interest_over_time(
-                        chunk,
-                        timeframe=timeframe,
-                        geo=geo,
-                        headers={"referer": "https://trends.google.com/"},
-                    )
+                    request_kwargs = {
+                        "timeframe": timeframe,
+                        "geo": geo,
+                        "headers": {"referer": "https://trends.google.com/"},
+                    }
+                    if provider_gprop is not None:
+                        request_kwargs["gprop"] = provider_gprop
+                    frame = trends.interest_over_time(chunk, **request_kwargs)
                 except Exception as exc:
                     for query in chunk:
                         series = {
@@ -361,6 +384,7 @@ def collect_movement_bundles(
                             "geo": geo,
                             "horizon": horizon_code,
                             "timeframe": timeframe,
+                            "gprop": gprop,
                             "normalized": True,
                             "status": "failed",
                             "points": [],
@@ -375,7 +399,7 @@ def collect_movement_bundles(
                     try:
                         series = _frame_series(
                             frame, query, geo=geo, horizon=horizon_code,
-                            timeframe=timeframe,
+                            timeframe=timeframe, gprop=gprop,
                         )
                     except Exception as exc:
                         series = {
@@ -384,6 +408,7 @@ def collect_movement_bundles(
                             "geo": geo,
                             "horizon": horizon_code,
                             "timeframe": timeframe,
+                            "gprop": gprop,
                             "normalized": True,
                             "status": "failed",
                             "points": [],

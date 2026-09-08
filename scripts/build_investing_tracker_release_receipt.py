@@ -37,6 +37,47 @@ def _count(value: object, field: str) -> int:
     return value
 
 
+def validate_ghost_search_for_publication(snapshot: dict) -> dict:
+    ghost = next(
+        (
+            idea
+            for idea in snapshot.get("ideas", [])
+            if isinstance(idea, dict) and idea.get("idea_id") == GHOST_IDEA_ID
+        ),
+        None,
+    )
+    monitor = ghost.get("monitor_dashboard") if isinstance(ghost, dict) else None
+    search = monitor.get("search") if isinstance(monitor, dict) else None
+    health = search.get("source_health") if isinstance(search, dict) else None
+    if not isinstance(search, dict) or not isinstance(health, dict):
+        raise ValueError("GHOST publication blocked: registered Google search evidence is missing")
+    if (
+        health.get("visible_writer") != "scripts/collect_ghost_google_trends.py"
+        or health.get("visible_effective_gprop") != "web_default"
+    ):
+        raise ValueError(
+            "GHOST publication blocked: Google search did not use the registered web-default route"
+        )
+    queries = search.get("query_basket")
+    if (
+        search.get("status") != "complete"
+        or not isinstance(queries, list)
+        or len(queries) != 2
+        or not all(isinstance(query, str) and query.strip() for query in queries)
+        or not search.get("last_successful_observed_at")
+        or not search.get("latest_complete_date")
+    ):
+        raise ValueError("GHOST publication blocked: Google search observation is incomplete")
+    return {
+        "status": "complete",
+        "observed_at": search["last_successful_observed_at"],
+        "latest_complete_date": search["latest_complete_date"],
+        "query_count": len(queries),
+        "effective_gprop": health["visible_effective_gprop"],
+        "latest_attempt_status": health.get("latest_attempt_status"),
+    }
+
+
 def validate_ghost_evidence_for_publication(snapshot: dict) -> dict:
     """Reject a Tracker snapshot whose displayed GHOST counts are not fully linked."""
     ghost = next(
@@ -52,6 +93,19 @@ def validate_ghost_evidence_for_publication(snapshot: dict) -> dict:
     monitor = ghost.get("monitor_dashboard")
     conversations = monitor.get("conversations") if isinstance(monitor, dict) else None
     evidence = conversations.get("evidence") if isinstance(conversations, dict) else None
+    source_health = (
+        conversations.get("source_health")
+        if isinstance(conversations, dict)
+        and isinstance(conversations.get("source_health"), dict)
+        else {}
+    )
+    if (
+        source_health.get("visible_run_status") not in {"complete", "complete_bounded"}
+        or source_health.get("visible_threads_usable") is not True
+    ):
+        raise ValueError(
+            "GHOST publication blocked: visible conversation run is partial or has unreadable threads"
+        )
     if not isinstance(evidence, dict) or evidence.get("status") != "verified":
         raise ValueError("GHOST publication blocked: conversation evidence is not verified")
 
@@ -111,6 +165,7 @@ def validate_ghost_evidence_for_publication(snapshot: dict) -> dict:
 
 def build_release_receipt(snapshot_path: Path = SNAPSHOT) -> dict:
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    ghost_search = validate_ghost_search_for_publication(snapshot)
     ghost_evidence = validate_ghost_evidence_for_publication(snapshot)
     trends = snapshot.get("trend_release_metadata")
     if not isinstance(trends, dict):
@@ -135,6 +190,7 @@ def build_release_receipt(snapshot_path: Path = SNAPSHOT) -> dict:
         "google_series": terminal_series,
         "failed_google_series": requested_series - terminal_series,
         "google_preflight": trends["preflight_status"],
+        "ghost_search_evidence": ghost_search,
         "ghost_conversation_evidence": ghost_evidence,
         "private_data": "Token-gated. This receipt contains aggregate counts and hashes only.",
     }

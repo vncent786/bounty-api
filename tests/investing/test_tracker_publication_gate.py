@@ -10,6 +10,7 @@ from scripts.build_investing_tracker_release_receipt import (
     build_release_receipt,
     sha,
     validate_ghost_evidence_for_publication,
+    validate_ghost_search_for_publication,
 )
 
 
@@ -32,8 +33,28 @@ def tracker_payload(*, evidence_status: str = "verified") -> dict:
             {
                 "idea_id": "standing::ghost-aw-kdp",
                 "monitor_dashboard": {
+                    "search": {
+                        "status": "complete",
+                        "latest_complete_date": "2026-09-07",
+                        "last_successful_observed_at": "2026-09-08T04:58:47Z",
+                        "query_basket": [
+                            "ghost root beer energy drink",
+                            "ghost a&w root beer",
+                        ],
+                        "source_health": {
+                            "latest_attempt_status": "complete",
+                            "latest_attempt_observed_at": "2026-09-08T04:58:47Z",
+                            "visible_series_uses_last_verified": False,
+                            "visible_writer": "scripts/collect_ghost_google_trends.py",
+                            "visible_effective_gprop": "web_default",
+                        },
+                    },
                     "conversations": {
                         "observed_at": "2026-09-06T14:05:13Z",
+                        "source_health": {
+                            "visible_run_status": "complete_bounded",
+                            "visible_threads_usable": True,
+                        },
                         "evidence": {
                             "status": evidence_status,
                             "displayed_counts": {
@@ -64,6 +85,38 @@ def test_verified_reconciled_ghost_evidence_passes_publication_gate():
         "comments_replies": 10,
         "total_clickable_links": 15,
     }
+
+
+def test_registered_google_search_passes_and_bad_web_encoding_is_rejected():
+    result = validate_ghost_search_for_publication(tracker_payload())
+    assert result == {
+        "status": "complete",
+        "observed_at": "2026-09-08T04:58:47Z",
+        "latest_complete_date": "2026-09-07",
+        "query_count": 2,
+        "effective_gprop": "web_default",
+        "latest_attempt_status": "complete",
+    }
+
+    payload = tracker_payload()
+    search = payload["ideas"][0]["monitor_dashboard"]["search"]
+    search["source_health"]["visible_effective_gprop"] = "web"
+    with pytest.raises(ValueError, match="web-default route"):
+        validate_ghost_search_for_publication(payload)
+
+
+def test_partial_or_unreadable_conversation_run_is_rejected_before_publication():
+    payload = tracker_payload()
+    health = payload["ideas"][0]["monitor_dashboard"]["conversations"]["source_health"]
+    health["visible_run_status"] = "partial_resume_required"
+    with pytest.raises(ValueError, match="conversation run is partial"):
+        validate_ghost_evidence_for_publication(payload)
+
+    payload = tracker_payload()
+    health = payload["ideas"][0]["monitor_dashboard"]["conversations"]["source_health"]
+    health["visible_threads_usable"] = False
+    with pytest.raises(ValueError, match="unreadable threads"):
+        validate_ghost_evidence_for_publication(payload)
 
 
 def test_mismatched_ghost_evidence_is_rejected_before_publication():

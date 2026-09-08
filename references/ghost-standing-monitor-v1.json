@@ -14,6 +14,10 @@
     "cadence": "daily",
     "provider": "google_trends",
     "geography": "US",
+    "geographies": ["US", "WORLDWIDE"],
+    "timeframe": "today 3-m",
+    "requested_gprop": "web",
+    "effective_gprop": "web_default",
     "queries": [
       "ghost root beer energy drink",
       "ghost a&w root beer"

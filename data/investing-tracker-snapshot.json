@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-07T16:39:31.427336+00:00",
+  "generated_at": "2026-09-08T02:44:34.341450+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -112,14 +112,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NOT_DUE",
-        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-07, so it is not due.",
+        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-08, so it is not due.",
         "evidence_urls": [
           "https://www.metcash.com/investor-centre/results-disclosure/financial-calendar/",
           "https://www.metcash.com/investor-centre/results-disclosure/asx-announcements/",
@@ -6541,14 +6541,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The latest saved targeted primary-source check remains the current verified checkpoint; no separate named event is due on 2026-09-07 and no new gate-resolving source fact was retrieved in this bounded one-day review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://ir.fubo.tv/news/news-details/2026/FuboTV-Delivers-1-48-Billion-Global-Revenue-in-Q3-FY-2026-Record-Q3-North-America-Subscribers/default.aspx",
           "https://ir.fubo.tv/news/news-details/2026/Fubo-Expands-College-Sports-Offering-With-Launch-of-ACCNX-and-SECN/default.aspx",
@@ -12911,14 +12911,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The weekly EUROCONTROL source check was due. The registered shared adapter passed current preflight and returned 2026-W35 as the newest listing item, matching the saved source; the current IAG press-release page is unchanged and the financial calendar still places Q3 2026 on 2026-11-06.",
+        "due_reason": "The weekly EUROCONTROL source check was due. The registered shared adapter completed current preflight and latest search healthy; the newest returned publication remains 2026-W35, matching the saved source. IAG's fetched press-release and financial-calendar pages are substantively unchanged after excluding dynamic quote fields, and Q3 2026 remains scheduled for 2026-11-06.",
         "evidence_urls": [
           "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
           "https://www.eurocontrol.int/publications/series/eurocontrol-european-aviation-overview",
@@ -19243,14 +19243,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is FirstRand FY2026 results on 2026-09-10, followed by the first full JSE session on 2026-09-11. The review date is 2026-09-07, so the result is not due.",
+        "due_reason": "The saved next check is FirstRand FY2026 results on 2026-09-10, followed by the first full JSE session on 2026-09-11. The review date is 2026-09-08, so the result is not due.",
         "evidence_urls": [
           "https://www.firstrand.co.za/investors/key-investor-dates/",
           "https://www.firstrand.co.za/media/investors/reports/fsr-analysis-of-financial-results-dec-2025.pdf",
@@ -25600,14 +25600,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The latest saved targeted primary-source check remains the current verified checkpoint; no separate named event is due on 2026-09-07 and no new gate-resolving source fact was retrieved in this bounded one-day review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://www.capitalpower.com/media/media_releases/capital-power-reports-second-quarter-2026-results/",
           "https://www.capitalpower.com/wp-content/uploads/2026/07/Capital-Power-2026-Q2-Report.pdf",
@@ -31294,14 +31294,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-07.",
+        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-08.",
         "evidence_urls": [
           "https://www.singaporeair.com/en_UK/sg/corporate/newsroom/press-release/2024/October-December/ne1124-241104/",
           "https://www.singaporeair.com/content/dam/sia/web-assets/pdfs/Press_Release/NR-0226.pdf"
@@ -37656,14 +37656,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The latest saved targeted primary-source check remains the current verified checkpoint; no separate named event is due on 2026-09-07 and no new gate-resolving source fact was retrieved in this bounded one-day review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://www.enterprisesg.gov.sg/resources/media-centre/media-releases/2026/august/mr03826_singapore-launches-worlds-first-liquid-cooling-standard-for-data-centres-in-tropical-climates",
           "https://www.keppel.com/media/keppel-awarded-50-mw-new-data-centre-capacity-under-singapores-second-data-centre-call-for-application/",
@@ -43833,14 +43833,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-08T08:15:00+08:00",
-            "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+            "next_run_at": "2026-09-09T08:15:00+08:00",
+            "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-07T00:22:47Z",
+        "last_checked_at": "2026-09-08T00:21:34Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-07, so the launch checkpoint is not due.",
+        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-08, so the launch checkpoint is not due.",
         "evidence_urls": [
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Welcomes-Beam-Ultra-and-Sonos-Ace-Ultra-to-its-System/default.aspx",
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Reports-Second-Quarter-Fiscal-2026-Results/default.aspx"
@@ -50232,11 +50232,11 @@
         "NASDAQ:KDP"
       ],
       "why": "User-supplied standing thesis and calibration case; it does not count as blind discovery yield.",
-      "detail": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
+      "detail": "Latest full six-store reading: 1 available, 5 out of stock.",
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-08T00:24:26.527087+08:00",
+      "updated_at": "2026-09-08T10:01:14.402346+08:00",
       "monitoring": {
         "status": "active",
         "jobs": [
@@ -50257,7 +50257,7 @@
             "state": "scheduled",
             "schedule": "45 23 * * *",
             "next_run_at": "2026-09-08T23:45:00+08:00",
-            "last_run_at": "2026-09-08T00:24:26.527087+08:00",
+            "last_run_at": "2026-09-08T10:01:14.402346+08:00",
             "last_status": "ok"
           },
           {
@@ -50277,14 +50277,14 @@
             "state": "scheduled",
             "schedule": "0 0 * * *",
             "next_run_at": "2026-09-09T00:00:00+08:00",
-            "last_run_at": "2026-09-07T11:11:25.446685+08:00",
+            "last_run_at": "2026-09-08T00:42:01.138440+08:00",
             "last_status": "ok"
           }
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-07T16:39:22Z",
-        "headline": "Sacramento restocked; the latest full six-store reading was 1 available and 5 out of stock.",
+        "as_of": "2026-09-08T02:01:12.724903Z",
+        "headline": "Latest full six-store reading: 1 available, 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
           "current_read": "No exit-review trigger. US search remains elevated; the latest observed conversation sample contains 101 exact posts; financial coverage remains niche.",
@@ -50292,9 +50292,9 @@
           "triggered_by": []
         },
         "availability": {
-          "state": "replenishment_started",
+          "state": "mixed_availability",
           "current": {
-            "observed_at": "2026-09-05T02:56:22.776252Z",
+            "observed_at": "2026-09-08T02:01:12.724903Z",
             "coverage": "complete",
             "available": 1,
             "out_of_stock": 5,
@@ -50302,15 +50302,15 @@
             "unverified": 0
           },
           "latest_attempt": {
-            "observed_at": "2026-09-07T16:24:26.260383Z",
-            "coverage": "partial",
-            "available": 0,
-            "out_of_stock": 1,
+            "observed_at": "2026-09-08T02:01:12.724903Z",
+            "coverage": "complete",
+            "available": 1,
+            "out_of_stock": 5,
             "not_listed": 0,
-            "unverified": 5
+            "unverified": 0
           },
           "last_complete": {
-            "observed_at": "2026-09-05T02:56:22.776252Z",
+            "observed_at": "2026-09-08T02:01:12.724903Z",
             "coverage": "complete",
             "available": 1,
             "out_of_stock": 5,
@@ -50318,15 +50318,6 @@
             "unverified": 0
           },
           "history": [
-            {
-              "date": "2026-09-02",
-              "observed_at": "2026-09-02T17:31:29.430725Z",
-              "coverage": "complete",
-              "available": 2,
-              "out_of_stock": 1,
-              "not_listed": 3,
-              "unverified": 0
-            },
             {
               "date": "2026-09-03",
               "observed_at": "2026-09-03T15:56:23.786382Z",
@@ -50353,6 +50344,15 @@
               "out_of_stock": 5,
               "not_listed": 0,
               "unverified": 0
+            },
+            {
+              "date": "2026-09-08",
+              "observed_at": "2026-09-08T02:01:12.724903Z",
+              "coverage": "complete",
+              "available": 1,
+              "out_of_stock": 5,
+              "not_listed": 0,
+              "unverified": 0
             }
           ],
           "stores": [
@@ -50362,7 +50362,7 @@
               "postal_code": "95829",
               "status": "orderable",
               "label": "Available",
-              "observed_at": "2026-09-05T02:55:40.103337Z"
+              "observed_at": "2026-09-08T02:00:34.038221Z"
             },
             {
               "store_id": "8930",
@@ -50370,7 +50370,7 @@
               "postal_code": "75248",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-05T02:56:00.028379Z"
+              "observed_at": "2026-09-08T02:00:22.382199Z"
             },
             {
               "store_id": "3709",
@@ -50378,7 +50378,7 @@
               "postal_code": "30316",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-05T02:56:03.002492Z"
+              "observed_at": "2026-09-08T02:00:32.087619Z"
             },
             {
               "store_id": "5402",
@@ -50386,7 +50386,7 @@
               "postal_code": "60639",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-05T02:55:40.849427Z"
+              "observed_at": "2026-09-08T02:00:33.577032Z"
             },
             {
               "store_id": "5854",
@@ -50394,7 +50394,7 @@
               "postal_code": "33155",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-05T02:55:37.781117Z"
+              "observed_at": "2026-09-08T02:00:25.113555Z"
             },
             {
               "store_id": "2516",
@@ -50402,12 +50402,10 @@
               "postal_code": "98057",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-05T02:55:40.911136Z"
+              "observed_at": "2026-09-08T02:00:25.352872Z"
             }
           ],
-          "newly_available_stores": [
-            "Sacramento"
-          ],
+          "newly_available_stores": [],
           "broad_restock_at": 4,
           "full_restock_at": 6
         },
@@ -51409,6 +51407,7 @@
           "comparison_definition": "Latest 7 complete days vs previous 7 complete days inside the same Google request.",
           "source_health": {
             "latest_attempt_status": "source_failure",
+            "latest_attempt_observed_at": "2026-09-07T16:39:22Z",
             "visible_series_uses_last_verified": true
           }
         },
@@ -68090,6 +68089,12 @@
           "observed_at": "2026-09-07T16:27:57.778872+00:00",
           "history": [
             {
+              "observed_at": "2026-09-07T10:58:55.931381+00:00",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
+            },
+            {
               "observed_at": "2026-09-07T16:27:57.778872+00:00",
               "state": "NICHE_ONLY",
               "qualifying_outlets": 0,
@@ -68855,13 +68860,13 @@
           "artifacts": [
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_latest.json",
-              "sha256": "52f892c6802545094405cb583f36500ed6dd6cc31a444e90c0fc46609a8d84c9",
-              "modified_at": "2026-09-07T16:24:26.265916+00:00"
+              "sha256": "cf2d0e3e024673089a4843cf8edf00b836e07af61538a24cd2617b81e468d10c",
+              "modified_at": "2026-09-08T02:01:12.730900+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_history.jsonl",
-              "sha256": "5a9f53f8cd1f37744607385d04c115ada4759633d509012e4dfc6bc41b1e568c",
-              "modified_at": "2026-09-07T16:24:26.275764+00:00"
+              "sha256": "b1a8ae48f8a298fe803769b817d2cdbf00d29cbf1bf54f8b46a1a04fef41a6ef",
+              "modified_at": "2026-09-08T02:01:12.785703+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
@@ -68892,9 +68897,9 @@
           "operational_attempts": [
             {
               "source": "Walmart six-store availability",
-              "observed_at": "2026-09-07T16:24:26.260383Z",
-              "status": "partial",
-              "usable": false
+              "observed_at": "2026-09-08T02:01:12.724903Z",
+              "status": "complete",
+              "usable": true
             },
             {
               "source": "Google search attention",
@@ -69592,7 +69597,7 @@
       "state": "scheduled",
       "schedule": "45 23 * * *",
       "next_run_at": "2026-09-08T23:45:00+08:00",
-      "last_run_at": "2026-09-08T00:24:26.527087+08:00",
+      "last_run_at": "2026-09-08T10:01:14.402346+08:00",
       "last_status": "ok"
     },
     {
@@ -69622,7 +69627,7 @@
       "state": "scheduled",
       "schedule": "0 0 * * *",
       "next_run_at": "2026-09-09T00:00:00+08:00",
-      "last_run_at": "2026-09-07T11:11:25.446685+08:00",
+      "last_run_at": "2026-09-08T00:42:01.138440+08:00",
       "last_status": "ok"
     },
     {
@@ -69631,8 +69636,8 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "15 8 * * *",
-      "next_run_at": "2026-09-08T08:15:00+08:00",
-      "last_run_at": "2026-09-07T08:26:17.654542+08:00",
+      "next_run_at": "2026-09-09T08:15:00+08:00",
+      "last_run_at": "2026-09-08T08:26:18.894069+08:00",
       "last_status": "ok"
     },
     {
@@ -69684,8 +69689,8 @@
     },
     {
       "path": "data/investing-watch-monitor-state.json",
-      "sha256": "7ca599d9d22a48fd9bf6731b58476c3ec18de7019a6831fc8f64021f95fab165",
-      "modified_at": "2026-09-07T00:22:47.660194+00:00"
+      "sha256": "f8d583f4bd3c58ce7bdee1b0259f9a99445e50fd216095af9986d3912152d690",
+      "modified_at": "2026-09-08T00:21:34.254637+00:00"
     },
     {
       "path": "data/investing-tracker-trends.json",

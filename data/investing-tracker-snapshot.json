@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-08T05:11:08.602695+00:00",
+  "generated_at": "2026-09-08T16:44:22.416493+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -50232,11 +50232,11 @@
         "NASDAQ:KDP"
       ],
       "why": "User-supplied standing thesis and calibration case; it does not count as blind discovery yield.",
-      "detail": "Latest full six-store reading: 1 available, 5 out of stock.",
+      "detail": "Atlanta, Chicago restocked; the latest full six-store reading was 2 available and 4 out of stock.",
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-08T10:01:14.402346+08:00",
+      "updated_at": "2026-09-08T23:46:32.126926+08:00",
       "monitoring": {
         "status": "active",
         "jobs": [
@@ -50256,8 +50256,8 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "45 23 * * *",
-            "next_run_at": "2026-09-08T23:45:00+08:00",
-            "last_run_at": "2026-09-08T10:01:14.402346+08:00",
+            "next_run_at": "2026-09-09T23:45:00+08:00",
+            "last_run_at": "2026-09-08T23:46:32.126926+08:00",
             "last_status": "ok"
           },
           {
@@ -50276,15 +50276,15 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "0 0 * * *",
-            "next_run_at": "2026-09-09T00:00:00+08:00",
+            "next_run_at": "2026-09-10T00:00:00+08:00",
             "last_run_at": "2026-09-08T00:42:01.138440+08:00",
             "last_status": "ok"
           }
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-08T04:21:51Z",
-        "headline": "Latest full six-store reading: 1 available, 5 out of stock.",
+        "as_of": "2026-09-08T16:03:55.179504+00:00",
+        "headline": "Atlanta, Chicago restocked; the latest full six-store reading was 2 available and 4 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
           "current_read": "No exit-review trigger. search direction remains incomplete; the latest observed conversation sample contains 74 exact posts; financial coverage remains niche.",
@@ -50292,28 +50292,28 @@
           "triggered_by": []
         },
         "availability": {
-          "state": "mixed_availability",
+          "state": "replenishment_started",
           "current": {
-            "observed_at": "2026-09-08T02:01:12.724903Z",
+            "observed_at": "2026-09-08T15:46:31.093145Z",
             "coverage": "complete",
-            "available": 1,
-            "out_of_stock": 5,
+            "available": 2,
+            "out_of_stock": 4,
             "not_listed": 0,
             "unverified": 0
           },
           "latest_attempt": {
-            "observed_at": "2026-09-08T02:01:12.724903Z",
+            "observed_at": "2026-09-08T15:46:31.093145Z",
             "coverage": "complete",
-            "available": 1,
-            "out_of_stock": 5,
+            "available": 2,
+            "out_of_stock": 4,
             "not_listed": 0,
             "unverified": 0
           },
           "last_complete": {
-            "observed_at": "2026-09-08T02:01:12.724903Z",
+            "observed_at": "2026-09-08T15:46:31.093145Z",
             "coverage": "complete",
-            "available": 1,
-            "out_of_stock": 5,
+            "available": 2,
+            "out_of_stock": 4,
             "not_listed": 0,
             "unverified": 0
           },
@@ -50347,10 +50347,10 @@
             },
             {
               "date": "2026-09-08",
-              "observed_at": "2026-09-08T02:01:12.724903Z",
+              "observed_at": "2026-09-08T15:46:31.093145Z",
               "coverage": "complete",
-              "available": 1,
-              "out_of_stock": 5,
+              "available": 2,
+              "out_of_stock": 4,
               "not_listed": 0,
               "unverified": 0
             }
@@ -50360,9 +50360,9 @@
               "store_id": "3081",
               "metro": "Sacramento",
               "postal_code": "95829",
-              "status": "orderable",
-              "label": "Available",
-              "observed_at": "2026-09-08T02:00:34.038221Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-08T15:46:08.944025Z"
             },
             {
               "store_id": "8930",
@@ -50370,23 +50370,23 @@
               "postal_code": "75248",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T02:00:22.382199Z"
+              "observed_at": "2026-09-08T15:45:47.744469Z"
             },
             {
               "store_id": "3709",
               "metro": "Atlanta",
               "postal_code": "30316",
-              "status": "out_of_stock",
-              "label": "Out of stock",
-              "observed_at": "2026-09-08T02:00:32.087619Z"
+              "status": "orderable",
+              "label": "Available",
+              "observed_at": "2026-09-08T15:45:41.458556Z"
             },
             {
               "store_id": "5402",
               "metro": "Chicago",
               "postal_code": "60639",
-              "status": "out_of_stock",
-              "label": "Out of stock",
-              "observed_at": "2026-09-08T02:00:33.577032Z"
+              "status": "orderable",
+              "label": "Available",
+              "observed_at": "2026-09-08T15:45:48.976719Z"
             },
             {
               "store_id": "5854",
@@ -50394,7 +50394,7 @@
               "postal_code": "33155",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T02:00:25.113555Z"
+              "observed_at": "2026-09-08T15:45:45.551851Z"
             },
             {
               "store_id": "2516",
@@ -50402,10 +50402,13 @@
               "postal_code": "98057",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T02:00:25.352872Z"
+              "observed_at": "2026-09-08T15:45:46.417861Z"
             }
           ],
-          "newly_available_stores": [],
+          "newly_available_stores": [
+            "Atlanta",
+            "Chicago"
+          ],
           "broad_restock_at": 4,
           "full_restock_at": 6
         },
@@ -51427,9 +51430,9 @@
           "geography": "US",
           "comparison_definition": "Latest 7 complete days vs previous 7 complete days inside the same Google request.",
           "source_health": {
-            "latest_attempt_status": "complete",
-            "latest_attempt_observed_at": "2026-09-08T04:58:47.707954+00:00",
-            "visible_series_uses_last_verified": false,
+            "latest_attempt_status": "source_failure",
+            "latest_attempt_observed_at": "2026-09-08T16:00:15.358834+00:00",
+            "visible_series_uses_last_verified": true,
             "visible_writer": "scripts/collect_ghost_google_trends.py",
             "visible_effective_gprop": "web_default"
           }
@@ -62008,7 +62011,7 @@
           "state": "NICHE_ONLY",
           "qualifying_outlets": 0,
           "management_acknowledged": false,
-          "observed_at": "2026-09-07T16:27:57.778872+00:00",
+          "observed_at": "2026-09-08T16:03:55.179504+00:00",
           "history": [
             {
               "observed_at": "2026-09-07T10:58:55.931381+00:00",
@@ -62021,12 +62024,18 @@
               "state": "NICHE_ONLY",
               "qualifying_outlets": 0,
               "management_acknowledged": false
+            },
+            {
+              "observed_at": "2026-09-08T16:03:55.179504+00:00",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
             }
           ],
           "source_checks": {
             "official_sources": 6,
             "sec_filings": 2,
-            "news_queries": 57,
+            "news_queries": 61,
             "earnings_call_or_transcript_checked": false
           },
           "lanes": {
@@ -62174,17 +62183,17 @@
             "qualifying_business_news": {
               "status": "complete",
               "health_state": "healthy",
-              "checked_count": 17,
+              "checked_count": 19,
               "retrieved_count": 0,
               "qualifying_count": 0,
               "exact_implication_match_count": 0,
               "evidence": [
                 {
                   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE56QmxWUDNQbUw3XzZKMTNjZVZCWnExZzFuQ3pTazRHcDBRMklkQkY4c1dZTk4yM1NFNWhVaGpYcmZrMFFGYjN1VExuckh4bDlfUm5TLWxJR3Z5NlN3cFVqT0dKczBCZUNWMXl6NU9kazdTdEE?oc=5",
-                  "title": "GHOST May Be Turning 2 Popular Sodas into Energy Drinks in 2026—Find Out Which Ones - Sporked",
+                  "title": "GHOST May Be Turning 2 Popular Sodas into Energy Drinks in 2026—Find Out Which Ones - sporked.com",
                   "published_at": "2025-12-17T08:00:00+00:00",
                   "attributes": {
-                    "outlet": "Sporked",
+                    "outlet": "sporked.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62221,10 +62230,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMiX0FVX3lxTE1hT0tDbk1rV2YxeFkybTU4VUFaQXEwT0lDYXhraWV1cjVZTlBoRTNnZTQxZ0NSOFRlOXZzTWc3MFZ4ZmpGdVJ3ZG9QSGdEZTZxN3l1VTdYMjZLQnVlem5B?oc=5",
-                  "title": "Dr Pepper GHOST Energy? The Reddit Rumor Could Become Reality - Sporked",
+                  "title": "Dr Pepper GHOST Energy? The Reddit Rumor Could Become Reality - sporked.com",
                   "published_at": "2025-05-06T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Sporked",
+                    "outlet": "sporked.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62261,10 +62270,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQVXRrRVJ6MG55d1B0dEdIdXc0U21PLWsydVZwYjVwUXNEQU1fSksxS21fQmhyQjV5SEtZb3g2cVBhRVN6Rkw1R3JyU2Fva3E4QVowNGxBWkpHQnpnRHkyOUpxT0EzaUw2Q191b2phUE1XWDFJdlI1VWN2dm5NcXZqLXUyRmttTG1mZGUyaVRQTi10SzQ?oc=5",
-                  "title": "GHOST’s 7UP And A&W Energy Drinks Are Sticking Around For Good - Sporked",
+                  "title": "GHOST’s 7UP And A&W Energy Drinks Are Sticking Around For Good - sporked.com",
                   "published_at": "2026-08-23T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Sporked",
+                    "outlet": "sporked.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62273,6 +62282,16 @@
                   "url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxQTUU4bXE1MVEwblhhdEhhV3V0SWNnQXRKQ0VnYTJsazBvZjFRZmwyb052UkdUMm1Nc290bEhJUl9uLUsxb25GcnVZX1ptamp1N0ZLSEpEUFZTMTZHeVlmVU5MaWJJWWUzeHlHV0E4aHZXeWtUUi1NbEJQV3hDbi0wTzVTbmhVRmwxLW1KaDgzOU5Gd25ROGtvemRHU2hlUkJCUFdSN0ZuREN3TTc3RUd6aVJqODdmR1NwcW5fNlFGN1gwTFpRWVBDQUVyZGc3ZXdtbnF6NlBB?oc=5",
                   "title": "Keurig Dr Pepper to Participate in Barclays Global Consumer Staples Conference - TradingView",
                   "published_at": "2026-08-27T20:15:00+00:00",
+                  "attributes": {
+                    "outlet": "TradingView",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMi1wFBVV95cUxQa3NLeHFfaGkybE4yWTdBQlBhWjZSQ09nYi1pR19MUTNseGFkbVVPYmVLYWNQaXRxUmNmaW5TakstUXcwTmx6MnZxV2daSld1eDNiVER2cHV6alBIc3J6dzRINTFHSDNoVUZQV2txLVF5X29PaWVkRVJaMkw5ZW42QkUwUlJOUmI4WjBPRUFUNlRiQjhpWlFIQjNNWDVkUWNrY0Z4S05KRjhPcE9EMXJHN3hIeWI0cng2V2tYWmlrRVBZUWdJNlNxSkFrRHRyZVNMcDByVm1TQQ?oc=5",
+                  "title": "Keurig Dr Pepper to Report Second Quarter 2026 Results and Host Conference Call - TradingView",
+                  "published_at": "2026-06-25T07:00:00+00:00",
                   "attributes": {
                     "outlet": "TradingView",
                     "exact_implication_match": false,
@@ -62301,20 +62320,40 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxOUjd2akk1UkNkRGY3VHZEOXdjeklaOXVCMHhCalN4ZXhmS3Q5RDFxUExtLTFvMC02bkdTZ0lTcl85U3ZUVHdGdkQwcnUxaDN6M0I4cTg5R1Vnck1YRExxMm9qQVJzc29WZm5NZHVtS241bWs3a3UwMVREUmFjS1JHVkdvOTlVdXFaSjgwdUI0bXNYclRZaVVCU2hjLUxwbzZNQi1zVWdXd09LTzVZdFl3VGoza2xZNVHSAbwBQVVfeXFMT1g3OFU3N2FEY3FPMGlMRWdpZEtDREJpeFFVcHFPazJ2MlhseDRCem9iSVg4SjQ3MGVZM3BUU1pUUjVGRDJFSGNrVFRyeWp0N1lNM3ZoaHVVRTdpNS1tT0x3MkFiMVZYZGxEWmRJdC15cGNUdDd6Ry01UXBWRjFVTHpiSjJjaGhiU0wtbnRpeHc4bmRzVUJwRDZIX2VMek5FTlNQV2xESXliQUo1NDdrWklkeXJFaF9VSU9WZTY?oc=5",
-                  "title": "How Starboard could build value at Keurig Dr Pepper ahead of its JDE Peet deal - cnbc.com",
+                  "title": "How Starboard could build value at Keurig Dr Pepper ahead of its JDE Peet deal - CNBC",
                   "published_at": "2025-10-18T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "cnbc.com",
+                    "outlet": "CNBC",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxNWFl0X1RfNW1sZ01TUC1MQzhKZHJKTFo1UHEzWmtBb1RGOEFsRU5IT2RhdHlXd1NSdEZGSkh4MFZhOTBKX1d4bUNvakRtV1BtVXQ2Q1Zpb1BEQnd6OFdEWWdVNEd1RjRBVzZ3SzZFRmJ0MVZzalVHUVpWVHpQRWxfZGFMOHkwY2pfeWwwTXFfNlRIV1la?oc=5",
-                  "title": "Keurig Dr Pepper to Create Global Coffee Giant by Buying JDE Peet's - progressivegrocer.com",
+                  "title": "Keurig Dr Pepper to Create Global Coffee Giant by Buying JDE Peet's - Progressive Grocer",
                   "published_at": "2025-08-26T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "progressivegrocer.com",
+                    "outlet": "Progressive Grocer",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
+                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
+                  "published_at": "2026-09-04T19:59:00+00:00",
+                  "attributes": {
+                    "outlet": "Zacks Investment Research",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMi_gFBVV95cUxPUXBuM2xzOThJYlc0OEdjSnhEaWxkaDY1b2g1SjFyVF9DRUJkUlN6QzBxMWJ5emh3ckg3T3BVcjBOekduQ19Xa0loWmdHVmxPbGVmME13c05la3VLdHJ5NFZteFdQbXVCYkZzb19EYXY5ZEozX3lVRlVaejg0b2NMTkJtUEJibVdqVUo0d1BiOXEwOFVYUkQ4aHpMTlRTVnZwQWs1Mks2b19DWnoxZlFWOE5Bck1mVm5RV055RFZNc0hfQjJ2UVhsZ2Z5djFUNktBREhILTlldGZQZUNxeUpGZ1lkX2hIZkRSQWxoc2hZSzQ0QXNUemVpN1l1UEZPdw?oc=5",
+                  "title": "Keurig Dr Pepper and Suntory Beverage & Food Europe deepen strategic partnership to accelerate growth in Europe’s carbonated soft drinks market - Comunicaffe International",
+                  "published_at": "2026-04-03T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Comunicaffe International",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62338,16 +62377,6 @@
                     "exact_implication_match": false,
                     "qualifying": false
                   }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
-                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
-                  "published_at": "2018-07-11T11:41:08+00:00",
-                  "attributes": {
-                    "outlet": "Zacks Investment Research",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
                 }
               ],
               "events": []
@@ -62355,25 +62384,15 @@
             "sell_side_public_mentions": {
               "status": "complete",
               "health_state": "healthy",
-              "checked_count": 40,
+              "checked_count": 42,
               "retrieved_count": 0,
               "qualifying_count": 0,
               "exact_implication_match_count": 0,
               "evidence": [
                 {
-                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxPbC1ZNEFKXy1tVEo5TVRYZ2ZkQVJib0pQZXU1ckJNR1JJUFpHNEtuY3c4MEN0emxsTGlxNUVDUlBqRGliZ2paZE96elVvUGthS0o0cjVjT3pkZ2Q2SmV5OGlCV01EODE2TFQycWlWWm95anU4eFZMMlB5dWg5ckdLX2prS0w1ZXAtVHdMSjdhanNrNjRhTnVHTThWYw?oc=5",
-                  "title": "Keurig Dr Pepper to Report Second Quarter 2026 Results and Host Conference Call - Yahoo Finance",
-                  "published_at": "2026-06-25T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Yahoo Finance",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
                   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
                   "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
-                  "published_at": "2018-07-11T11:41:08+00:00",
+                  "published_at": "2026-09-04T19:59:00+00:00",
                   "attributes": {
                     "outlet": "Zacks Investment Research",
                     "exact_implication_match": false,
@@ -62381,11 +62400,31 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPMHFHcU5oRkJTUXZhMGhvSTdSdVhkaTJMRnJqV2gyR3YxY0xUOGNJYTJWSFRZVm5LSWVJNkJaWmFZeS1WbGZ6UXhjWUFhNXZRMkZSMHI2clZSUEw4WUY0bHB4Qmd6ajd0UExnOUxiNFJXem54V3dJenc4YUJYTGN5QV9SX0Z4bDBwQ1l0Y3pCLURjYnN2Y1o0cTZpSWlnRmNtZVdlMg?oc=5",
-                  "title": "Keurig Dr Pepper Stock Surges Over 7% on Strong Full-Year Guidance - TIKR.com",
-                  "published_at": "2025-10-28T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMi3wFBVV95cUxQMVpGU0RuOTk4OUlvNzNIV0pMbEVDTU5xc1Z3LU85cFVPb1NIWGtTdVdJOEg2OEZ5UER4RDhvSE5ESy0wdGhLTFNfcmZweVpDQ1ZpNmp3eVpqa1NUMU0yYVFPNVlZd1NCZEVHT0JwYjVubG93YlNQWU9lUWJHcnJ1R2xyREE3cTUyR3F3ZFo3Ymlpa3R5TnZrQVZnM2tKWHloUTJmNlk4cUhjS1FxekI0X0p0RC13ZzUzclJXNzh1RkRMMGJFNjNqdmlhS2t5cTl5bHJ2Vm9Pb0gwLU9YMUgw?oc=5",
+                  "title": "Coca-Cola vs. Keurig: Which Beverage Stock Should Investors Choose? - Eastern Progress",
+                  "published_at": "2026-08-22T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "TIKR.com",
+                    "outlet": "Eastern Progress",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMi1wFBVV95cUxQa3NLeHFfaGkybE4yWTdBQlBhWjZSQ09nYi1pR19MUTNseGFkbVVPYmVLYWNQaXRxUmNmaW5TakstUXcwTmx6MnZxV2daSld1eDNiVER2cHV6alBIc3J6dzRINTFHSDNoVUZQV2txLVF5X29PaWVkRVJaMkw5ZW42QkUwUlJOUmI4WjBPRUFUNlRiQjhpWlFIQjNNWDVkUWNrY0Z4S05KRjhPcE9EMXJHN3hIeWI0cng2V2tYWmlrRVBZUWdJNlNxSkFrRHRyZVNMcDByVm1TQQ?oc=5",
+                  "title": "Keurig Dr Pepper to Report Second Quarter 2026 Results and Host Conference Call - TradingView",
+                  "published_at": "2026-06-25T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "TradingView",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQcV82YklBd3pEaUhJRGNXNkd2dUo3MW5LYWxjZTN5SXdRQnBQMmJtNFYyVVl5cjVkR3BzYzNta3JWT09mWmxfUGhtZ3NsZno5bFRncFQyMWREVUdKcEtKR0VXaWhoZGtzcWNPNi1wR2ZTODdMN0VNUnNmNzFET3NUN29IVlhVMlczOGdKMVNTeHEyd0hmRS0xc2hwZw?oc=5",
+                  "title": "Keurig Dr Pepper to Acquire Ghost Energy Drink for Nearly $1 Billion - CSP Daily News",
+                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "CSP Daily News",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62402,10 +62441,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMiqwFBVV95cUxPd0ozLXFlRkxVVjIyT3BrdnpHcDJUbXFvMVNjcnMtbHlxbjhSVl9DOG4wQWFtbEppN3pNby1wM0t1c0g5WTc0eXVCT0c3a2wwZjRmdFNEUnNaQV94SllSYXdtZ1NYUEV0SXR1b3U2VWJMUFFZMVlkdEtuWHREejk4bnRTbzJhWkFFT0Z5aGMzNzlYY2gwXzF0RVlqamJPYUFaME1wTlVTU1ZGRXc?oc=5",
-                  "title": "Q&A: Ghost CEO Discusses Keurig Dr Pepper Deal - beverage-digest.com",
+                  "title": "Q&A: Ghost CEO Discusses Keurig Dr Pepper Deal - Beverage-Digest",
                   "published_at": "2024-10-28T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "beverage-digest.com",
+                    "outlet": "Beverage-Digest",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62421,21 +62460,21 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxONzBMYlJMQzczaFJpT0hqZUZCUWpXVXVWM1pnMFgwYXhLWXU5WHNQWVgwUUNWUUFZMnNJS09MYm1mQmNBSi1yaTNGdDZseFlKRE8tbUIyM2hUaFRLWTA2cDRPa3loTDZ5UE9oTW5sdEw1V3B4azRQa3AzM2h0LUZhbDN2VzVRWWc?oc=5",
-                  "title": "What Kuerig Dr Pepper’s acquisition of Ghost means for US energy category - Yahoo Finance",
-                  "published_at": "2024-11-06T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxPMHFHcU5oRkJTUXZhMGhvSTdSdVhkaTJMRnJqV2gyR3YxY0xUOGNJYTJWSFRZVm5LSWVJNkJaWmFZeS1WbGZ6UXhjWUFhNXZRMkZSMHI2clZSUEw4WUY0bHB4Qmd6ajd0UExnOUxiNFJXem54V3dJenc4YUJYTGN5QV9SX0Z4bDBwQ1l0Y3pCLURjYnN2Y1o0cTZpSWlnRmNtZVdlMg?oc=5",
+                  "title": "Keurig Dr Pepper Stock Surges Over 7% on Strong Full-Year Guidance - TIKR.com",
+                  "published_at": "2025-10-28T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "TIKR.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQNFp1aG8tNDBQT1RLSUcwUHNyMnp0aXp6LXNaY3VreXNfUEx4NHhBYXZ4NmxRc0NmVzRlWVMtbEU2cHpWQndsLXBGallZQV9pazFxOE9yd2JsRUJfSi0yNVF5eklkbW9EZzZ1UjBJV3NDc3pMWVdtSTN2aFQ0ZmtuMHpMUkM0cEpUbjN4eUM3Rk54Z0E?oc=5",
-                  "title": "Keurig Dr Pepper Held Steady: Can the $40 Value Gap Close in 2026? - TIKR.com",
-                  "published_at": "2026-02-04T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxONzBMYlJMQzczaFJpT0hqZUZCUWpXVXVWM1pnMFgwYXhLWXU5WHNQWVgwUUNWUUFZMnNJS09MYm1mQmNBSi1yaTNGdDZseFlKRE8tbUIyM2hUaFRLWTA2cDRPa3loTDZ5UE9oTW5sdEw1V3B4azRQa3AzM2h0LUZhbDN2VzVRWWc?oc=5",
+                  "title": "What Kuerig Dr Pepper’s acquisition of Ghost means for US energy category - Yahoo Finance",
+                  "published_at": "2024-11-06T08:00:00+00:00",
                   "attributes": {
-                    "outlet": "TIKR.com",
+                    "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62451,11 +62490,31 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQNFp1aG8tNDBQT1RLSUcwUHNyMnp0aXp6LXNaY3VreXNfUEx4NHhBYXZ4NmxRc0NmVzRlWVMtbEU2cHpWQndsLXBGallZQV9pazFxOE9yd2JsRUJfSi0yNVF5eklkbW9EZzZ1UjBJV3NDc3pMWVdtSTN2aFQ0ZmtuMHpMUkM0cEpUbjN4eUM3Rk54Z0E?oc=5",
+                  "title": "Keurig Dr Pepper Held Steady: Can the $40 Value Gap Close in 2026? - TIKR.com",
+                  "published_at": "2026-02-04T08:00:00+00:00",
+                  "attributes": {
+                    "outlet": "TIKR.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxOUjQ0UnJtSkd6N3RNV3NtWUdpQWxXdDZQY1ZVRjJUdDlYczlmajRjd0U4SXhWWEZUUmFHUmxYTHFpSGw0cXNSTW8yQTJUemJhMDNyRkFUNDYyMlVvQmtMQmJNeTYxLXVhWVBKSmx1ck8yaGp2b3F5NldhaV90SXJVM0g5bXFMU185SXJsNlliSHkyOEl5dHpjU2M1VFpESjM5eG9N?oc=5",
-                  "title": "Dynamic 2025 Starts With Alani Deal. Pepsi to Distribute? - beverage-digest.com",
+                  "title": "Dynamic 2025 Starts With Alani Deal. Pepsi to Distribute? - Beverage-Digest",
                   "published_at": "2025-03-11T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "beverage-digest.com",
+                    "outlet": "Beverage-Digest",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMiogFBVV95cUxQbGtiTGJSM3BaMmVmdVZwRmo4OVB0QkthUFpUSEpOcGprRHFseHp4YWxhM0pCV0hudElVYjRGWEZUSW5mUTdXWENHZlBzaE0xVnQ0NVNOaXBvZV9CMWdSR240MHhLTlhadU50VlBDTkEzTElrMmU3M3hyV0oxR242Zy1yZ1ZQejFBeGVUbFgySjhzRS1pYWZXeTAyTUtDRjl5UlE?oc=5",
+                  "title": "Keurig Dr Pepper Stock Slides After It Misses Sales Estimates, Buys Energy Drink Maker - Investopedia",
+                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Investopedia",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62473,7 +62532,7 @@
                 {
                   "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNMGlGYXFWTGdjMDdtZGxVWEUyYjU5MVdTcjhfeTN5NzQ5NU5OVnRLRUQwam1ObExJS0VEWVYwY01aMTlQZEhIOWpkdGFDMWhReWFoVzVwQVRqeS15TzdIX3R0bWprVjVUa0ttTEE2RjlkNjRJczNfMHJ1UzFfTFNyOGxTNzRGOFg5U3JMRlBDQ21OcmRKeUZUTmR1a0pxZw?oc=5",
                   "title": "Is Keurig Dr Pepper (KDP) Undervalued Following Its AI Driven Fansville Push? - Yahoo Finance",
-                  "published_at": "2026-08-29T09:06:46+00:00",
+                  "published_at": "2026-08-29T07:00:00+00:00",
                   "attributes": {
                     "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
@@ -62491,9 +62550,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOQTNOdEtZS1l3eXJNcG4tZTZTU2k2UXNGbmRUNEZYUXprUE1iU0JoUGNhWm1oLWQwX05wOUtYUHpmdVpzZFVvRnVWbnVJTG9kaEhvMzhYTzlKc0FoTWJwLUx1R0tlRFJsQWxvQm9VMFU4dFlLbVM3MkFxNEtwSlFDbHI3enhnNWlmMUowM24tNlBianBjd0E?oc=5",
-                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - Yahoo Finance",
-                  "published_at": "2026-07-24T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE1uZTYzRGNxYjBpY2ZzcVdjdkNlN1Z1X0cybXFzdVg3WGpXUENNT01saU0zM0N5R0l5QW1IbXhfejRMdENlZzgtTXZuRWNKY3pYaENCT2prSUhkS2NodVJCRjRxZUFWOUh6M0dNeENsWVdkeVJPNkFsUW9LUQ?oc=5",
+                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation As GHOST Energy Deal Reshapes Its Growth Strategy - Yahoo Finance",
+                  "published_at": "2026-01-25T08:00:00+00:00",
                   "attributes": {
                     "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
@@ -62511,19 +62570,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxPcTVJdWRkaHRIbHQwQmVqbDR0aUtkZ09RQ0xwelJLUVpkT0dOdTJ1NGVvMEsxQ0JiVHo1OFNVRml5c2kwUjRwb0kyR09RazZPcWpodTljdi03emt2bG5EN2RoV0hZcDExRFlsQWJWRlVlTVZ0eENuN2pQSXduYkUzZlY3RjRkOVRFZE5DWTJySlF4VDZp?oc=5",
-                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation After Recent Share Price Momentum And GHOST Energy Growth Story - Yahoo Finance",
-                  "published_at": "2026-05-22T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Yahoo Finance",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxPaEdodFBvTHNDR0QxbnU4eU1oVWxYWlQ0S1FRZnYyYWxhS1JWT3FCbkw2aDZNZ1MwNnZya0hMOFZlNy1sTHUycmlxdHpPeHJhaTZMSVRTcGlTQk9HbFE1WWZLMW9jMkE2VUJTdkhzT19FUWpuWFZIM1FraWFSX2lQUGNLZzdPRVBkMjk4SGhjOS1ndHRnTUJBdS1QMXY?oc=5",
-                  "title": "How The Keurig Dr Pepper (KDP) Investment Story Is Shifting With Mixed Analyst Targets - Yahoo Finance",
-                  "published_at": "2026-05-17T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOQTNOdEtZS1l3eXJNcG4tZTZTU2k2UXNGbmRUNEZYUXprUE1iU0JoUGNhWm1oLWQwX05wOUtYUHpmdVpzZFVvRnVWbnVJTG9kaEhvMzhYTzlKc0FoTWJwLUx1R0tlRFJsQWxvQm9VMFU4dFlLbVM3MkFxNEtwSlFDbHI3enhnNWlmMUowM24tNlBianBjd0E?oc=5",
+                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - Yahoo Finance",
+                  "published_at": "2026-07-24T07:00:00+00:00",
                   "attributes": {
                     "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
@@ -62571,6 +62620,16 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxPaEdodFBvTHNDR0QxbnU4eU1oVWxYWlQ0S1FRZnYyYWxhS1JWT3FCbkw2aDZNZ1MwNnZya0hMOFZlNy1sTHUycmlxdHpPeHJhaTZMSVRTcGlTQk9HbFE1WWZLMW9jMkE2VUJTdkhzT19FUWpuWFZIM1FraWFSX2lQUGNLZzdPRVBkMjk4SGhjOS1ndHRnTUJBdS1QMXY?oc=5",
+                  "title": "How The Keurig Dr Pepper (KDP) Investment Story Is Shifting With Mixed Analyst Targets - Yahoo Finance",
+                  "published_at": "2026-05-17T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Yahoo Finance",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxOUlV2QjJxSVZQQjR5dWhHd2E3eWNlbXBLTmFKTGlfc3V3d0hFTS0zYl9hQjlKVnM3b0RvenJxZWNiRm5vS3dHeVA4Vm4xZC1KUVZXaGlVdl92SHZQcW9nblN6R2lIMmtZQUpqemVUTmNLb0VZQjQxSlk4MTNNb1NXbV9uMVN3dWJXS0wyWXRSdWMwVkJVZUdTTVlDNjU5dw?oc=5",
                   "title": "Is It Time To Reconsider Keurig Dr Pepper (KDP) After Recent Price Rebound? - Yahoo Finance",
                   "published_at": "2026-05-07T07:00:00+00:00",
@@ -62604,6 +62663,16 @@
                   "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOX3c4VmFPV0pRcHZvdXVfY19QVG92WDl0Y2VuSW95SHY4LWRYWEdaWmhvOGRiRGpCQUZRZmc2TWNuZHZMV2d0WlRSN3ZjaVlYbUZDR19GNE5ib0t0elNodEFGQzZtZXFzWXNnamI1a3lXOHBJTTVMcmhNSTM2ZXpRTHh3S1JJZTBDUnhUNTUyZW9kaVYyWUE?oc=5",
                   "title": "Keurig Dr Pepper (KDP) Loses 11% in 4 Weeks, Here's Why a Trend Reversal May be Around the Corner - Yahoo Finance",
                   "published_at": "2026-04-02T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Yahoo Finance",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxQZEd3NVdUSDYyVWZVcEpoUVdzdDMyWnJxNEpFWVVHcjVSRWRXWWIzX0htZVotNUpLazhXQ01kWUJRX3JVY002NGxrVy04akVkMldDeWlWcmVIRElUc3NWSjlOQmlRWl9LQUdhbHkzQWhCQllvTmt2ZlF0dG90SHc2b182dEMzT1lrRk5McGdLbThQQzBiQV9hQV93SmhVZw?oc=5",
+                  "title": "Keurig Dr Pepper Reshapes Coffee Stake And Tests Energy Drink Growth - Yahoo Finance",
+                  "published_at": "2026-04-15T07:00:00+00:00",
                   "attributes": {
                     "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
@@ -62661,16 +62730,6 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxQVjBmR0llTFpQX0EzRmR1WHRRVDJyak52Nkg0OG5hc0RMSGNvRTE2S0d4WmF1aTByMGlYUEI0Q3l4bWxETkhrWTZOYTdGYnFra1hJVl80NnBqbktCSlJIN1A0aVFTLUUzeGFXR1V6NkRRdzN1eU9xVnBEcWJjQnJUWW4xR2pWRVNKdEZLUDl6el9QVE1xaHBXakZOT3VWUUVVUUk4Nw?oc=5",
-                  "title": "The Energy Drink Buyout Prize Beverage Giants Are Circling - 24/7 Wall St.",
-                  "published_at": "2026-08-10T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "24/7 Wall St.",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
                   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9xajQ2ck9QdF93aGloSGZqbWI4LU5nRGNpM2lCZGdFdDU2V2pPN08wMmN1MXAzNmh2eHJGcHU5WU1mWFpobTUxTERnQzNfX2Y3NnJnX2RlV2pvbXZnUDZoNkM5cDlqWHEybDVZVnRmaGRWV3M?oc=5",
                   "title": "Keurig Dr Pepper Acquires Ghost for $1B+ - Athletech News",
                   "published_at": "2024-10-28T07:00:00+00:00",
@@ -62681,9 +62740,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMi2wFBVV95cUxNQWQxeVd3aHhzbnB2WFVGN0RTUzhNZ1hXaV92SVVQbDh2R0EyQkg1ejNtZjY3bG5ZVEJJaGlWM241bzVYb2FFRjJXR1hhM1VXcmNPR0dOQjVXeWRweWZzcU96Rkk1aWNNcjF4UEJBdW5udHQ4Zzd1cWRCTzZXYXNGVHNMdGhWXzA3bkIyZFN3c3V5VDE3cTRyb2tiOVJZcWl4VzNjR21SRG8ya3RGYU9NY0pabnFjcEUxTUVCNkFVMEtXczdST0tMRlZHMGRGLUR0XzQzbTQ0T21TRk0?oc=5",
-                  "title": "KDP Just Posted Its Best Earnings Streak in Years, and a Game-Changing Acquisition Closes in 6 Weeks - 24/7 Wall St.",
-                  "published_at": "2026-02-24T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxQVjBmR0llTFpQX0EzRmR1WHRRVDJyak52Nkg0OG5hc0RMSGNvRTE2S0d4WmF1aTByMGlYUEI0Q3l4bWxETkhrWTZOYTdGYnFra1hJVl80NnBqbktCSlJIN1A0aVFTLUUzeGFXR1V6NkRRdzN1eU9xVnBEcWJjQnJUWW4xR2pWRVNKdEZLUDl6el9QVE1xaHBXakZOT3VWUUVVUUk4Nw?oc=5",
+                  "title": "The Energy Drink Buyout Prize Beverage Giants Are Circling - 24/7 Wall St.",
+                  "published_at": "2026-08-10T07:00:00+00:00",
                   "attributes": {
                     "outlet": "24/7 Wall St.",
                     "exact_implication_match": false,
@@ -62696,16 +62755,6 @@
                   "published_at": "2026-06-19T07:00:00+00:00",
                   "attributes": {
                     "outlet": "TradingView",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxOSUxES2ZLTmdQX2psbXZDNmNCMGRveUJhRlBIMGNvMHl6QV9GNVh6aTBpOHJBcHZfVGNHQUFnY2cyZ2ZhQ0RLOFlFR3Vtb2dHSXMtazNQTDNEbE1NTUxVckh3SklkSThEMEYwaFdPYWs2RzR3Qnd3WTFjOHpjZmRDeTQ0dUoyMS00U3NmUm1rVzhBa2s5ZWVIWm9RRzgwN0RrUXd4ZmdZMFVyRVQySi1lWlJMdHlOSjZwVWxhMFhGODhCcVcwSkxpRGxGZ1FIbGM?oc=5",
-                  "title": "KDP’s Ghost Acquisition and Coca-Cola’s AI Pivot to Personalized Ads Highlight Industry Strategies - PYMNTS.com",
-                  "published_at": "2024-10-24T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "PYMNTS.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62742,10 +62791,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxNVmdwNlFxdUxqLVhnVUVOc0FQaDdlS1NNaEZSV2MwdUtkazVRSm1yMWp3ZWppRjlZdTMtX0dyQ1ZTVEZsdEF1UnZ4N2pmMHVlM0ZFM3lPTXRUT0ZEZWVjdHFFNUpvMlZKU2dLZU9SX2M5Y0RZbEZRQXZkaGVxTVhwTURvcFZkMUk1TlZUNWdXN21hMTU2Zk41dGl4N0dIUmFEV2M0anV5Rk5nbldjeE12UjRVRUxFQ1YxMFVsN3dya9IBxAFBVV95cUxPMGVjSXAybkRrYkhnZEx0eGI2bW1lZDhuZFVUcVk3V3NsWXhpd0Jpa1U0N0JWQ3Y1N3FhUE80UFVObGZHdHdXMmg5RERCZ3lMSGQ3R3NYSFBWM2s1TDdQM3BSbmw2RWV4Rjh3b3lSMnc0TUFmR0F0NzRhR2pqa1E4VXFzV0RCQXc4ZV9tLXE5ejVWRllydWhHTHdfdllRbERoX2xBRjVEODVHbVZFeUZHSjdXdWhwWGVkN0RETlUyNzBteUp1?oc=5",
-                  "title": "Keurig Dr Pepper nears $18-billion deal for Dutch coffee company JDE Peet's, WSJ reports - cnbc.com",
+                  "title": "Keurig Dr Pepper nears $18-billion deal for Dutch coffee company JDE Peet's, WSJ reports - CNBC",
                   "published_at": "2025-08-24T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "cnbc.com",
+                    "outlet": "CNBC",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -62772,7 +62821,7 @@
           "exact_implication": "GHOST x A&W Root Beer is producing sustained incremental demand, distribution, replenishment or repeat purchase that is economically relevant to GHOST and changes expectations for KDP.",
           "source_health": {
             "latest_attempt_state": "NICHE_ONLY",
-            "latest_attempt_observed_at": "2026-09-07T16:27:57.778872+00:00",
+            "latest_attempt_observed_at": "2026-09-08T16:03:55.179504+00:00",
             "visible_read_uses_last_verified": false,
             "source_gaps": []
           }
@@ -62782,13 +62831,13 @@
           "artifacts": [
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_latest.json",
-              "sha256": "cf2d0e3e024673089a4843cf8edf00b836e07af61538a24cd2617b81e468d10c",
-              "modified_at": "2026-09-08T02:01:12.730900+00:00"
+              "sha256": "49df6f9a69ad587a8cb24b78dde33f6b31b249cd5814b0adce0753c0a5bb5048",
+              "modified_at": "2026-09-08T15:46:31.099158+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_history.jsonl",
-              "sha256": "b1a8ae48f8a298fe803769b817d2cdbf00d29cbf1bf54f8b46a1a04fef41a6ef",
-              "modified_at": "2026-09-08T02:01:12.785703+00:00"
+              "sha256": "c2d3fb00672043dd85438538d2aa6ccaf6cdaa9d5e8b418c2c73576dda2fb92a",
+              "modified_at": "2026-09-08T15:46:31.109908+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
@@ -62802,13 +62851,13 @@
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
-              "sha256": "1f055ed56585406e443f9a0d17066cde89d30deef5fa1269309f59c8146d9091",
-              "modified_at": "2026-09-07T16:28:21.432837+00:00"
+              "sha256": "b6ef0527d1d3b93c9eba3d29eda3e259c688345d27c01baced2e1337498801af",
+              "modified_at": "2026-09-08T16:04:14.838285+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_history.jsonl",
-              "sha256": "6c9a60955b732478faee87c60191c0f59c3582abcea39c57a76243e8697e15b9",
-              "modified_at": "2026-09-07T16:28:21.466562+00:00"
+              "sha256": "036b6635d032c25992026e5e5d6872ed1804ce04525d5754b854cfbbc4043d11",
+              "modified_at": "2026-09-08T16:04:14.854579+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-06T035438Z.json",
@@ -62819,7 +62868,7 @@
           "operational_attempts": [
             {
               "source": "Walmart six-store availability",
-              "observed_at": "2026-09-08T02:01:12.724903Z",
+              "observed_at": "2026-09-08T15:46:31.093145Z",
               "status": "complete",
               "usable": true
             },
@@ -63518,8 +63567,8 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "45 23 * * *",
-      "next_run_at": "2026-09-08T23:45:00+08:00",
-      "last_run_at": "2026-09-08T10:01:14.402346+08:00",
+      "next_run_at": "2026-09-09T23:45:00+08:00",
+      "last_run_at": "2026-09-08T23:46:32.126926+08:00",
       "last_status": "ok"
     },
     {
@@ -63548,7 +63597,7 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "0 0 * * *",
-      "next_run_at": "2026-09-09T00:00:00+08:00",
+      "next_run_at": "2026-09-10T00:00:00+08:00",
       "last_run_at": "2026-09-08T00:42:01.138440+08:00",
       "last_status": "ok"
     },

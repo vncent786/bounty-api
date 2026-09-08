@@ -1133,7 +1133,8 @@ def _ghost_monitor_dashboard(
         else None
     )
     completed_platform_count = len(completed_platform_names)
-    supplied_sentiment = sentiment_source.get("counts") if isinstance(sentiment_source.get("counts"), dict) else {}
+    has_supplied_sentiment = isinstance(sentiment_source.get("counts"), dict)
+    supplied_sentiment = sentiment_source.get("counts") if has_supplied_sentiment else {}
     sentiment_counts = {
         bucket: max(0, int(supplied_sentiment.get(bucket) or 0))
         for bucket in ("positive", "negative", "neutral", "mixed")
@@ -1149,15 +1150,16 @@ def _ghost_monitor_dashboard(
         **sentiment_source,
         "status": _text(sentiment_source.get("status") or "not_collected").lower(),
         "role": "secondary_context_only",
-        "counts": sentiment_counts,
+        "counts": sentiment_counts if has_supplied_sentiment else None,
         "sample_denominator": int(
             sentiment_source.get("sample_denominator")
             or sentiment_source.get("total_exact_roots")
-            or observed_conversation_count
+            or (observed_conversation_count if has_supplied_sentiment else 0)
         ),
         "note": _text(sentiment_source.get("note")) or (
-            "Positive, negative, neutral and mixed reactions all remain context; "
-            "unclassified posts are not relabeled."
+            "Sentiment has not been classified for this observation; no response is relabeled neutral."
+            if not has_supplied_sentiment
+            else "Positive, negative, neutral and mixed reactions all remain context; unclassified posts are not relabeled."
         ),
     }
     linked_sentiment = _linked_sentiment(
@@ -1357,6 +1359,7 @@ def _ghost_monitor_dashboard(
             ),
             "source_health": {
                 "latest_attempt_status": _text(search_latest.get("status") or "unknown").lower(),
+                "latest_attempt_observed_at": attention_latest.get("observed_at"),
                 "visible_series_uses_last_verified": not bool(_search_ratios(search_latest)),
             },
         },

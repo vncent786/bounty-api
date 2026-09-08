@@ -409,6 +409,14 @@
       legend,
       node('p', 'tracker-monitor-note', `Latest verified panel: ${integer(current.available)} available, ${integer(current.out_of_stock)} out of stock · ${timestamp(current.observed_at)}.`),
     );
+    const latestAttempt = availability?.latest_attempt || {};
+    if (latestAttempt?.coverage !== 'complete' && latestAttempt?.observed_at) {
+      section.append(node(
+        'p',
+        'tracker-monitor-warning',
+        `Latest attempt ${timestamp(latestAttempt.observed_at)}: ${integer(latestAttempt.available)} available, ${integer(latestAttempt.out_of_stock)} out of stock and ${integer(latestAttempt.unverified)} unverified. The chart keeps the last complete panel above.`,
+      ));
+    }
     const stores = node('div', 'tracker-store-grid');
     list(availability?.stores).forEach(store => {
       const row = node('div', `tracker-store-row ${String(store?.status || 'unverified').replaceAll('_', '-')}`);
@@ -641,6 +649,14 @@
     } else {
       section.append(node('p', 'tracker-monitor-warning', 'No complete 14-day comparison window is available. Missing dates remain blank.'));
     }
+    const searchHealth = search?.source_health || {};
+    if (searchHealth?.visible_series_uses_last_verified && searchHealth?.latest_attempt_observed_at) {
+      section.append(node(
+        'p',
+        'tracker-monitor-warning',
+        `Latest search attempt ${timestamp(searchHealth.latest_attempt_observed_at)} was incomplete. The chart keeps the last verified series through ${axisDate(search?.latest_complete_date)}.`,
+      ));
+    }
     return section;
   }
 
@@ -784,6 +800,14 @@
       emptyCopy: 'No dated conversation-volume history yet.',
     }));
     section.append(node('p', 'tracker-monitor-note', conversations?.coverage_note || 'Observed volume is shown from successful sources.'));
+    const conversationHealth = conversations?.source_health || {};
+    if (conversationHealth?.visible_read_uses_last_verified) {
+      section.append(node(
+        'p',
+        'tracker-monitor-warning',
+        `Latest attempt ${timestamp(conversationHealth.latest_attempt_observed_at)} was incomplete. The chart keeps the last fully source-linked observation from ${timestamp(conversationHealth.visible_observed_at)}.`,
+      ));
+    }
     const sentiment = conversations?.sentiment || {};
     const sentimentCounts = sentiment?.counts && typeof sentiment.counts === 'object' ? sentiment.counts : null;
     if (sentimentCounts) {

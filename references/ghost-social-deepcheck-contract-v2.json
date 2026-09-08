@@ -1,0 +1,87 @@
+{
+  "schema_version": "bounty-ghost-social-deepcheck-contract/2",
+  "candidate": {
+    "display_name": "GHOST Energy x A&W Root Beer",
+    "canonical_query": "ghost root beer energy drink",
+    "node_key": "82e3858f52557baa27eb5a7c",
+    "exact_object_rule": "Retain an original post only when GHOST is tied to A&W, AW or Root Beer by an adjacent product phrase, or a known GHOST Energy/Lifestyle identity is paired with A&W, AW or Root Beer. Reject distant namesake collisions such as ghost hunting plus an unrelated A&W mention. X search results that are replies remain child context rather than original posts. Comments and replies inherit only from a retained exact original post."
+  },
+  "window": {
+    "time_filter": "halfyear",
+    "sort": "latest",
+    "root_cap_per_query": 60,
+    "comment_reply_cap_per_root": 60,
+    "max_reply_depth": 2
+  },
+  "platforms": {
+    "x": {
+      "connector": "x_scweet",
+      "canary": "nike",
+      "queries": [
+        "\"GHOST Energy\" \"A&W\" -filter:retweets",
+        "\"GHOST\" \"A&W Root Beer\" -filter:retweets",
+        "\"GHOST Root Beer\" \"energy drink\" -filter:retweets",
+        "\"GHOST AW Root Beer\" -filter:retweets"
+      ]
+    },
+    "tiktok": {
+      "connector": "authenticated",
+      "canary": "nike",
+      "queries": [
+        "GHOST Energy A&W Root Beer",
+        "GHOST A&W Root Beer",
+        "GHOST AW Root Beer",
+        "GHOST Energy A&W",
+        "GHOST Root Beer Energy Drink",
+        "GHOST Root Beer",
+        "GHOST RootBeer",
+        "GHOST AW",
+        "#GhostRootBeer"
+      ]
+    },
+    "instagram": {
+      "connector": "ig_auth_web",
+      "canary": "#nike",
+      "queries": [
+        "GHOST Energy A&W Root Beer",
+        "GHOST A&W Root Beer",
+        "GHOST AW Root Beer",
+        "GHOST Root Beer Energy Drink",
+        "GHOST Root Beer",
+        "GHOST RootBeer",
+        "#ghostrootbeer",
+        "#ghostawrootbeer"
+      ]
+    }
+  },
+  "retention_rules": {
+    "original_post_only": "A returned search item is eligible as an original post only when source lineage does not identify it as a reply. An exact X reply remains disclosed child context and is not counted as an original post.",
+    "provider_record_audit": "Persist every normalized provider result with its native ID, URL, text, author, exact-object decision, original-post decision and rejection reasons so semantic no-match rows remain independently re-verifiable.",
+    "deduplication": "Deduplicate original posts and child records by platform plus native ID. Preserve every matched query and attempt reference."
+  },
+  "status_rules": {
+    "complete_relevant": "The authenticated query completed and returned at least one exact original product post.",
+    "complete_no_match": "The authenticated query returned posts, but all failed the exact product or original-post rule.",
+    "empty": "The authenticated source exposed an explicit no-results state with zero parsed posts.",
+    "failed": "Authentication, network, parser, timeout, budget or ambiguous-zero result; never convert this to zero conversation.",
+    "bounded_partial": "A thread read returned records without a connector error but the source reported more records or the cap was reached."
+  },
+  "old_method_defect": [
+    "The prior GHOST monitor delegated to the generic candidate collector. For this canonical query that produced only one X phrase, one TikTok phrase, and a small Instagram fallback basket.",
+    "The prior widened run used collect-only mode with comment hydration disabled, so it read zero comments or replies even when a retained post could have had a thread.",
+    "The first correction still omitted the common AW spelling alias on X and did not preserve provider text for semantically rejected rows, so it missed a verified exact post and made exclusions impossible to re-audit from that artifact alone.",
+    "A search result can itself be a reply. Counting it as an original post inflates breadth; source lineage must decide root versus child before retention.",
+    "Ranked bounded search and one phrase cannot establish platform-wide absence. The corrected result reports only what the frozen authenticated queries observed within their caps."
+  ],
+  "recovery_procedure": [
+    "Preserve and hash every source artifact; never edit collection history in place.",
+    "Freeze the unresolved platform-query and original-post-thread keys before spending on retries.",
+    "Rerun only the unresolved platform after its same-shape known-positive search and depth canary passes.",
+    "Run every frozen source-native product query even after one query finds a post, then preserve provider rows and deduplicate accepted original posts by platform and native post ID.",
+    "Apply the exact product rule and source-native original-post lineage rule before reading threads.",
+    "Read comments and replies for every retained exact original post within the frozen cap and depth, recording returned count, source-reported total, truncation, route and error.",
+    "Merge prior successful attempts and retries by platform and native ID, reject conflicting root or ancestry metadata, recompute counts offline, and retain every attempt in audit history.",
+    "Classify every retained original post's commercial origin. Only possible_organic may count as independently qualifying behavior; all exact posts still count toward total observed buzz.",
+    "A new wider query basket starts a new baseline and must not be described as momentum versus the old smaller basket."
+  ]
+}

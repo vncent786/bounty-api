@@ -162,7 +162,7 @@ def test_later_failures_stay_in_audit_while_last_success_remains_visible(tmp_pat
     }
 
 
-def test_total_conversation_volume_leads_and_missing_sentiment_is_unclassified(tmp_path):
+def test_total_conversation_volume_leads_and_missing_sentiment_stays_unclassified(tmp_path):
     monitor = build_fixture(tmp_path)
     conversations = monitor["conversations"]
 
@@ -172,13 +172,10 @@ def test_total_conversation_volume_leads_and_missing_sentiment_is_unclassified(t
     assert conversations["exact_roots"] == 10
     assert conversations["qualifying_roots"] == 0
     assert conversations["sentiment"]["role"] == "secondary_context_only"
-    assert conversations["sentiment"]["counts"] == {
-        "positive": 0,
-        "negative": 0,
-        "neutral": 0,
-        "mixed": 0,
-        "unclassified": 10,
-    }
+    assert conversations["sentiment"]["status"] == "not_collected"
+    assert conversations["sentiment"]["counts"] is None
+    assert conversations["sentiment"]["sample_denominator"] == 0
+    assert "no response is relabeled neutral" in conversations["sentiment"]["note"]
     assert conversations["platforms"]["instagram"]["query_status"] == "complete_no_match"
     assert conversations["history"][0]["captured_comments_replies"] is None
 

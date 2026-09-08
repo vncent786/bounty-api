@@ -56,6 +56,14 @@ A separate classifier defect was also found during repair: raw HTML script/style
 - Publication uses a fresh detached worktree from current `origin/main` on every run. It commits only the snapshot and sanitized release receipt, retries one non-fast-forward race, and removes the worktree afterward.
 - A long-lived deploy worktree is not an operational dependency; stale code edits in an old worktree cannot block the daily data refresh.
 
+### 7. Weekend freshness and owned-browser recovery
+
+- Markets being closed does not pause consumer monitoring. Retail and social runs continue on weekends; a stale date is an operational incident to repair, not a calendar explanation.
+- Walmart's configured ZIP identifies the frozen store address. Its product payload may separately show a generic city delivery ZIP. Verify the requested store page/address, selected-store cookie, product item ID and product payload pickup/delivery store IDs independently; do not reject an exact store because the delivery-destination field uses a city ZIP, and do not accept a mismatched store ID.
+- TikTok preflight tests search and comment depth separately. Retry transient empty/timeout/network search responses with fresh contexts. If the first high-comment canary root is unreadable, try a bounded ranked set before calling the whole comment route down.
+- Current-attempt counts may replace the last accepted social date only when all five canaries are healthy and every displayed original/response count reconciles to direct persisted links. Thread gaps remain explicit; sentiment stays pending until current rows are classified.
+- A current GPT execution must use a no-dispatch tracking card. Accidentally dispatching a duplicate worker can occupy the same profile lock and create the failure it is trying to repair.
+
 ## Regression coverage
 
 The release must pass tests for:

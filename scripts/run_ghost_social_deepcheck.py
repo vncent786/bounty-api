@@ -32,11 +32,12 @@ from social_scraper.investing.owned_radar import OwnedRadarCollector  # noqa: E4
 
 
 DEFAULT_CONTRACT = (
-    ROOT / "references" / "ghost-social-deepcheck-contract-v1.json"
+    ROOT / "references" / "ghost-social-deepcheck-contract-v2.json"
 )
 DEFAULT_PLATFORMS = ("x", "tiktok", "instagram")
 TERMINAL_QUERY_STATES = {"complete_relevant", "complete_no_match", "empty"}
 FAILED_THREAD_STATES = {"failed", "unavailable", "error", "unsupported"}
+PREFLIGHT_RETRY_DELAYS = (0, 15, 30)
 
 
 def _git_common_repository_root(root: Path) -> Path | None:
@@ -121,7 +122,10 @@ def atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 
 def load_contract(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("schema_version") != "bounty-ghost-social-deepcheck-contract/1":
+    if payload.get("schema_version") not in {
+        "bounty-ghost-social-deepcheck-contract/1",
+        "bounty-ghost-social-deepcheck-contract/2",
+    }:
         raise ValueError("unsupported GHOST social deep-check contract")
     platforms = payload.get("platforms") or {}
     if set(platforms) != set(DEFAULT_PLATFORMS):
@@ -175,6 +179,13 @@ def exact_object_match(item: SocialItem | dict[str, Any]) -> tuple[bool, list[st
     ghost_root_beer_phrase = bool(
         re.search(r"\bghost(?:\s+energy)?\s+root\s+beer\b", identity)
     )
+    ghost_aw_root_beer_phrase = bool(
+        re.search(
+            r"\bghost(?:\s+energy)?\s+(?:x\s+)?a\s*w\s+root\s+beer\b",
+            identity,
+        )
+        or "ghostawrootbeer" in compact
+    )
     has_aw_or_root_beer = bool(
         re.search(r"\ba\s*(?:&|and)\s*w\b", identity)
         or "awrootbeer" in compact
@@ -187,14 +198,34 @@ def exact_object_match(item: SocialItem | dict[str, Any]) -> tuple[bool, list[st
             ("ghost_energy_or_lifestyle_identity", brand_identity),
             ("ghost_a_and_w_product_phrase", ghost_aw_phrase),
             ("ghost_root_beer_product_phrase", ghost_root_beer_phrase),
+            ("ghost_aw_root_beer_product_phrase", ghost_aw_root_beer_phrase),
         )
         if present
     ]
     return bool(
         ghost_aw_phrase
         or ghost_root_beer_phrase
+        or ghost_aw_root_beer_phrase
         or (brand_identity and has_aw_or_root_beer)
     ), reasons
+
+
+def original_post_eligibility(item: SocialItem) -> tuple[bool, list[str]]:
+    """Reject X replies from original-post breadth using source-native lineage."""
+    if item.platform != "x":
+        return True, []
+    legacy = item.raw.get("legacy") if isinstance(item.raw, dict) else None
+    legacy = legacy if isinstance(legacy, dict) else {}
+    conversation_id = str(legacy.get("conversation_id_str") or "").strip()
+    in_reply_to = str(legacy.get("in_reply_to_status_id_str") or "").strip()
+    reasons = []
+    if in_reply_to:
+        reasons.append("x_in_reply_to_status_present")
+    if conversation_id and conversation_id != str(item.post_id):
+        reasons.append("x_conversation_id_differs_from_post_id")
+    if not conversation_id:
+        reasons.append("x_source_lineage_missing")
+    return not reasons, reasons
 
 
 def classify_query_result(
@@ -296,36 +327,60 @@ async def _preflight_platform(
     query: str,
 ) -> dict[str, Any]:
     started_at = utc_now()
-    try:
-        result = await connector.search(
-            query,
-            # Latest X results often have no replies in the first ten rows.
-            # Inspect a bounded 60-row canary so the reply route is exercised
-            # against a positive-comment root rather than misdiagnosed as down.
-            count=60 if platform == "x" else 10,
-            time_filter="halfyear",
-            sort="latest",
-        )
-    except Exception as exc:
-        return {
-            "platform": platform,
-            "status": "failed",
-            "query": query,
-            "started_at": started_at,
-            "completed_at": utc_now(),
-            "returned_count": 0,
-            "error_category": type(exc).__name__,
+    result = None
+    health: dict[str, Any] = {}
+    attempts = []
+    max_attempts = len(PREFLIGHT_RETRY_DELAYS) if platform == "tiktok" else 1
+    for attempt in range(max_attempts):
+        delay = PREFLIGHT_RETRY_DELAYS[attempt]
+        if delay:
+            await asyncio.sleep(delay)
+        attempt_started = utc_now()
+        try:
+            result = await connector.search(
+                query,
+                # Latest X results often have no replies in the first ten rows.
+                # Inspect a bounded 60-row canary so the reply route is exercised
+                # against a positive-comment root rather than misdiagnosed as down.
+                count=60 if platform == "x" else 10,
+                time_filter="halfyear",
+                sort="latest",
+            )
+            health = result.health.to_dict()
+            attempts.append({
+                "attempt": attempt + 1,
+                "started_at": attempt_started,
+                "completed_at": utc_now(),
+                "returned_count": len(result.items),
+                "health": health,
+            })
+        except Exception as exc:
+            attempts.append({
+                "attempt": attempt + 1,
+                "started_at": attempt_started,
+                "completed_at": utc_now(),
+                "returned_count": 0,
+                "error_category": type(exc).__name__,
+            })
+            result = None
+            health = {"status": "error", "error": type(exc).__name__}
+        if result is not None and health.get("status") == "ok" and result.items:
+            break
+        retryable = health.get("error") in {
+            "tiktok_empty_response", "tiktok_timeout", "tiktok_network_error",
         }
-    health = result.health.to_dict()
-    if health.get("status") != "ok" or not result.items:
+        if platform != "tiktok" or not retryable:
+            break
+    if result is None or health.get("status") != "ok" or not result.items:
         return {
             "platform": platform,
             "status": "failed",
             "query": query,
             "started_at": started_at,
             "completed_at": utc_now(),
-            "returned_count": len(result.items),
+            "returned_count": len(result.items) if result is not None else 0,
             "health": health,
+            "canary_attempts": attempts,
             "error_category": health.get("error") or f"{platform}_canary_empty",
         }
     ranked = sorted(
@@ -337,29 +392,40 @@ async def _preflight_platform(
         ),
         reverse=True,
     )
+    depth_attempts = []
+    depth = None
     root = ranked[0]
-    try:
-        thread = await connector.fetch_thread(root, max_comments=12, max_depth=2)
-        depth = _thread_receipt(thread, root_url=root.url, canary=True)
-    except Exception as exc:
-        depth = {
-            "root_post_external_id": root.post_id,
-            "root_url": root.url,
-            "state": "failed",
-            "returned_count": 0,
-            "comments": 0,
-            "replies": 0,
-            "error_category": type(exc).__name__,
-        }
-    reported_comments = root.comments if isinstance(root.comments, int) else None
-    depth_healthy = bool(
-        depth.get("state") in {"complete", "empty", "bounded_partial"}
-        and not depth.get("error_category")
-        and (
-            int(depth.get("returned_count") or 0) > 0
-            or (depth.get("state") == "empty" and reported_comments in {None, 0})
+    for candidate in ranked[:5 if platform == "tiktok" else 1]:
+        root = candidate
+        try:
+            thread = await connector.fetch_thread(candidate, max_comments=12, max_depth=2)
+            candidate_depth = _thread_receipt(thread, root_url=candidate.url, canary=True)
+        except Exception as exc:
+            candidate_depth = {
+                "root_post_external_id": candidate.post_id,
+                "root_url": candidate.url,
+                "state": "failed",
+                "returned_count": 0,
+                "comments": 0,
+                "replies": 0,
+                "error_category": type(exc).__name__,
+            }
+        depth_attempts.append(candidate_depth)
+        reported_comments = candidate.comments if isinstance(candidate.comments, int) else None
+        candidate_healthy = bool(
+            candidate_depth.get("state") in {"complete", "empty", "bounded_partial"}
+            and not candidate_depth.get("error_category")
+            and (
+                int(candidate_depth.get("returned_count") or 0) > 0
+                or (candidate_depth.get("state") == "empty" and reported_comments in {None, 0})
+            )
         )
-    )
+        if candidate_healthy:
+            depth = candidate_depth
+            break
+    if depth is None:
+        depth = depth_attempts[-1]
+    depth_healthy = depth is not None and depth in depth_attempts and not depth.get("error_category") and depth.get("state") in {"complete", "empty", "bounded_partial"}
     return {
         "platform": platform,
         "status": "healthy" if depth_healthy else "failed",
@@ -369,7 +435,9 @@ async def _preflight_platform(
         "connector": connector.connector_name,
         "returned_count": len(result.items),
         "health": health,
+        "canary_attempts": attempts,
         "depth_canary": depth,
+        "depth_canary_attempts": depth_attempts,
         "error_category": None if depth_healthy else (
             depth.get("error_category") or f"{platform}_depth_not_readable"
         ),
@@ -414,10 +482,24 @@ async def _collect_platform(
             continue
 
         exact_items: list[SocialItem] = []
+        provider_records: list[dict[str, Any]] = []
         for item in result.items:
             raw_roots[item.post_id] = item
             matched, reasons = exact_object_match(item)
-            if not matched:
+            original_post, lineage_reasons = original_post_eligibility(item)
+            provider_record = item.to_dict()
+            provider_record.update({
+                "external_id": item.post_id,
+                "exact_object_match": matched,
+                "exact_object_match_reasons": reasons,
+                "original_post_eligible": original_post,
+                "rejection_reasons": [
+                    *([] if matched else ["not_exact_product"]),
+                    *lineage_reasons,
+                ],
+            })
+            provider_records.append(provider_record)
+            if not matched or not original_post:
                 continue
             exact_items.append(item)
             stored = exact_roots.setdefault(
@@ -443,6 +525,7 @@ async def _collect_platform(
             "semantic_no_match_rows": len(result.items) - len(exact_items),
             "provider_row_ids": [item.post_id for item in result.items],
             "exact_row_ids": [item.post_id for item in exact_items],
+            "provider_records": provider_records,
             "health": result.health.to_dict(),
             "error_category": error,
         })

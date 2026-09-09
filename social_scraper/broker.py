@@ -3,9 +3,11 @@
 import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
+import re
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
 from social_scraper.conversations.thread_reader import ThreadFetchResult
+from social_scraper.owned_worker_lock import OwnedWorkerBusyError
 
 
 @dataclass(order=True)
@@ -51,6 +53,21 @@ class SourceBroker:
     def _thread_post(item: dict) -> SocialItem:
         author = item.get("author") if isinstance(item.get("author"), dict) else {}
         engagement = item.get("engagement") if isinstance(item.get("engagement"), dict) else {}
+        provenance = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
+        thread_context = (
+            provenance.get("thread_context")
+            if isinstance(provenance.get("thread_context"), dict)
+            else {}
+        )
+        raw = {"provenance": provenance}
+        if item.get("platform") == "x" and thread_context:
+            conversation_id = str(thread_context.get("conversation_id") or "")
+            parent_id = str(thread_context.get("parent_id") or "")
+            raw["legacy"] = {
+                "conversation_id_str": conversation_id,
+                "in_reply_to_status_id_str": parent_id,
+            }
+            raw["conversation_id"] = conversation_id
         return SocialItem(
             platform=str(item.get("platform") or ""),
             post_id=str(item.get("post_id") or item.get("external_id") or ""),
@@ -60,7 +77,7 @@ class SourceBroker:
             text=str(item.get("text") or ""),
             created_at=item.get("created_at"),
             comments=engagement.get("comments") if isinstance(engagement.get("comments"), int) else None,
-            raw={"provenance": item.get("provenance") or {}},
+            raw=raw,
         )
 
     async def fetch_thread(
@@ -127,6 +144,7 @@ class SourceBroker:
         if data.get("error"):
             safe_errors = {
                 "connector_timeout",
+                "connector_exception",
                 "arctic_shift_rate_limited",
                 "arctic_shift_unavailable",
                 "unsupported_sort",
@@ -153,10 +171,18 @@ class SourceBroker:
                 "x_daily_budget_exhausted",
                 "x_account_pool_unavailable",
                 "x_transaction_id_failed",
+                "x_profile_busy",
                 "ig_rate_limited",
                 "ig_blocked",
                 "ig_error",
                 "ig_empty_tag",
+                "ig_session_expired",
+                "ig_credentials_missing",
+                "ig_profile_busy",
+                "ig_canary_no_results",
+                "youtube_timeout",
+                "youtube_process_error",
+                "youtube_not_installed",
                 "tiktok_auth_required",
                 "tiktok_verification_challenge",
                 "tiktok_query_empty",
@@ -168,6 +194,22 @@ class SourceBroker:
             }
             data["error"] = data["error"] if data["error"] in safe_errors else "connector_error"
         return data
+
+    @staticmethod
+    def _exception_error(platform: str, exc: Exception) -> str:
+        if isinstance(exc, OwnedWorkerBusyError):
+            return {
+                "instagram": "ig_profile_busy",
+                "tiktok": "tiktok_profile_busy",
+                "x": "x_profile_busy",
+            }.get(platform, "owned_worker_profile_busy")
+        category = str(getattr(exc, "error_category", "") or "").strip().casefold()
+        if category and re.fullmatch(r"[a-z][a-z0-9_]{2,80}", category):
+            return category
+        message = str(exc).strip().casefold()
+        if re.fullmatch(r"[a-z][a-z0-9_]{2,80}", message):
+            return message
+        return "connector_exception"
 
     async def _call_search(
         self, connector, platform, keyword, count, time_filter, sort, region, options
@@ -212,6 +254,17 @@ class SourceBroker:
             if getattr(connector, "manages_timeout", False):
                 return await operation
             return await asyncio.wait_for(operation, timeout=self.route_timeout_seconds)
+        except OwnedWorkerBusyError as exc:
+            return ConnectorResult(
+                items=[],
+                health=SourceHealth(
+                    platform=platform,
+                    connector=connector.connector_name,
+                    status="error",
+                    items_requested=count,
+                    error=self._exception_error(platform, exc),
+                ),
+            )
         except asyncio.TimeoutError:
             return ConnectorResult(
                 items=[],
@@ -223,7 +276,7 @@ class SourceBroker:
                     error="connector_timeout",
                 ),
             )
-        except Exception:
+        except Exception as exc:
             return ConnectorResult(
                 items=[],
                 health=SourceHealth(
@@ -231,7 +284,7 @@ class SourceBroker:
                     connector=connector.connector_name,
                     status="error",
                     items_requested=count,
-                    error="connector_exception",
+                    error=self._exception_error(platform, exc),
                 ),
             )
 
@@ -272,14 +325,14 @@ class SourceBroker:
                     "connector": connector.connector_name,
                     "fetched_at": record.get("fetched_at") or result.health.fetched_at,
                 })
-            if result.health.status == "ok" and result.items:
+            if result.health.status == "ok":
                 return {
                     "platform": platform,
                     "items": result.items,
                     "health": attempts,
                     "selected_connector": connector.connector_name,
                     "selected_health": result.health,
-                    "status": "ok",
+                    "status": "ok" if result.items else "empty",
                     "raw_records": attempted_raw_records,
                 }
             if result.items and partial_candidate is None:
@@ -378,6 +431,27 @@ class SourceBroker:
                     "region": region or None,
                     "query": keyword,
                 }
+                if item.platform == "x" and isinstance(item.raw, dict):
+                    legacy = item.raw.get("legacy") if isinstance(item.raw.get("legacy"), dict) else {}
+                    conversation_id = str(
+                        legacy.get("conversation_id_str")
+                        or item.raw.get("conversation_id")
+                        or ""
+                    )
+                    parent_id = str(legacy.get("in_reply_to_status_id_str") or "")
+                    if not parent_id:
+                        parent_id = next((
+                            str(reference.get("id"))
+                            for reference in item.raw.get("referenced_tweets") or []
+                            if isinstance(reference, dict)
+                            and reference.get("type") == "replied_to"
+                            and reference.get("id")
+                        ), "")
+                    if conversation_id or parent_id:
+                        serialized["provenance"]["thread_context"] = {
+                            "conversation_id": conversation_id,
+                            "parent_id": parent_id,
+                        }
                 if item.raw.get("source_observed_at"):
                     serialized["provenance"]["source_observed_at"] = item.raw["source_observed_at"]
                 if item.raw.get("source_kind"):

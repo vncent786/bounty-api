@@ -8,39 +8,50 @@ import time
 from pathlib import Path
 
 
+class OwnedWorkerBusyError(TimeoutError):
+    """The owned browser/account profile is already in use."""
+
+    error_category = "owned_worker_profile_busy"
+
+    def __init__(self, lock_name: str):
+        self.lock_name = Path(lock_name).name
+        super().__init__(f"{self.error_category}:{self.lock_name}")
+
+
 class AsyncFileLock:
-    """Serialize one account/profile across event loops and worker processes."""
+    """Serialize one account/profile across event loops and worker processes.
+
+    Acquisition uses short non-blocking lock attempts on the event-loop thread.
+    Cancellation can therefore only happen during ``asyncio.sleep``; a cancelled
+    waiter can never acquire the OS lock later from an orphan worker thread.
+    """
 
     def __init__(self, path, timeout_seconds: float = 300.0):
         self.path = Path(path)
-        self.timeout_seconds = timeout_seconds
+        self.timeout_seconds = max(0.0, float(timeout_seconds))
         self._handle = None
 
-    def _acquire(self):
+    def _try_acquire(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         handle = self.path.open("a+b")
         handle.seek(0, os.SEEK_END)
         if handle.tell() == 0:
             handle.write(b"\0")
             handle.flush()
-        deadline = time.monotonic() + self.timeout_seconds
-        while True:
-            try:
-                handle.seek(0)
-                if os.name == "nt":
-                    import msvcrt
+        try:
+            handle.seek(0)
+            if os.name == "nt":
+                import msvcrt
 
-                    msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
-                else:
-                    import fcntl
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
 
-                    fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return handle
-            except OSError:
-                if time.monotonic() >= deadline:
-                    handle.close()
-                    raise TimeoutError(f"owned_worker_lock_timeout:{self.path.name}")
-                time.sleep(0.25)
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return handle
+        except OSError:
+            handle.close()
+            return None
 
     @staticmethod
     def _release(handle):
@@ -58,10 +69,18 @@ class AsyncFileLock:
             handle.close()
 
     async def __aenter__(self):
-        self._handle = await asyncio.to_thread(self._acquire)
-        return self
+        deadline = time.monotonic() + self.timeout_seconds
+        while True:
+            handle = self._try_acquire()
+            if handle is not None:
+                self._handle = handle
+                return self
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise OwnedWorkerBusyError(self.path.name)
+            await asyncio.sleep(min(0.25, remaining))
 
     async def __aexit__(self, exc_type, exc, traceback):
         handle, self._handle = self._handle, None
         if handle is not None:
-            await asyncio.to_thread(self._release, handle)
+            self._release(handle)

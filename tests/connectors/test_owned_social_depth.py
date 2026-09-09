@@ -259,6 +259,40 @@ def test_instagram_keyword_search_prefers_owned_browser_results(monkeypatch):
     assert result.raw_records[0]["source_id"] == "graphql-1"
 
 
+def test_instagram_keyword_search_cannot_reuse_prior_hashtag_payload(monkeypatch):
+    connector = InstagramConnector()
+    connector._last_tag_payload = {
+        "tag_state": "found",
+        "data": {"name": "stale-hashtag"},
+    }
+    browser_media = [{
+        "id": "keyword-result",
+        "code": "keyword-code",
+        "caption": {"text": "running shoe review"},
+        "taken_at": 1700000000,
+        "user": {"username": "runner"},
+    }]
+
+    async def browser_search(_keyword, _count):
+        return browser_media, [{
+            "source_id": "keyword-graphql",
+            "payload": {"data": {"keyword": "running shoes"}},
+        }]
+
+    async def fail_tag(*_args, **_kwargs):
+        raise AssertionError("keyword browser success must not use hashtag state")
+
+    monkeypatch.setattr(connector, "_browser_keyword_search", browser_search)
+    monkeypatch.setattr(connector, "_fetch_tag_data", fail_tag)
+    monkeypatch.setattr(connector, "_ensure_authed", lambda: asyncio.sleep(0))
+
+    result = asyncio.run(connector.search("running shoes", count=5, sort="latest"))
+
+    assert [row["source_id"] for row in result.raw_records] == ["keyword-graphql"]
+    assert "tag_state" not in result.health.coverage
+    assert connector._last_tag_payload is None
+
+
 def test_instagram_explicit_hashtag_forces_hashtag_route(monkeypatch):
     connector = InstagramConnector()
     tag_media = [{

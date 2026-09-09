@@ -83,6 +83,33 @@ def test_query_registry_collection_and_history_are_available_via_api(tmp_path):
     assert query.json()["next_run_at"] == "2026-08-02T03:00:00+00:00"
 
 
+def test_source_health_lists_required_platforms_even_when_routes_are_not_registered(tmp_path):
+    broker = SourceBroker()
+    broker.register(APIConnector())
+    app = FastAPI()
+    app.include_router(
+        create_social_router(broker, ObservationStore(tmp_path / "health.db"))
+    )
+
+    response = TestClient(app).get("/social/sources/health")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["platforms"] == ["x", "tiktok", "instagram", "reddit", "youtube"]
+    assert payload["registered_platforms"] == ["reddit"]
+    assert payload["matrix"]["reddit"] == {
+        "registered": True,
+        "state": "healthy",
+        "routes": ["api-fixture"],
+    }
+    for platform in ("x", "tiktok", "instagram", "youtube"):
+        assert payload["matrix"][platform] == {
+            "registered": False,
+            "state": "not_registered_on_this_worker",
+            "routes": [],
+        }
+
+
 def test_paid_search_fails_closed_when_payment_is_not_configured(tmp_path):
     broker = SourceBroker()
     broker.register(APIConnector())

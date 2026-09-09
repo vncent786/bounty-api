@@ -371,8 +371,9 @@ class XOfficialConnector(BaseConnector):
                     time_filter = "month"
             except (TypeError, ValueError):
                 pass
+        conversation_id = str(post.raw.get("conversation_id") or post.post_id)
         result = await self.search(
-            f"conversation_id:{post.post_id}",
+            f"conversation_id:{conversation_id}",
             count=max_comments + 1,
             time_filter=time_filter,
             sort="hot",

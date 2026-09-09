@@ -44,13 +44,16 @@ def test_arctic_connector_searches_configured_subreddits_and_preserves_archive_t
     )
     result = asyncio.run(connector.search("packaging", count=5, time_filter="week"))
 
-    assert result.health.status == "partial"
+    assert result.health.status == "ok"
     assert result.health.coverage == {
         "kind": "configured_subreddits",
         "requested_subreddits": ["Python", "learnpython"],
         "successful_subreddits": ["Python", "learnpython"],
         "global_coverage": False,
         "source_kind": "archive",
+        "result_scope": "bounded_query",
+        "requested_count": 5,
+        "underfilled": True,
     }
     assert len(result.items) == 1
     item = result.items[0]

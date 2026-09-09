@@ -112,6 +112,7 @@ def parse_youtube_thread(
 class YouTubeConnector(BaseConnector):
     platform = "youtube"
     connector_name = "ytdlp_free"
+    manages_timeout = True
 
     async def search(self, keyword: str, count: int = 20, time_filter: str = "",
                      sort: str = "", region: str = "") -> ConnectorResult:
@@ -127,8 +128,10 @@ class YouTubeConnector(BaseConnector):
         error = None
 
         try:
-            # Fetch 2x requested to account for time filtering
-            fetch_count = min(count * 2, 30) if time_filter else min(count, 20)
+            # Overfetch by 50% for local date filtering, but do not double the
+            # expensive full-metadata workload. Strict network retries prevent one
+            # bad video from consuming the whole platform budget.
+            fetch_count = min(count + max(5, count // 2), 30) if time_filter else min(count, 20)
             search_query = f"ytsearch{fetch_count}:{keyword}"
 
             cmd = [
@@ -136,15 +139,25 @@ class YouTubeConnector(BaseConnector):
                 "--dump-json",
                 "--no-warnings",
                 "--no-playlist",
+                "--ignore-errors",
+                "--socket-timeout", "10",
+                "--retries", "1",
+                "--extractor-retries", "1",
                 search_query,
             ]
 
             loop = asyncio.get_event_loop()
-            timeout = max(60, fetch_count * 5)
-            stdout = await loop.run_in_executor(
-                None, lambda: self._run_ytdlp(cmd, timeout=timeout)
+            timeout = max(60, fetch_count * 7)
+            return_code, stdout, _stderr = await loop.run_in_executor(
+                None, lambda: self._run_ytdlp_result(cmd, timeout=timeout)
             )
+            if return_code == 124:
+                error = "youtube_timeout"
+            elif return_code:
+                error = "youtube_process_error"
 
+            if error:
+                stdout = ""
             for line in stdout.strip().split("\n"):
                 if not line:
                     continue
@@ -533,5 +546,5 @@ class YouTubeConnector(BaseConnector):
         return filtered
 
     async def health_check(self) -> SourceHealth:
-        result = await self.search(keyword="test", count=1)
+        result = await self.search(keyword="iphone", count=1)
         return result.health

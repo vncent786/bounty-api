@@ -885,6 +885,9 @@ class InstagramConnector(BaseConnector):
                     status="error", items_requested=count, error="ig_empty_query",
                 ),
             )
+        # Tag payloads are request-scoped. Never let a prior hashtag request
+        # contaminate a later successful keyword search's coverage/provenance.
+        self._last_tag_payload = None
 
         try:
             async with AsyncFileLock(_ig_lock_path()):
@@ -953,12 +956,13 @@ class InstagramConnector(BaseConnector):
             coverage = {
                 "route": route,
                 "query": keyword,
-                "tag_media_count": media_count,
             }
-            if isinstance(self._last_tag_payload, dict):
-                tag_state = self._last_tag_payload.get("tag_state")
-                if tag_state:
-                    coverage["tag_state"] = tag_state
+            if route == "hashtag_web_info":
+                coverage["tag_media_count"] = media_count
+                if isinstance(self._last_tag_payload, dict):
+                    tag_state = self._last_tag_payload.get("tag_state")
+                    if tag_state:
+                        coverage["tag_state"] = tag_state
             if browser_error:
                 coverage["keyword_browser_error"] = browser_error
             return ConnectorResult(
@@ -1007,27 +1011,38 @@ class InstagramConnector(BaseConnector):
                 platform="instagram", connector=self.connector_name,
                 status="error", error="curl_cffi_not_installed",
             )
-        try:
-            async with AsyncFileLock(_ig_lock_path()):
-                await self._ensure_authed()
-        except IGAuthError:
+        result = await self.search(
+            keyword="#nike",
+            count=1,
+            time_filter="halfyear",
+            sort="latest",
+        )
+        coverage = {
+            **dict(result.health.coverage or {}),
+            "auth": "session_cookies",
+            "auth_ready": result.health.error not in {
+                "ig_session_expired", "ig_credentials_missing"
+            },
+            "search_ready": result.health.status == "ok" and bool(result.items),
+            "depth": "checked_separately_by_production_preflight",
+            "playwright_available": PLAYWRIGHT_AVAILABLE,
+        }
+        if result.health.status == "ok" and result.items:
             return SourceHealth(
                 platform="instagram",
                 connector=self.connector_name,
-                status="error",
-                error="ig_session_expired",
-                coverage={"network_check": True},
+                status="ok",
+                items_returned=len(result.items),
+                items_requested=1,
+                latency_ms=result.health.latency_ms,
+                coverage=coverage,
             )
         return SourceHealth(
             platform="instagram",
             connector=self.connector_name,
-            status="ok",
-            coverage={
-                "auth": "session_cookies",
-                "auth_verified": True,
-                "network_check": True,
-                "search": "keyword_graphql+hashtag_fallback",
-                "depth": "root_comments+child_comments",
-                "playwright_available": PLAYWRIGHT_AVAILABLE,
-            },
+            status="error",
+            items_requested=1,
+            latency_ms=result.health.latency_ms,
+            error=result.health.error or "ig_canary_no_results",
+            coverage=coverage,
         )

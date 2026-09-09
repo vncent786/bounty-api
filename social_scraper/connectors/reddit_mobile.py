@@ -459,7 +459,7 @@ class RedditMobileConnector(BaseConnector):
         failed = [subreddit for subreddit, _ in failures]
         if error:
             status = "error"
-        elif failures or not items:
+        elif failures:
             status = "partial"
         else:
             status = "ok"
@@ -481,6 +481,7 @@ class RedditMobileConnector(BaseConnector):
                     "global_coverage": False,
                     "engagement_available": True,
                     "source_kind": "current_oauth_listing",
+                    "result_state": "records" if items else "empty",
                 },
             ),
             raw_records=raw_records,

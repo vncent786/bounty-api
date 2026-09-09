@@ -2,6 +2,7 @@ import asyncio
 
 from social_scraper.base import BaseConnector, ConnectorResult, SocialItem, SourceHealth
 from social_scraper.broker import SourceBroker
+from social_scraper.owned_worker_lock import OwnedWorkerBusyError
 
 
 class FakeConnector(BaseConnector):
@@ -199,3 +200,79 @@ def test_raw_records_from_unselected_attempt_are_preserved_for_collection():
     assert response["platform_results"]["tiktok"]["selected_connector"] == "fallback"
     assert response["_source_records"][0]["connector"] == "owned"
     assert response["_source_records"][0]["payload"] == {"id": "raw-1"}
+
+
+def test_broker_accepts_healthy_empty_without_calling_fallback():
+    primary = FakeConnector("owned", [connector_result("owned", "ok")])
+    fallback_item = SocialItem(platform="tiktok", post_id="wrong", url="https://example/wrong")
+    fallback = FakeConnector("fallback", [connector_result("fallback", "ok", [fallback_item])])
+    broker = SourceBroker()
+    broker.register(primary, priority=1)
+    broker.register(fallback, priority=2)
+
+    response = asyncio.run(broker.search("valid empty", platforms=["tiktok"]))
+
+    assert response["count"] == 0
+    assert primary.calls == 1
+    assert fallback.calls == 0
+    assert response["platform_results"]["tiktok"] == {
+        "status": "empty",
+        "selected_connector": "owned",
+        "attempted_connectors": ["owned"],
+        "coverage": {},
+        "data_quality": {
+            "items": 0,
+            "created_at_present": 0,
+            "source_observed_at_present": 0,
+            "newest_created_at": None,
+            "newest_source_observed_at": None,
+        },
+    }
+
+
+class BusyConnector(FakeConnector):
+    async def search(self, keyword, count=20, time_filter="", sort="", region=""):
+        self.calls += 1
+        raise OwnedWorkerBusyError("owned-worker.lock")
+
+
+def test_broker_preserves_profile_busy_category_instead_of_generic_timeout():
+    connector = BusyConnector("authenticated", [])
+    broker = SourceBroker()
+    broker.register(connector)
+
+    response = asyncio.run(broker.search("nike", platforms=["tiktok"]))
+
+    assert response["source_health"][0]["error"] == "tiktok_profile_busy"
+    assert response["platform_results"]["tiktok"]["status"] == "error"
+
+
+def test_broker_preserves_non_secret_x_thread_context_through_serialization():
+    item = SocialItem(
+        platform="x",
+        post_id="reply-id",
+        url="https://x.com/user/status/reply-id",
+        raw={
+            "legacy": {
+                "conversation_id_str": "root-id",
+                "in_reply_to_status_id_str": "parent-id",
+            }
+        },
+    )
+    connector = FakeConnector("x_scweet", [connector_result("x_scweet", "ok", [item])])
+    connector.platform = "x"
+    broker = SourceBroker()
+    broker.register(connector)
+
+    response = asyncio.run(broker.search("thread", platforms=["x"]))
+    serialized = response["items"][0]
+    rebuilt = broker._thread_post(serialized)
+
+    assert serialized["provenance"]["thread_context"] == {
+        "conversation_id": "root-id",
+        "parent_id": "parent-id",
+    }
+    assert rebuilt.raw["legacy"] == {
+        "conversation_id_str": "root-id",
+        "in_reply_to_status_id_str": "parent-id",
+    }

@@ -245,6 +245,33 @@ def test_official_x_thread_reader_reconstructs_reply_depth(monkeypatch):
     assert result.records[0].likes == 3
 
 
+def test_official_x_thread_reader_uses_stored_conversation_id(monkeypatch):
+    connector = XOfficialConnector(bearer_token="token")
+    post = SocialItem(
+        platform="x",
+        post_id="reply-id",
+        url="https://x.com/a/status/reply-id",
+        comments=0,
+        raw={"conversation_id": "conversation-root"},
+    )
+
+    async def fake_search(keyword, **_kwargs):
+        assert keyword == "conversation_id:conversation-root"
+        return ConnectorResult(
+            items=[],
+            health=SourceHealth(
+                platform="x",
+                connector="x_official_api",
+                status="ok",
+                coverage={"window_exhausted": True},
+            ),
+        )
+
+    monkeypatch.setattr(connector, "search", fake_search)
+    result = asyncio.run(connector.fetch_thread(post, max_comments=10, max_depth=2))
+    assert result.status == "empty"
+
+
 def test_official_x_thread_reader_respects_depth_one(monkeypatch):
     connector = XOfficialConnector(bearer_token="token")
     root = SocialItem(platform="x", post_id="123", url="https://x.com/a/status/123")

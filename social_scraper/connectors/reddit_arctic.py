@@ -97,17 +97,30 @@ class RedditArcticConnector(BaseConnector):
             region,
         )
 
-    def _coverage(self, successful_subreddits=None):
+    def _coverage(
+        self,
+        successful_subreddits=None,
+        *,
+        requested_count: int | None = None,
+        returned_count: int | None = None,
+    ):
         requested = [
             self._display_names.get(value, value) for value in self.subreddits
         ]
-        return {
+        coverage = {
             "kind": "configured_subreddits",
             "requested_subreddits": requested,
             "successful_subreddits": successful_subreddits or [],
             "global_coverage": False,
             "source_kind": "archive",
         }
+        if requested_count is not None and returned_count is not None:
+            coverage.update({
+                "result_scope": "bounded_query",
+                "requested_count": requested_count,
+                "underfilled": returned_count < requested_count,
+            })
+        return coverage
 
     async def _fetch_json_async(self, client, url):
         async with _gate_for_current_loop():
@@ -313,7 +326,7 @@ class RedditArcticConnector(BaseConnector):
             rate_limited = any(isinstance(response, ArcticRateLimitError) for response in responses)
             status = "error"
             error = "arctic_shift_rate_limited" if rate_limited else "arctic_shift_unavailable"
-        elif failures or len(items) < count:
+        elif failures:
             status, error = "partial", None
         else:
             status, error = "ok", None
@@ -327,7 +340,11 @@ class RedditArcticConnector(BaseConnector):
                 items_requested=count,
                 latency_ms=int((time.monotonic() - started) * 1000),
                 error=error,
-                coverage=self._coverage(successful_subreddits),
+                coverage=self._coverage(
+                    successful_subreddits,
+                    requested_count=count,
+                    returned_count=len(items),
+                ),
             ),
         )
 

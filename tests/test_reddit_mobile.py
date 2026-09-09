@@ -123,6 +123,32 @@ def test_mobile_connector_mints_once_and_reads_each_exact_subreddit(tmp_path):
     assert all(item.likes == 17 for item in result.items)
 
 
+def test_mobile_connector_reports_successful_scoped_empty_as_healthy(tmp_path):
+    def request(method, url, **kwargs):
+        if method == "POST":
+            return FakeResponse(200, {"access_token": "x" * 100, "expires_in": 86400})
+        return FakeResponse(200, {"kind": "Listing", "data": {"children": []}})
+
+    connector = RedditMobileConnector(
+        request_fn=request,
+        device_path=tmp_path / "device.json",
+    )
+    result = asyncio.run(connector.search_with_options(
+        "no matching phrase",
+        count=5,
+        time_filter="week",
+        sort="latest",
+        options={"subreddits": ["stocks", "investing"]},
+    ))
+
+    assert result.items == []
+    assert result.health.status == "ok"
+    assert result.health.error is None
+    assert result.health.coverage["successful_subreddits"] == ["stocks", "investing"]
+    assert result.health.coverage["failed_subreddits"] == []
+    assert result.health.coverage["result_state"] == "empty"
+
+
 def test_mobile_connector_auto_discovery_is_reachable_through_broker(tmp_path, monkeypatch):
     calls = []
 

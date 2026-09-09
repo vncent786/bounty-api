@@ -809,5 +809,5 @@ class TikTokAuthConnector(BaseConnector):
         )
 
     async def health_check(self) -> SourceHealth:
-        result = await self.search(keyword="test", count=1)
+        result = await self.search(keyword="nike", count=1, time_filter="halfyear", sort="latest")
         return result.health

@@ -40,6 +40,9 @@ from social_scraper.proxy_config import proxy_health_summary
 from social_scraper.storage import ObservationStore
 
 
+REQUIRED_SOCIAL_PLATFORMS = ("x", "tiktok", "instagram", "reddit", "youtube")
+
+
 class RedditSearchOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
     subreddits: list[str] = Field(..., min_length=1, max_length=5)
@@ -332,10 +335,33 @@ def create_social_router(
 
     @api.get("/sources/health")
     async def sources_health():
+        health = await active_broker.health_check_all()
+        routes = active_broker.list_routes()
+        matrix = {}
+        for platform in REQUIRED_SOCIAL_PLATFORMS:
+            platform_health = [
+                row for row in health if row.get("platform") == platform
+            ]
+            statuses = {str(row.get("status") or "error") for row in platform_health}
+            if platform not in routes:
+                state = "not_registered_on_this_worker"
+            elif "ok" in statuses:
+                state = "healthy"
+            elif "partial" in statuses:
+                state = "degraded"
+            else:
+                state = "unhealthy"
+            matrix[platform] = {
+                "registered": platform in routes,
+                "state": state,
+                "routes": [row["connector"] for row in routes.get(platform, [])],
+            }
         return {
-            "platforms": active_broker.list_platforms(),
+            "platforms": list(REQUIRED_SOCIAL_PLATFORMS),
+            "registered_platforms": active_broker.list_platforms(),
             "proxy": proxy_health_summary(),
-            "health": await active_broker.health_check_all(),
+            "matrix": matrix,
+            "health": health,
         }
 
     @api.get("/platforms")

@@ -143,6 +143,48 @@ def test_challenge_retry_uses_a_fresh_proxy_session(monkeypatch, tmp_path):
     }
 
 
+def test_store_cookie_failure_retries_with_a_fresh_session(monkeypatch, tmp_path):
+    location = {
+        "metro": "Miami",
+        "proxy_city": "miami",
+        "store_id": "5854",
+        "postal_code": "33155",
+        "store_source_url": "https://www.walmart.com/store/5854-miami-fl",
+    }
+    attempts = []
+
+    def collect(_location, _item_id, _brave, _evidence_dir, proxy_attempt):
+        attempts.append(proxy_attempt)
+        if proxy_attempt == 1:
+            return {
+                "status": "unavailable_error",
+                "observed_at": "2026-09-09T15:46:42Z",
+                "error_code": "target_store_cookie_not_applied",
+            }
+        return {"status": "out_of_stock"}
+
+    monkeypatch.setattr(native, "_collect_location", collect)
+
+    record = native._collect_location_with_retry(
+        location,
+        "20175615729",
+        tmp_path / "brave.exe",
+        tmp_path / "evidence",
+    )
+
+    assert attempts == [1, 2]
+    assert record["status"] == "out_of_stock"
+    assert record["transient_retry"] == {
+        "attempted": True,
+        "first_attempt": {
+            "status": "unavailable_error",
+            "observed_at": "2026-09-09T15:46:42Z",
+            "error_code": "target_store_cookie_not_applied",
+        },
+        "final_attempt": 2,
+    }
+
+
 def test_local_pickup_or_delivery_counts_as_orderable():
     assert _classify_product(
         _product(pickup="IN_STOCK"), _location(), "20175615729"

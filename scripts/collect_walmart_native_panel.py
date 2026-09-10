@@ -692,19 +692,29 @@ def _collect_location_with_retry(
             location, item_id, brave, evidence_dir,
             proxy_attempt=1,
         )
-        if record.get("status") != "unavailable_challenge":
+        retry_kind = None
+        if record.get("status") == "unavailable_challenge":
+            retry_kind = "challenge_retry"
+        elif (
+            record.get("status") == "unavailable_error"
+            and record.get("error_code") == "target_store_cookie_not_applied"
+        ):
+            retry_kind = "transient_retry"
+        if retry_kind is None:
             return record
         first_attempt = {
             "status": record.get("status"),
             "observed_at": record.get("observed_at"),
         }
+        if record.get("error_code"):
+            first_attempt["error_code"] = record.get("error_code")
         try:
             retry_record = _collect_location(
                 location, item_id, brave, evidence_dir,
                 proxy_attempt=2,
             )
         except Exception as retry_exc:
-            record["challenge_retry"] = {
+            record[retry_kind] = {
                 "attempted": True,
                 "first_attempt": first_attempt,
                 "final_attempt": 2,
@@ -712,7 +722,7 @@ def _collect_location_with_retry(
                 "retry_error_code": str(retry_exc).split(":", 1)[0][:120],
             }
             return record
-        retry_record["challenge_retry"] = {
+        retry_record[retry_kind] = {
             "attempted": True,
             "first_attempt": first_attempt,
             "final_attempt": 2,

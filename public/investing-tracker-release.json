@@ -1,8 +1,8 @@
 {
   "schema_version": "bounty-investment-tracker-release/1",
-  "published_at": "2026-09-09T16:35:01.152702+00:00",
+  "published_at": "2026-09-10T14:34:16.369151+00:00",
   "tracker_schema_version": "bounty-investment-tracker/1",
-  "tracker_snapshot_sha256": "7b2a7610fd5bc885ff8d692d8cc685405f72907b6766273fd26a0fd2060fc042",
+  "tracker_snapshot_sha256": "899fcad2a2b946b585cc47a772397d5a07ed89d80425dffc4f7c9f40cbcf43a0",
   "tracker_snapshot_hash_basis": "utf8_text_lf_normalized",
   "methodology": "bounty-corrected-persistence-rerun/1",
   "trend_data_built_at": "2026-09-05T22:30:55.347405+00:00",
@@ -36,11 +36,11 @@
   },
   "ghost_conversation_evidence": {
     "status": "verified",
-    "observed_at": "2026-09-08T04:21:51Z",
-    "original_posts": 74,
-    "comments_replies": 724,
-    "total_clickable_links": 798
+    "observed_at": "2026-09-09T17:51:34Z",
+    "original_posts": 85,
+    "comments_replies": 628,
+    "total_clickable_links": 713
   },
   "private_data": "Token-gated. This receipt contains aggregate counts and hashes only.",
-  "receipt_sha256": "b4f5ac64b7bdaeef119afae1ead18fa880d0c67d02a4dd1aabf5f5ffc2a5bd0f"
+  "receipt_sha256": "adca06c06c8157c4c9f8411d1e8caf13fd0131ac9cb9cd736abbc6600b263c6f"
 }

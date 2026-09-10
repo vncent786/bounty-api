@@ -4,7 +4,6 @@ import argparse
 import base64
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-import csv
 from datetime import datetime, timezone
 from hashlib import sha256
 import json
@@ -20,6 +19,7 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
+import psutil
 import requests
 import websocket
 
@@ -105,27 +105,24 @@ def _atomic_write(path: Path, content: str):
 def _profile_process_pids(profile: Path) -> list[int]:
     if os.name != "nt":
         return []
-    lookup = subprocess.run(
-        [
-            "wmic.exe", "process", "where", "name='brave.exe'",
-            "get", "CommandLine,ProcessId", "/format:csv",
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-        timeout=20,
-    )
-    if lookup.returncode != 0:
-        raise RuntimeError("brave_process_inventory_failed")
-    profile_text = str(profile).casefold()
+    profile_text = str(profile).replace("\\", "/").casefold()
     output = []
-    for row in csv.DictReader(
-        line for line in lookup.stdout.splitlines() if line.strip()
-    ):
-        command_line = str(row.get("CommandLine") or "").casefold()
-        process_id = str(row.get("ProcessId") or "").strip()
-        if profile_text in command_line and process_id.isdigit():
-            output.append(int(process_id))
+    try:
+        processes = psutil.process_iter(["pid", "name", "cmdline"])
+        for process in processes:
+            try:
+                info = process.info
+                if str(info.get("name") or "").casefold() != "brave.exe":
+                    continue
+                command_line = " ".join(info.get("cmdline") or [])
+                normalized = command_line.replace("\\", "/").casefold()
+                process_id = info.get("pid")
+                if profile_text in normalized and isinstance(process_id, int):
+                    output.append(process_id)
+            except psutil.Error:
+                continue
+    except psutil.Error as exc:
+        raise RuntimeError("brave_process_inventory_failed") from exc
     return sorted(set(output))
 
 
@@ -989,6 +986,12 @@ def _format_restock_alert(snapshot: dict) -> str:
             f"All {monitor['target_count']} monitored stores are locally out of stock."
         )
         meaning = "Full local depletion, but this does not prove whether demand or supply caused it."
+    elif availability_state == "mixed_availability":
+        change_text = (
+            f"Verified mixed availability: {monitor['orderable']} of "
+            f"{monitor['target_count']} monitored stores are locally available."
+        )
+        meaning = "Verified mixed availability. No broad or full restock signal."
     else:
         change_text = "No verified broad or full restock signal."
         meaning = "The panel is incomplete, so no panel-wide availability conclusion is valid."

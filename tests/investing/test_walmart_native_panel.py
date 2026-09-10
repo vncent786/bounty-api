@@ -185,6 +185,32 @@ def test_store_cookie_failure_retries_with_a_fresh_session(monkeypatch, tmp_path
     }
 
 
+def test_profile_inventory_uses_psutil_when_wmic_is_unavailable(monkeypatch, tmp_path):
+    profile = tmp_path / "walmart_native_miami"
+
+    class Process:
+        info = {
+            "pid": 4321,
+            "name": "brave.exe",
+            "cmdline": [
+                "C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe",
+                f"--user-data-dir={profile}",
+            ],
+        }
+
+    class Psutil:
+        class Error(Exception):
+            pass
+
+        @staticmethod
+        def process_iter(_fields):
+            return [Process()]
+
+    monkeypatch.setattr(native, "psutil", Psutil)
+
+    assert native._profile_process_pids(profile) == [4321]
+
+
 def test_local_pickup_or_delivery_counts_as_orderable():
     assert _classify_product(
         _product(pickup="IN_STOCK"), _location(), "20175615729"
@@ -458,6 +484,31 @@ def test_partial_replenishment_alert_is_plain_english():
     assert "No automatic trade" in message
     assert "{" not in message
     assert "record_key" not in message
+
+
+def test_complete_mixed_availability_alert_does_not_claim_panel_is_incomplete():
+    snapshot = {
+        "observed_at": "2026-09-10T17:53:25Z",
+        "records": [
+            _panel_record(0, "orderable"),
+            *[_panel_record(index, "out_of_stock") for index in range(1, 6)],
+        ],
+        "restock_monitor": {
+            "state": "mixed_availability",
+            "availability_state": "mixed_availability",
+            "operational_state": "healthy",
+            "target_count": 6,
+            "orderable": 1,
+            "depleted": 5,
+            "newly_orderable_changes": [],
+        },
+    }
+
+    message = native._format_restock_alert(snapshot)
+
+    assert "1 available, 5 out of stock, 0 unverified" in message
+    assert "Verified mixed availability" in message
+    assert "panel is incomplete" not in message
 
 
 def test_browser_launch_failure_removes_plaintext_proxy_extension(monkeypatch, tmp_path):

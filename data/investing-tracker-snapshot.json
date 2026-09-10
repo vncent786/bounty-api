@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-10T14:32:52.767429+00:00",
+  "generated_at": "2026-09-10T17:58:30.569981+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -50232,11 +50232,11 @@
         "NASDAQ:KDP"
       ],
       "why": "User-supplied standing thesis and calibration case; it does not count as blind discovery yield.",
-      "detail": "Atlanta, Chicago restocked; the latest full six-store reading was 2 available and 4 out of stock.",
+      "detail": "Latest full six-store reading: 1 available, 5 out of stock.",
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-10T00:37:56.031710+08:00",
+      "updated_at": "2026-09-11T00:32:06.053526+08:00",
       "monitoring": {
         "status": "active",
         "jobs": [
@@ -50256,8 +50256,8 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "45 23 * * *",
-            "next_run_at": "2026-09-10T23:45:00+08:00",
-            "last_run_at": "2026-09-09T23:46:50.825551+08:00",
+            "next_run_at": "2026-09-11T23:45:00+08:00",
+            "last_run_at": "2026-09-10T23:45:48.435559+08:00",
             "last_status": "ok"
           },
           {
@@ -50272,19 +50272,19 @@
           },
           {
             "job_id": "5159128f97f8",
-            "name": "GHOST A&W trends, conversations and parity watch",
+            "name": "GHOST A&W daily monitor — recovered sources then publish",
             "enabled": true,
             "state": "scheduled",
-            "schedule": "0 0 * * *",
-            "next_run_at": "2026-09-11T00:00:00+08:00",
-            "last_run_at": "2026-09-10T00:37:56.031710+08:00",
+            "schedule": "30 1 * * *",
+            "next_run_at": "2026-09-12T01:30:00+08:00",
+            "last_run_at": "2026-09-11T00:32:06.053526+08:00",
             "last_status": "ok"
           }
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-09T17:51:34Z",
-        "headline": "Atlanta, Chicago restocked; the latest full six-store reading was 2 available and 4 out of stock.",
+        "as_of": "2026-09-10T17:53:25.650709Z",
+        "headline": "Latest full six-store reading: 1 available, 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
           "current_read": "No exit-review trigger. search direction remains incomplete; the latest observed conversation sample contains 85 exact posts; financial coverage remains niche.",
@@ -50292,28 +50292,28 @@
           "triggered_by": []
         },
         "availability": {
-          "state": "replenishment_started",
+          "state": "mixed_availability",
           "current": {
-            "observed_at": "2026-09-08T15:46:31.093145Z",
+            "observed_at": "2026-09-10T17:53:25.650709Z",
             "coverage": "complete",
-            "available": 2,
-            "out_of_stock": 4,
+            "available": 1,
+            "out_of_stock": 5,
             "not_listed": 0,
             "unverified": 0
           },
           "latest_attempt": {
-            "observed_at": "2026-09-09T17:23:43.865411Z",
-            "coverage": "partial",
+            "observed_at": "2026-09-10T17:53:25.650709Z",
+            "coverage": "complete",
             "available": 1,
-            "out_of_stock": 4,
+            "out_of_stock": 5,
             "not_listed": 0,
-            "unverified": 1
+            "unverified": 0
           },
           "last_complete": {
-            "observed_at": "2026-09-08T15:46:31.093145Z",
+            "observed_at": "2026-09-10T17:53:25.650709Z",
             "coverage": "complete",
-            "available": 2,
-            "out_of_stock": 4,
+            "available": 1,
+            "out_of_stock": 5,
             "not_listed": 0,
             "unverified": 0
           },
@@ -50353,6 +50353,15 @@
               "out_of_stock": 4,
               "not_listed": 0,
               "unverified": 0
+            },
+            {
+              "date": "2026-09-11",
+              "observed_at": "2026-09-10T17:53:25.650709Z",
+              "coverage": "complete",
+              "available": 1,
+              "out_of_stock": 5,
+              "not_listed": 0,
+              "unverified": 0
             }
           ],
           "stores": [
@@ -50362,7 +50371,7 @@
               "postal_code": "95829",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T15:46:08.944025Z"
+              "observed_at": "2026-09-10T17:52:48.632935Z"
             },
             {
               "store_id": "8930",
@@ -50370,7 +50379,7 @@
               "postal_code": "75248",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T15:45:47.744469Z"
+              "observed_at": "2026-09-10T17:52:35.711346Z"
             },
             {
               "store_id": "3709",
@@ -50378,15 +50387,15 @@
               "postal_code": "30316",
               "status": "orderable",
               "label": "Available",
-              "observed_at": "2026-09-08T15:45:41.458556Z"
+              "observed_at": "2026-09-10T17:52:36.255507Z"
             },
             {
               "store_id": "5402",
               "metro": "Chicago",
               "postal_code": "60639",
-              "status": "orderable",
-              "label": "Available",
-              "observed_at": "2026-09-08T15:45:48.976719Z"
+              "status": "out_of_stock",
+              "label": "Out of stock",
+              "observed_at": "2026-09-10T17:52:32.285670Z"
             },
             {
               "store_id": "5854",
@@ -50394,7 +50403,7 @@
               "postal_code": "33155",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T15:45:45.551851Z"
+              "observed_at": "2026-09-10T17:52:41.185824Z"
             },
             {
               "store_id": "2516",
@@ -50402,13 +50411,10 @@
               "postal_code": "98057",
               "status": "out_of_stock",
               "label": "Out of stock",
-              "observed_at": "2026-09-08T15:45:46.417861Z"
+              "observed_at": "2026-09-10T17:52:38.142943Z"
             }
           ],
-          "newly_available_stores": [
-            "Atlanta",
-            "Chicago"
-          ],
+          "newly_available_stores": [],
           "broad_restock_at": 4,
           "full_restock_at": 6
         },
@@ -50416,11 +50422,11 @@
           "state": "SEARCH_BUILDING_BASELINE",
           "status": "complete",
           "current_read": "Building a comparable search baseline.",
-          "latest_complete_date": "2026-09-08",
-          "last_successful_observed_at": "2026-09-09T16:00:38.471328+00:00",
+          "latest_complete_date": "2026-09-09",
+          "last_successful_observed_at": "2026-09-10T17:45:10.714991+00:00",
           "ratios": {
-            "ghost root beer energy drink": 0.6722408026755853,
-            "ghost a&w root beer": 0.6733333333333332
+            "ghost root beer energy drink": 0.6488294314381271,
+            "ghost a&w root beer": 0.6328293736501079
           },
           "history": [
             {
@@ -50440,83 +50446,150 @@
                 "ghost root beer energy drink": 0.6722408026755853,
                 "ghost a&w root beer": 0.6733333333333332
               }
+            },
+            {
+              "observed_at": "2026-09-10T17:45:10.714991+00:00",
+              "status": "complete",
+              "state": "SEARCH_BUILDING_BASELINE",
+              "ratios": {
+                "ghost root beer energy drink": 0.6488294314381271,
+                "ghost a&w root beer": 0.6328293736501079
+              }
             }
           ],
           "rolling_seven_day_change": [
             {
-              "date": "2026-08-12",
+              "date": "2026-08-08",
               "changes_pct": {
-                "ghost a&w root beer": 167.3469
+                "ghost a&w root beer": 244.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 18.714285714285715
+                "ghost a&w root beer": 24.571428571428573
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 7.0
+                "ghost a&w root beer": 7.142857142857143
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-09",
+              "changes_pct": {
+                "ghost a&w root beer": 244.0
+              },
+              "latest_7_mean": {
+                "ghost a&w root beer": 24.571428571428573
+              },
+              "prior_7_mean": {
+                "ghost a&w root beer": 7.142857142857143
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-10",
+              "changes_pct": {
+                "ghost a&w root beer": 244.0
+              },
+              "latest_7_mean": {
+                "ghost a&w root beer": 24.571428571428573
+              },
+              "prior_7_mean": {
+                "ghost a&w root beer": 7.142857142857143
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-11",
+              "changes_pct": {
+                "ghost root beer energy drink": 348.7805,
+                "ghost a&w root beer": 49.4382
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 26.285714285714285,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.857142857142857,
+                "ghost a&w root beer": 12.714285714285714
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-12",
+              "changes_pct": {
+                "ghost root beer energy drink": 36.8421,
+                "ghost a&w root beer": 49.4382
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 18.571428571428573,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 13.571428571428571,
+                "ghost a&w root beer": 12.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-13",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": 253.0612
+                "ghost root beer energy drink": -46.9388,
+                "ghost a&w root beer": 49.4382
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 24.714285714285715
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 19.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 7.0
+                "ghost root beer energy drink": 21.0,
+                "ghost a&w root beer": 12.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-14",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -13.4454
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -56.7742
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 14.714285714285714
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 9.571428571428571
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 17.0
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 22.142857142857142
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-15",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 24.571428571428573
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-16",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 24.571428571428573
               },
               "source_window_days": 14
             },
@@ -50524,15 +50597,15 @@
               "date": "2026-08-17",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 32.142857142857146,
+                "ghost a&w root beer": 24.571428571428573
               },
               "source_window_days": 14
             },
@@ -50540,15 +50613,15 @@
               "date": "2026-08-18",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -19.4444
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.285714285714285,
+                "ghost a&w root beer": 19.0
               },
               "source_window_days": 14
             },
@@ -50556,320 +50629,351 @@
               "date": "2026-08-19",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": 42.7481
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 26.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 18.714285714285715
+                "ghost root beer energy drink": 18.571428571428573,
+                "ghost a&w root beer": 19.0
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-20",
               "changes_pct": {
-                "ghost a&w root beer": -16.185
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 24.714285714285715
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 19.0
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-21",
               "changes_pct": {
-                "ghost a&w root beer": 75.7282
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": -40.2985
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.857142857142858
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 14.714285714285714
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 9.571428571428571
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-22",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost root beer energy drink": 10.2564,
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-23",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost root beer energy drink": 120.5128,
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-24",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-25",
               "changes_pct": {
-                "ghost a&w root beer": 34.4828
+                "ghost a&w root beer": 177.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 27.857142857142858
+                "ghost a&w root beer": 15.857142857142858
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-26",
               "changes_pct": {
-                "ghost a&w root beer": 1.6043
+                "ghost a&w root beer": 282.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 27.142857142857142
+                "ghost a&w root beer": 21.857142857142858
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 26.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-27",
               "changes_pct": {
-                "ghost a&w root beer": 62.069
+                "ghost a&w root beer": 397.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 33.57142857142857
+                "ghost a&w root beer": 28.428571428571427
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-28",
               "changes_pct": {
-                "ghost a&w root beer": 33.7017
+                "ghost a&w root beer": 502.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 34.57142857142857
+                "ghost a&w root beer": 34.42857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 25.857142857142858
+                "ghost a&w root beer": 5.714285714285714
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-29",
               "changes_pct": {
-                "ghost a&w root beer": 46.0227
+                "ghost root beer energy drink": 286.0465,
+                "ghost a&w root beer": 428.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 36.714285714285715
+                "ghost root beer energy drink": 23.714285714285715,
+                "ghost a&w root beer": 37.714285714285715
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 7.142857142857143
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-30",
               "changes_pct": {
-                "ghost root beer energy drink": 356.8182,
-                "ghost a&w root beer": 91.4773
+                "ghost root beer energy drink": 95.3488,
+                "ghost a&w root beer": 586.0
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 48.142857142857146
+                "ghost root beer energy drink": 24.0,
+                "ghost a&w root beer": 49.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "source_window_days": 14
             },
             {
               "date": "2026-08-31",
               "changes_pct": {
-                "ghost root beer energy drink": 488.6364,
-                "ghost a&w root beer": 148.2955
+                "ghost root beer energy drink": 162.7907,
+                "ghost a&w root beer": 786.0
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 37.0,
-                "ghost a&w root beer": 62.42857142857143
+                "ghost root beer energy drink": 32.285714285714285,
+                "ghost a&w root beer": 63.285714285714285
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-01",
               "changes_pct": {
-                "ghost root beer energy drink": 579.5455,
-                "ghost a&w root beer": 130.7692
+                "ghost root beer energy drink": 208.1395,
+                "ghost a&w root beer": 308.1081
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 42.714285714285715,
-                "ghost a&w root beer": 64.28571428571429
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 64.71428571428571
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 27.857142857142858
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 15.857142857142858
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-02",
               "changes_pct": {
-                "ghost root beer energy drink": 297.3684,
-                "ghost a&w root beer": 144.7368
+                "ghost root beer energy drink": 247.6744,
+                "ghost a&w root beer": 202.6144
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 43.142857142857146,
-                "ghost a&w root beer": 66.42857142857143
+                "ghost root beer energy drink": 42.714285714285715,
+                "ghost a&w root beer": 66.14285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 10.857142857142858,
-                "ghost a&w root beer": 27.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 21.857142857142858
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-03",
               "changes_pct": {
-                "ghost root beer energy drink": 147.0588,
-                "ghost a&w root beer": 101.2766
+                "ghost root beer energy drink": 129.6875,
+                "ghost a&w root beer": 135.6784
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 42.0,
-                "ghost a&w root beer": 67.57142857142857
+                "ghost a&w root beer": 67.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 17.0,
-                "ghost a&w root beer": 33.57142857142857
+                "ghost root beer energy drink": 18.285714285714285,
+                "ghost a&w root beer": 28.428571428571427
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-04",
               "changes_pct": {
-                "ghost root beer energy drink": 92.053,
-                "ghost a&w root beer": 95.4545
+                "ghost root beer energy drink": 80.1242,
+                "ghost a&w root beer": 95.0207
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 41.42857142857143,
-                "ghost a&w root beer": 67.57142857142857
+                "ghost a&w root beer": 67.14285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 21.571428571428573,
-                "ghost a&w root beer": 34.57142857142857
+                "ghost root beer energy drink": 23.0,
+                "ghost a&w root beer": 34.42857142857143
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-05",
               "changes_pct": {
-                "ghost root beer energy drink": 30.8458,
-                "ghost a&w root beer": 71.2062
+                "ghost root beer energy drink": 59.6386,
+                "ghost a&w root beer": 64.7727
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 37.57142857142857,
-                "ghost a&w root beer": 62.857142857142854
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 62.142857142857146
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 36.714285714285715
+                "ghost root beer energy drink": 23.714285714285715,
+                "ghost a&w root beer": 37.714285714285715
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-06",
               "changes_pct": {
-                "ghost root beer energy drink": 20.8955,
-                "ghost a&w root beer": 18.6944
+                "ghost root beer energy drink": 44.6429,
+                "ghost a&w root beer": 15.7434
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 34.714285714285715,
-                "ghost a&w root beer": 57.142857142857146
+                "ghost a&w root beer": 56.714285714285715
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 48.142857142857146
+                "ghost root beer energy drink": 24.0,
+                "ghost a&w root beer": 49.0
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-07",
               "changes_pct": {
-                "ghost root beer energy drink": -15.8301,
-                "ghost a&w root beer": -22.1968
+                "ghost root beer energy drink": -3.9823,
+                "ghost a&w root beer": -24.1535
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 31.142857142857142,
-                "ghost a&w root beer": 48.57142857142857
+                "ghost root beer energy drink": 31.0,
+                "ghost a&w root beer": 48.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 37.0,
-                "ghost a&w root beer": 62.42857142857143
+                "ghost root beer energy drink": 32.285714285714285,
+                "ghost a&w root beer": 63.285714285714285
               },
               "source_window_days": 14
             },
             {
               "date": "2026-09-08",
               "changes_pct": {
-                "ghost root beer energy drink": -32.7759,
-                "ghost a&w root beer": -32.6667
+                "ghost root beer energy drink": -23.7736,
+                "ghost a&w root beer": -32.8918
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 43.285714285714285
+                "ghost root beer energy drink": 28.857142857142858,
+                "ghost a&w root beer": 43.42857142857143
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 64.71428571428571
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-09",
+              "changes_pct": {
+                "ghost root beer energy drink": -35.1171,
+                "ghost a&w root beer": -36.7171
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 27.714285714285715,
+                "ghost a&w root beer": 41.857142857142854
               },
               "prior_7_mean": {
                 "ghost root beer energy drink": 42.714285714285715,
-                "ghost a&w root beer": 64.28571428571429
+                "ghost a&w root beer": 66.14285714285714
               },
               "source_window_days": 14
             }
           ],
           "rolling_seven_day_timeline": [
             {
-              "date": "2026-08-12",
+              "date": "2026-08-08",
               "changes_pct": {
-                "ghost a&w root beer": 167.3469
+                "ghost a&w root beer": 244.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 18.714285714285715
+                "ghost a&w root beer": 24.571428571428573
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 7.0
+                "ghost a&w root beer": 7.142857142857143
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -50877,18 +50981,84 @@
               "source_window_days": 14
             },
             {
-              "date": "2026-08-13",
+              "date": "2026-08-09",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": 253.0612
+                "ghost a&w root beer": 244.0
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 24.714285714285715
+                "ghost a&w root beer": 24.571428571428573
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 7.0
+                "ghost a&w root beer": 7.142857142857143
+              },
+              "missing_reasons": {
+                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-10",
+              "changes_pct": {
+                "ghost a&w root beer": 244.0
+              },
+              "latest_7_mean": {
+                "ghost a&w root beer": 24.571428571428573
+              },
+              "prior_7_mean": {
+                "ghost a&w root beer": 7.142857142857143
+              },
+              "missing_reasons": {
+                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
+              },
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-11",
+              "changes_pct": {
+                "ghost root beer energy drink": 348.7805,
+                "ghost a&w root beer": 49.4382
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 26.285714285714285,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 5.857142857142857,
+                "ghost a&w root beer": 12.714285714285714
+              },
+              "missing_reasons": {},
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-12",
+              "changes_pct": {
+                "ghost root beer energy drink": 36.8421,
+                "ghost a&w root beer": 49.4382
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 18.571428571428573,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 13.571428571428571,
+                "ghost a&w root beer": 12.714285714285714
+              },
+              "missing_reasons": {},
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-08-13",
+              "changes_pct": {
+                "ghost root beer energy drink": -46.9388,
+                "ghost a&w root beer": 49.4382
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 19.0
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 21.0,
+                "ghost a&w root beer": 12.714285714285714
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50896,16 +51066,16 @@
             {
               "date": "2026-08-14",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -13.4454
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -56.7742
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 14.714285714285714
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 9.571428571428571
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 17.0
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 22.142857142857142
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50913,16 +51083,16 @@
             {
               "date": "2026-08-15",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 24.571428571428573
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50930,16 +51100,16 @@
             {
               "date": "2026-08-16",
               "changes_pct": {
-                "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost root beer energy drink": -79.0323,
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.571428571428573,
+                "ghost a&w root beer": 24.571428571428573
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50948,15 +51118,15 @@
               "date": "2026-08-17",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -41.6667
+                "ghost a&w root beer": -76.7442
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 15.0
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 32.142857142857146,
+                "ghost a&w root beer": 24.571428571428573
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50965,15 +51135,15 @@
               "date": "2026-08-18",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": -19.4444
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.714285714285715
+                "ghost root beer energy drink": 26.285714285714285,
+                "ghost a&w root beer": 19.0
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50982,15 +51152,15 @@
               "date": "2026-08-19",
               "changes_pct": {
                 "ghost root beer energy drink": -100.0,
-                "ghost a&w root beer": 42.7481
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 0.0,
-                "ghost a&w root beer": 26.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 18.714285714285715
+                "ghost root beer energy drink": 18.571428571428573,
+                "ghost a&w root beer": 19.0
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -50998,77 +51168,81 @@
             {
               "date": "2026-08-20",
               "changes_pct": {
-                "ghost a&w root beer": -16.185
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": -69.9248
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 24.714285714285715
+                "ghost root beer energy drink": 11.142857142857142,
+                "ghost a&w root beer": 19.0
               },
-              "missing_reasons": {
-                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
-              },
+              "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-08-21",
               "changes_pct": {
-                "ghost a&w root beer": 75.7282
+                "ghost root beer energy drink": -100.0,
+                "ghost a&w root beer": -40.2985
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.857142857142858
+                "ghost root beer energy drink": 0.0,
+                "ghost a&w root beer": 5.714285714285714
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 14.714285714285714
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 9.571428571428571
               },
-              "missing_reasons": {
-                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
-              },
+              "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-08-22",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost root beer energy drink": 10.2564,
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
-              "missing_reasons": {
-                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
-              },
+              "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-08-23",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost root beer energy drink": 120.5128,
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost root beer energy drink": 5.571428571428571,
+                "ghost a&w root beer": 5.714285714285714
               },
-              "missing_reasons": {
-                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
-              },
+              "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-08-24",
               "changes_pct": {
-                "ghost a&w root beer": 67.619
+                "ghost a&w root beer": 25.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost a&w root beer": 7.142857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 15.0
+                "ghost a&w root beer": 5.714285714285714
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -51078,13 +51252,13 @@
             {
               "date": "2026-08-25",
               "changes_pct": {
-                "ghost a&w root beer": 34.4828
+                "ghost a&w root beer": 177.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 27.857142857142858
+                "ghost a&w root beer": 15.857142857142858
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -51094,13 +51268,13 @@
             {
               "date": "2026-08-26",
               "changes_pct": {
-                "ghost a&w root beer": 1.6043
+                "ghost a&w root beer": 282.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 27.142857142857142
+                "ghost a&w root beer": 21.857142857142858
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 26.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -51110,13 +51284,13 @@
             {
               "date": "2026-08-27",
               "changes_pct": {
-                "ghost a&w root beer": 62.069
+                "ghost a&w root beer": 397.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 33.57142857142857
+                "ghost a&w root beer": 28.428571428571427
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 20.714285714285715
+                "ghost a&w root beer": 5.714285714285714
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -51126,13 +51300,13 @@
             {
               "date": "2026-08-28",
               "changes_pct": {
-                "ghost a&w root beer": 33.7017
+                "ghost a&w root beer": 502.5
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 34.57142857142857
+                "ghost a&w root beer": 34.42857142857143
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 25.857142857142858
+                "ghost a&w root beer": 5.714285714285714
               },
               "missing_reasons": {
                 "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
@@ -51142,32 +51316,33 @@
             {
               "date": "2026-08-29",
               "changes_pct": {
-                "ghost a&w root beer": 46.0227
+                "ghost root beer energy drink": 286.0465,
+                "ghost a&w root beer": 428.0
               },
               "latest_7_mean": {
-                "ghost a&w root beer": 36.714285714285715
+                "ghost root beer energy drink": 23.714285714285715,
+                "ghost a&w root beer": 37.714285714285715
               },
               "prior_7_mean": {
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 6.142857142857143,
+                "ghost a&w root beer": 7.142857142857143
               },
-              "missing_reasons": {
-                "ghost root beer energy drink": "prior_seven_day_mean_is_zero"
-              },
+              "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-08-30",
               "changes_pct": {
-                "ghost root beer energy drink": 356.8182,
-                "ghost a&w root beer": 91.4773
+                "ghost root beer energy drink": 95.3488,
+                "ghost a&w root beer": 586.0
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 48.142857142857146
+                "ghost root beer energy drink": 24.0,
+                "ghost a&w root beer": 49.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51175,16 +51350,16 @@
             {
               "date": "2026-08-31",
               "changes_pct": {
-                "ghost root beer energy drink": 488.6364,
-                "ghost a&w root beer": 148.2955
+                "ghost root beer energy drink": 162.7907,
+                "ghost a&w root beer": 786.0
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 37.0,
-                "ghost a&w root beer": 62.42857142857143
+                "ghost root beer energy drink": 32.285714285714285,
+                "ghost a&w root beer": 63.285714285714285
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 25.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 7.142857142857143
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51192,16 +51367,16 @@
             {
               "date": "2026-09-01",
               "changes_pct": {
-                "ghost root beer energy drink": 579.5455,
-                "ghost a&w root beer": 130.7692
+                "ghost root beer energy drink": 208.1395,
+                "ghost a&w root beer": 308.1081
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 42.714285714285715,
-                "ghost a&w root beer": 64.28571428571429
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 64.71428571428571
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 6.285714285714286,
-                "ghost a&w root beer": 27.857142857142858
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 15.857142857142858
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51209,16 +51384,16 @@
             {
               "date": "2026-09-02",
               "changes_pct": {
-                "ghost root beer energy drink": 297.3684,
-                "ghost a&w root beer": 144.7368
+                "ghost root beer energy drink": 247.6744,
+                "ghost a&w root beer": 202.6144
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 43.142857142857146,
-                "ghost a&w root beer": 66.42857142857143
+                "ghost root beer energy drink": 42.714285714285715,
+                "ghost a&w root beer": 66.14285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 10.857142857142858,
-                "ghost a&w root beer": 27.142857142857142
+                "ghost root beer energy drink": 12.285714285714286,
+                "ghost a&w root beer": 21.857142857142858
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51226,16 +51401,16 @@
             {
               "date": "2026-09-03",
               "changes_pct": {
-                "ghost root beer energy drink": 147.0588,
-                "ghost a&w root beer": 101.2766
+                "ghost root beer energy drink": 129.6875,
+                "ghost a&w root beer": 135.6784
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 42.0,
-                "ghost a&w root beer": 67.57142857142857
+                "ghost a&w root beer": 67.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 17.0,
-                "ghost a&w root beer": 33.57142857142857
+                "ghost root beer energy drink": 18.285714285714285,
+                "ghost a&w root beer": 28.428571428571427
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51243,16 +51418,16 @@
             {
               "date": "2026-09-04",
               "changes_pct": {
-                "ghost root beer energy drink": 92.053,
-                "ghost a&w root beer": 95.4545
+                "ghost root beer energy drink": 80.1242,
+                "ghost a&w root beer": 95.0207
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 41.42857142857143,
-                "ghost a&w root beer": 67.57142857142857
+                "ghost a&w root beer": 67.14285714285714
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 21.571428571428573,
-                "ghost a&w root beer": 34.57142857142857
+                "ghost root beer energy drink": 23.0,
+                "ghost a&w root beer": 34.42857142857143
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51260,16 +51435,16 @@
             {
               "date": "2026-09-05",
               "changes_pct": {
-                "ghost root beer energy drink": 30.8458,
-                "ghost a&w root beer": 71.2062
+                "ghost root beer energy drink": 59.6386,
+                "ghost a&w root beer": 64.7727
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 37.57142857142857,
-                "ghost a&w root beer": 62.857142857142854
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 62.142857142857146
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 36.714285714285715
+                "ghost root beer energy drink": 23.714285714285715,
+                "ghost a&w root beer": 37.714285714285715
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51277,16 +51452,16 @@
             {
               "date": "2026-09-06",
               "changes_pct": {
-                "ghost root beer energy drink": 20.8955,
-                "ghost a&w root beer": 18.6944
+                "ghost root beer energy drink": 44.6429,
+                "ghost a&w root beer": 15.7434
               },
               "latest_7_mean": {
                 "ghost root beer energy drink": 34.714285714285715,
-                "ghost a&w root beer": 57.142857142857146
+                "ghost a&w root beer": 56.714285714285715
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 48.142857142857146
+                "ghost root beer energy drink": 24.0,
+                "ghost a&w root beer": 49.0
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51294,16 +51469,16 @@
             {
               "date": "2026-09-07",
               "changes_pct": {
-                "ghost root beer energy drink": -15.8301,
-                "ghost a&w root beer": -22.1968
+                "ghost root beer energy drink": -3.9823,
+                "ghost a&w root beer": -24.1535
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 31.142857142857142,
-                "ghost a&w root beer": 48.57142857142857
+                "ghost root beer energy drink": 31.0,
+                "ghost a&w root beer": 48.0
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 37.0,
-                "ghost a&w root beer": 62.42857142857143
+                "ghost root beer energy drink": 32.285714285714285,
+                "ghost a&w root beer": 63.285714285714285
               },
               "missing_reasons": {},
               "source_window_days": 14
@@ -51311,22 +51486,39 @@
             {
               "date": "2026-09-08",
               "changes_pct": {
-                "ghost root beer energy drink": -32.7759,
-                "ghost a&w root beer": -32.6667
+                "ghost root beer energy drink": -23.7736,
+                "ghost a&w root beer": -32.8918
               },
               "latest_7_mean": {
-                "ghost root beer energy drink": 28.714285714285715,
-                "ghost a&w root beer": 43.285714285714285
+                "ghost root beer energy drink": 28.857142857142858,
+                "ghost a&w root beer": 43.42857142857143
               },
               "prior_7_mean": {
-                "ghost root beer energy drink": 42.714285714285715,
-                "ghost a&w root beer": 64.28571428571429
+                "ghost root beer energy drink": 37.857142857142854,
+                "ghost a&w root beer": 64.71428571428571
               },
               "missing_reasons": {},
               "source_window_days": 14
             },
             {
               "date": "2026-09-09",
+              "changes_pct": {
+                "ghost root beer energy drink": -35.1171,
+                "ghost a&w root beer": -36.7171
+              },
+              "latest_7_mean": {
+                "ghost root beer energy drink": 27.714285714285715,
+                "ghost a&w root beer": 41.857142857142854
+              },
+              "prior_7_mean": {
+                "ghost root beer energy drink": 42.714285714285715,
+                "ghost a&w root beer": 66.14285714285714
+              },
+              "missing_reasons": {},
+              "source_window_days": 14
+            },
+            {
+              "date": "2026-09-10",
               "changes_pct": {},
               "latest_7_mean": {},
               "prior_7_mean": {},
@@ -51345,7 +51537,7 @@
           "comparison_definition": "Latest 7 complete days vs previous 7 complete days inside the same Google request.",
           "source_health": {
             "latest_attempt_status": "complete",
-            "latest_attempt_observed_at": "2026-09-09T16:00:38.471328+00:00",
+            "latest_attempt_observed_at": "2026-09-10T17:45:10.714991+00:00",
             "visible_series_uses_last_verified": false,
             "visible_writer": "scripts/collect_ghost_google_trends.py",
             "visible_effective_gprop": "web_default"
@@ -60840,7 +61032,7 @@
           "state": "NICHE_ONLY",
           "qualifying_outlets": 0,
           "management_acknowledged": false,
-          "observed_at": "2026-09-09T16:05:06.698387+00:00",
+          "observed_at": "2026-09-10T16:03:17.647603+00:00",
           "history": [
             {
               "observed_at": "2026-09-07T10:58:55.931381+00:00",
@@ -60865,12 +61057,18 @@
               "state": "NICHE_ONLY",
               "qualifying_outlets": 0,
               "management_acknowledged": false
+            },
+            {
+              "observed_at": "2026-09-10T16:03:17.647603+00:00",
+              "state": "NICHE_ONLY",
+              "qualifying_outlets": 0,
+              "management_acknowledged": false
             }
           ],
           "source_checks": {
             "official_sources": 6,
             "sec_filings": 2,
-            "news_queries": 60,
+            "news_queries": 63,
             "earnings_call_or_transcript_checked": false
           },
           "lanes": {
@@ -61018,7 +61216,7 @@
             "qualifying_business_news": {
               "status": "complete",
               "health_state": "healthy",
-              "checked_count": 17,
+              "checked_count": 18,
               "retrieved_count": 0,
               "qualifying_count": 0,
               "exact_implication_match_count": 0,
@@ -61066,7 +61264,7 @@
                 {
                   "url": "https://news.google.com/rss/articles/CBMiiwFBVV95cUxNUFoyLVV0RS1BclByRGw2M3QwemQ4ekMwcGxfMU9wYUMwWjFXdEtETWI2a19UMUZJWHBPem15d0FKWHRqd0VGQ1k3Qk1PRkwyTDh3ZTNkOVFIWExMQnRBMU0xNVBJMnprcEdjU051T0dtZlNXM3hnYU1CLUFFcjlzZFZOT3V0TlZfMFdj?oc=5",
                   "title": "Formats, Flavors, and the Push for Sensory Experience - Nutritional Outlook",
-                  "published_at": "2026-09-02T12:13:13+00:00",
+                  "published_at": "2026-09-02T07:00:00+00:00",
                   "attributes": {
                     "outlet": "Nutritional Outlook",
                     "exact_implication_match": false,
@@ -61105,20 +61303,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMitwFBVV95cUxQTlUzOHRBVTZXRnpIbFJJbHhoNkNPSFVaYndIZEpHUkJwMm5udzR3Sm9qS0tqZUtjX3o5cWluUmZmVThrYWd2QW5ydmdScmRiTWs4eGg2SmZfQVVBd2ljWHE2ZjBwMWdYSzJZbDRKdjFhLUNiOEhmNVM0cTRTNExrN1NLLUtRNXhTVllNLUREb0tXUUlVYXlGNHo5U2JUaVdIUWFvVEMxZmJvcHlaMk45N003YVE0Z2s?oc=5",
-                  "title": "Keurig Dr Pepper Announces Flavorful New Innovation Across Its Refreshment Portfolio - keurigdrpepper.com",
+                  "title": "Keurig Dr Pepper Announces Flavorful New Innovation Across Its Refreshment Portfolio - Keurig Dr Pepper",
                   "published_at": "2026-02-18T08:00:00+00:00",
                   "attributes": {
-                    "outlet": "keurigdrpepper.com",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMi1gFBVV95cUxQTUU4bXE1MVEwblhhdEhhV3V0SWNnQXRKQ0VnYTJsazBvZjFRZmwyb052UkdUMm1Nc290bEhJUl9uLUsxb25GcnVZX1ptamp1N0ZLSEpEUFZTMTZHeVlmVU5MaWJJWWUzeHlHV0E4aHZXeWtUUi1NbEJQV3hDbi0wTzVTbmhVRmwxLW1KaDgzOU5Gd25ROGtvemRHU2hlUkJCUFdSN0ZuREN3TTc3RUd6aVJqODdmR1NwcW5fNlFGN1gwTFpRWVBDQUVyZGc3ZXdtbnF6NlBB?oc=5",
-                  "title": "Keurig Dr Pepper to Participate in Barclays Global Consumer Staples Conference - TradingView",
-                  "published_at": "2026-08-27T20:15:00+00:00",
-                  "attributes": {
-                    "outlet": "TradingView",
+                    "outlet": "Keurig Dr Pepper",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61134,6 +61322,16 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMi1wFBVV95cUxQa3NLeHFfaGkybE4yWTdBQlBhWjZSQ09nYi1pR19MUTNseGFkbVVPYmVLYWNQaXRxUmNmaW5TakstUXcwTmx6MnZxV2daSld1eDNiVER2cHV6alBIc3J6dzRINTFHSDNoVUZQV2txLVF5X29PaWVkRVJaMkw5ZW42QkUwUlJOUmI4WjBPRUFUNlRiQjhpWlFIQjNNWDVkUWNrY0Z4S05KRjhPcE9EMXJHN3hIeWI0cng2V2tYWmlrRVBZUWdJNlNxSkFrRHRyZVNMcDByVm1TQQ?oc=5",
+                  "title": "Keurig Dr Pepper to Report Second Quarter 2026 Results and Host Conference Call - TradingView",
+                  "published_at": "2026-06-25T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "TradingView",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMivwFBVV95cUxPd0pyLVhiUE9hZGFvODNsX3ozYUpJTmU0R1NiVjdHSUM2eFZzWWNHTDl1bGE2VE1oS3lIcEw1QlNTckdCY1BGSmZDTFhvUEFRd0xGdmJRY0h2UGJ4WU85TTdiNmpLWjNybXdqOFZyMjgxU1pVdXpybXdKR3RqMENjdllBdzFuSGRkX0J1azc2eVQ4VzNfaURhMlViOE45OUl4aHNYVXAtcVozZUhyMmZLY0ZOODBzcFFpeThMYjBLNA?oc=5",
                   "title": "Keurig Dr Pepper to Acquire Disruptive Energy Drink Business GHOST - PR Newswire",
                   "published_at": "2024-10-24T07:00:00+00:00",
@@ -61144,9 +61342,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQcV82YklBd3pEaUhJRGNXNkd2dUo3MW5LYWxjZTN5SXdRQnBQMmJtNFYyVVl5cjVkR3BzYzNta3JWT09mWmxfUGhtZ3NsZno5bFRncFQyMWREVUdKcEtKR0VXaWhoZGtzcWNPNi1wR2ZTODdMN0VNUnNmNzFET3NUN29IVlhVMlczOGdKMVNTeHEyd0hmRS0xc2hwZw?oc=5",
-                  "title": "Keurig Dr Pepper to Acquire Ghost Energy Drink for Nearly $1 Billion - CSP Daily News",
-                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPeFhiOWprcVJyY1BCY0tneFE3aHVVTGktS211MExkZjZWNkNMb05teTRNSlFRajhJM2ZBaC1LY0tCam1DMEZuOGdSSGpZQlhqMnNYV1RYM3pmcDVVbUJhWlpYUkg1cTVHaTE4Ql9vcEhraDNBRWo1SjhxdERSaWtuVllHQzMtYm5lcFE?oc=5",
+                  "title": "Keurig Dr Pepper to acquire JDE Peet’s for $18 billion - CSP Daily News",
+                  "published_at": "2025-08-25T07:00:00+00:00",
                   "attributes": {
                     "outlet": "CSP Daily News",
                     "exact_implication_match": false,
@@ -61175,18 +61373,28 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
-                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
+                  "title": "KDP: Keurig Dr Pepper - Full Company Report - zacks.com",
                   "published_at": "2026-09-04T19:59:00+00:00",
                   "attributes": {
-                    "outlet": "Zacks Investment Research",
+                    "outlet": "zacks.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPeFhiOWprcVJyY1BCY0tneFE3aHVVTGktS211MExkZjZWNkNMb05teTRNSlFRajhJM2ZBaC1LY0tCam1DMEZuOGdSSGpZQlhqMnNYV1RYM3pmcDVVbUJhWlpYUkg1cTVHaTE4Ql9vcEhraDNBRWo1SjhxdERSaWtuVllHQzMtYm5lcFE?oc=5",
-                  "title": "Keurig Dr Pepper to acquire JDE Peet’s for $18 billion - CSP Daily News",
-                  "published_at": "2025-08-25T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMi_gFBVV95cUxPUXBuM2xzOThJYlc0OEdjSnhEaWxkaDY1b2g1SjFyVF9DRUJkUlN6QzBxMWJ5emh3ckg3T3BVcjBOekduQ19Xa0loWmdHVmxPbGVmME13c05la3VLdHJ5NFZteFdQbXVCYkZzb19EYXY5ZEozX3lVRlVaejg0b2NMTkJtUEJibVdqVUo0d1BiOXEwOFVYUkQ4aHpMTlRTVnZwQWs1Mks2b19DWnoxZlFWOE5Bck1mVm5RV055RFZNc0hfQjJ2UVhsZ2Z5djFUNktBREhILTlldGZQZUNxeUpGZ1lkX2hIZkRSQWxoc2hZSzQ0QXNUemVpN1l1UEZPdw?oc=5",
+                  "title": "Keurig Dr Pepper and Suntory Beverage & Food Europe deepen strategic partnership to accelerate growth in Europe’s carbonated soft drinks market - Comunicaffe International",
+                  "published_at": "2026-04-03T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Comunicaffe International",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQcV82YklBd3pEaUhJRGNXNkd2dUo3MW5LYWxjZTN5SXdRQnBQMmJtNFYyVVl5cjVkR3BzYzNta3JWT09mWmxfUGhtZ3NsZno5bFRncFQyMWREVUdKcEtKR0VXaWhoZGtzcWNPNi1wR2ZTODdMN0VNUnNmNzFET3NUN29IVlhVMlczOGdKMVNTeHEyd0hmRS0xc2hwZw?oc=5",
+                  "title": "Keurig Dr Pepper to Acquire Ghost Energy Drink for Nearly $1 Billion - CSP Daily News",
+                  "published_at": "2024-10-24T07:00:00+00:00",
                   "attributes": {
                     "outlet": "CSP Daily News",
                     "exact_implication_match": false,
@@ -61199,17 +61407,17 @@
             "sell_side_public_mentions": {
               "status": "complete",
               "health_state": "healthy",
-              "checked_count": 43,
+              "checked_count": 45,
               "retrieved_count": 0,
               "qualifying_count": 0,
               "exact_implication_match_count": 0,
               "evidence": [
                 {
                   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
-                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
+                  "title": "KDP: Keurig Dr Pepper - Full Company Report - zacks.com",
                   "published_at": "2026-09-04T19:59:00+00:00",
                   "attributes": {
-                    "outlet": "Zacks Investment Research",
+                    "outlet": "zacks.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61220,6 +61428,16 @@
                   "published_at": "2026-08-22T07:00:00+00:00",
                   "attributes": {
                     "outlet": "Eastern Progress",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMilwFBVV95cUxNX3Fxdll0aUhLVTBmWFM0NlJDUm5lZDdOOU9iRGlhM3lsSVhQanV5QVNQcWxzb3dGT2dfaXc2UmFyeWdlcVBhVnNfTXAwNGJCbEFOUTd5RnpDSnBuOUZOUms0U0JLbUo2b1Y4ejZiV3RBM0xzc1puOFo0N3FsbTVSN1ZYSkFUMzRKZXFXdWRWa05tYWlUYWs4?oc=5",
+                  "title": "Bloomington Fans Unveil Monument for 2026 CFP Championship - Intellectia AI",
+                  "published_at": "2026-09-04T15:19:26+00:00",
+                  "attributes": {
+                    "outlet": "Intellectia AI",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61286,30 +61504,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMihwFBVV95cUxONzBMYlJMQzczaFJpT0hqZUZCUWpXVXVWM1pnMFgwYXhLWXU5WHNQWVgwUUNWUUFZMnNJS09MYm1mQmNBSi1yaTNGdDZseFlKRE8tbUIyM2hUaFRLWTA2cDRPa3loTDZ5UE9oTW5sdEw1V3B4azRQa3AzM2h0LUZhbDN2VzVRWWc?oc=5",
-                  "title": "What Kuerig Dr Pepper’s acquisition of Ghost means for US energy category - Yahoo Finance",
+                  "title": "What Kuerig Dr Pepper’s acquisition of Ghost means for US energy category - finance.yahoo.com",
                   "published_at": "2024-11-06T08:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxNb2JPSGVGb0hvaFp4cVViU1Rkb2drMjl6RFFodFIyTEtMWFB0RzJKSjdyNmpJSkc5dzdnQjBudEpwVGpRVzZKdDZKdmU5SUIwTGtCNE9zb29xZEh0M3RWMjd6TnR6VWp6MXRaTjVWdTV3SWtjTGJzdXlHWXJWRXAxcGRiQUtEdVJfOEVsc0N0Y0RGMjN6ZUVnbGJMSFFZaEdUZklocmJRU0s2MkROTmlCNmtrU3d5NVhUc1g0UXloelRPYl83RFgybDkyZEdDY1hwSDVJT0NGUFFnQ0RkcVVCSg?oc=5",
-                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper's Upside Over Coca-Cola's Expensive Low-Growth Premium - 24/7 Wall St.",
-                  "published_at": "2026-07-13T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "24/7 Wall St.",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxQNFp1aG8tNDBQT1RLSUcwUHNyMnp0aXp6LXNaY3VreXNfUEx4NHhBYXZ4NmxRc0NmVzRlWVMtbEU2cHpWQndsLXBGallZQV9pazFxOE9yd2JsRUJfSi0yNVF5eklkbW9EZzZ1UjBJV3NDc3pMWVdtSTN2aFQ0ZmtuMHpMUkM0cEpUbjN4eUM3Rk54Z0E?oc=5",
-                  "title": "Keurig Dr Pepper Held Steady: Can the $40 Value Gap Close in 2026? - TIKR.com",
-                  "published_at": "2026-02-04T08:00:00+00:00",
-                  "attributes": {
-                    "outlet": "TIKR.com",
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61325,16 +61523,6 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxOUjQ0UnJtSkd6N3RNV3NtWUdpQWxXdDZQY1ZVRjJUdDlYczlmajRjd0U4SXhWWEZUUmFHUmxYTHFpSGw0cXNSTW8yQTJUemJhMDNyRkFUNDYyMlVvQmtMQmJNeTYxLXVhWVBKSmx1ck8yaGp2b3F5NldhaV90SXJVM0g5bXFMU185SXJsNlliSHkyOEl5dHpjU2M1VFpESjM5eG9N?oc=5",
-                  "title": "Dynamic 2025 Starts With Alani Deal. Pepsi to Distribute? - Beverage-Digest",
-                  "published_at": "2025-03-11T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Beverage-Digest",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
                   "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxONEVIemY4ck1vaGtYcDljQ3FOcms3RHRrcTZocjh3Slo5V01FOFZkWEs4a0Y1M2RYV1AxODhISmpUdzNVM2Y5WkZiOFpGd2J1ckJpT3NQSExwSTJtZDVueV9SUHpLNGNKSFBTNWQtQzY1YUFGbkZwV3UwR1VwQTYtdzRGN0gxdHZrMlJWOFV6MmRGcllk?oc=5",
                   "title": "Keurig Dr Pepper Fell 29% From Its High. Is 2026 the Turning Point? - TIKR.com",
                   "published_at": "2026-05-21T07:00:00+00:00",
@@ -61345,21 +61533,41 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMiowFBVV95cUxOUjQ0UnJtSkd6N3RNV3NtWUdpQWxXdDZQY1ZVRjJUdDlYczlmajRjd0U4SXhWWEZUUmFHUmxYTHFpSGw0cXNSTW8yQTJUemJhMDNyRkFUNDYyMlVvQmtMQmJNeTYxLXVhWVBKSmx1ck8yaGp2b3F5NldhaV90SXJVM0g5bXFMU185SXJsNlliSHkyOEl5dHpjU2M1VFpESjM5eG9N?oc=5",
+                  "title": "Dynamic 2025 Starts With Alani Deal. Pepsi to Distribute? - Beverage-Digest",
+                  "published_at": "2025-03-11T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "Beverage-Digest",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxNMGlGYXFWTGdjMDdtZGxVWEUyYjU5MVdTcjhfeTN5NzQ5NU5OVnRLRUQwam1ObExJS0VEWVYwY01aMTlQZEhIOWpkdGFDMWhReWFoVzVwQVRqeS15TzdIX3R0bWprVjVUa0ttTEE2RjlkNjRJczNfMHJ1UzFfTFNyOGxTNzRGOFg5U3JMRlBDQ21OcmRKeUZUTmR1a0pxZw?oc=5",
-                  "title": "Is Keurig Dr Pepper (KDP) Undervalued Following Its AI Driven Fansville Push? - Yahoo Finance",
+                  "title": "Is Keurig Dr Pepper (KDP) Undervalued Following Its AI Driven Fansville Push? - finance.yahoo.com",
                   "published_at": "2026-08-29T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMi4AFBVV95cUxNb2JPSGVGb0hvaFp4cVViU1Rkb2drMjl6RFFodFIyTEtMWFB0RzJKSjdyNmpJSkc5dzdnQjBudEpwVGpRVzZKdDZKdmU5SUIwTGtCNE9zb29xZEh0M3RWMjd6TnR6VWp6MXRaTjVWdTV3SWtjTGJzdXlHWXJWRXAxcGRiQUtEdVJfOEVsc0N0Y0RGMjN6ZUVnbGJMSFFZaEdUZklocmJRU0s2MkROTmlCNmtrU3d5NVhUc1g0UXloelRPYl83RFgybDkyZEdDY1hwSDVJT0NGUFFnQ0RkcVVCSg?oc=5",
+                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper's Upside Over Coca-Cola's Expensive Low-Growth Premium - 24/7 Wall St.",
+                  "published_at": "2026-07-13T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "24/7 Wall St.",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE1uZTYzRGNxYjBpY2ZzcVdjdkNlN1Z1X0cybXFzdVg3WGpXUENNT01saU0zM0N5R0l5QW1IbXhfejRMdENlZzgtTXZuRWNKY3pYaENCT2prSUhkS2NodVJCRjRxZUFWOUh6M0dNeENsWVdkeVJPNkFsUW9LUQ?oc=5",
-                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation As GHOST Energy Deal Reshapes Its Growth Strategy - Yahoo Finance",
+                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation As GHOST Energy Deal Reshapes Its Growth Strategy - finance.yahoo.com",
                   "published_at": "2026-01-25T08:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61386,10 +61594,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxPcTVJdWRkaHRIbHQwQmVqbDR0aUtkZ09RQ0xwelJLUVpkT0dOdTJ1NGVvMEsxQ0JiVHo1OFNVRml5c2kwUjRwb0kyR09RazZPcWpodTljdi03emt2bG5EN2RoV0hZcDExRFlsQWJWRlVlTVZ0eENuN2pQSXduYkUzZlY3RjRkOVRFZE5DWTJySlF4VDZp?oc=5",
-                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation After Recent Share Price Momentum And GHOST Energy Growth Story - Yahoo Finance",
+                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation After Recent Share Price Momentum And GHOST Energy Growth Story - finance.yahoo.com",
                   "published_at": "2026-05-22T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61405,41 +61613,11 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMizAFBVV95cUxQMEhsQVhwd1BNd21iWFF1MTBNVGI1MjhMRDFneTczajNvazQ0RXFqOG9SNzZJeXUzSWJuTUJhMnIxbmZaNGZWYTlqRlVnMTVvLWhkQldqRDR0aWR1QWNOVzhMNF9ta09EMUhGMG13VV82bmNGM2xkblVFTTBhVlQwN0tQNmszc0xNZ0NDVS05VFNtWnhidkU0bzN1NjAzc1N4OWkyUVNMSVU5cUJCUW1acUlKbTdBeE1KTC1DWG5tdWlJYUR6ZlhTWHBieUQ?oc=5",
-                  "title": "GHOST® Channels Classic Lemon-Lime Nostalgia with New 7up® Energy Drink Launch - PR Newswire",
-                  "published_at": "2026-04-14T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "PR Newswire",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTFBUWlRXajdVX1AxcWMxQVdMWGtUSzRVZkROc2pvQmpyaExIS1hWNHRXRDBCUkVid1ZJdjNlbVpYOTBpT2RTazBhSXpkajRWRE1GWTNKS1hzbWg5TS1nbjd4YXRIWWlnSkp1WUgxRnhaa3cxVm50Vm5ONHR30gGCAUFVX3lxTE5pUl9SWkhibjVyR1d4OVJYTnlkMUgweUtrRDd5RjFnSm9ZZVhiMmU3am1Sc095ZlIwWl85TmE2d0MzTkptZHVXc3Y3blp4SEJXam9IWS1WWlFxeXN4SlNZWklVLUJFVDVsMFhkT3paMWVZcVVvWUFLUndwWkgyOVl5Q2c?oc=5",
-                  "title": "Keurig Dr Pepper buys energy drink firm Ghost in deal worth more than $1 billion - NBC 5 Dallas-Fort Worth",
-                  "published_at": "2024-10-24T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "NBC 5 Dallas-Fort Worth",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
                   "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOQTNOdEtZS1l3eXJNcG4tZTZTU2k2UXNGbmRUNEZYUXprUE1iU0JoUGNhWm1oLWQwX05wOUtYUHpmdVpzZFVvRnVWbnVJTG9kaEhvMzhYTzlKc0FoTWJwLUx1R0tlRFJsQWxvQm9VMFU4dFlLbVM3MkFxNEtwSlFDbHI3enhnNWlmMUowM24tNlBianBjd0E?oc=5",
-                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - Yahoo Finance",
+                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - finance.yahoo.com",
                   "published_at": "2026-07-24T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxPaEdodFBvTHNDR0QxbnU4eU1oVWxYWlQ0S1FRZnYyYWxhS1JWT3FCbkw2aDZNZ1MwNnZya0hMOFZlNy1sTHUycmlxdHpPeHJhaTZMSVRTcGlTQk9HbFE1WWZLMW9jMkE2VUJTdkhzT19FUWpuWFZIM1FraWFSX2lQUGNLZzdPRVBkMjk4SGhjOS1ndHRnTUJBdS1QMXY?oc=5",
-                  "title": "How The Keurig Dr Pepper (KDP) Investment Story Is Shifting With Mixed Analyst Targets - Yahoo Finance",
-                  "published_at": "2026-05-17T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61455,21 +61633,111 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxPaEdodFBvTHNDR0QxbnU4eU1oVWxYWlQ0S1FRZnYyYWxhS1JWT3FCbkw2aDZNZ1MwNnZya0hMOFZlNy1sTHUycmlxdHpPeHJhaTZMSVRTcGlTQk9HbFE1WWZLMW9jMkE2VUJTdkhzT19FUWpuWFZIM1FraWFSX2lQUGNLZzdPRVBkMjk4SGhjOS1ndHRnTUJBdS1QMXY?oc=5",
+                  "title": "How The Keurig Dr Pepper (KDP) Investment Story Is Shifting With Mixed Analyst Targets - finance.yahoo.com",
+                  "published_at": "2026-05-17T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxONlpkN2hQemhlNEN4X2dlX1gtQmk5a1hPVVZjWGZBendrcmVNdVo4MnpPSFVKbjh5VXZpS29YUGpqeXJJS19JcENBLVRtc1dWMUkzRzlkOXpVUEVqU3hPVDhValdiTktyc3l0a3RzR0Y4Wks4ekF2djVDYWRiRDNIV3VtVUxRMlVZZG5DS1pZQlFoVG8?oc=5",
+                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper’s Upside Over Coca-Cola’s Expensive Low-Growth Premium - finance.yahoo.com",
+                  "published_at": "2026-07-13T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMioAFBVV95cUxQc3poX3RKLXR0WkdIRXA1bDVMNjRFaGZCRk92NnhUTmllRnkwd1RCU3ZIRk40bWtlYmFtckcyUEM0ZG93dWY2SURmOURkaG54aFVNVEtQa2dLVkl1djJ6aTgwWUh0VExHQlhldk83SE1nSVVkbEZsN0lMSFVhX2RpczRHR052TGsxNldlWHdJb01IOElmX3daOUJlaXJiLTJr?oc=5",
+                  "title": "Costco Leans On Ghost Drinks And Wellness To Deepen Member Spend - finance.yahoo.com",
+                  "published_at": "2026-06-04T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxPU0V5bHFmSC1MRkVLZ3cwSmpFUFNRcGVpR2thWlFZUEFRTXNTQWYtTHVWU0JfeEtndndiZFRNeGRiNFQ2YVpIYUZKbXlfZ0lwLXlCZ2VaZXotY3BjVFlMTDJqTVJQNnhnS1U1VXpLY3NTMV9fYUpjYTJSM3pmc3NfVURZbXpXelBUWkVwbEhWa2dqaEpn?oc=5",
+                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation After Recent Share Price Weakness - finance.yahoo.com",
+                  "published_at": "2026-04-05T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQZGlLRXlvUUNnRXg1cFZodlBYbTB5bW83eFpEUnBaNmkyZUhpV21OY2d5cHpGWUVQVGhPeWV6d3VHMVJnLWpZQWRQOWhfTVlsN0xRRlNTcUtOSF95SHJrV29RbU5nSjZCZHgzNWhTUFVraTZEY2NLcWhSRExLZVlFQVdITUpsZ1ZXR3hpcFgtR1ZHU0lvekdzQ1JLZw?oc=5",
+                  "title": "Keurig Dr Pepper (KDP) Following Q2 Earnings Beat Is The Undervalued View Too Easy - finance.yahoo.com",
+                  "published_at": "2026-08-06T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMigwFBVV95cUxONWNTaXRHc1lPWUJLOEg4czNrLWszd0dRMTFJQzJ0dXN3NDBVWXNZaUNFdjZxOHFDRWpPUU1KMWU0VV91a1hYSTJkdlBIdEhSZVFtekZIN2U0dEpsVXhUWXlONHRwNzg0a0Zubzd0N2hWY19NUlZlVTBIVE1UR19peGZiOA?oc=5",
-                  "title": "Ghost energy drinks drive sales boost at Keurig Dr Pepper - Yahoo Finance",
+                  "title": "Ghost energy drinks drive sales boost at Keurig Dr Pepper - finance.yahoo.com",
                   "published_at": "2025-04-28T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOX3c4VmFPV0pRcHZvdXVfY19QVG92WDl0Y2VuSW95SHY4LWRYWEdaWmhvOGRiRGpCQUZRZmc2TWNuZHZMV2d0WlRSN3ZjaVlYbUZDR19GNE5ib0t0elNodEFGQzZtZXFzWXNnamI1a3lXOHBJTTVMcmhNSTM2ZXpRTHh3S1JJZTBDUnhUNTUyZW9kaVYyWUE?oc=5",
+                  "title": "Keurig Dr Pepper (KDP) Loses 11% in 4 Weeks, Here's Why a Trend Reversal May be Around the Corner - finance.yahoo.com",
+                  "published_at": "2026-04-02T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMizAFBVV95cUxQMEhsQVhwd1BNd21iWFF1MTBNVGI1MjhMRDFneTczajNvazQ0RXFqOG9SNzZJeXUzSWJuTUJhMnIxbmZaNGZWYTlqRlVnMTVvLWhkQldqRDR0aWR1QWNOVzhMNF9ta09EMUhGMG13VV82bmNGM2xkblVFTTBhVlQwN0tQNmszc0xNZ0NDVS05VFNtWnhidkU0bzN1NjAzc1N4OWkyUVNMSVU5cUJCUW1acUlKbTdBeE1KTC1DWG5tdWlJYUR6ZlhTWHBieUQ?oc=5",
+                  "title": "GHOST® Channels Classic Lemon-Lime Nostalgia with New 7up® Energy Drink Launch - PR Newswire",
+                  "published_at": "2026-04-14T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "PR Newswire",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMingFBVV95cUxQZEd3NVdUSDYyVWZVcEpoUVdzdDMyWnJxNEpFWVVHcjVSRWRXWWIzX0htZVotNUpLazhXQ01kWUJRX3JVY002NGxrVy04akVkMldDeWlWcmVIRElUc3NWSjlOQmlRWl9LQUdhbHkzQWhCQllvTmt2ZlF0dG90SHc2b182dEMzT1lrRk5McGdLbThQQzBiQV9hQV93SmhVZw?oc=5",
-                  "title": "Keurig Dr Pepper Reshapes Coffee Stake And Tests Energy Drink Growth - Yahoo Finance",
+                  "title": "Keurig Dr Pepper Reshapes Coffee Stake And Tests Energy Drink Growth - finance.yahoo.com",
                   "published_at": "2026-04-15T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Yahoo Finance",
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTFBUWlRXajdVX1AxcWMxQVdMWGtUSzRVZkROc2pvQmpyaExIS1hWNHRXRDBCUkVid1ZJdjNlbVpYOTBpT2RTazBhSXpkajRWRE1GWTNKS1hzbWg5TS1nbjd4YXRIWWlnSkp1WUgxRnhaa3cxVm50Vm5ONHR30gGCAUFVX3lxTE5pUl9SWkhibjVyR1d4OVJYTnlkMUgweUtrRDd5RjFnSm9ZZVhiMmU3am1Sc095ZlIwWl85TmE2d0MzTkptZHVXc3Y3blp4SEJXam9IWS1WWlFxeXN4SlNZWklVLUJFVDVsMFhkT3paMWVZcVVvWUFLUndwWkgyOVl5Q2c?oc=5",
+                  "title": "Keurig Dr Pepper buys energy drink firm Ghost in deal worth more than $1 billion - NBC 5 Dallas-Fort Worth",
+                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "NBC 5 Dallas-Fort Worth",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMifkFVX3lxTE1mdDZlcUYwa19ObmZsSHpTRndlZ0FXeTl1MHA4bXBQWnNBYU9hZ1laNGRuaG9EX1hUM0hzZ1ltZ3diN1FaWFF0cHpjWFJqNC1PdmhUcWNGblBaSE01NUxDRGUtaU9td0ZMUFVpVWVCT2FSV1o1VUk5SENUem53UQ?oc=5",
+                  "title": "Keurig Dr Pepper to buy energy drink brand Ghost for more than $1B - finance.yahoo.com",
+                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61480,16 +61748,6 @@
                   "published_at": "2025-03-27T07:00:00+00:00",
                   "attributes": {
                     "outlet": "BeverageDaily.com",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMifkFVX3lxTE1mdDZlcUYwa19ObmZsSHpTRndlZ0FXeTl1MHA4bXBQWnNBYU9hZ1laNGRuaG9EX1hUM0hzZ1ltZ3diN1FaWFF0cHpjWFJqNC1PdmhUcWNGblBaSE01NUxDRGUtaU9td0ZMUFVpVWVCT2FSV1o1VUk5SENUem53UQ?oc=5",
-                  "title": "Keurig Dr Pepper to buy energy drink brand Ghost for more than $1B - Yahoo Finance",
-                  "published_at": "2024-10-24T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Yahoo Finance",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61515,6 +61773,16 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTE9KUG82ajdOSnM2cC12UFJoN0QwS05lVVJzOHhsU3NUdW5KWTF0MXF5YXIxSVhJakJBOF9lVmNyVGRPRzA3UkNKTFJBdjlWVnIyeWVzbXlldnRIcDYxTjlqcldhME5FTTR4X1k0enVZdk9xYnN3S2xHN1RR?oc=5",
+                  "title": "Ghost ends Sour Patch, Oreo flavor collaborations after Mondelēz lawsuit - finance.yahoo.com",
+                  "published_at": "2025-05-06T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMipAFBVV95cUxQVjBmR0llTFpQX0EzRmR1WHRRVDJyak52Nkg0OG5hc0RMSGNvRTE2S0d4WmF1aTByMGlYUEI0Q3l4bWxETkhrWTZOYTdGYnFra1hJVl80NnBqbktCSlJIN1A0aVFTLUUzeGFXR1V6NkRRdzN1eU9xVnBEcWJjQnJUWW4xR2pWRVNKdEZLUDl6el9QVE1xaHBXakZOT3VWUUVVUUk4Nw?oc=5",
                   "title": "The Energy Drink Buyout Prize Beverage Giants Are Circling - 24/7 Wall St.",
                   "published_at": "2026-08-10T07:00:00+00:00",
@@ -61525,71 +61793,31 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMiekFVX3lxTE9KUG82ajdOSnM2cC12UFJoN0QwS05lVVJzOHhsU3NUdW5KWTF0MXF5YXIxSVhJakJBOF9lVmNyVGRPRzA3UkNKTFJBdjlWVnIyeWVzbXlldnRIcDYxTjlqcldhME5FTTR4X1k0enVZdk9xYnN3S2xHN1RR?oc=5",
-                  "title": "Ghost ends Sour Patch, Oreo flavor collaborations after Mondelēz lawsuit - Yahoo Finance",
-                  "published_at": "2025-05-06T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Yahoo Finance",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
                   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9xajQ2ck9QdF93aGloSGZqbWI4LU5nRGNpM2lCZGdFdDU2V2pPN08wMmN1MXAzNmh2eHJGcHU5WU1mWFpobTUxTERnQzNfX2Y3NnJnX2RlV2pvbXZnUDZoNkM5cDlqWHEybDVZVnRmaGRWV3M?oc=5",
-                  "title": "Keurig Dr Pepper Acquires Ghost for $1B+ - athletechnews.com",
+                  "title": "Keurig Dr Pepper Acquires Ghost for $1B+ - Athletech News",
                   "published_at": "2024-10-28T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "athletechnews.com",
+                    "outlet": "Athletech News",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMi2wFBVV95cUxNQWQxeVd3aHhzbnB2WFVGN0RTUzhNZ1hXaV92SVVQbDh2R0EyQkg1ejNtZjY3bG5ZVEJJaGlWM241bzVYb2FFRjJXR1hhM1VXcmNPR0dOQjVXeWRweWZzcU96Rkk1aWNNcjF4UEJBdW5udHQ4Zzd1cWRCTzZXYXNGVHNMdGhWXzA3bkIyZFN3c3V5VDE3cTRyb2tiOVJZcWl4VzNjR21SRG8ya3RGYU9NY0pabnFjcEUxTUVCNkFVMEtXczdST0tMRlZHMGRGLUR0XzQzbTQ0T21TRk0?oc=5",
-                  "title": "KDP Just Posted Its Best Earnings Streak in Years, and a Game-Changing Acquisition Closes in 6 Weeks - 24/7 Wall St.",
-                  "published_at": "2026-02-24T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMiggFBVV95cUxONHZGTGpXUDllWm9BSTNBUHNGVUVIamxaN21ZN3RHUHFhVWw1OWtCTFNobU96RFVXYlJmR01WeWY1c2pWZy1PYnVtQUdUTkRfenZmem1xTHJlNEhNQzYybmhXZkp3Z0ZVQTdsOTMtbGNHZGNGVm5sdHdDeDA1NGw1VEpn?oc=5",
+                  "title": "Keurig Dr Pepper buys powdered-drinks business Dyla Brands - finance.yahoo.com",
+                  "published_at": "2025-07-25T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "24/7 Wall St.",
+                    "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMid0FVX3lxTFBjZTFleTViVzFXUDdXTi1EbTVzQ25UQThkU0hrd2Q1dDZQNUdkZ2ptbWtHUktfMWxVdklKTGdXOVJCM3BVcDQ4QnFDak1PUWtjeng4QmY2ZFF4WFgtUV85ZFJaelN5YXZjYjVkbzBTeFJPaDhRRVdj?oc=5",
-                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper’s Upside Over Coca-Cola’s Expensive Low-Growth Premium - AOL.com",
-                  "published_at": "2026-07-13T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxOSUxES2ZLTmdQX2psbXZDNmNCMGRveUJhRlBIMGNvMHl6QV9GNVh6aTBpOHJBcHZfVGNHQUFnY2cyZ2ZhQ0RLOFlFR3Vtb2dHSXMtazNQTDNEbE1NTUxVckh3SklkSThEMEYwaFdPYWs2RzR3Qnd3WTFjOHpjZmRDeTQ0dUoyMS00U3NmUm1rVzhBa2s5ZWVIWm9RRzgwN0RrUXd4ZmdZMFVyRVQySi1lWlJMdHlOSjZwVWxhMFhGODhCcVcwSkxpRGxGZ1FIbGM?oc=5",
+                  "title": "KDP’s Ghost Acquisition and Coca-Cola’s AI Pivot to Personalized Ads Highlight Industry Strategies - PYMNTS.com",
+                  "published_at": "2024-10-24T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "AOL.com",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMiswFBVV95cUxQR1FiX25CeEw4UmlrbHFVRTd5ckpfTTFSa1oycTlRd3NNa3g5a3JpcFJ3bDQzd01vMHZwLVdjbURmVHVFdFVKd01vLUNvTjFPVkdSY21tZkJQRk9rM01ya2xyVlQ1R3pZZ2YzeXZvemZCZGlMNjA1SkFGTENHeXBJYmlnZHF3ZVBBdmxoTE9PUTRSeHgtUFUwbjFfdkc5Y2xPdU9TNnBMU2lTdG1XSTVpdGZfcw?oc=5",
-                  "title": "Volume Mix Strength at Keurig: Is Demand Outpacing Pricing? - TradingView",
-                  "published_at": "2026-06-19T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "TradingView",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxQWDQ4NXlod0Q4T203Ty1TMFdtb25mVUdrYkw0cmtkY2Naa3ZTdVpqY1FxNnVUSzM0Ri1CR2J0ZnYzRHp0dC1XU21wRjRSWllsVUpKT0pCU3hoWFMwRlFNUmE3dF9nb0JzRHFNYjJDRGVxSDFyczd1dndiT0VkNVhTUXlTb2x0WC1BeVV4bnhMTW9SSklVRzBoN1JtQVM?oc=5",
-                  "title": "KDP taking portfolio approach to energy category - Food Business News",
-                  "published_at": "2024-10-25T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Food Business News",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMiuAFBVV95cUxObUtHWk5uaFdJcVcwMGh3VnBzRzdVZHppdjFaZkI0ek9kVlNFWElwSkRmMjl5WXlOZlBGd3RESjJWRjdjOW8xWl9OY1hCcVVRV1Bxb1h2VHZLamhNMXNJZlFpcm1YVkRHWll1MnFPbXFwbmlWU09sUC1wa0xpY0tnWkpXUFNVSnNiNkkydkJFdzFMc3JKVlBjYzJMaTduZ2N5ekdOTWFBN3YtSVlPUGZqTlBzVUd2clFP?oc=5",
-                  "title": "Keurig Dr Pepper: A Stable Business With Prospects In The Energy Drink Market (NASDAQ:KDP) - Seeking Alpha",
-                  "published_at": "2025-08-13T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Seeking Alpha",
+                    "outlet": "PYMNTS.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61646,7 +61874,7 @@
           "exact_implication": "GHOST x A&W Root Beer is producing sustained incremental demand, distribution, replenishment or repeat purchase that is economically relevant to GHOST and changes expectations for KDP.",
           "source_health": {
             "latest_attempt_state": "NICHE_ONLY",
-            "latest_attempt_observed_at": "2026-09-09T16:05:06.698387+00:00",
+            "latest_attempt_observed_at": "2026-09-10T16:03:17.647603+00:00",
             "visible_read_uses_last_verified": false,
             "source_gaps": []
           }
@@ -61656,13 +61884,13 @@
           "artifacts": [
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_latest.json",
-              "sha256": "843bbc05ba7ea3b3a6d1d3462897475c52e1edeef3518e8de4a4de43ad7f8274",
-              "modified_at": "2026-09-09T17:23:43.872865+00:00"
+              "sha256": "9ce8787f4844dac1825b59c3a996922d10b687f30a788526768f67f8d973b41b",
+              "modified_at": "2026-09-10T17:53:25.661651+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/walmart_native_history.jsonl",
-              "sha256": "fe6aea95c602a230b89e1c7c99d4c0391bb5255883df565257395811d28dd005",
-              "modified_at": "2026-09-09T17:23:43.890422+00:00"
+              "sha256": "53426fd644ef4a2bea67e4e46c05b70e6afc50d15f2be9f14835a1d0545da7d3",
+              "modified_at": "2026-09-10T17:53:25.666179+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/attention_latest.json",
@@ -61676,13 +61904,13 @@
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
-              "sha256": "90ac8a5b75e81eebd90aca3d3efdb3a16032388332556855335a589af9ea82af",
-              "modified_at": "2026-09-09T16:05:28.416698+00:00"
+              "sha256": "8e8f69a38cc4df46e84b726e9b9d8baea4ba531d258a13bf9e55417cbaaf1ead",
+              "modified_at": "2026-09-10T16:03:33.258579+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_history.jsonl",
-              "sha256": "01e6125ae90dcd6152f3d85d970fa68dce5dc6d8e223bbd45b054dc08281f064",
-              "modified_at": "2026-09-09T16:05:28.436600+00:00"
+              "sha256": "a0927f5650e0f60718c60de772dab1afb0ccf3e8162e16968f6cae445043896c",
+              "modified_at": "2026-09-10T16:03:33.290720+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-06T035438Z.json",
@@ -61693,9 +61921,9 @@
           "operational_attempts": [
             {
               "source": "Walmart six-store availability",
-              "observed_at": "2026-09-09T17:23:43.865411Z",
-              "status": "partial",
-              "usable": false
+              "observed_at": "2026-09-10T17:53:25.650709Z",
+              "status": "complete",
+              "usable": true
             },
             {
               "source": "Google search attention",
@@ -62392,8 +62620,8 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "45 23 * * *",
-      "next_run_at": "2026-09-10T23:45:00+08:00",
-      "last_run_at": "2026-09-09T23:46:50.825551+08:00",
+      "next_run_at": "2026-09-11T23:45:00+08:00",
+      "last_run_at": "2026-09-10T23:45:48.435559+08:00",
       "last_status": "ok"
     },
     {
@@ -62418,12 +62646,12 @@
     },
     {
       "job_id": "5159128f97f8",
-      "name": "GHOST A&W trends, conversations and parity watch",
+      "name": "GHOST A&W daily monitor — recovered sources then publish",
       "enabled": true,
       "state": "scheduled",
-      "schedule": "0 0 * * *",
-      "next_run_at": "2026-09-11T00:00:00+08:00",
-      "last_run_at": "2026-09-10T00:37:56.031710+08:00",
+      "schedule": "30 1 * * *",
+      "next_run_at": "2026-09-12T01:30:00+08:00",
+      "last_run_at": "2026-09-11T00:32:06.053526+08:00",
       "last_status": "ok"
     },
     {

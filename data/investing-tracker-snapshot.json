@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-10T17:58:30.569981+00:00",
+  "generated_at": "2026-09-11T00:37:38.591157+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -112,14 +112,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NOT_DUE",
-        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-08, so it is not due.",
+        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-11, so it is not due.",
         "evidence_urls": [
           "https://www.metcash.com/investor-centre/results-disclosure/financial-calendar/",
           "https://www.metcash.com/investor-centre/results-disclosure/asx-announcements/",
@@ -6541,14 +6541,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://ir.fubo.tv/news/news-details/2026/FuboTV-Delivers-1-48-Billion-Global-Revenue-in-Q3-FY-2026-Record-Q3-North-America-Subscribers/default.aspx",
           "https://ir.fubo.tv/news/news-details/2026/Fubo-Expands-College-Sports-Offering-With-Launch-of-ACCNX-and-SECN/default.aspx",
@@ -12911,20 +12911,20 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The weekly EUROCONTROL source check was due. The registered shared adapter completed current preflight and latest search healthy; the newest returned publication remains 2026-W35, matching the saved source. IAG's fetched press-release and financial-calendar pages are substantively unchanged after excluding dynamic quote fields, and Q3 2026 remains scheduled for 2026-11-06.",
+        "due_reason": "The weekly EUROCONTROL check was due. The registered shared adapter passed current preflight and latest search healthy; the newest returned publication remains 2026-W35. IAG press-release and financial-calendar pages returned HTTP 200 and their substantive main-content hashes match 2026-09-08 after excluding dynamic quote fields; Q3 2026 remains scheduled for 2026-11-06.",
         "evidence_urls": [
           "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
           "https://www.eurocontrol.int/publications/series/eurocontrol-european-aviation-overview",
           "https://www.iairgroup.com/media-centre/press-releases/",
-          "https://www.britishairways.com/content/en/information/travel-news/",
-          "https://www.iairgroup.com/investors-and-shareholders/financial-calendar/"
+          "https://www.iairgroup.com/investors-and-shareholders/financial-calendar/",
+          "https://www.britishairways.com/content/en/information/travel-news/"
         ]
       },
       "signal_state": "ACTIVE_TREND",
@@ -19243,18 +19243,24 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
-        "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is FirstRand FY2026 results on 2026-09-10, followed by the first full JSE session on 2026-09-11. The review date is 2026-09-08, so the result is not due.",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_result": "KILL_CANDIDATE",
+        "due_reason": "The saved FY2026 results checkpoint was due on 2026-09-10 and the official FirstRand result pack was retrieved. The saved plan also requires the first complete post-results JSE session on 2026-09-11; at the review timestamp before that session, the transition is recorded as a kill candidate rather than a final closeout.",
         "evidence_urls": [
-          "https://www.firstrand.co.za/investors/key-investor-dates/",
-          "https://www.firstrand.co.za/media/investors/reports/fsr-analysis-of-financial-results-dec-2025.pdf",
-          "https://online.firstrand.co.za/about-fnb/legal-matters/contact-us.html"
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-analysis-of-financial-results-booklet-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-presentation-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-annexures-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/firstrand-annual-financial-statements-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/firstrand-bank-annual-report-2026.pdf",
+          "https://stockanalysis.com/quote/jse/FSR/",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history"
         ]
       },
       "signal_state": "DECAYING_NO_NEW_ENTRY",
@@ -25531,7 +25537,23 @@
       },
       "trend_geography": "South Africa",
       "economic_confirmation_required": "App usage or transaction growth with attributable FNB segment economics.",
-      "geography_limit": null
+      "geography_limit": null,
+      "transition_alert": {
+        "state": "KILL_CANDIDATE",
+        "proposed_verdict": "REJECT",
+        "rationale": "KILL_CANDIDATE: the due official result confirms strong FNB and aggregate digital performance but still does not attribute economics to the app. The broad public consensus target is not an app expectation bridge, and the first complete post-results JSE session was not yet available at review time; do not promote.",
+        "evidence_urls": [
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-analysis-of-financial-results-booklet-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-presentation-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/fsr-results-annexures-june-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/firstrand-annual-financial-statements-2026.pdf",
+          "https://www.firstrand.co.za/media/investors/reports/firstrand-bank-annual-report-2026.pdf",
+          "https://stockanalysis.com/quote/jse/FSR/",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history"
+        ]
+      }
     },
     {
       "idea_id": "overnight::meta_alberta_data_center",
@@ -25600,14 +25622,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://www.capitalpower.com/media/media_releases/capital-power-reports-second-quarter-2026-results/",
           "https://www.capitalpower.com/wp-content/uploads/2026/07/Capital-Power-2026-Q2-Report.pdf",
@@ -31294,14 +31316,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-08.",
+        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-11.",
         "evidence_urls": [
           "https://www.singaporeair.com/en_UK/sg/corporate/newsroom/press-release/2024/October-December/ne1124-241104/",
           "https://www.singaporeair.com/content/dam/sia/web-assets/pdfs/Press_Release/NR-0226.pdf"
@@ -37656,14 +37678,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-08 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
         "evidence_urls": [
           "https://www.enterprisesg.gov.sg/resources/media-centre/media-releases/2026/august/mr03826_singapore-launches-worlds-first-liquid-cooling-standard-for-data-centres-in-tropical-climates",
           "https://www.keppel.com/media/keppel-awarded-50-mw-new-data-centre-capacity-under-singapores-second-data-centre-call-for-application/",
@@ -43833,14 +43855,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-11T08:15:00+08:00",
+            "next_run_at": "2026-09-12T08:15:00+08:00",
             "last_run_at": "2026-09-08T08:26:18.894069+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-08T00:21:34Z",
+        "last_checked_at": "2026-09-11T00:35:27.491904Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-08, so the launch checkpoint is not due.",
+        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-11, so the launch checkpoint is not due.",
         "evidence_urls": [
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Welcomes-Beam-Ultra-and-Sonos-Ace-Ultra-to-its-System/default.aspx",
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Reports-Second-Quarter-Fiscal-2026-Results/default.aspx"
@@ -50236,7 +50258,7 @@
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-11T00:32:06.053526+08:00",
+      "updated_at": "2026-09-11T03:00:30.437701+08:00",
       "monitoring": {
         "status": "active",
         "jobs": [
@@ -50277,13 +50299,13 @@
             "state": "scheduled",
             "schedule": "30 1 * * *",
             "next_run_at": "2026-09-12T01:30:00+08:00",
-            "last_run_at": "2026-09-11T00:32:06.053526+08:00",
+            "last_run_at": "2026-09-11T03:00:30.437701+08:00",
             "last_status": "ok"
           }
         ]
       },
       "monitor_dashboard": {
-        "as_of": "2026-09-10T17:53:25.650709Z",
+        "as_of": "2026-09-10T18:22:44.690287+00:00",
         "headline": "Latest full six-store reading: 1 available, 5 out of stock.",
         "thesis_realization": {
           "status": "BUILDING_BASELINE",
@@ -61032,7 +61054,7 @@
           "state": "NICHE_ONLY",
           "qualifying_outlets": 0,
           "management_acknowledged": false,
-          "observed_at": "2026-09-10T16:03:17.647603+00:00",
+          "observed_at": "2026-09-10T18:22:44.690287+00:00",
           "history": [
             {
               "observed_at": "2026-09-07T10:58:55.931381+00:00",
@@ -61059,7 +61081,7 @@
               "management_acknowledged": false
             },
             {
-              "observed_at": "2026-09-10T16:03:17.647603+00:00",
+              "observed_at": "2026-09-10T18:22:44.690287+00:00",
               "state": "NICHE_ONLY",
               "qualifying_outlets": 0,
               "management_acknowledged": false
@@ -61342,9 +61364,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPeFhiOWprcVJyY1BCY0tneFE3aHVVTGktS211MExkZjZWNkNMb05teTRNSlFRajhJM2ZBaC1LY0tCam1DMEZuOGdSSGpZQlhqMnNYV1RYM3pmcDVVbUJhWlpYUkg1cTVHaTE4Ql9vcEhraDNBRWo1SjhxdERSaWtuVllHQzMtYm5lcFE?oc=5",
-                  "title": "Keurig Dr Pepper to acquire JDE Peet’s for $18 billion - CSP Daily News",
-                  "published_at": "2025-08-25T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQcV82YklBd3pEaUhJRGNXNkd2dUo3MW5LYWxjZTN5SXdRQnBQMmJtNFYyVVl5cjVkR3BzYzNta3JWT09mWmxfUGhtZ3NsZno5bFRncFQyMWREVUdKcEtKR0VXaWhoZGtzcWNPNi1wR2ZTODdMN0VNUnNmNzFET3NUN29IVlhVMlczOGdKMVNTeHEyd0hmRS0xc2hwZw?oc=5",
+                  "title": "Keurig Dr Pepper to Acquire Ghost Energy Drink for Nearly $1 Billion - CSP Daily News",
+                  "published_at": "2024-10-24T07:00:00+00:00",
                   "attributes": {
                     "outlet": "CSP Daily News",
                     "exact_implication_match": false,
@@ -61373,10 +61395,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
-                  "title": "KDP: Keurig Dr Pepper - Full Company Report - zacks.com",
+                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
                   "published_at": "2026-09-04T19:59:00+00:00",
                   "attributes": {
-                    "outlet": "zacks.com",
+                    "outlet": "Zacks Investment Research",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61392,9 +61414,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMimwFBVV95cUxQcV82YklBd3pEaUhJRGNXNkd2dUo3MW5LYWxjZTN5SXdRQnBQMmJtNFYyVVl5cjVkR3BzYzNta3JWT09mWmxfUGhtZ3NsZno5bFRncFQyMWREVUdKcEtKR0VXaWhoZGtzcWNPNi1wR2ZTODdMN0VNUnNmNzFET3NUN29IVlhVMlczOGdKMVNTeHEyd0hmRS0xc2hwZw?oc=5",
-                  "title": "Keurig Dr Pepper to Acquire Ghost Energy Drink for Nearly $1 Billion - CSP Daily News",
-                  "published_at": "2024-10-24T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPeFhiOWprcVJyY1BCY0tneFE3aHVVTGktS211MExkZjZWNkNMb05teTRNSlFRajhJM2ZBaC1LY0tCam1DMEZuOGdSSGpZQlhqMnNYV1RYM3pmcDVVbUJhWlpYUkg1cTVHaTE4Ql9vcEhraDNBRWo1SjhxdERSaWtuVllHQzMtYm5lcFE?oc=5",
+                  "title": "Keurig Dr Pepper to acquire JDE Peet’s for $18 billion - CSP Daily News",
+                  "published_at": "2025-08-25T07:00:00+00:00",
                   "attributes": {
                     "outlet": "CSP Daily News",
                     "exact_implication_match": false,
@@ -61414,10 +61436,10 @@
               "evidence": [
                 {
                   "url": "https://news.google.com/rss/articles/CBMiZ0FVX3lxTE5Zb3pjWENmazBZZ2pUbnBzdnM4enBaQU5IMERHUkhVNDZhY1drejBSVk40c3VxTDNtNXBXcUprMXpkeU1DWlo3S2JBTHVoYzNWTm01Mm9ndG5BNXQ5R0UwVWxiZUJjdUU?oc=5",
-                  "title": "KDP: Keurig Dr Pepper - Full Company Report - zacks.com",
+                  "title": "KDP: Keurig Dr Pepper - Full Company Report - Zacks Investment Research",
                   "published_at": "2026-09-04T19:59:00+00:00",
                   "attributes": {
-                    "outlet": "zacks.com",
+                    "outlet": "Zacks Investment Research",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61563,21 +61585,11 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE1uZTYzRGNxYjBpY2ZzcVdjdkNlN1Z1X0cybXFzdVg3WGpXUENNT01saU0zM0N5R0l5QW1IbXhfejRMdENlZzgtTXZuRWNKY3pYaENCT2prSUhkS2NodVJCRjRxZUFWOUh6M0dNeENsWVdkeVJPNkFsUW9LUQ?oc=5",
-                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation As GHOST Energy Deal Reshapes Its Growth Strategy - finance.yahoo.com",
-                  "published_at": "2026-01-25T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOQTNOdEtZS1l3eXJNcG4tZTZTU2k2UXNGbmRUNEZYUXprUE1iU0JoUGNhWm1oLWQwX05wOUtYUHpmdVpzZFVvRnVWbnVJTG9kaEhvMzhYTzlKc0FoTWJwLUx1R0tlRFJsQWxvQm9VMFU4dFlLbVM3MkFxNEtwSlFDbHI3enhnNWlmMUowM24tNlBianBjd0E?oc=5",
+                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - finance.yahoo.com",
+                  "published_at": "2026-07-24T07:00:00+00:00",
                   "attributes": {
                     "outlet": "finance.yahoo.com",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxOTGQ5M0pLWWRlVjU3UmU4V3d5Q1JCaE5laE44anE4R0dCbTlaeXpibTNCdWZBYWg1UkQ0N1U0dWlmcl93OFI0SE5qNnFFN3ZhVGNWUDZyRnJmdkVNbkpzWlMtUmxibTVpWk5Sek1YS0FydVJjUEpPS3d5aVRCNWVLeF9IUkUwc0VLNmc?oc=5",
-                  "title": "Keurig Dr Pepper Stock Jumped Today. Here's Why - Investopedia",
-                  "published_at": "2025-10-27T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "Investopedia",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61603,19 +61615,9 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPSm1hX21RTlJPQjFUYWZjdFhaVHpsVVRsTHNJek1EakZ4NDlhWUszNjhZcjh1YnVtVWZJTkhwdGJDVDlaY201cFlyYkhCbEozV1R2LUpWRkw0WjAzd25QRm1HUHNGQUJLZ1U3NmdrOXd3RUR5VVRNc3RLR0pDTXN1Mzl2MGpQbUVVSnc?oc=5",
-                  "title": "Keurig Dr Pepper’s $1.65bn acquisition of of GHOST - MergerSight Group",
-                  "published_at": "2025-02-04T08:00:00+00:00",
-                  "attributes": {
-                    "outlet": "MergerSight Group",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMilgFBVV95cUxOQTNOdEtZS1l3eXJNcG4tZTZTU2k2UXNGbmRUNEZYUXprUE1iU0JoUGNhWm1oLWQwX05wOUtYUHpmdVpzZFVvRnVWbnVJTG9kaEhvMzhYTzlKc0FoTWJwLUx1R0tlRFJsQWxvQm9VMFU4dFlLbVM3MkFxNEtwSlFDbHI3enhnNWlmMUowM24tNlBianBjd0E?oc=5",
-                  "title": "Keurig Dr Pepper (KDP) Stock Gets Fair Value Bump On Separation Savings View - finance.yahoo.com",
-                  "published_at": "2026-07-24T07:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxONlpkN2hQemhlNEN4X2dlX1gtQmk5a1hPVVZjWGZBendrcmVNdVo4MnpPSFVKbjh5VXZpS29YUGpqeXJJS19JcENBLVRtc1dWMUkzRzlkOXpVUEVqU3hPVDhValdiTktyc3l0a3RzR0Y4Wks4ekF2djVDYWRiRDNIV3VtVUxRMlVZZG5DS1pZQlFoVG8?oc=5",
+                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper’s Upside Over Coca-Cola’s Expensive Low-Growth Premium - finance.yahoo.com",
+                  "published_at": "2026-07-13T07:00:00+00:00",
                   "attributes": {
                     "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
@@ -61623,11 +61625,21 @@
                   }
                 },
                 {
-                  "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxPS3dzZ1poOFRlckN5czdONkhTaWs1MXh2Uy1wX3A4MURFX1FfZkllQ2V1bXJ3NHMzWjRERHkyaHgwaWtJUkF6X0hNQngtSGVUTFRpNDh6dUYzOGc5T1dPaWVGX3dmNnZUQlU3SF9HN25HR0VSSHRzT1YtWXFjLS1zOGRvVmZyYlV4VVpYdU9oVTUxRVFjbUczWWRkZVpld1VQOWxJS3dDZGxlcXBCRHBHcE1ETWhXdHZDZ3VBaVF2dEYxZ0ZUbGFkMGFmal9EdW8?oc=5",
-                  "title": "Keurig Dr Pepper Stock Prepares for Massive Corporate Split: Here’s Where the Stock Could Be Headed in 2026 - TIKR.com",
-                  "published_at": "2026-02-25T08:00:00+00:00",
+                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxOTGQ5M0pLWWRlVjU3UmU4V3d5Q1JCaE5laE44anE4R0dCbTlaeXpibTNCdWZBYWg1UkQ0N1U0dWlmcl93OFI0SE5qNnFFN3ZhVGNWUDZyRnJmdkVNbkpzWlMtUmxibTVpWk5Sek1YS0FydVJjUEpPS3d5aVRCNWVLeF9IUkUwc0VLNmc?oc=5",
+                  "title": "Keurig Dr Pepper Stock Jumped Today. Here's Why - Investopedia",
+                  "published_at": "2025-10-27T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "TIKR.com",
+                    "outlet": "Investopedia",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMiigFBVV95cUxPSm1hX21RTlJPQjFUYWZjdFhaVHpsVVRsTHNJek1EakZ4NDlhWUszNjhZcjh1YnVtVWZJTkhwdGJDVDlaY201cFlyYkhCbEozV1R2LUpWRkw0WjAzd25QRm1HUHNGQUJLZ1U3NmdrOXd3RUR5VVRNc3RLR0pDTXN1Mzl2MGpQbUVVSnc?oc=5",
+                  "title": "Keurig Dr Pepper’s $1.65bn acquisition of of GHOST - mergersight.com",
+                  "published_at": "2025-02-04T08:00:00+00:00",
+                  "attributes": {
+                    "outlet": "mergersight.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61636,16 +61648,6 @@
                   "url": "https://news.google.com/rss/articles/CBMinAFBVV95cUxPaEdodFBvTHNDR0QxbnU4eU1oVWxYWlQ0S1FRZnYyYWxhS1JWT3FCbkw2aDZNZ1MwNnZya0hMOFZlNy1sTHUycmlxdHpPeHJhaTZMSVRTcGlTQk9HbFE1WWZLMW9jMkE2VUJTdkhzT19FUWpuWFZIM1FraWFSX2lQUGNLZzdPRVBkMjk4SGhjOS1ndHRnTUJBdS1QMXY?oc=5",
                   "title": "How The Keurig Dr Pepper (KDP) Investment Story Is Shifting With Mixed Analyst Targets - finance.yahoo.com",
                   "published_at": "2026-05-17T07:00:00+00:00",
-                  "attributes": {
-                    "outlet": "finance.yahoo.com",
-                    "exact_implication_match": false,
-                    "qualifying": false
-                  }
-                },
-                {
-                  "url": "https://news.google.com/rss/articles/CBMikwFBVV95cUxONlpkN2hQemhlNEN4X2dlX1gtQmk5a1hPVVZjWGZBendrcmVNdVo4MnpPSFVKbjh5VXZpS29YUGpqeXJJS19JcENBLVRtc1dWMUkzRzlkOXpVUEVqU3hPVDhValdiTktyc3l0a3RzR0Y4Wks4ekF2djVDYWRiRDNIV3VtVUxRMlVZZG5DS1pZQlFoVG8?oc=5",
-                  "title": "Keurig Dr Pepper Vs. Coca Cola: Buy Keurig Dr Pepper’s Upside Over Coca-Cola’s Expensive Low-Growth Premium - finance.yahoo.com",
-                  "published_at": "2026-07-13T07:00:00+00:00",
                   "attributes": {
                     "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
@@ -61663,9 +61665,29 @@
                   }
                 },
                 {
+                  "url": "https://news.google.com/rss/articles/CBMizwFBVV95cUxPS3dzZ1poOFRlckN5czdONkhTaWs1MXh2Uy1wX3A4MURFX1FfZkllQ2V1bXJ3NHMzWjRERHkyaHgwaWtJUkF6X0hNQngtSGVUTFRpNDh6dUYzOGc5T1dPaWVGX3dmNnZUQlU3SF9HN25HR0VSSHRzT1YtWXFjLS1zOGRvVmZyYlV4VVpYdU9oVTUxRVFjbUczWWRkZVpld1VQOWxJS3dDZGxlcXBCRHBHcE1ETWhXdHZDZ3VBaVF2dEYxZ0ZUbGFkMGFmal9EdW8?oc=5",
+                  "title": "Keurig Dr Pepper Stock Prepares for Massive Corporate Split: Here’s Where the Stock Could Be Headed in 2026 - TIKR.com",
+                  "published_at": "2026-02-25T08:00:00+00:00",
+                  "attributes": {
+                    "outlet": "TIKR.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
                   "url": "https://news.google.com/rss/articles/CBMilAFBVV95cUxPU0V5bHFmSC1MRkVLZ3cwSmpFUFNRcGVpR2thWlFZUEFRTXNTQWYtTHVWU0JfeEtndndiZFRNeGRiNFQ2YVpIYUZKbXlfZ0lwLXlCZ2VaZXotY3BjVFlMTDJqTVJQNnhnS1U1VXpLY3NTMV9fYUpjYTJSM3pmc3NfVURZbXpXelBUWkVwbEhWa2dqaEpn?oc=5",
                   "title": "A Look At Keurig Dr Pepper (KDP) Valuation After Recent Share Price Weakness - finance.yahoo.com",
                   "published_at": "2026-04-05T07:00:00+00:00",
+                  "attributes": {
+                    "outlet": "finance.yahoo.com",
+                    "exact_implication_match": false,
+                    "qualifying": false
+                  }
+                },
+                {
+                  "url": "https://news.google.com/rss/articles/CBMie0FVX3lxTE1uZTYzRGNxYjBpY2ZzcVdjdkNlN1Z1X0cybXFzdVg3WGpXUENNT01saU0zM0N5R0l5QW1IbXhfejRMdENlZzgtTXZuRWNKY3pYaENCT2prSUhkS2NodVJCRjRxZUFWOUh6M0dNeENsWVdkeVJPNkFsUW9LUQ?oc=5",
+                  "title": "A Look At Keurig Dr Pepper (KDP) Valuation As GHOST Energy Deal Reshapes Its Growth Strategy - finance.yahoo.com",
+                  "published_at": "2026-01-25T08:00:00+00:00",
                   "attributes": {
                     "outlet": "finance.yahoo.com",
                     "exact_implication_match": false,
@@ -61794,10 +61816,10 @@
                 },
                 {
                   "url": "https://news.google.com/rss/articles/CBMic0FVX3lxTE9xajQ2ck9QdF93aGloSGZqbWI4LU5nRGNpM2lCZGdFdDU2V2pPN08wMmN1MXAzNmh2eHJGcHU5WU1mWFpobTUxTERnQzNfX2Y3NnJnX2RlV2pvbXZnUDZoNkM5cDlqWHEybDVZVnRmaGRWV3M?oc=5",
-                  "title": "Keurig Dr Pepper Acquires Ghost for $1B+ - Athletech News",
+                  "title": "Keurig Dr Pepper Acquires Ghost for $1B+ - athletechnews.com",
                   "published_at": "2024-10-28T07:00:00+00:00",
                   "attributes": {
-                    "outlet": "Athletech News",
+                    "outlet": "athletechnews.com",
                     "exact_implication_match": false,
                     "qualifying": false
                   }
@@ -61874,7 +61896,7 @@
           "exact_implication": "GHOST x A&W Root Beer is producing sustained incremental demand, distribution, replenishment or repeat purchase that is economically relevant to GHOST and changes expectations for KDP.",
           "source_health": {
             "latest_attempt_state": "NICHE_ONLY",
-            "latest_attempt_observed_at": "2026-09-10T16:03:17.647603+00:00",
+            "latest_attempt_observed_at": "2026-09-10T18:22:44.690287+00:00",
             "visible_read_uses_last_verified": false,
             "source_gaps": []
           }
@@ -61904,13 +61926,13 @@
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_latest.json",
-              "sha256": "8e8f69a38cc4df46e84b726e9b9d8baea4ba531d258a13bf9e55417cbaaf1ead",
-              "modified_at": "2026-09-10T16:03:33.258579+00:00"
+              "sha256": "311516a89c3ac2f2bf71afdcfed8ecbd20c8ab62fc46d433f814ea5d86299941",
+              "modified_at": "2026-09-10T18:23:01.848795+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/coverage_history.jsonl",
-              "sha256": "a0927f5650e0f60718c60de772dab1afb0ccf3e8162e16968f6cae445043896c",
-              "modified_at": "2026-09-10T16:03:33.290720+00:00"
+              "sha256": "69488658e0f9a2912b08521045e48f5d7a451936031a5cb381e0e34e96c4ede9",
+              "modified_at": "2026-09-10T18:23:01.862833+00:00"
             },
             {
               "path": "artifacts/dd/ghost-kdp/conversation-runs/tiktok-targeted-retry-2026-09-06T035438Z.json",
@@ -62651,7 +62673,7 @@
       "state": "scheduled",
       "schedule": "30 1 * * *",
       "next_run_at": "2026-09-12T01:30:00+08:00",
-      "last_run_at": "2026-09-11T00:32:06.053526+08:00",
+      "last_run_at": "2026-09-11T03:00:30.437701+08:00",
       "last_status": "ok"
     },
     {
@@ -62660,7 +62682,7 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "15 8 * * *",
-      "next_run_at": "2026-09-11T08:15:00+08:00",
+      "next_run_at": "2026-09-12T08:15:00+08:00",
       "last_run_at": "2026-09-08T08:26:18.894069+08:00",
       "last_status": "ok"
     },
@@ -62713,8 +62735,8 @@
     },
     {
       "path": "data/investing-watch-monitor-state.json",
-      "sha256": "f8d583f4bd3c58ce7bdee1b0259f9a99445e50fd216095af9986d3912152d690",
-      "modified_at": "2026-09-08T00:21:34.254637+00:00"
+      "sha256": "26266882459d93c6e143667d2cbf2220ef06ec4d5b27d4aa1e8b17b2f109857d",
+      "modified_at": "2026-09-11T00:36:20.733822+00:00"
     },
     {
       "path": "data/investing-tracker-trends.json",

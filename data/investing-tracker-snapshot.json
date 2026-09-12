@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-11T17:50:55.767562+00:00",
+  "generated_at": "2026-09-12T00:31:13.835654+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -112,14 +112,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NOT_DUE",
-        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-11, so it is not due.",
+        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The review date is 2026-09-12, so it is not due, and no named primary source materially changed in this bounded review.",
         "evidence_urls": [
           "https://www.metcash.com/investor-centre/results-disclosure/financial-calendar/",
           "https://www.metcash.com/investor-centre/results-disclosure/asx-announcements/",
@@ -6541,14 +6541,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is a future Fubo result covering a meaningful portion of the 2026 college-football season; no such event was due on 2026-09-12 and no named primary source change was checked or identified in this bounded review.",
         "evidence_urls": [
           "https://ir.fubo.tv/news/news-details/2026/FuboTV-Delivers-1-48-Billion-Global-Revenue-in-Q3-FY-2026-Record-Q3-North-America-Subscribers/default.aspx",
           "https://ir.fubo.tv/news/news-details/2026/Fubo-Expands-College-Sports-Offering-With-Launch-of-ACCNX-and-SECN/default.aspx",
@@ -12911,20 +12911,25 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The weekly EUROCONTROL check was due. The registered shared adapter passed current preflight and latest search healthy; the newest returned publication remains 2026-W35. IAG press-release and financial-calendar pages returned HTTP 200 and their substantive main-content hashes match 2026-09-08 after excluding dynamic quote fields; Q3 2026 remains scheduled for 2026-11-06.",
+        "due_reason": "The weekly EUROCONTROL check was due. The registered shared airline adapter passed current preflight and completed a five-publication search; 2026-W35 remains newest. The registered public-information adapter retrieved IAG's press-release and financial-calendar pages, but the British Airways travel-news source failed in the same bounded request, so that gap remains explicit.",
         "evidence_urls": [
           "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
           "https://www.eurocontrol.int/publications/series/eurocontrol-european-aviation-overview",
           "https://www.iairgroup.com/media-centre/press-releases/",
           "https://www.iairgroup.com/investors-and-shareholders/financial-calendar/",
-          "https://www.britishairways.com/content/en/information/travel-news/"
+          "https://www.britishairways.com/content/en/information/travel-news/",
+          "https://www.eurocontrol.int/sites/default/files/2026-09/eurocontrol-european-aviation-overview-20260903.pdf",
+          "https://www.eurocontrol.int/sites/default/files/2026-08/eurocontrol-european-aviation-overview-20260820.pdf",
+          "https://www.eurocontrol.int/sites/default/files/2026-08/eurocontrol-european-aviation-overview-20260806.pdf",
+          "https://www.eurocontrol.int/sites/default/files/2026-07/eurocontrol-european-aviation-overview-20260723.pdf",
+          "https://www.eurocontrol.int/sites/default/files/2026-07/eurocontrol-european-aviation-overview-20260709.pdf"
         ]
       },
       "signal_state": "ACTIVE_TREND",
@@ -19243,14 +19248,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "KILL_CANDIDATE",
-        "due_reason": "The saved FY2026 results checkpoint was due on 2026-09-10 and the official FirstRand result pack was retrieved. The saved plan also requires the first complete post-results JSE session on 2026-09-11; at the review timestamp before that session, the transition is recorded as a kill candidate rather than a final closeout.",
+        "due_reason": "The saved FY2026 results checkpoint and first complete post-results JSE session were due. The registered public-information adapter passed its current canary and retrieved three official FirstRand FY2026 documents. The official result still lacks an app-specific earnings bridge; the Yahoo response exposes a 2026-09-11 volume row but close=null, so the required complete post-results price check remains an explicit gap.",
         "evidence_urls": [
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
@@ -19260,7 +19265,8 @@
           "https://www.firstrand.co.za/media/investors/reports/firstrand-annual-financial-statements-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/firstrand-bank-annual-report-2026.pdf",
           "https://stockanalysis.com/quote/jse/FSR/",
-          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history"
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789257600&interval=1d&events=history"
         ]
       },
       "signal_state": "DECAYING_NO_NEW_ENTRY",
@@ -25541,7 +25547,7 @@
       "transition_alert": {
         "state": "KILL_CANDIDATE",
         "proposed_verdict": "REJECT",
-        "rationale": "KILL_CANDIDATE: the due official result confirms strong FNB and aggregate digital performance but still does not attribute economics to the app. The broad public consensus target is not an app expectation bridge, and the first complete post-results JSE session was not yet available at review time; do not promote.",
+        "rationale": "KILL_CANDIDATE: official FY2026 results confirm strong FNB and aggregate digital performance but still do not attribute economics to the app. The broad consensus target is not an app expectation bridge. REJECT remains the proposed transition, but the required complete 2026-09-11 price close is missing and must not be fabricated.",
         "evidence_urls": [
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
@@ -25551,7 +25557,8 @@
           "https://www.firstrand.co.za/media/investors/reports/firstrand-annual-financial-statements-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/firstrand-bank-annual-report-2026.pdf",
           "https://stockanalysis.com/quote/jse/FSR/",
-          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history"
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789257600&interval=1d&events=history"
         ]
       }
     },
@@ -25622,14 +25629,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is an undated future Capital Power result or project milestone; no such event was due on 2026-09-12 and no named primary source change was checked or identified in this bounded review.",
         "evidence_urls": [
           "https://www.capitalpower.com/media/media_releases/capital-power-reports-second-quarter-2026-results/",
           "https://www.capitalpower.com/wp-content/uploads/2026/07/Capital-Power-2026-Q2-Report.pdf",
@@ -31316,14 +31323,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-11.",
+        "due_reason": "The saved next check is the official end-2026 cabin unveiling. That event is not due on 2026-09-12, and no named primary source materially changed in this bounded review.",
         "evidence_urls": [
           "https://www.singaporeair.com/en_UK/sg/corporate/newsroom/press-release/2024/October-December/ne1124-241104/",
           "https://www.singaporeair.com/content/dam/sia/web-assets/pdfs/Press_Release/NR-0226.pdf"
@@ -37678,14 +37685,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future result or named milestone; no separate event is due on 2026-09-11 and no new targeted source retrieval was required in this bounded review.",
+        "due_reason": "The saved next check is an undated future named customer order or Keppel capacity conversion; no such event was due on 2026-09-12 and no named primary source change was checked or identified in this bounded review.",
         "evidence_urls": [
           "https://www.enterprisesg.gov.sg/resources/media-centre/media-releases/2026/august/mr03826_singapore-launches-worlds-first-liquid-cooling-standard-for-data-centres-in-tropical-climates",
           "https://www.keppel.com/media/keppel-awarded-50-mw-new-data-centre-capacity-under-singapores-second-data-centre-call-for-application/",
@@ -43855,14 +43862,14 @@
             "enabled": true,
             "state": "scheduled",
             "schedule": "15 8 * * *",
-            "next_run_at": "2026-09-12T08:15:00+08:00",
+            "next_run_at": "2026-09-13T08:15:00+08:00",
             "last_run_at": "2026-09-11T08:41:49.545267+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-11T00:35:27.491904Z",
+        "last_checked_at": "2026-09-12T00:30:15.853542Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-11, so the launch checkpoint is not due.",
+        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The review date is 2026-09-12, so the launch checkpoint is not due. No named primary source materially changed in this bounded review.",
         "evidence_urls": [
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Welcomes-Beam-Ultra-and-Sonos-Ace-Ultra-to-its-System/default.aspx",
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Reports-Second-Quarter-Fiscal-2026-Results/default.aspx"
@@ -50258,7 +50265,7 @@
       "next_check": "Track exact Walmart replenishment, search attention, independent conversations and Street coverage.",
       "source_run": "standing-monitor",
       "source_artifact": "artifacts/dd/ghost-kdp/attention_latest.json",
-      "updated_at": "2026-09-11T23:46:33.909515+08:00",
+      "updated_at": "2026-09-12T01:56:31.318674+08:00",
       "monitoring": {
         "status": "active",
         "jobs": [
@@ -50289,7 +50296,7 @@
             "state": "scheduled",
             "schedule": "30 1 * * *",
             "next_run_at": "2026-09-13T01:30:00+08:00",
-            "last_run_at": "2026-09-11T03:00:30.437701+08:00",
+            "last_run_at": "2026-09-12T01:56:31.318674+08:00",
             "last_status": "ok"
           }
         ]
@@ -62691,7 +62698,7 @@
       "state": "scheduled",
       "schedule": "30 1 * * *",
       "next_run_at": "2026-09-13T01:30:00+08:00",
-      "last_run_at": "2026-09-11T03:00:30.437701+08:00",
+      "last_run_at": "2026-09-12T01:56:31.318674+08:00",
       "last_status": "ok"
     },
     {
@@ -62700,7 +62707,7 @@
       "enabled": true,
       "state": "scheduled",
       "schedule": "15 8 * * *",
-      "next_run_at": "2026-09-12T08:15:00+08:00",
+      "next_run_at": "2026-09-13T08:15:00+08:00",
       "last_run_at": "2026-09-11T08:41:49.545267+08:00",
       "last_status": "ok"
     },
@@ -62753,8 +62760,8 @@
     },
     {
       "path": "data/investing-watch-monitor-state.json",
-      "sha256": "26266882459d93c6e143667d2cbf2220ef06ec4d5b27d4aa1e8b17b2f109857d",
-      "modified_at": "2026-09-11T00:36:20.733822+00:00"
+      "sha256": "1955ef9cac58c69d1f81d8d932e1712672d5fd2674d52949d92d28cae80e2104",
+      "modified_at": "2026-09-12T00:30:15.862926+00:00"
     },
     {
       "path": "data/investing-tracker-trends.json",

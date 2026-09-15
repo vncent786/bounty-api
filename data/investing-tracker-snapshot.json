@@ -1,6 +1,6 @@
 {
   "schema_version": "bounty-investment-tracker/1",
-  "generated_at": "2026-09-15T16:53:28.661166+00:00",
+  "generated_at": "2026-09-15T17:53:19.884165+00:00",
   "status": "complete",
   "production_deployment": "unchanged",
   "taxonomy": {
@@ -36,8 +36,8 @@
     },
     "backlog_lineages": 217,
     "monitor_jobs": 8,
-    "active_monitor_jobs": 2,
-    "paused_monitor_jobs": 6,
+    "active_monitor_jobs": 0,
+    "paused_monitor_jobs": 8,
     "trade_ready_now": false,
     "decision_queue": 0,
     "signal_state_counts": {
@@ -104,22 +104,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NOT_DUE",
-        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The 2026-09-14 review is before that date. The registered official-IR check found no named trading-update change.",
+        "due_reason": "Metcash's saved decisive check is the 2026-12-07 FY27 half-year result. The 2026-09-16 review is before that date. The registered official-IR check found no named trading-update change.",
         "evidence_urls": [
           "https://www.metcash.com/investor-centre/results-disclosure/financial-calendar/",
           "https://www.metcash.com/investor-centre/results-disclosure/asx-announcements/",
@@ -6533,22 +6533,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is a future Fubo result covering a meaningful portion of the 2026 college-football season. The registered bounded check found no new attributable KPI or economic result on 2026-09-14. One saved SEC source failed in the shared adapter and remains a gap, not a zero.",
+        "due_reason": "The saved next check is a future Fubo result covering a meaningful portion of the 2026 college-football season. The registered bounded check found no new attributable KPI or economic result on 2026-09-16. One saved SEC source failed in the shared adapter and remains a gap, not a zero.",
         "evidence_urls": [
           "https://ir.fubo.tv/news/news-details/2026/FuboTV-Delivers-1-48-Billion-Global-Revenue-in-Q3-FY-2026-Record-Q3-North-America-Subscribers/default.aspx",
           "https://ir.fubo.tv/news/news-details/2026/Fubo-Expands-College-Sports-Offering-With-Launch-of-ACCNX-and-SECN/default.aspx",
@@ -12903,22 +12903,22 @@
       "source_artifact": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
       "updated_at": "2026-09-05T03:58:44.301776+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The weekly EUROCONTROL check was due. The registered shared adapter again returned 2026-W35 as the newest publication. IAG's official pages are unchanged; British Airways now returned HTTP 200 but only a generic high-demand page, not carrier-level disruption or compensation metrics. The complete 2026-09-11 IAG.L close does not resolve the missing cost bridge.",
+        "due_reason": "The weekly EUROCONTROL check was due. The registered shared adapter again returned 2026-W35 as the newest publication. IAG's official pages are unchanged; British Airways returned HTTP 200 but only a generic high-demand page, not carrier-level disruption or compensation metrics. The complete 2026-09-15 IAG.L close does not resolve the missing cost bridge.",
         "evidence_urls": [
           "https://www.eurocontrol.int/publication/eurocontrol-european-aviation-overview-2026-week-35",
           "https://www.eurocontrol.int/publications/series/eurocontrol-european-aviation-overview",
@@ -19240,22 +19240,22 @@
       "source_artifact": "artifacts/investing-discovery/expansion-2026-09-05/dd-round-2/dd-round-2.json",
       "updated_at": "2026-09-05T03:58:44.301776+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "KILL_CANDIDATE",
-        "due_reason": "The saved FY2026 results and first complete post-results JSE-session checkpoints were due. The registered FirstRand official-IR receipt is complete and unchanged from the prior FY2026 pack; the current market receipt now provides a complete 2026-09-11 close. The saved kill condition of no app-specific attribution is met; no app-linked expectation bridge is available.",
+        "due_reason": "The saved FY2026 results and first complete post-results JSE-session checkpoints were due. The registered FirstRand official-IR receipt is complete and unchanged from the prior FY2026 pack; the current market receipt now provides a complete 2026-09-15 close. The saved kill condition of no app-specific attribution is met; no app-linked expectation bridge is available.",
         "evidence_urls": [
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
@@ -19267,7 +19267,8 @@
           "https://stockanalysis.com/quote/jse/FSR/",
           "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history",
           "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789257600&interval=1d&events=history",
-          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789430400&interval=1d&events=history"
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789430400&interval=1d&events=history",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788998400&period2=1789603200&interval=1d&events=history"
         ]
       },
       "signal_state": "DECAYING_NO_NEW_ENTRY",
@@ -25548,7 +25549,7 @@
       "transition_alert": {
         "state": "KILL_CANDIDATE",
         "proposed_verdict": "REJECT",
-        "rationale": "KILL_CANDIDATE: the official FY2026 results still show no app-specific FNB earnings bridge, while the required complete 2026-09-11 close is now available. The complete close removes the prior market-data gap but does not create app-linked economics or a differentiated expectation case. Proposed transition is REJECT; no trade is authorized.",
+        "rationale": "KILL_CANDIDATE: the official FY2026 results still show no app-specific FNB earnings bridge, while the current complete 2026-09-15 close is available. The complete close does not create app-linked economics or a differentiated expectation case. Proposed transition is REJECT; no trade is authorized.",
         "evidence_urls": [
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-media-release-June-2026.pdf",
           "https://www.firstrand.co.za/media/investors/reports/fsr-results-sens-june-2026.pdf",
@@ -25560,7 +25561,8 @@
           "https://stockanalysis.com/quote/jse/FSR/",
           "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788307200&period2=1789257600&interval=1d&events=history",
           "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789257600&interval=1d&events=history",
-          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789430400&interval=1d&events=history"
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788825600&period2=1789430400&interval=1d&events=history",
+          "https://query1.finance.yahoo.com/v8/finance/chart/FSR.JO?period1=1788998400&period2=1789603200&interval=1d&events=history"
         ]
       }
     },
@@ -25623,22 +25625,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future Capital Power result or project milestone. The registered bounded check found no new named milestone or contract-economics disclosure on 2026-09-14.",
+        "due_reason": "The saved next check is an undated future Capital Power result or project milestone. The registered bounded check found no new named milestone or contract-economics disclosure on 2026-09-16.",
         "evidence_urls": [
           "https://www.capitalpower.com/media/media_releases/capital-power-reports-second-quarter-2026-results/",
           "https://www.capitalpower.com/wp-content/uploads/2026/07/Capital-Power-2026-Q2-Report.pdf",
@@ -31317,22 +31319,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved next check is the official end-2026 cabin unveiling. The 2026-09-14 review is before that event. The registered official-IR check returned the saved programme and FY2025/26 results; no named source materially changed the deployment checkpoint.",
+        "due_reason": "The saved next check is the official end-2026 cabin unveiling. The 2026-09-16 review is before that event. The registered official-IR check returned the saved programme and FY2025/26 results; no named source materially changed the deployment checkpoint.",
         "evidence_urls": [
           "https://www.singaporeair.com/en_UK/sg/corporate/newsroom/press-release/2024/October-December/ne1124-241104/",
           "https://www.singaporeair.com/content/dam/sia/web-assets/pdfs/Press_Release/NR-0226.pdf"
@@ -37679,22 +37681,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NO_CHANGE",
-        "due_reason": "The saved next check is an undated future named Singapore liquid-cooling customer order or Keppel capacity conversion. The registered bounded check found no new named order or conversion with economics on 2026-09-14.",
+        "due_reason": "The saved next check is an undated future named Singapore liquid-cooling customer order or Keppel capacity conversion. The registered bounded check found no new named order or conversion with economics on 2026-09-16.",
         "evidence_urls": [
           "https://www.enterprisesg.gov.sg/resources/media-centre/media-releases/2026/august/mr03826_singapore-launches-worlds-first-liquid-cooling-standard-for-data-centres-in-tropical-climates",
           "https://www.keppel.com/media/keppel-awarded-50-mw-new-data-centre-capacity-under-singapores-second-data-centre-call-for-application/",
@@ -43856,22 +43858,22 @@
       "source_artifact": "artifacts/investing-discovery/overnight-2026-09-05/overnight-decisions.json",
       "updated_at": "2026-09-04T17:45:35.177897+00:00",
       "monitoring": {
-        "status": "active",
+        "status": "paused",
         "jobs": [
           {
             "job_id": "a978661772ff",
             "name": "Bounty Watch transition monitor",
-            "enabled": true,
-            "state": "scheduled",
+            "enabled": false,
+            "state": "paused",
             "schedule": "15 8 * * *",
             "next_run_at": "2026-09-16T08:15:00+08:00",
             "last_run_at": "2026-09-14T08:35:42.185207+08:00",
             "last_status": "ok"
           }
         ],
-        "last_checked_at": "2026-09-14T00:25:46.850820Z",
+        "last_checked_at": "2026-09-15T17:52:53.093045Z",
         "last_result": "NOT_DUE",
-        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The 2026-09-14 review is before that date. The registered official-IR check returned both saved Sonos documents; no named source materially changed the launch checkpoint.",
+        "due_reason": "The saved checkpoint is 2026-09-30, the first full day after 2026-09-29 general availability. The 2026-09-16 review is before that date. The registered official-IR check returned both saved Sonos documents; no named source materially changed the launch checkpoint.",
         "evidence_urls": [
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Welcomes-Beam-Ultra-and-Sonos-Ace-Ultra-to-its-System/default.aspx",
           "https://investors.sonos.com/news-and-events/investor-news/latest-news/2026/Sonos-Reports-Second-Quarter-Fiscal-2026-Results/default.aspx"
@@ -65836,8 +65838,8 @@
     {
       "job_id": "a978661772ff",
       "name": "Bounty Watch transition monitor",
-      "enabled": true,
-      "state": "scheduled",
+      "enabled": false,
+      "state": "paused",
       "schedule": "15 8 * * *",
       "next_run_at": "2026-09-16T08:15:00+08:00",
       "last_run_at": "2026-09-14T08:35:42.185207+08:00",
@@ -65846,8 +65848,8 @@
     {
       "job_id": "a8bca0a7a62a",
       "name": "Bounty weekly Tracker trend refresh",
-      "enabled": true,
-      "state": "scheduled",
+      "enabled": false,
+      "state": "paused",
       "schedule": "30 6 * * 0",
       "next_run_at": "2026-09-20T06:30:00+08:00",
       "last_run_at": "2026-09-06T06:32:52.782768+08:00",
@@ -65892,8 +65894,8 @@
     },
     {
       "path": "data/investing-watch-monitor-state.json",
-      "sha256": "c35b6887063541986ba79646156f20aec6abfbfa5c1fe93edd88033b3943a12f",
-      "modified_at": "2026-09-14T00:25:46.850820+00:00"
+      "sha256": "2eb73dffc4127843fc90eeae92f83b49893c66b7e238a55a0c5e2329365c85bc",
+      "modified_at": "2026-09-15T17:52:53.101763+00:00"
     },
     {
       "path": "data/investing-tracker-trends.json",

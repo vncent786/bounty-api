@@ -1,11 +1,11 @@
 {
   "schema_version": "bounty-investment-tracker-release/1",
-  "published_at": "2026-09-15T16:54:04.329610+00:00",
+  "published_at": "2026-09-15T17:59:52.489104+00:00",
   "tracker_schema_version": "bounty-investment-tracker/1",
-  "tracker_snapshot_sha256": "096ea2401cff8cde69eba6a7929ed1a6baa114d67caa5ed887e179c158fb5f03",
+  "tracker_snapshot_sha256": "dc562f7b620541910c678f8bfd00e66ddfa731fae2d770439e21ff67e83ca199",
   "tracker_snapshot_hash_basis": "utf8_text_lf_normalized",
   "methodology": "bounty-corrected-persistence-rerun/1",
-  "trend_data_built_at": "2026-09-05T22:30:55.347405+00:00",
+  "trend_data_built_at": "2026-09-15T17:44:04.929327+00:00",
   "decision_queue": 0,
   "trade_ready_now": false,
   "primary_state_counts": {
@@ -18,9 +18,9 @@
     "ARCHIVED": 1
   },
   "signal_state_counts": {
-    "UNVERIFIED": 5,
-    "ACTIVE_TREND": 2,
-    "DECAYING_NO_NEW_ENTRY": 1,
+    "UNVERIFIED": 4,
+    "COLLAPSED_NO_NEW_ENTRY": 1,
+    "DECAYING_NO_NEW_ENTRY": 3,
     "NOT_APPLICABLE": 24
   },
   "google_series": 57,
@@ -42,5 +42,5 @@
     "total_clickable_links": 941
   },
   "private_data": "Token-gated. This receipt contains aggregate counts and hashes only.",
-  "receipt_sha256": "b6f42ccd95de0a5df4dceaa3d59a1c799f08b6658935cf0f35c20b5b9294d5a6"
+  "receipt_sha256": "243dc4889e8c8ff7a0536e3ee4f3a844efd98f3a9c9008a33083c663d188e4fb"
 }

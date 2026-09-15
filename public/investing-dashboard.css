@@ -1646,6 +1646,12 @@ select {
   .tracker-monitor-asof { white-space: normal; }
   .tracker-realization-status { justify-items: start; }
   .tracker-monitor-grid { grid-template-columns: minmax(0, 1fr); }
+  .tracker-attention-chart-scroll { width: 100%; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+  .tracker-attention-chart-frame,
+  .tracker-attention-chart { width: 100%; min-width: 0; max-width: 100%; }
+  .tracker-chart-tooltip { width: 100%; max-width: 100%; box-sizing: border-box; }
+  .tracker-count-history { min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: hidden; }
+  .tracker-count-chart { width: max-content; min-width: 100%; }
   .tracker-monitor-section,
   .tracker-monitor-section:nth-child(even) { padding: 16px 0 18px; border-left: 0; }
   .tracker-sentiment-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
